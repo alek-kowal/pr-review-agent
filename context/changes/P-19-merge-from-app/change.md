@@ -61,3 +61,16 @@ questions (orchestrator rule: decide and record).
 - New webhook fixtures: `check_suite.completed`, `status`, `pull_request_review.submitted`; a
   fixture's event is its name up to the first dot.
 
+### S-12-T4 (Merge checklist and dialog)
+
+- The all-green line reads "Checklist green at <head>" and keeps "N of N" on its right; the
+  section keeps the name "Merge checklist" for screen readers.
+- Merge is disabled only until the typed number matches and a signer is picked (the reason is the
+  button's title). A red checklist in the dialog does not disable it: the server re-checks fresh
+  GitHub state, which may have turned green since the page loaded.
+- The dialog names the reviewed SHA (the SHA the merge is pinned to), falling back to the head.
+- Every answer, success or error, refetches the PR view and the board: a refusal can still have
+  stored fresh CI and reviews or found the head moved.
+- `SignatureField` takes an optional `hint` ("Recorded as “Merged by …” in the timeline.").
+- The checklist tests moved from `NextStepBanner.test.tsx` to `features/pr/checklist.test.tsx`.
+

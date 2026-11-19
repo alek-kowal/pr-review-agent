@@ -64,7 +64,10 @@ export const timeline = {
     pr_ready: () => 'PR marked ready for review',
     pr_pushed: (p) => (p.headSha ? `Pushed ${shortSha(p.headSha)}` : 'Pushed new commits'),
     pr_closed: () => 'PR closed',
-    pr_merged: () => 'PR merged',
+    pr_merged: (p) =>
+      p.via === 'app' && p.sha ? `Squash-merged at ${shortSha(p.sha)}` : 'PR merged',
+    merge_refused: (p) =>
+      `GitHub refused the merge at ${shortSha(p.sha)}: ${String(p.message ?? '')}`,
     run_started: (p) => `${runName(p)} started`,
     run_finished: (p) => `${runShort(p)} finished`,
     run_failed: (p, c) =>
