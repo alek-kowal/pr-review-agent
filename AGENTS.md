@@ -97,3 +97,5 @@ A repository differs from another only by its settings, never by code.
 - API keys are named `*_API_KEY` (for example `ANTHROPIC_API_KEY`, `CLICKUP_API_KEY`).
 - Model access: `CLAUDE_CODE_OAUTH_TOKEN` (Claude subscription) wins over `ANTHROPIC_API_KEY`. Read
   the mode with core `modelAuthModeOf`, the secret with `@pra/agents` `modelAccessOf`.
+- `OPENROUTER_API_KEY` serves only the judge (`openrouter/<vendor>/<model>`, core `canUseOpenRouter`);
+  the worker calls it through `@pra/integrations` `OpenRouterClient` and falls back to Claude.
