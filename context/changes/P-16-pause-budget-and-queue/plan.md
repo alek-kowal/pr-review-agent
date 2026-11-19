@@ -178,7 +178,7 @@ web component tests with `stubFetch`, one Playwright spec.
 
 ### Phase 6: Queued with the reason everywhere
 
-- [ ] 6.1 `pnpm --filter @pra/web test queued-banner.test.tsx`
+- [x] 6.1 `pnpm --filter @pra/web test queued-banner.test.tsx`
 
 ### Phase 7: End to end
 

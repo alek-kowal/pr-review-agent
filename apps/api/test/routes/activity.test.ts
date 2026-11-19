@@ -6,6 +6,7 @@ import {
   insertAgentSession,
   insertRun,
   insertStageExecution,
+  setRunWait,
   sql,
   type Db,
 } from '@pra/db';
@@ -42,14 +43,19 @@ test('in progress lists queued and running runs with their stage and cost so far
   );
   const queued = await insertRun(db, aRun(other.pullRequest.id, { status: 'queued' }));
   await insertRun(db, aRun(pullRequest.id, { status: 'completed', costUsd: 2 }));
+  const slotsBusy = {
+    code: 'slots_busy' as const,
+    params: { slots: 1, prs: [pullRequest.number] },
+  };
+  await setRunWait(db, queued.id, slotsBusy, 'start');
 
   const api = await build({ db });
   const response = await api.inject({ method: 'GET', url: '/api/activity/in-progress' });
   expect(response.statusCode).toBe(200);
   const body = InProgressResponse.parse(response.json());
-  expect(body.runs.map((r) => [r.id, r.status, r.currentStage, r.costUsd])).toEqual([
-    [running.id, 'running', 'review', 0.31],
-    [queued.id, 'queued', null, 0],
+  expect(body.runs.map((r) => [r.id, r.status, r.currentStage, r.costUsd, r.wait])).toEqual([
+    [running.id, 'running', 'review', 0.31, null],
+    [queued.id, 'queued', null, 0, slotsBusy],
   ]);
   expect(body.runs[0]!.pullRequest).toEqual({
     repository: { slug: repository.slug },

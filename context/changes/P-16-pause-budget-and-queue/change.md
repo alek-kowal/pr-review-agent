@@ -57,6 +57,17 @@ questions (orchestrator rule: decide and record).
   select had 1–4; the schema allows 20).
 - **Settings opens on Budget & status** now, the first page of General in the approved order; the
   Team unit test and `settings-team.spec.ts` open `/settings/team` directly.
+- **Merge with S-11 (main):** the sensitive files scan moved from a run hook to a
+  `beforeRoundStart` gate on main. The queue gate runs first, so a round that waits is scanned
+  only when it really starts. Worker test deps use `NO_QUEUE_GATES` (renamed from `NO_RUN_GATES`),
+  which keeps the sensitive files gate.
+- **Queued reads the same everywhere (T6).** Core's `queueCauseOf` turns a `run_waits` reason into
+  the PR state's queue cause; a running run with a wait reason is `queued`. Activity rows carry
+  `wait` (the stored reason or null) and show it as "Queued: …"; the board card and the banner
+  use the banner copy. The pauser's name comes from the status query (`usePauseNames`), since a
+  stored `paused` wait always names the current pause.
+- **The banner's Resume… opens the status chip** through a window event (`openStatusChip`), so
+  the PR page does not import the top bar; the signed Resume and budget stay in the chip.
 - **E2E:** `pause-budget.spec.ts` changes global state, so it runs in its own Playwright project
   that the main project depends on (it runs first, alone) and it restores the state. The e2e
   stack sets agent slots to 20 so parallel specs never wait for a slot.
