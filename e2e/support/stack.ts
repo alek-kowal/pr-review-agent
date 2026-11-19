@@ -24,7 +24,7 @@ import {
   writeAppSettings,
   type Db,
 } from '@pra/db';
-import type { GitHubPullRequest, PullRequestFreshState } from '@pra/integrations';
+import type { GitHubPullRequest, PullRequestFreshState, Sandbox } from '@pra/integrations';
 import { createTestDatabase } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
@@ -228,6 +228,18 @@ const sandbox = new FakeSandbox(async (spec) => {
     : Number(/process\.exit\((\d+)\)/.exec(source)?.[1] ?? 1);
   const output = exitCode === 0 ? 'label: ""\nbug reproduced' : `repro exited with ${exitCode}`;
   return { exitCode, output, outputTail: output };
+});
+
+/**
+ * The sandbox double, logging each call to `log` as a JSON line `{ command, mounts }` (the host
+ * paths; a run's worktree ends in `run-<id>`), so a spec can count a run's calls (fork-pr.spec.ts).
+ */
+const loggedSandbox = (log: string): Sandbox => ({
+  async run(spec) {
+    const mounts = spec.mounts.map((mount) => mount.hostPath);
+    await appendFile(log, `${JSON.stringify({ command: spec.command, mounts })}\n`);
+    return sandbox.run(spec);
+  },
 });
 
 /**
@@ -466,6 +478,7 @@ const root = await mkdtemp(path.join(tmpdir(), 'pra-e2e-'));
 const holdDir = path.join(root, 'hold');
 await mkdir(holdDir);
 const agentCalls = path.join(root, 'agent-calls.jsonl');
+const sandboxCalls = path.join(root, 'sandbox-calls.jsonl');
 // The feature branch also adds a migration: a sensitive file for a repository whose settings say
 // so (connect-repo.spec.ts), an ordinary file for the others. Three pushes follow the reviewed
 // head (chains.spec.ts).
@@ -688,7 +701,7 @@ const worker = await startWorker(
     }),
     agentRunner: new ScriptedAgents(holdDir, fixture.fixShas, agentCalls),
     judge: new FakeJudge(),
-    sandbox,
+    sandbox: loggedSandbox(sandboxCalls),
     clickup,
     // Alert comments link to the web app the specs open.
     appBaseUrl: WEB_URL,
@@ -709,6 +722,7 @@ const state: StackState = {
   fixShas: fixture.fixShas,
   holdDir,
   agentCalls,
+  sandboxCalls,
 };
 await writeFile(STATE_FILE, JSON.stringify(state, null, 2));
 logger.warn({ api: API_URL, database: database.name }, 'e2e stack ready');

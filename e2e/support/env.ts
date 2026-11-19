@@ -32,6 +32,8 @@ export type StackState = {
    * the session's cwd and read dirs (a run's worktree path ends in `run-<id>`).
    */
   agentCalls: string;
+  /** JSON lines `{ command, mounts }`, one per Sandbox call; mounts are host paths (`run-<id>`). */
+  sandboxCalls: string;
 };
 
 /**

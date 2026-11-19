@@ -37,7 +37,8 @@ export const FIXTURE_COMMITS = 2;
  * Posts the `pull_request.<fixture>` payload as PR `number` at the fixture repository's shas;
  * `repository` moves it to another repository (and App installation) than the fixture's, and
  * `branch` replaces the fixture's head branch name (`feature/edge-labels`); `author` replaces
- * the PR author's GitHub login (`AUTHOR_LOGIN`).
+ * the PR author's GitHub login (`AUTHOR_LOGIN`); `forkOwner` moves the head branch to a fork of
+ * the repository owned by that login, so the PR is a fork PR.
  */
 export async function deliverPullRequest(
   request: APIRequestContext,
@@ -48,6 +49,7 @@ export async function deliverPullRequest(
   push?: { headSha: string; commits: number },
   branch?: string,
   author?: string,
+  forkOwner?: string,
 ): Promise<void> {
   const { baseSha, headSha } = stackState();
   const file = new URL(
@@ -76,6 +78,13 @@ export async function deliverPullRequest(
       [payload.repository, payload.pull_request.head.repo, payload.pull_request.base.repo],
       payload,
     );
+  }
+  if (forkOwner) {
+    const head = payload.pull_request.head.repo;
+    Object.assign(head, {
+      full_name: `${forkOwner}/${head.name}`,
+      owner: { ...head.owner, login: forkOwner },
+    });
   }
   await deliver(request, 'pull_request', payload);
 }
