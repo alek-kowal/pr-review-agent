@@ -49,6 +49,18 @@ export function sensitiveState(rows: readonly SensitiveFile[]): SensitiveFiles |
   };
 }
 
+/**
+ * Every write here locks the PR row before the file rows, as settling does, so a push reset and an
+ * approval at the same moment queue instead of deadlocking.
+ */
+async function lockPullRequest(tx: Executor, pullRequestId: number): Promise<void> {
+  await tx
+    .select({ id: pullRequests.id })
+    .from(pullRequests)
+    .where(eq(pullRequests.id, pullRequestId))
+    .for('update');
+}
+
 async function bumpVersion(db: Executor, pullRequestId: number): Promise<number> {
   const [row] = await db
     .update(pullRequests)
@@ -67,6 +79,7 @@ export async function addSensitiveFiles(
 ): Promise<SensitiveFile[]> {
   if (matches.length === 0) return [];
   return db.transaction(async (tx) => {
+    await lockPullRequest(tx, pullRequestId);
     const added = await tx
       .insert(sensitiveFiles)
       .values(
@@ -95,6 +108,7 @@ export async function resetSentBackSensitiveFiles(
   headSha: string,
 ): Promise<SensitiveFile[]> {
   return db.transaction(async (tx) => {
+    await lockPullRequest(tx, pullRequestId);
     const reset = await tx
       .update(sensitiveFiles)
       .set({
@@ -132,7 +146,7 @@ export async function resetSentBackSensitiveFiles(
 
 /**
  * Approved files a later commit changed wait for a person again (FR-046 approves changes, not
- * paths). Locks the PR row first, as settling does. Returns the reopened rows.
+ * paths). Returns the reopened rows.
  */
 export async function reopenSensitiveFiles(
   db: Transactor,
@@ -142,11 +156,7 @@ export async function reopenSensitiveFiles(
 ): Promise<SensitiveFile[]> {
   if (paths.length === 0) return [];
   return db.transaction(async (tx) => {
-    await tx
-      .select({ id: pullRequests.id })
-      .from(pullRequests)
-      .where(eq(pullRequests.id, pullRequestId))
-      .for('update');
+    await lockPullRequest(tx, pullRequestId);
     const reopened = await tx
       .update(sensitiveFiles)
       .set({
