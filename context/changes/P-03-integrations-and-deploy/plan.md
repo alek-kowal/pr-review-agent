@@ -238,16 +238,16 @@ Compose checks are run by hand once per phase, on free ports and own project nam
 
 #### Automated
 
-- [x] 3.1 `pnpm --filter @pra/agents test` passes
-- [x] 3.2 `pnpm verify` passes
+- [x] 3.1 `pnpm --filter @pra/agents test` passes — 12f4825
+- [x] 3.2 `pnpm verify` passes — 12f4825
 
 ### Phase 4: Dockerfiles
 
 #### Automated
 
-- [ ] 4.1 api, worker and web images build
-- [ ] 4.2 api image serves `/health` 200 and runs as non-root
-- [ ] 4.3 `pnpm verify` passes
+- [x] 4.1 api, worker and web images build
+- [x] 4.2 api image serves `/health` 200 and runs as non-root
+- [x] 4.3 `pnpm verify` passes
 
 ### Phase 5: Deploy Compose
 

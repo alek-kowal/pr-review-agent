@@ -44,3 +44,18 @@ See `plan.md` "Key decisions"; implementation-time decisions are appended here a
 - The output schema goes to the SDK as `z.toJSONSchema` without `$schema`; the answer is parsed
   back with the same Zod schema.
 - `FakeAgentRunner` is exported only from the test-only `@pra/agents/testing` subpath.
+
+### F-04-T1 Dockerfiles
+
+- `pnpm deploy --filter @pra/<app> --prod` without `--legacy`: pnpm 12 deploys from the shared
+  lockfile (`--legacy` re-resolves and fails offline). The deploy step needs the registry: it
+  re-checks the lockfile against the supply-chain policy, so `--offline` is not used there.
+- `deploy/compile-workspace.mjs` compiles each `packages/*` package with `tsc --noCheck` (types
+  are checked by `pnpm verify` and the app build) and drops the `./testing*` exports, so test
+  doubles never ship. The apps build first, against the TypeScript sources.
+- Code in `/app` is owned by root and the process runs as `node` (uid 1000). The api image sets
+  `HOST=0.0.0.0`, `PORT=3000`. The worker image adds `git` and `ca-certificates`.
+- Web: Caddy on `:8080` as uid 1000, `admin off`, `auto_https off` (TLS sits in front, F-04-T7).
+  It forwards `/api/*`, `/webhooks/*`, `/health` unchanged (like the Vite dev proxy), compresses
+  only the static files and marks `/assets/*` immutable.
+- No BuildKit cache mounts: the `pnpm fetch` layer is cached by Docker until the lockfile changes.
