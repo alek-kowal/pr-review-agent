@@ -20,6 +20,7 @@ import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { sendStageJob } from '../src/run/jobs.ts';
+import { executeStage } from '../src/run/execute-stage.ts';
 import { recoverRuns } from '../src/run/recover.ts';
 import { startRound } from '../src/run/start-round.ts';
 import { startWorker, type RunningWorker } from '../src/worker.ts';
@@ -240,6 +241,77 @@ describe('run.stage', () => {
     deps.agentRunner.enqueue({ output: ANSWER });
     const next = await queueRound();
     expect((await settled(next.id)).status).toBe('completed');
+  });
+
+  test('a result that cannot be stored fails the stage with stage_error and keeps the cost', async () => {
+    deps.agentRunner.enqueue({ output: ANSWER, costUsd: 0.75 });
+    const store = deps.blobStore;
+    const put = store.put.bind(store);
+    store.put = () => {
+      store.put = put;
+      return Promise.reject(new Error('blob store is down'));
+    };
+    const run = await queueRound();
+
+    const ended = await settled(run.id);
+
+    expect(ended.status).toBe('failed');
+    expect(ended.costUsd).toBeCloseTo(0.75);
+    const [review] = (await stagesOf(run.id)).filter((s) => s.stage === 'review');
+    expect(review).toMatchObject({ status: 'failed', errorCode: 'stage_error' });
+    expect(await sessionsOf(run.id)).toEqual([
+      expect.objectContaining({ costUsd: 0.75, promptBlobKey: null }),
+    ]);
+  });
+
+  test('a job that finds its stage still running fails it interrupted', async () => {
+    const repository = await connectRepository(deps.db);
+    const { pullRequest } = await upsertPullRequest(deps.db, aPullRequest(repository.id));
+    const run = await insertRun(
+      deps.db,
+      aRun(pullRequest.id, { status: 'running', startedAt: new Date() }),
+    );
+    await insertStageExecution(deps.db, {
+      runId: run.id,
+      stage: 'review',
+      attempt: 1,
+      status: 'running',
+      startedAt: new Date(),
+    });
+
+    expect(await executeStage(deps, run.id, 'review')).toBe('interrupted');
+
+    expect(await getRun(deps.db, run.id)).toMatchObject({ status: 'failed' });
+    const [review] = await stagesOf(run.id);
+    expect(review).toMatchObject({ status: 'failed', errorCode: 'interrupted' });
+  });
+
+  test('a repeated job for a finished stage sends the next stage job again', async () => {
+    const repository = await connectRepository(deps.db);
+    const { pullRequest } = await upsertPullRequest(deps.db, aPullRequest(repository.id));
+    const run = await insertRun(
+      deps.db,
+      aRun(pullRequest.id, {
+        status: 'running',
+        startedAt: new Date(),
+        level: freezeLevel(resolveLevel(3)),
+      }),
+    );
+    for (const stage of ['checks', 'task', 'change_type', 'review']) {
+      await insertStageExecution(deps.db, {
+        runId: run.id,
+        stage,
+        attempt: 1,
+        status: 'succeeded',
+      });
+    }
+
+    expect(await executeStage(deps, run.id, 'review')).toBe('not_next');
+
+    // The worker takes the job; Verify has no executor in this package.
+    expect((await settled(run.id)).status).toBe('failed');
+    const verify = (await stagesOf(run.id)).find((s) => s.stage === 'verify');
+    expect(verify).toMatchObject({ status: 'failed', errorCode: 'stage_not_available' });
   });
 
   test('with the real adapter and no key the run fails with model_access_not_configured', async () => {

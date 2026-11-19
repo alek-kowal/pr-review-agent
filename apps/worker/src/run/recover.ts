@@ -1,17 +1,11 @@
 // At worker start (NFR Durability): a stage left running by a stopped worker fails with
 // `interrupted`, and queued or running runs whose next stage job was lost get it again (the
 // `run.stage` queue drops a duplicate while one is queued or active).
-import { nextStage, recoverAfterRestart } from '@pra/core';
-import {
-  getRunContext,
-  lockRun,
-  runsWithStatus,
-  stageExecutionsOfRun,
-  updateRun,
-  updateStageExecution,
-} from '@pra/db';
+import { nextStage } from '@pra/core';
+import { getRunContext, lockRun, runsWithStatus, stageExecutionsOfRun } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { afterTransition } from './execute-stage.ts';
+import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
 import { runStateOf } from './state.ts';
 
@@ -25,24 +19,7 @@ export async function recoverRuns(deps: WorkerDeps): Promise<RecoveryResult> {
     const interrupted = await db.transaction(async (tx) => {
       const run = await lockRun(tx, candidate.id);
       if (!run || run.status !== 'running') return null;
-      const executions = await stageExecutionsOfRun(tx, run.id);
-      const state = runStateOf(run, executions);
-      const recovered = recoverAfterRestart(state);
-      if (recovered === state) return null;
-      const stage = recovered.error!.stage;
-      const execution = executions
-        .filter((e) => e.stage === stage && e.status === 'running')
-        .at(-1);
-      const now = new Date();
-      if (execution) {
-        await updateStageExecution(tx, execution.id, {
-          status: 'failed',
-          errorCode: recovered.error!.code,
-          finishedAt: now,
-        });
-      }
-      await updateRun(tx, run.id, { status: 'failed', finishedAt: now });
-      return recovered;
+      return interruptRunningStage(tx, run, await stageExecutionsOfRun(tx, run.id));
     });
 
     if (interrupted) {
