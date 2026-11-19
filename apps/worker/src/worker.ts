@@ -101,7 +101,8 @@ export async function startWorker(
           result.resent.length ||
           result.events.length ||
           result.followUps.length ||
-          result.patchChecks.length
+          result.patchChecks.length ||
+          result.patches.length
         ) {
           logger.info(result, 'lost jobs sent');
         }

@@ -7,9 +7,10 @@ import {
   type Patch as CorePatch,
   type PatchReproduction,
 } from '@pra/core';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { implementerRequests, patchFiles, patches } from '../schema/patches.ts';
+import { runs } from '../schema/runs.ts';
 import type { Transactor } from './decisions.ts';
 
 export type PatchRow = typeof patches.$inferSelect;
@@ -214,9 +215,25 @@ export function revertPatchFile(db: Transactor, target: FileTarget): Promise<Pat
 }
 
 /**
- * Stores a patch check's reproduction results. `seen` is the patch's `updatedAt` when the check
- * read its files; a later edit or revert queued its own check, so this one is dropped.
+ * Implementer runs that completed since `from` with no patch: the `runCompleted` hook that writes
+ * it failed (a db error, a crash right after the last stage), so it is written again.
  */
+export async function implementerRunsWithoutPatch(db: Executor, from: Date): Promise<number[]> {
+  const rows = await db
+    .select({ id: runs.id })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.kind, 'implementer'),
+        eq(runs.status, 'completed'),
+        gte(runs.finishedAt, from),
+        sql`not exists (select 1 from ${patches} where ${patches.runId} = ${runs.id})`,
+      ),
+    )
+    .orderBy(asc(runs.id));
+  return rows.map((row) => row.id);
+}
+
 /** Ready patches still waiting for their check: a lost or failed check job is sent again. */
 export async function patchesAwaitingCheck(db: Executor): Promise<number[]> {
   const rows = await db
@@ -227,6 +244,10 @@ export async function patchesAwaitingCheck(db: Executor): Promise<number[]> {
   return rows.map((row) => row.id);
 }
 
+/**
+ * Stores a patch check's reproduction results. `seen` is the patch's `updatedAt` when the check
+ * read its files; a later edit or revert queued its own check, so this one is dropped.
+ */
 export async function storePatchCheck(
   db: Executor,
   patchId: number,
