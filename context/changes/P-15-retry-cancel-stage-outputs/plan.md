@@ -169,11 +169,11 @@ the durability test uses a child process. API tests use `apps/api/test/helper.ts
 
 ### Phase 4: Cancel controls
 
-- [x] 4.1 `pnpm --filter @pra/api test cancel-route.test.ts` and `pnpm --filter @pra/web test cancel-button.test.tsx` pass
+- [x] 4.1 (1812bdc) `pnpm --filter @pra/api test cancel-route.test.ts` and `pnpm --filter @pra/web test cancel-button.test.tsx` pass
 
 ### Phase 5: Cancel when the PR closes
 
-- [ ] 5.1 `pnpm --filter @pra/worker test close-cancels.test.ts` passes
+- [x] 5.1 `pnpm --filter @pra/worker test close-cancels.test.ts` passes
 
 ### Phase 6: Nothing stuck after a restart
 

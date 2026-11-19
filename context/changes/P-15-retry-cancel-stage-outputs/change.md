@@ -52,6 +52,10 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   `view.latestRound` while it is queued or running; the button stays off after the 202 until the
   live refresh. "Cancelled by hand · $1.12 spent" is the timeline row: actor "By hand", the
   sentence "Round 1 cancelled", the entry's cost; a close reads "Run cancelled: PR closed".
+- **Close cancels (T5).** `cancelOnClosed` runs on `closed` and `merged`, after the PR's own
+  timeline entry, for the PR's active blocking run only (trial and analyst runs are not the PR's
+  round). It records the request as the bot and finishes it in the same job, so a stage of this
+  process stops at once without waiting for the listener.
 - **Stage jobs:** `retryLimit: 0`, and each send sets `expireInSeconds` to the run's stage timeout
   plus 10 minutes (the backstop). A cancel deletes the run's queued `run.stage` jobs
   (`findJobs` + `deleteJob`).
