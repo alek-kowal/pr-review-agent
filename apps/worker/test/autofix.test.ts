@@ -389,4 +389,55 @@ describe('the shadow below level 5', () => {
     ]);
     expect(await currentDecisions(deps.db, [pr.findings[0]!.id])).toEqual(new Map());
   });
+
+  /** A person's implementer run at level 4, completed with a passing patch. */
+  async function personsPatch(pr: Reviewed, file: string) {
+    const implementer = await insertRun(
+      deps.db,
+      aRun(pr.pullRequest.id, {
+        kind: 'implementer',
+        roundNo: null,
+        chainId: null,
+        status: 'running',
+        trigger: 'manual',
+        levelNumber: 4,
+        headSha: fixture.headSha,
+      }),
+    );
+    return completeImplementer(pr, implementer, file);
+  }
+
+  test("a person's passing patch writes would_push when level 5 would have started", async () => {
+    const pr = await reviewedPr(4);
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    const { implementer, patch } = await personsPatch(pr, 'src/shadow.ts');
+
+    await autofixOnPatchReady(hookContext(pr, implementer));
+
+    expect(await jobsWhere(deps.db, 'patch.push', 'patchId', patch.id)).toEqual([]);
+    expect((await shadowOfPr(deps.db, pr.pullRequest.id)).at(-1)).toMatchObject({
+      point: 'push',
+      decision: 'would_push',
+      patchId: patch.id,
+    });
+  });
+
+  test('a passing patch after a held start stays would_wait with the start reason', async () => {
+    const pr = await reviewedPr(4);
+    await setForcedChangeType(deps.db, pr.pullRequest.id, 'one_way_door');
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    const { implementer, patch } = await personsPatch(pr, 'src/held.ts');
+
+    await autofixOnPatchReady(hookContext(pr, implementer));
+
+    expect((await shadowOfPr(deps.db, pr.pullRequest.id)).map((e) => e.decision)).toEqual([
+      'would_wait',
+      'would_wait',
+    ]);
+    expect((await shadowOfPr(deps.db, pr.pullRequest.id)).at(-1)).toMatchObject({
+      point: 'push',
+      patchId: patch.id,
+      reasons: [reason('one_way_door_hold')],
+    });
+  });
 });

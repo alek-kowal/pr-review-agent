@@ -23,6 +23,7 @@ import {
   recordAutofixAttempt,
   recordShadow,
   schema,
+  shadowOfPr,
   sendPushJob,
   startImplementer,
   succeededStageOutput,
@@ -205,14 +206,20 @@ export const autofixOnPatchReady: RunHook = async ({ deps, run, pullRequest, rep
   });
 
   if (mode === 'shadow') {
+    // Level 5 pushes only a patch it started: when the round's start was held, it would have
+    // made no patch, so a person's passing patch is no "would have fixed and pushed".
+    const started = (await shadowOfPr(deps.db, pullRequest.id)).findLast(
+      (entry) => entry.point === 'start',
+    );
+    const held = started?.decision === 'would_wait' ? started.reasons : null;
     await recordShadow(deps.db, {
       pullRequestId: pullRequest.id,
       repositoryId: repository.id,
       patchId: patch.id,
       level: run.level.number,
       point: 'push',
-      decision: check.allowed ? 'would_push' : 'would_wait',
-      reasons: check.reasons,
+      decision: !held && check.allowed ? 'would_push' : 'would_wait',
+      reasons: held ?? check.reasons,
       fixed: patch.fixedFindingIds.length,
       total: patch.findingIds.length,
     });
