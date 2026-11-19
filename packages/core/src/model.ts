@@ -163,6 +163,11 @@ export interface PrSnapshot {
   failedRound: FailedRound | null;
   /** Completed rounds in the current chain (0 to 3). */
   chainRounds: number;
+  /**
+   * The head is a fix PR Review Agent pushed that no round checked (the chain used its rounds). It
+   * is not "new commits", but nobody reviewed it, so it never reads as Ready to merge.
+   */
+  ownFixUnchecked: boolean;
   findings: Finding[];
   questions: Question[];
   sensitive: SensitiveFiles | null;

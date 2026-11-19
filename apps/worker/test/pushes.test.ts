@@ -15,7 +15,7 @@ import {
 import { aFinding, seedTeamMember } from '@pra/db/testing';
 import { afterAll, beforeEach, describe, expect, test } from 'vitest';
 import { processGithubEvent } from '../src/handlers/github-event.ts';
-import { chainsOnRunCompleted } from '../src/run/chains.ts';
+import { chainsOnRunCompleted, expectOwnFix, startFixCheckOnPush } from '../src/run/chains.ts';
 import { startRound } from '../src/run/start-round.ts';
 import { connectRepository, createTestWorkerDeps, storeGithubEvent } from './support.ts';
 import type { GitHubFixtureName } from '@pra/integrations/testing';
@@ -33,12 +33,16 @@ afterAll(() => deps.close());
 const sha = (c: string) => c.repeat(40);
 
 /** Each delivery is newer than the last, so none is stale. */
-async function deliver(name: GitHubFixtureName, headSha?: string): Promise<string> {
+async function deliver(
+  name: GitHubFixtureName,
+  headSha?: string,
+  fields: Record<string, unknown> = {},
+): Promise<string> {
   clock += 60_000;
   const event = await storeGithubEvent(deps, name, {
     fullName: repository.githubFullName,
     ...(headSha ? { headSha } : {}),
-    pullRequest: { updated_at: new Date(clock).toISOString() },
+    pullRequest: { updated_at: new Date(clock).toISOString(), ...fields },
   });
   return processGithubEvent(deps, event.id);
 }
@@ -105,6 +109,13 @@ describe('pushes', () => {
     await setChainExpectedHead(deps.db, round.chainId!, sha('c'));
     expect(await deliver('pull_request.synchronize', sha('d'))).toBe('push_never_starts');
     expect(await runsOfPr()).toHaveLength(1);
+
+    // The agent's commit, then the author's on top once round 2 is done.
+    await setChainExpectedHead(deps.db, round.chainId!, sha('e'));
+    expect(await deliver('pull_request.synchronize', sha('e'))).toBe('round_started');
+    await complete((await runsOfPr()).at(-1)!);
+    expect(await deliver('pull_request.synchronize', sha('f'))).toBe('push_never_starts');
+    expect(await runsOfPr()).toHaveLength(2);
   });
 
   test('after 3 completed rounds a matching push starts nothing: rounds used', async () => {
@@ -131,6 +142,20 @@ describe('pushes', () => {
     const load = await loadPrStateInput(deps.db, prId);
     expect(load!.input.chainRounds).toBe(3);
     expect(nextStep(load!.input).state).toBe('rounds_used');
+
+    // People then reject the finding: the bot's fix at the head was still never reviewed.
+    const redecided = await decideFindings(deps.db, {
+      pullRequestId: prId,
+      findingIds: [finding!.id],
+      expectedVersions: { [finding!.id]: 1 },
+      decision: 'reject',
+      reason: 'Not needed.',
+      signedBy: kasia.id,
+    });
+    expect(redecided.ok).toBe(true);
+    const after = await loadPrStateInput(deps.db, prId);
+    expect(after!.input.ownFixUnchecked).toBe(true);
+    expect(nextStep(after!.input).state).toBe('rounds_used');
   });
 
   test('a push during a running round leaves it running; its result stores 2 commits since', async () => {
@@ -147,6 +172,62 @@ describe('pushes', () => {
     const done = await complete(running!);
     await chainsOnRunCompleted({ deps, run: done, pullRequest: await pr(), repository });
     expect((await runsOfPr())[0]).toMatchObject({ commitsSince: 2, commitsSinceHead: sha('b') });
+  });
+
+  test('a push during the last stage is measured against the new head, not the stage start', async () => {
+    await deliver('pull_request.ready_for_review', sha('a'));
+    const [running] = await runsOfPr();
+    // The hook context's PR was read when the last stage started, before the push.
+    const atStageStart = await pr();
+    deps.github.setComparison(repository.githubFullName, sha('a'), sha('b'), 2);
+    await deliver('pull_request.synchronize', sha('b'));
+
+    const done = await complete(running!);
+    await chainsOnRunCompleted({ deps, run: done, pullRequest: atStageStart, repository });
+    expect((await runsOfPr())[0]).toMatchObject({ commitsSince: 2, commitsSinceHead: sha('b') });
+  });
+
+  test('a moved head is never 0 new commits, whatever the count says (force push)', async () => {
+    const round = await reviewedRound();
+    // An amended commit force-pushed: same commit count, and the compare fails (no comparison set).
+    await deliver('pull_request.synchronize', sha('b'), { commits: round.commitsCountAtStart });
+    expect((await runsOfPr())[0]).toMatchObject({ id: round.id, commitsSinceHead: sha('b') });
+    const load = await loadPrStateInput(deps.db, (await pr()).id);
+    expect(load!.input.commitsSinceReview).toBe(1);
+    expect(nextStep(load!.input).state).toBe('new_commits');
+  });
+
+  test('the fix check starts when the push is recorded after its webhook was handled', async () => {
+    const round = await reviewedRound();
+    expect(await deliver('pull_request.synchronize', sha('c'))).toBe('push_never_starts');
+
+    const started = await expectOwnFix(deps, round.chainId!, sha('c'));
+    expect(started).toMatchObject({ started: true, roundNumber: 2 });
+    const [, fix] = await runsOfPr();
+    expect(fix).toMatchObject({ roundNo: 2, trigger: 'own_fix', chainId: round.chainId });
+    // A retried push job records the same commit again: nothing more starts.
+    expect(await expectOwnFix(deps, round.chainId!, sha('c'))).toBeNull();
+    expect(await runsOfPr()).toHaveLength(2);
+  });
+
+  test('the fix push recorded before its webhook starts the round on the webhook', async () => {
+    const round = await reviewedRound();
+    expect(await expectOwnFix(deps, round.chainId!, sha('c'))).toBeNull();
+    expect(await deliver('pull_request.synchronize', sha('c'))).toBe('round_started');
+    expect(await runsOfPr()).toHaveLength(2);
+  });
+
+  test('two starts on the same fix push make one round', async () => {
+    const round = await reviewedRound();
+    await deliver('pull_request.synchronize', sha('c'));
+    await setChainExpectedHead(deps.db, round.chainId!, sha('c'));
+    const pullRequest = await pr();
+    const both = await Promise.all([
+      startFixCheckOnPush(deps, pullRequest, undefined),
+      startFixCheckOnPush(deps, pullRequest, undefined),
+    ]);
+    expect(both.filter((r) => r?.started)).toHaveLength(1);
+    expect(await runsOfPr()).toHaveLength(2);
   });
 
   test('a fix push while a run holds the PR starts nothing new', async () => {

@@ -101,3 +101,6 @@ All of them are in `/private/tmp/claude-501/-Users-alek-Projects/bac86def-abc6-4
 
 | Task | State | Agent | Branch | Notes |
 | --- | --- | --- | --- | --- |
+
+## 08:40 pause (usage limit)
+All wave-6 agents (t-p-14, 15, 16, 17, 19, 11r) hit the subscription usage limit mid-task; they resume automatically at 10:20. Nothing new merged after P-11. Supervisor stopped (it reads "done" as finished, so restart it only after 10:20). CI on main 26758ca: green after a rerun; e2e/decide.spec.ts conflict scenario is flaky (to stabilise). Next ready: P-23.
