@@ -56,14 +56,18 @@ export function LearningPage() {
   return (
     <SettingsPage title={copy.settings.pages.learning} affects={t.affects}>
       {query.isError ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {t.loadFailed}
         </p>
       ) : query.isPending ? (
         <p className="text-text-3">{t.loading}</p>
       ) : (
         <>
-          <section aria-labelledby="learning-candidates" className="flex flex-col gap-3">
+          <section
+            aria-labelledby="learning-candidates"
+            data-work-start
+            className="flex flex-col gap-3"
+          >
             <div>
               <h2 id="learning-candidates" className="font-heading text-base font-semibold">
                 {t.candidates}

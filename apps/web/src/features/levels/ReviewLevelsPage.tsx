@@ -37,7 +37,7 @@ export function ReviewLevelsPage() {
           <DefaultLevel data={query.data} />
         </>
       ) : query.isError ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
         </p>
       ) : (
@@ -49,7 +49,7 @@ export function ReviewLevelsPage() {
 
 function Ladder({ defaultLevel }: { defaultLevel: LevelNumber }) {
   return (
-    <Section title={t.ladder.title} sub={t.ladder.sub}>
+    <Section title={t.ladder.title} sub={t.ladder.sub} workStart>
       <ol aria-label={t.ladder.label} className="divide-y divide-divider">
         {LEVEL_NUMBERS.map((n) => (
           <li key={n}>
@@ -152,10 +152,16 @@ export function Section(props: {
   title: string;
   sub?: string;
   actions?: ReactNode;
+  /** The screen's work start (S-17-T9 layout check): the first section a page shows. */
+  workStart?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section aria-label={props.title} className="rounded-lg border border-border bg-surface">
+    <section
+      aria-label={props.title}
+      data-work-start={props.workStart ? '' : undefined}
+      className="rounded-lg border border-border bg-surface"
+    >
       <header className="flex items-start justify-between gap-3 border-b border-divider px-4 py-2.5">
         <div>
           <h2 className="text-sm font-semibold">{props.title}</h2>

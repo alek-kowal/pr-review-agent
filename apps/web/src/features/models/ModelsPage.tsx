@@ -47,7 +47,7 @@ export function ModelsPage() {
       {query.data ? (
         <ModelsForm data={query.data} />
       ) : query.isError ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
         </p>
       ) : (
@@ -91,7 +91,7 @@ function ModelsForm({ data }: { data: ModelsResponse }) {
           {t.invalidSummary}
         </p>
       )}
-      <div className="rounded-lg border border-border bg-surface">
+      <div data-work-start className="rounded-lg border border-border bg-surface">
         <Table>
           <TableHeader>
             <TableRow>

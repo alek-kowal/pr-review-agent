@@ -88,7 +88,7 @@ export function LevelPage({ level }: { level: number }) {
     return (
       <SettingsPage title={t.title} affects={t.affects}>
         <Breadcrumb />
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {t.page.unknown}
         </p>
       </SettingsPage>
@@ -109,7 +109,7 @@ export function LevelPage({ level }: { level: number }) {
           roleModels={models.data.models}
         />
       ) : error ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {errorText(error instanceof ApiError ? error.code : 'http_error')}
         </p>
       ) : (
@@ -207,7 +207,7 @@ function LevelForm({
           {t.page.invalidSummary}
         </p>
       )}
-      <Section title={t.page.adds}>
+      <Section title={t.page.adds} workStart>
         <p className="px-4 py-3 text-sm">
           {view.adds.length === 0 ? (
             <span className="text-text-3">{t.page.addsNothing}</span>
