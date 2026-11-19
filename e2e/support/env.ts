@@ -20,6 +20,10 @@ export type StackState = {
   repository: { slug: string; fullName: string };
   baseSha: string;
   headSha: string;
+  /** Commits on the PR branch after `headSha`, in order: pushes after the reviewed head. */
+  fixShas: string[];
+  /** A file `hold-<PR number>` here holds that PR's review session until it is removed. */
+  holdDir: string;
 };
 
 /** PR numbers from this one up get a failing reviewer. */

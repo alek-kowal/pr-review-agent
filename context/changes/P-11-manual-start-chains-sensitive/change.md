@@ -91,3 +91,16 @@ decide and record).
 - The "commits behind" strip uses the findings' own `sourceSha` / `commitsBehind`, so it also
   shows after a fix check moved the reviewed SHA while the findings stay from round 1.
 - A finding resolved by a fix check is dimmed like a refuted one; its decision row stays.
+
+### S-07-T7 (e2e chains)
+
+- The git fixture takes `fixes` (one commit each on `feature` after the reviewed head) and returns
+  `fixShas`; the e2e stack adds three and seeds `FakeGitHubGateway` comparisons between them, so
+  commits since go through `compareCommits` (the count fallback stays covered by worker tests).
+- A review session is held with a file `hold-<PR number>` in the stack's `holdDir` (in
+  `StackState`), not a DB flag row: spec and stack share the machine and no table is needed.
+- The reviewer double answers by session kind: a full review by brief, a fix check (no brief)
+  resolves every finding except at `fixShas[1]`, where the first stays unresolved, and a verifier
+  answers unverified. The stack imports the global verifier instruction files so level 3 runs.
+- `chains.spec.ts` decides findings through the api (the UI is `decide.spec.ts`'s); it signs with
+  the first Team member, adding Kasia (`wb-dev`) only when Team is empty.

@@ -183,7 +183,7 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 7: e2e chains
 
-- [ ] 7.1 `pnpm test:e2e chains.spec.ts`
+- [x] 7.1 `pnpm test:e2e chains.spec.ts`
 
 ### Phase 8: Sensitive files per PR
 
