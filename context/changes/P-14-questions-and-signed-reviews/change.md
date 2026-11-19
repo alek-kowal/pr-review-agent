@@ -51,3 +51,9 @@ checks are the plan. One commit per task.
   slots; the tray shows only while nothing is selected for bulk (as in the prototype) and only
   while the PR is open. No bulk "opinion for all selected" and no Undo of a saved review (no api
   for it); the toast says the author is not notified yet (T11 adds the card).
+- T7: `matchFinding` = same file and Jaccard word similarity of normalised title + scenario
+  ≥ 0.75 (`FINDING_MATCH_THRESHOLD`); `matchFindings` pairs each finding at most once, most
+  alike first. Only a full review (round 1 of a chain) carries, from the PR's previous completed
+  full review; fix checks add no findings. Copies keep signer, value, comment, review, original
+  `from_round` and time; `on conflict do nothing` keeps a signer's own newer opinion and makes a
+  rerun add nothing. Registered as `carryOpinionsOnRunCompleted` after the chains hook.

@@ -1,11 +1,13 @@
 // S-08-T4: signed opinions on findings, saved together as one signed review (FR-037, FR-038).
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { matchFindings } from '@pra/core';
+import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests } from '../schema/repositories.ts';
 import { opinions, reviews, type OpinionValue } from '../schema/reviews.ts';
 import { findings, runs } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 import type { Transactor } from './decisions.ts';
+import type { Run } from './runs.ts';
 import { recordStateChange, recordTimelineEntry } from './timeline.ts';
 
 export type Review = typeof reviews.$inferSelect;
@@ -89,6 +91,62 @@ export async function getReview(db: Executor, id: number): Promise<ReviewRow | n
     .innerJoin(teamMembers, eq(teamMembers.id, reviews.signedBy))
     .where(eq(reviews.id, id));
   return row ? { ...row.review, signerName: row.signerName } : null;
+}
+
+/**
+ * S-08-T7 (FR-043): when a full review (round 1 of its chain) completes, copies each opinion on the
+ * PR's previous full review's findings to the matching new finding (core `matchFindings`), marked
+ * with its original round and `carried_from_id`. Originals stay; a signer's own opinion already on
+ * the new finding wins; running it again adds nothing. Returns how many it copied.
+ */
+export async function carryOpinions(db: Executor, run: Run): Promise<number> {
+  if (run.kind !== 'round' || (run.roundNo ?? 1) !== 1) return 0;
+  const [previous] = await db
+    .select({ id: runs.id })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.pullRequestId, run.pullRequestId),
+        eq(runs.kind, 'round'),
+        eq(runs.status, 'completed'),
+        sql`coalesce(${runs.roundNo}, 1) = 1`,
+        lt(runs.id, run.id),
+      ),
+    )
+    .orderBy(desc(runs.id))
+    .limit(1);
+  if (!previous) return 0;
+
+  const earlier = await db.select().from(findings).where(eq(findings.runId, previous.id));
+  const later = await db.select().from(findings).where(eq(findings.runId, run.id));
+  const byFinding = await opinionsOf(
+    db,
+    earlier.map((f) => f.id),
+  );
+  const pairs = matchFindings(
+    earlier.filter((f) => byFinding.has(f.id)),
+    later,
+  );
+  const copies = pairs.flatMap(([from, to]) =>
+    byFinding.get(from.id)!.map((opinion) => ({
+      findingId: to.id,
+      pullRequestId: run.pullRequestId,
+      signedBy: opinion.signedBy,
+      value: opinion.value,
+      comment: opinion.comment,
+      reviewId: opinion.reviewId,
+      fromRound: opinion.fromRound,
+      carriedFromId: opinion.id,
+      createdAt: opinion.createdAt,
+    })),
+  );
+  if (copies.length === 0) return 0;
+  const inserted = await db
+    .insert(opinions)
+    .values(copies)
+    .onConflictDoNothing({ target: [opinions.findingId, opinions.signedBy] })
+    .returning({ id: opinions.id });
+  return inserted.length;
 }
 
 export type NewOpinion = { findingId: number; value: OpinionValue; comment: string | null };

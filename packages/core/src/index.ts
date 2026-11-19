@@ -21,3 +21,4 @@ export * from './stepper.ts';
 export * from './time-summary.ts';
 export * from './metrics.ts';
 export * from './usually-decides.ts';
+export * from './finding-match.ts';
