@@ -20,7 +20,7 @@ import {
   type ImplementerFindingRow,
   type ImplementerRequest,
 } from '@pra/db';
-import type { BlobStore, GitMirror } from '@pra/integrations';
+import type { BlobStore } from '@pra/integrations';
 import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { stageInstructions } from './instructions.ts';
@@ -79,6 +79,16 @@ export async function writeFiles(
     ) {
       throw new Error(`patch path outside the worktree: ${file.path}`);
     }
+    // The checked-out commit may hold symlinks: a write or a delete never goes through one, or it
+    // lands outside the worktree. Deleting a symlink itself is fine; writing to it is not.
+    const segments = relative.split(path.sep);
+    const checked = file.content === null ? segments.length - 1 : segments.length;
+    for (let i = 1; i <= checked; i++) {
+      const entry = path.join(worktree, ...segments.slice(0, i));
+      if ((await lstat(entry).catch(() => null))?.isSymbolicLink()) {
+        throw new Error(`patch path goes through a symlink: ${file.path}`);
+      }
+    }
     if (file.content === null) {
       await rm(full, { force: true });
     } else {
@@ -108,15 +118,6 @@ export async function applyPatchFiles(
   await writeFiles(worktree, contents);
 }
 
-/** Puts the worktree back at its checked-out commit: earlier edits are undone. */
-async function resetWorktree(gitMirror: GitMirror, worktree: string): Promise<void> {
-  const changes = await gitMirror.worktreeChanges(worktree);
-  await writeFiles(
-    worktree,
-    changes.map((change) => ({ path: change.path, content: change.base })),
-  );
-}
-
 async function requestOf(context: StageContext): Promise<ImplementerRequest> {
   const request = await implementerRequest(context.deps.db, context.run.id);
   if (!request) {
@@ -134,7 +135,9 @@ async function requestOf(context: StageContext): Promise<ImplementerRequest> {
 async function baseWorktree(context: StageContext, request: ImplementerRequest): Promise<string> {
   const { deps } = context;
   const worktree = await runWorktree(context);
-  await resetWorktree(deps.gitMirror, worktree);
+  // Through git, not by writing the base back: a binary base read as text would be corrupted,
+  // and a base git could not show would delete a tracked file.
+  await deps.gitMirror.resetWorktree(worktree);
   if (request.revisesPatchId) {
     const patch = await getPatch(deps.db, request.revisesPatchId);
     await applyPatchFiles(deps.blobStore, worktree, patch?.files ?? []);

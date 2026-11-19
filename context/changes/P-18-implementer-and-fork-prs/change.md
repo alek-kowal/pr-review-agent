@@ -1,7 +1,7 @@
 ---
 change_id: P-18
 title: Implementer and fork PRs (S-13-T2–T7, S-16-T1–T4)
-status: implemented
+status: impl_reviewed
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null

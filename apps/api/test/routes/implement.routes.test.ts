@@ -6,6 +6,7 @@ import {
   createDb,
   createQueue,
   eq,
+  getPatch,
   insertRun,
   JOBS,
   schema,
@@ -135,6 +136,20 @@ describe('Implement with agent', () => {
     expect(decided).toMatchObject({ actor: 'member', memberId: kasia.id });
   });
 
+  test('decisions that started the implementer cannot be undone while it runs', async () => {
+    const { pr, findings } = await reviewedPr();
+    const body = DecideResponse.parse((await decideWithAgent(pr, findings)).json());
+
+    const undo = await post(`/api/decision-batches/${body.batchId}/undo`);
+
+    expect(undo.statusCode).toBe(409);
+    expect(undo.json()).toEqual({
+      error: { code: 'run_active', params: { kind: 'implementer', status: 'queued' } },
+    });
+    const decisions = (await timelineOf(db, pr.id)).filter((e) => e.kind === 'decision_undone');
+    expect(decisions).toEqual([]);
+  });
+
   test('a level 3 PR returns 409 implement_below_level and keeps no decision', async () => {
     const { pr, findings } = await reviewedPr(3);
 
@@ -220,6 +235,23 @@ describe('patch routes', () => {
     expect(entry).toMatchObject({ actor: 'hand', params: { revision: 1, path: 'src/a.ts' } });
   });
 
+  test('edits on two patches queue a check for each, not one for the whole system', async () => {
+    const one = await readyPatch();
+    const two = await readyPatch();
+    for (const { patch, run } of [one, two]) {
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/api/patches/${patch.id}/files`,
+        headers: SAME_ORIGIN,
+        payload: { path: 'src/b.ts', revision: 1, blobKey: `${run.id}/after/b`, content: 'b\n' },
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    expect(await patchChecks(one.patch.id)).toHaveLength(1);
+    expect(await patchChecks(two.patch.id)).toHaveLength(1);
+  });
+
   test('a stale edit returns 409 patch_stale', async () => {
     const { patch } = await readyPatch();
 
@@ -232,6 +264,28 @@ describe('patch routes', () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toEqual({ error: { code: 'patch_stale', params: { revision: 1 } } });
+  });
+
+  test('an edit while a revise run of the patch is active returns 409 run_active', async () => {
+    const { patch, run } = await readyPatch();
+    const revised = await post(`/api/patches/${patch.id}/revise`, { note: 'Keep the old name.' });
+    expect(revised.statusCode).toBe(202);
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/patches/${patch.id}/files`,
+      headers: SAME_ORIGIN,
+      payload: { path: 'src/a.ts', revision: 1, blobKey: `${run.id}/after/a`, content: 'x\n' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      error: { code: 'run_active', params: { kind: 'implementer', status: 'queued' } },
+    });
+    expect((await getPatch(db, patch.id))!.files.find((f) => f.path === 'src/a.ts')).toMatchObject({
+      status: 'changed',
+      blobKey: `${run.id}/after/a`,
+    });
   });
 
   test('a revert points the file at its base and is recorded by hand', async () => {
@@ -262,5 +316,19 @@ describe('patch routes', () => {
     expect(run).toMatchObject({ kind: 'implementer', trigger: 'revise', startedBy: 'hand' });
     const entry = (await timelineOf(db, pr.id)).find((e) => e.kind === 'patch_revise_requested');
     expect(entry).toMatchObject({ actor: 'hand', params: { note: 'Keep the old name.' } });
+  });
+
+  test('revise on a patch built before the latest reviewed commit returns 409 patch_stale', async () => {
+    const { pr, patch } = await readyPatch();
+    // The author pushed and a round reviewed the new head: the patch's whole files would undo it.
+    await seedRound(db, pr, { run: { roundNo: 2, headSha: 'c'.repeat(40) } });
+
+    const revised = await post(`/api/patches/${patch.id}/revise`, { note: 'Keep the old name.' });
+
+    expect(revised.statusCode).toBe(409);
+    expect(revised.json()).toEqual({
+      error: { code: 'patch_stale', params: { revision: patch.revision } },
+    });
+    expect((await runsOf(pr)).filter((r) => r.trigger === 'revise')).toEqual([]);
   });
 });

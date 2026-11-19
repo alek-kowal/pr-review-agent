@@ -122,6 +122,11 @@ test('one submit sends the decisions and withAgent under one signer', async () =
     withAgent: true,
   });
   expect(calls.some((c) => c.path === '/api/prs/wb/12/implement')).toBe(false);
+  // The toast offers no Undo: the implementer is already fixing these findings.
+  expect(
+    await screen.findByText(copy.implementer.startedWithDecision, { exact: false }),
+  ).toBeVisible();
+  expect(screen.queryByRole('button', { name: copy.decisions.toast.undo })).toBeNull();
 });
 
 test('"Raise this PR to level 4" sends an unsigned level change', async () => {

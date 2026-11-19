@@ -2,8 +2,9 @@ import { HAND, usuallyDecidedBy, type Decision, type UsualDecider } from '@pra/c
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Db, Executor } from '../client.ts';
+import { implementerRequests } from '../schema/patches.ts';
 import { pullRequests } from '../schema/repositories.ts';
-import { findings } from '../schema/runs.ts';
+import { ACTIVE_RUN_STATUSES, findings, runs } from '../schema/runs.ts';
 import {
   decisionBatches,
   findingDecisions,
@@ -231,7 +232,9 @@ export type UndoDecisionResult =
   | { ok: true; batch: DecisionBatch; versions: Record<number, number> }
   | { ok: false; reason: 'not_found' | 'already_undone' }
   /** A finding of the batch changed after it, for example a later decision. */
-  | { ok: false; reason: 'changed_since'; findingIds: number[] };
+  | { ok: false; reason: 'changed_since'; findingIds: number[] }
+  /** A queued or running implementer run is fixing a finding of the batch. */
+  | { ok: false; reason: 'implementer_active'; status: (typeof ACTIVE_RUN_STATUSES)[number] };
 
 /**
  * Undoes a batch while none of its findings changed since; each finding's decision falls back to
@@ -261,6 +264,28 @@ export async function undoDecisionBatch(
 
     const changed = rows.filter((row) => row.version !== row.decidedAt).map((row) => row.id);
     if (changed.length > 0) return { ok: false, reason: 'changed_since', findingIds: changed };
+
+    // A decision `withAgent` started an implementer run on these findings: undone now, the run
+    // would keep fixing findings no longer decided Implement and its patch would land anyway.
+    const decided = new Set(rows.map((row) => row.id));
+    const implementers = await tx
+      .select({ status: runs.status, findingIds: implementerRequests.findingIds })
+      .from(implementerRequests)
+      .innerJoin(runs, eq(runs.id, implementerRequests.runId))
+      .where(
+        and(
+          eq(runs.pullRequestId, batch.pullRequestId),
+          inArray(runs.status, [...ACTIVE_RUN_STATUSES]),
+        ),
+      );
+    const fixing = implementers.find((run) => run.findingIds.some((id) => decided.has(id)));
+    if (fixing) {
+      return {
+        ok: false,
+        reason: 'implementer_active',
+        status: fixing.status as (typeof ACTIVE_RUN_STATUSES)[number],
+      };
+    }
 
     const [undone] = await tx
       .update(decisionBatches)

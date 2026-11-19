@@ -43,6 +43,7 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { listenForCancels } from '../src/run/cancel.ts';
 import { executeStage } from '../src/run/execute-stage.ts';
 import { handlePatchCheck, storePatchOnCompleted } from '../src/run/patches.ts';
+import { resendLostJobs } from '../src/run/recover.ts';
 import { connectRepository, createTestWorkerDeps, type TestWorkerDeps } from './support.ts';
 
 let database: TestDatabase;
@@ -332,6 +333,25 @@ describe('implementer run', () => {
     expect(patches[0]).toMatchObject({ fixedFindingIds: [findings[0]!.id] });
   });
 
+  test('a completed run whose patch hook failed gets its patch from the resend', async () => {
+    const { pullRequest, findings } = await decidedPr();
+    const run = await started(pullRequest.id);
+    deps.sandbox = new FakeSandbox(() => ({ exitCode: 3 }));
+    deps.agentRunner.enqueue(
+      editing({ [FILE_A]: 'export const label = () => "fixed";\n' }, [findings[0]!.id]),
+    );
+    expect(await runAll(run)).toEqual(['succeeded', 'succeeded', 'succeeded']);
+    // The hook failed after the run was stored as completed: no patch row.
+    await deps.db.delete(schema.patches).where(eq(schema.patches.runId, run.id));
+
+    expect((await resendLostJobs(deps)).patches).toContain(run.id);
+
+    const patches = await patchesOf(pullRequest.id);
+    expect(patches).toHaveLength(1);
+    expect(patches[0]).toMatchObject({ runId: run.id, fixedFindingIds: [findings[0]!.id] });
+    expect((await resendLostJobs(deps)).patches).not.toContain(run.id);
+  });
+
   test('a patch check after an edit reruns only the reproductions, on the edited files', async () => {
     const { pullRequest, findings } = await decidedPr();
     deps.sandbox = new FakeSandbox(() => ({ exitCode: 3 }));
@@ -354,6 +374,8 @@ describe('implementer run', () => {
       blobKey: 'edits/a.txt',
     });
     expect(edited).toMatchObject({ ok: true });
+    // The api's send of the check was lost: the worker's periodic resend sends it again.
+    expect((await resendLostJobs(deps)).patchChecks).toContain(patch.id);
     let seen = '';
     deps.sandbox = new FakeSandbox(async (spec) => {
       seen = await readFile(path.join(spec.mounts[0]!.hostPath, FILE_A), 'utf8');

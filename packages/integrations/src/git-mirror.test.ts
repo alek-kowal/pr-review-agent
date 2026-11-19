@@ -106,6 +106,48 @@ describe('CliGitMirror', () => {
     ]);
   });
 
+  test('a worktree reset restores every file byte for byte and drops new ones', async () => {
+    const { mirror } = mirrorWithSpy('reset');
+    await mirror.ensureMirror(REPO, TOKEN);
+    const dir = await mirror.addWorktree(REPO, 'run-reset', headSha);
+    const before = await readFile(path.join(dir, 'a.txt'));
+
+    await writeFile(path.join(dir, 'a.txt'), Buffer.from([0xff, 0xfe, 0x00, 0x01]));
+    await rm(path.join(dir, 'c.txt'));
+    await mkdir(path.join(dir, 'src'), { recursive: true });
+    await writeFile(path.join(dir, 'src', 'new.ts'), 'export {};\n');
+    await mirror.resetWorktree(dir);
+
+    expect(await mirror.worktreeChanges(dir)).toEqual([]);
+    expect(await readFile(path.join(dir, 'a.txt'))).toEqual(before);
+    expect(await readFile(path.join(dir, 'c.txt'), 'utf8')).toBe('new file\n');
+    expect(existsSync(path.join(dir, 'src'))).toBe(false);
+  });
+
+  test('worktree changes never take the git dir or its config from the worktree', async () => {
+    const { mirror } = mirrorWithSpy('changes-guard');
+    await mirror.ensureMirror(REPO, TOKEN);
+    const dir = await mirror.addWorktree(REPO, 'run-guard', headSha);
+    // What an agent could leave behind: a .git pointing at a repository it wrote, whose config
+    // runs a command on `git status`.
+    const evil = path.join(dir, 'evil');
+    await mkdir(path.join(evil, 'objects'), { recursive: true });
+    await mkdir(path.join(evil, 'refs', 'heads'), { recursive: true });
+    await writeFile(path.join(evil, 'HEAD'), 'ref: refs/heads/x\n');
+    const canary = path.join(root, 'fsmonitor-ran');
+    await writeFile(
+      path.join(evil, 'config'),
+      `[core]\n\trepositoryformatversion = 0\n\tfsmonitor = "touch ${canary}"\n`,
+    );
+    await writeFile(path.join(dir, '.git'), 'gitdir: evil\n');
+
+    await expect(mirror.worktreeChanges(dir)).rejects.toThrow(/does not point into a mirror/);
+    await expect(mirror.worktreeChanges(path.join(root, 'elsewhere'))).rejects.toThrow(
+      /Not a run worktree/,
+    );
+    expect(existsSync(canary)).toBe(false);
+  });
+
   test('the diff runs from the merge base and lists the changed files', async () => {
     const { mirror } = mirrorWithSpy('diff');
     await mirror.ensureMirror(REPO);

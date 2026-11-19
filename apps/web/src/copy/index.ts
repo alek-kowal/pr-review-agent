@@ -214,6 +214,8 @@ export const copy = {
     fix_diff: 'Fix diff',
     check_fixes: 'Check fixes',
     reproductions: 'Reproductions',
+    worktree: 'Worktree',
+    implement: 'Implement',
   } as Record<string, string>,
   /** Why something failed, by reason code; the sentence reads after "failed at <stage>:". */
   reasons: {
@@ -232,6 +234,9 @@ export const copy = {
     fork_read_only: 'off for forks',
     implement_below_level: 'needs a higher level',
     no_implement_decisions: 'no finding is decided Implement',
+    implementer_instructions_missing: 'the implementer prompt or rules file is missing',
+    implementer_request_missing: 'the implementer run has no findings to fix',
+    implement_output_missing: 'the Implement stage left no result',
   } as Record<string, string>,
   unknownReason: (code: string) => `error ${code}`,
   errors: {
@@ -259,7 +264,7 @@ export const copy = {
     repository_not_reachable: 'The GitHub App cannot reach this repository.',
     repository_already_connected: 'This repository is already connected.',
     clickup_not_configured: 'ClickUp is not configured on this server.',
-    run_active: 'A round is already queued or running for this PR.',
+    run_active: 'A round or the implementer is already queued or running for this PR.',
     run_not_failed: 'Only a failed round can be retried. Reload the page.',
     run_not_retryable: 'A trial is not retried. Start it again from Experiments.',
     run_finished: 'This run already ended. Reload the page.',
@@ -299,7 +304,7 @@ export const copy = {
     with_agent_needs_implement: 'Only an Implement decision can go to the agent.',
     patch_not_found: 'This patch no longer exists. Reload the page.',
     patch_file_not_found: 'This file is no longer part of the patch. Reload the page.',
-    patch_stale: 'The patch changed in the meantime. Reload it to see the new revision.',
+    patch_stale: 'The patch changed in the meantime. It now shows the current files.',
     note_required: 'Write a note for the implementer.',
     author_has_no_clickup_user:
       'The author has no ClickUp user in Team. Add it in Settings → Team, then notify.',

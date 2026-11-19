@@ -7,9 +7,12 @@ import {
   type Patch as CorePatch,
   type PatchReproduction,
 } from '@pra/core';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { implementerRequests, patchFiles, patches } from '../schema/patches.ts';
+import { ACTIVE_RUN_STATUSES, runs } from '../schema/runs.ts';
+
+type ActiveRunStatus = (typeof ACTIVE_RUN_STATUSES)[number];
 import type { Transactor } from './decisions.ts';
 
 export type PatchRow = typeof patches.$inferSelect;
@@ -144,7 +147,9 @@ export function corePatch(row: PatchRow): CorePatch {
 export type PatchFileChange =
   | { ok: true; patch: PatchRow; file: PatchFileRow }
   | { ok: false; reason: 'not_found' }
-  | { ok: false; reason: 'stale'; revision: number };
+  | { ok: false; reason: 'stale'; revision: number }
+  /** A revise run of this patch is queued or running: it already read (or will read) the files. */
+  | { ok: false; reason: 'revising'; status: ActiveRunStatus };
 
 type FileTarget = {
   patchId: number;
@@ -183,6 +188,20 @@ async function changeFile(
     ) {
       return { ok: false, reason: 'stale', revision: patch.revision };
     }
+    // The new revision is built from the files the revise run read: an edit now would be lost.
+    const [revising] = await tx
+      .select({ status: runs.status })
+      .from(implementerRequests)
+      .innerJoin(runs, eq(runs.id, implementerRequests.runId))
+      .where(
+        and(
+          eq(implementerRequests.revisesPatchId, patch.id),
+          inArray(runs.status, [...ACTIVE_RUN_STATUSES]),
+        ),
+      );
+    if (revising) {
+      return { ok: false, reason: 'revising', status: revising.status as ActiveRunStatus };
+    }
     const [updated] = await tx
       .update(patchFiles)
       .set(change(file))
@@ -211,6 +230,36 @@ export function editPatchFile(
 /** Reverts a file to its base content: status `reverted`, the base blob as its content. */
 export function revertPatchFile(db: Transactor, target: FileTarget): Promise<PatchFileChange> {
   return changeFile(db, target, (file) => ({ blobKey: file.baseBlobKey, status: 'reverted' }));
+}
+
+/**
+ * Implementer runs that completed since `from` with no patch: the `runCompleted` hook that writes
+ * it failed (a db error, a crash right after the last stage), so it is written again.
+ */
+export async function implementerRunsWithoutPatch(db: Executor, from: Date): Promise<number[]> {
+  const rows = await db
+    .select({ id: runs.id })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.kind, 'implementer'),
+        eq(runs.status, 'completed'),
+        gte(runs.finishedAt, from),
+        sql`not exists (select 1 from ${patches} where ${patches.runId} = ${runs.id})`,
+      ),
+    )
+    .orderBy(asc(runs.id));
+  return rows.map((row) => row.id);
+}
+
+/** Ready patches still waiting for their check: a lost or failed check job is sent again. */
+export async function patchesAwaitingCheck(db: Executor): Promise<number[]> {
+  const rows = await db
+    .select({ id: patches.id })
+    .from(patches)
+    .where(and(eq(patches.checking, true), eq(patches.status, 'ready')))
+    .orderBy(asc(patches.id));
+  return rows.map((row) => row.id);
 }
 
 /**
