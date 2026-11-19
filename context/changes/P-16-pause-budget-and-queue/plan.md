@@ -182,5 +182,5 @@ web component tests with `stubFetch`, one Playwright spec.
 
 ### Phase 7: End to end
 
-- [ ] 7.1 `pnpm test:e2e pause-budget.spec.ts`
-- [ ] 7.2 `pnpm verify` and full `pnpm test:e2e` after merging main
+- [x] 7.1 `pnpm test:e2e pause-budget.spec.ts`
+- [x] 7.2 `pnpm verify` and full `pnpm test:e2e` after merging main

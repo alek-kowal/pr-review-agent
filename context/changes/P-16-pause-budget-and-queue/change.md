@@ -1,7 +1,7 @@
 ---
 change_id: P-16
 title: Pause, budget and queue (S-10-T1–T7)
-status: planned
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -71,3 +71,9 @@ questions (orchestrator rule: decide and record).
 - **E2E:** `pause-budget.spec.ts` changes global state, so it runs in its own Playwright project
   that the main project depends on (it runs first, alone) and it restores the state. The e2e
   stack sets agent slots to 20 so parallel specs never wait for a slot.
+- **E2E checks (T7):** pause in the chip (signed) → a ready PR shows "Queued: paused by …" and
+  has no agent session → Resume… on the banner → Resume (signed) → the round finishes; then a
+  $0.01 budget (below the round's spend) → the next PR shows "Queued: daily budget reached" with
+  no agent session; the three `settings_changes` rows (pause, resume, budget) carry the signer.
+  The spec restores the state through the api in `finally` (resume, budget null) and then sees the
+  budget-held round start by itself. PR numbers 260–269 belong to this spec.

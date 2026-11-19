@@ -4,7 +4,15 @@
 // with SIGTERM; the specs read `STATE_FILE`.
 import { NO_USAGE, type AgentRunInput, type AgentRunner, type AgentRunResult } from '@pra/agents';
 import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
-import { closeDb, createDb, createQueue, importInstructionV1, upsertRepository } from '@pra/db';
+import {
+  closeDb,
+  createDb,
+  createQueue,
+  getAppSettings,
+  importInstructionV1,
+  upsertRepository,
+  writeAppSettings,
+} from '@pra/db';
 import { createTestDatabase } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
@@ -304,6 +312,9 @@ for (const [fileKey, content] of [
   await importInstructionV1(db, { scope: 'global', fileKey, content });
 }
 await seedInsightsHistory(db);
+// Specs run in parallel on one stack: with every agent slot open no round waits for another
+// spec's (pause-budget.spec.ts covers the queue). 20 is the most Settings allows.
+await writeAppSettings(db, { ...(await getAppSettings(db)).value, agentSlots: 20 });
 
 // One ClickUp double for the api and the worker, like one key on one server.
 const clickup = new FakeClickUpGateway();

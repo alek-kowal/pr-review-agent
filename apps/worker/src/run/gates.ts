@@ -37,7 +37,10 @@ export const RUN_GATES: RunGates = {
 
 /** Without the queue gates: for tests whose shared database holds other tests' runs (they would
  * fill slots). The sensitive files scan stays. */
-export const NO_QUEUE_GATES: RunGates = { beforeRoundStart: [sensitiveFilesGate], beforeSession: [] };
+export const NO_QUEUE_GATES: RunGates = {
+  beforeRoundStart: [sensitiveFilesGate],
+  beforeSession: [],
+};
 
 /** The first gate that says wait, or start. */
 export async function passGates(gates: RunGate[], context: GateContext): Promise<GateDecision> {
