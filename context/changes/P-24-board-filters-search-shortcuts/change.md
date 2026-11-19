@@ -1,0 +1,22 @@
+---
+change_id: P-24
+title: Board filters, search and shortcuts (S-17-T1–T9)
+status: in_progress
+created: 2026-11-19
+updated: 2026-11-19
+archived_at: null
+---
+
+## Notes
+
+Work package P-24 from `context/foundation/work-packages.md`, wave 8. Plan: no; the tasks' "Done
+when" checks are the plan. One commit per task, in the listed order.
+
+## Decisions
+
+- **T1 card exceptions.** The card gets `isFork`, `level { number, repositoryDefault }` (the level
+  the next round starts at) and `round { number, max }` (completed rounds of the chain). The web
+  shows the level badge `L<n>` only when it differs from the repository default, the round label
+  only from round 2 on, the repository only when several are connected (as before), and a Fork
+  badge on forks (the prototype's exception badges). The author and the age never shrink; the
+  round label and the repository truncate first.

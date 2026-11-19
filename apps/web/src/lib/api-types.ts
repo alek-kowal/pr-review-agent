@@ -189,7 +189,12 @@ export type BoardCard = {
   title: string;
   author: AuthorView;
   isDraft: boolean;
+  isFork: boolean;
   openedAt: string;
+  /** The level the next round starts at, and the repository's default. */
+  level: { number: number; repositoryDefault: number };
+  /** Completed rounds of the current chain, of `max`. */
+  round: { number: number; max: number };
   nextStep: NextStepView;
   badges: ReasonView[];
 };

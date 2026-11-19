@@ -1,10 +1,26 @@
 // The board: every PR in its lane, from core's state table.
-import { actionNeededOrder, LANES, nextStep, type Lane } from '@pra/core';
-import { boardPullRequestIds, listRepositories, loadPrStateInputs, type Executor } from '@pra/db';
+import {
+  actionNeededOrder,
+  LANES,
+  LEVEL_NUMBERS,
+  MAX_CHAIN_ROUNDS,
+  nextStep,
+  type Lane,
+  type LevelNumber,
+} from '@pra/core';
+import {
+  boardPullRequestIds,
+  listRepositories,
+  loadPrStateInputs,
+  readRepositoryConfig,
+  type Executor,
+} from '@pra/db';
 import { z } from 'zod/v4';
 import { ReasonSchema } from '../pr-view/round.ts';
 import { AuthorSchema, authorView, NextStepSchema, nextStepView } from '../pr-view/state.ts';
 import { cardBadges } from './card-badges.ts';
+
+const Level = z.union(LEVEL_NUMBERS.map((n) => z.literal(n)));
 
 export const BoardCardSchema = z.object({
   repository: z.object({ slug: z.string() }),
@@ -12,8 +28,13 @@ export const BoardCardSchema = z.object({
   title: z.string(),
   author: AuthorSchema,
   isDraft: z.boolean(),
+  isFork: z.boolean(),
   /** GitHub's open date; the web shows the age. */
   openedAt: z.iso.datetime({ offset: true }),
+  /** The level the next round starts at; the card shows it only when it is not the default. */
+  level: z.object({ number: Level, repositoryDefault: Level }),
+  /** Completed rounds of the current chain; the card shows them from round 2 on. */
+  round: z.object({ number: z.number().int().nonnegative(), max: z.number().int() }),
   nextStep: NextStepSchema,
   badges: z.array(ReasonSchema),
 });
@@ -64,7 +85,13 @@ export async function buildBoard(db: Executor, now: Date = new Date()): Promise<
       title: load.pullRequest.title,
       author: authorView(load),
       isDraft: load.pullRequest.isDraft,
+      isFork: load.pullRequest.isFork,
       openedAt: load.pullRequest.openedAt.toISOString(),
+      level: {
+        number: load.input.level as LevelNumber,
+        repositoryDefault: readRepositoryConfig(load.repository).value.defaultLevel,
+      },
+      round: { number: load.input.chainRounds, max: MAX_CHAIN_ROUNDS },
       nextStep: nextStepView(step),
       badges: cardBadges({ load, nextStep: step }),
     };

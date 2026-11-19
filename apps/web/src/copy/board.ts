@@ -24,6 +24,13 @@ export const board = {
     return `${Math.floor(hours / 24)}d`;
   },
   opened: (date: string) => `Opened ${date}`,
+  /** Shown only when they differ from the default (FR-006). */
+  level: (n: number) => `L${n}`,
+  levelTitle: (n: number, repositoryDefault: number) =>
+    `Review level ${n} (repository default: ${repositoryDefault})`,
+  round: (n: number, max: number) => `round ${n} of ${max}`,
+  fork: 'Fork',
+  forkTitle: 'Fork: read-only review, started by hand',
   /** Copy for card badges, by reason code (`CARD_BADGES` in the api). */
   badges: {} as Record<string, (params: Record<string, unknown>) => string>,
 };
