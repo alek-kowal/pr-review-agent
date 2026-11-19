@@ -65,3 +65,18 @@ in the listed order.
   (every kind, as the budget gate counts it); the day is local to the app time zone.
 - Each fire adds a `alert_raised` timeline entry (actor bot, source key `alert:<id>`); clears add
   none. NOTIFY comes from the `alerts` trigger.
+
+### S-18-T4 (ClickUp delivery of alerts)
+
+- Job `alerts.deliver` (policy `exclusive`, 5 retries with backoff), sent only for a new alert,
+  with a stable job id and singleton key per alert. The handler skips an alert already `sent`, so
+  a job delivered twice posts once. A ClickUp error marks the alert `failed` and rethrows (pg-boss
+  retries; a later success sets `sent`).
+- Target: the PR's linked task, else the general alerts task (also for the daily budget). It is
+  chosen and stored when the alert fires.
+- "Not configured" (`not_configured`, copy "Not sent: ClickUp not configured") when there is no
+  `CLICKUP_API_KEY`, no `APP_BASE_URL`, no target task, or no ClickUp workspace settings. The
+  gateway needs a workspace for custom task ids; a budget alert has no PR, so it uses the first
+  repository with ClickUp set up (`anyClickUpSettings`), as does a PR whose own repository has none.
+- `APP_BASE_URL` (already listed in `.env.example`, now documented) reaches the worker as
+  `WorkerDeps.appBaseUrl`. Links: `<APP_BASE_URL>/pr/<repo slug>/<number>`, Activity for the budget.

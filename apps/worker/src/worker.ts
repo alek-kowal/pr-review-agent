@@ -1,4 +1,5 @@
 import { ALERTS_CRON, JOBS, RECONCILE_CRON, sendDrainJob, type JobPayloads } from '@pra/db';
+import { handleAlertDeliveries } from './alerts/deliver.ts';
 import { handleAlertEvaluation, requestAlertEvaluation } from './alerts/evaluate.ts';
 import { listenForAlertTriggers } from './alerts/triggers.ts';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
@@ -74,6 +75,9 @@ export async function startWorker(
   // Alerts (S-18): evaluated after run changes and every minute; each new one is delivered once.
   await queue.work<JobPayloads['alerts.evaluate']>(JOBS.alertsEvaluate, work, () =>
     handleAlertEvaluation(deps),
+  );
+  await queue.work<JobPayloads['alerts.deliver']>(JOBS.alertsDeliver, work, (jobs) =>
+    handleAlertDeliveries(deps, jobs),
   );
   await queue.schedule(JOBS.alertsEvaluate, ALERTS_CRON, {});
   const alertTriggers = listenForAlertTriggers(deps);
