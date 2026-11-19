@@ -3,7 +3,12 @@
 // BlobStore, Reproductions reruns the fixed findings' reproductions on the patched tree. The patch
 // row is written when the run completes (`storePatchOnCompleted`), so a cancelled or failed run
 // never leaves one.
-import { runImplementer, type AgentRunner, type ImplementerFinding } from '@pra/agents';
+import {
+  runImplementer,
+  type AgentRunner,
+  type AgentRunResult,
+  type ImplementerFinding,
+} from '@pra/agents';
 import { REPRO_EXIT, runModel, type PatchReproduction } from '@pra/core';
 import {
   answersOfPullRequest,
@@ -208,10 +213,15 @@ export const implementStage: StageExecutor = {
     const model = runModel(run, 'implementer');
 
     let sentPrompt = '';
+    // The runner's own result object: the live runner knows the session by it, so its cost row
+    // is not stored a second time (the adapter returns a mapped copy).
+    let raw: AgentRunResult<unknown> | null = null;
     const runner: AgentRunner = {
-      run: (input) => {
+      run: async (input) => {
         sentPrompt = input.prompt;
-        return deps.agentRunner.run(input);
+        const answer = await deps.agentRunner.run(input);
+        raw = answer;
+        return answer;
       },
     };
     const result = await runImplementer(runner, {
@@ -226,7 +236,9 @@ export const implementStage: StageExecutor = {
       stageTimeoutMinutes: level.settings.stageTimeoutMinutes,
       signal,
     });
-    const sessions: SessionRecord[] = [{ role: 'implementer', model, prompt: sentPrompt, result }];
+    const sessions: SessionRecord[] = [
+      { role: 'implementer', model, prompt: sentPrompt, result: raw ?? result },
+    ];
     if (result.status !== 'completed' || !result.output) {
       const error = result.error ?? { code: 'agent_failed', params: {} };
       return failed(error.code, error.params, sessions);
