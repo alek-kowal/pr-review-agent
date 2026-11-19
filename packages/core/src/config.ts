@@ -14,14 +14,20 @@ import { AGENT_ROLES, LEVEL_NUMBERS, type AgentRole, type LevelNumber } from './
 const MODEL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:@[\]-]{0,99}$/;
 export const validModelName = (name: string): boolean => MODEL_NAME.test(name);
 
-const levelNumber = z.union(LEVEL_NUMBERS.map((n) => z.literal(n)));
+export const LevelNumberSchema = z.union(LEVEL_NUMBERS.map((n) => z.literal(n)));
+const levelNumber = LevelNumberSchema;
 /** A path pattern (glob.ts); `invalid_glob` when the matcher would not read it as meant. */
 const pattern = z.string().trim().min(1).refine(isValidGlob, { message: 'invalid_glob' });
+/** A model name that passes `validModelName`; `invalid_model_name` otherwise. */
+export const ModelNameSchema = z
+  .string()
+  .trim()
+  .refine(validModelName, { message: 'invalid_model_name' });
 /** A model per role; an empty value means "not set here" and falls back. */
 const modelName = z
   .string()
   .trim()
-  .refine((name) => name === '' || validModelName(name), { message: 'invalid model name' });
+  .refine((name) => name === '' || validModelName(name), { message: 'invalid_model_name' });
 const modelsByRole = z.object(
   Object.fromEntries(AGENT_ROLES.map((role) => [role, modelName.optional()])) as Record<
     AgentRole,
@@ -69,7 +75,8 @@ export const RepositoryConfigSchema = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   githubFullName: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
   defaultBranch: z.string().trim().min(1).default('main'),
-  defaultLevel: levelNumber.default(1),
+  /** The repository's own level for new PRs; null uses the global default level (S-21). */
+  defaultLevel: levelNumber.nullable().default(null),
   /**
    * Downloads the PR's packages from its lockfile, with network but no PR scripts or hooks
    * (e.g. `pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile`). Null: no fetch step.
@@ -93,7 +100,8 @@ export const AppSettingsSchema = z.object({
   /** Daily budget in USD; null means no budget, which never holds a review. */
   dailyBudgetUsd: z.number().positive().nullable().default(null),
   agentSlots: z.number().int().min(1).max(20).default(2),
-  models: modelsByRole.default({}),
+  /** The level of repositories without their own default level (S-21). */
+  defaultLevel: levelNumber.default(1),
   /** "Ready for team member review (round N)" on GitHub after each completed round. */
   afterRoundGithubComment: z.boolean().default(true),
 });
@@ -189,24 +197,39 @@ export interface ModelChoice {
   level: LevelNumber | null;
 }
 
-const usable = (name: string | undefined): name is string => !!name && validModelName(name.trim());
+/** Models per role from Settings → Models (`model_settings`); a missing role uses the default. */
+export type RoleModels = Partial<Record<AgentRole, string>>;
 
-/** The model for a role: the level override, then the app settings, then the default. */
+/** Model settings per role, as Settings → Models saves them: every name must pass validation. */
+export const RoleModelsSchema = z.object(
+  Object.fromEntries(AGENT_ROLES.map((role) => [role, ModelNameSchema])) as Record<
+    AgentRole,
+    typeof ModelNameSchema
+  >,
+);
+
+const present = (name: string | undefined): name is string => !!name && name.trim() !== '';
+
+/**
+ * The model for a role: the level override, then the role's model setting, then the default.
+ * An empty value falls back; a set but invalid name is returned as it is, so the run that would
+ * use it fails before any spend (`model_invalid`) instead of quietly using another model.
+ */
 export function modelFor(
-  settings: Pick<AppSettings, 'models'>,
+  roleModels: RoleModels,
   level: Pick<ResolvedLevel, 'models' | 'origins'> | null,
   role: AgentRole,
 ): ModelChoice {
   const fromLevel = level?.models[role];
-  if (usable(fromLevel)) {
+  if (present(fromLevel)) {
     return {
       model: fromLevel.trim(),
       source: 'level',
       level: level?.origins.models[role]?.level ?? null,
     };
   }
-  const fromSettings = settings.models[role];
-  if (usable(fromSettings)) return { model: fromSettings.trim(), source: 'settings', level: null };
+  const fromSettings = roleModels[role];
+  if (present(fromSettings)) return { model: fromSettings.trim(), source: 'settings', level: null };
   return { model: DEFAULT_MODELS[role], source: 'default', level: null };
 }
 

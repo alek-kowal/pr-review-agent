@@ -136,7 +136,7 @@ describe('config resilience', () => {
   });
 
   it('the model comes from the level override, then settings, then the default (P control.test.ts:105)', () => {
-    const settings = { models: { reviewer: 'claude-sonnet-5-5', verifier: 'claude-haiku-5-5' } };
+    const settings = { reviewer: 'claude-sonnet-5-5', verifier: 'claude-haiku-5-5' };
     const level = resolveLevel(3, { 2: { models: { reviewer: 'claude-haiku-5-5' } } });
     expect(modelFor(settings, level, 'reviewer')).toEqual({
       model: 'claude-haiku-5-5',
@@ -153,11 +153,11 @@ describe('config resilience', () => {
       source: 'default',
       level: null,
     });
-    expect(modelFor({ models: {} }, null, 'reviewer').model).toBe('claude-opus-5-5');
+    expect(modelFor({}, null, 'reviewer').model).toBe('claude-opus-5-5');
   });
 
   it('an empty model value falls back (P control.test.ts:105)', () => {
-    expect(modelFor({ models: { reviewer: '  ' } }, null, 'reviewer')).toMatchObject({
+    expect(modelFor({ reviewer: '  ' }, null, 'reviewer')).toMatchObject({
       model: 'claude-opus-5-5',
       source: 'default',
     });
@@ -168,22 +168,13 @@ describe('config resilience', () => {
       paused: 'yes',
       dailyBudgetUsd: '5',
       agentSlots: 3,
-      models: {
-        reviewer: 'claude-opus-5-5',
-        verifier: 7,
-        implementer: '--dangerously-skip-permissions',
-      },
+      defaultLevel: 9,
     });
-    expect(value).toEqual({
-      ...DEFAULT_APP_SETTINGS,
-      agentSlots: 3,
-      models: { reviewer: 'claude-opus-5-5' },
-    });
+    expect(value).toEqual({ ...DEFAULT_APP_SETTINGS, agentSlots: 3 });
     expect(warnings.map((w) => w.params)).toEqual([
       { field: 'paused', issue: 'invalid_type' },
       { field: 'dailyBudgetUsd', issue: 'invalid_type' },
-      { field: 'models.verifier', issue: 'invalid_type' },
-      { field: 'models.implementer', issue: 'custom' },
+      { field: 'defaultLevel', issue: 'invalid_union' },
     ]);
   });
 
@@ -191,7 +182,7 @@ describe('config resilience', () => {
     expect(RepositoryConfigSchema.parse(WB_REPOSITORY_CONFIG)).toEqual(WB_REPOSITORY_CONFIG);
     expect(REPO_DEFAULTS).toMatchObject({
       defaultBranch: 'main',
-      defaultLevel: 1,
+      defaultLevel: null,
       fetchCommand: null,
       installCommand: null,
       sensitivePatterns: [],
@@ -201,7 +192,7 @@ describe('config resilience', () => {
       pausedReason: null,
       dailyBudgetUsd: null,
       agentSlots: 2,
-      models: {},
+      defaultLevel: 1,
       afterRoundGithubComment: true,
     });
   });

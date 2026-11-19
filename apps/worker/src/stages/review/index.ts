@@ -4,13 +4,13 @@ import {
   enforce,
   limitsFor,
   matchSensitiveFiles,
-  modelFor,
+  runModel,
   severityRank,
   type ChangeType,
   type FrozenLevel,
 } from '@pra/core';
 import { fixStatuses } from '@pra/agents';
-import { activeInstructions, fixTargetsOfRun, getAppSettings, readRepositoryConfig } from '@pra/db';
+import { activeInstructions, fixTargetsOfRun, readRepositoryConfig } from '@pra/db';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { changeTypeOfRun, changeTypeWhy } from '../change-type.ts';
@@ -88,7 +88,7 @@ async function runReview(context: StageContext): Promise<StageResult> {
     repoDir: worktree,
     runDir: sessionDir,
   });
-  const model = modelFor((await getAppSettings(deps.db)).value, level, 'reviewer').model;
+  const model = runModel(run, 'reviewer');
   signal.throwIfAborted();
   const result = await deps.agentRunner.run({
     role: 'reviewer',

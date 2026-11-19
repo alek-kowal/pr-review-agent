@@ -23,6 +23,7 @@ import { JOBS, sendJob, type Queue } from '../queue.ts';
 import { roundChains } from '../schema/chains.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import { runs } from '../schema/runs.ts';
+import { getAppSettings } from './app-settings.ts';
 import { prLevel, runRecord } from './pr-state.ts';
 import type { PullRequest } from './repositories.ts';
 import { activeBlockingRun } from './run-engine.ts';
@@ -181,7 +182,9 @@ export async function startRound(
 
   let roundNumber = 1;
   let chainId: string;
-  let level = input.level ?? prLevel(repository, pullRequest);
+  let level =
+    input.level ??
+    prLevel(repository, pullRequest, (await getAppSettings(deps.db)).value.defaultLevel);
   let newChain = true;
   if (input.trigger === 'own_fix') {
     const rounds = await roundsOf(deps.db, pullRequest.id);

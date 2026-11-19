@@ -14,6 +14,7 @@ import {
 } from '../schema/runs.ts';
 import { settingsChanges } from '../schema/settings-changes.ts';
 import { prStateChanges } from '../schema/timeline.ts';
+import { getAppSettings } from './app-settings.ts';
 import { currentDecisions } from './decisions.ts';
 import { readRepositoryConfig } from './repositories.ts';
 
@@ -316,10 +317,11 @@ export async function repositoryLevels(
     .from(repositories)
     .where(repositoryId ? eq(repositories.id, repositoryId) : undefined)
     .orderBy(asc(repositories.slug));
+  const globalLevel = (await getAppSettings(db)).value.defaultLevel;
   return rows.map(({ repository, levelChanged: changed }) => ({
     id: repository.id,
     slug: repository.slug,
-    level: readRepositoryConfig(repository).value.defaultLevel,
+    level: readRepositoryConfig(repository).value.defaultLevel ?? globalLevel,
     since: changed ?? repository.createdAt,
   }));
 }

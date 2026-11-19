@@ -60,7 +60,7 @@ describe('repositories', () => {
     const second = await upsertRepository(db, { ...config, defaultBranch: 'develop' });
 
     expect(second.id).toBe(first.id);
-    expect(second.config).toMatchObject({ defaultBranch: 'develop', defaultLevel: 1 });
+    expect(second.config).toMatchObject({ defaultBranch: 'develop', defaultLevel: null });
     const rows = await db
       .select()
       .from(schema.repositories)
@@ -91,7 +91,7 @@ describe('repositories', () => {
 
     const { value, warnings } = readRepositoryConfig(stored!);
 
-    expect(value).toMatchObject({ slug: config.slug, defaultLevel: 1 });
+    expect(value).toMatchObject({ slug: config.slug, defaultLevel: null });
     expect(warnings).toEqual([
       { code: 'config_field_invalid', params: { field: 'defaultLevel', issue: 'invalid_union' } },
     ]);

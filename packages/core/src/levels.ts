@@ -58,7 +58,7 @@ export interface LevelSettings {
   /** Automatic patches per chain; set from level 5, where autofix starts. */
   autofixMaxPatches: number | null;
 }
-const SETTING_KEYS = [
+export const LEVEL_SETTING_KEYS = [
   'brief',
   'maxFindings',
   'maxQuestions',
@@ -120,7 +120,7 @@ export function resolveLevel(n: LevelNumber, overrides: LevelOverrides = {}): Re
   for (const level of levelsUpTo(n)) {
     const override = overrides[level] ?? {};
     const builtIn = BUILT_IN[level];
-    for (const key of SETTING_KEYS) {
+    for (const key of LEVEL_SETTING_KEYS) {
       if (override[key] !== undefined) {
         settings[key] = override[key];
         origins[key] = { level, source: 'override' };

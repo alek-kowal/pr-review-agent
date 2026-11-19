@@ -12,7 +12,7 @@ import {
   applyReproduction,
   checkQuotes,
   limitsFor,
-  modelFor,
+  runModel,
   reproRepairAllowed,
   skipVerification,
   type Evidence,
@@ -23,7 +23,6 @@ import {
 import {
   activeInstructions,
   findingsOfRun,
-  getAppSettings,
   saveVerifications,
   type FindingRow,
   type VerificationWrite,
@@ -126,7 +125,7 @@ async function runVerify(context: StageContext): Promise<StageResult> {
     pullRequest.baseSha,
     run.headSha,
   );
-  const model = modelFor((await getAppSettings(deps.db)).value, level, 'verifier').model;
+  const model = runModel(run, 'verifier');
   const runScripts = !pullRequest.isFork;
   const base = {
     model,
