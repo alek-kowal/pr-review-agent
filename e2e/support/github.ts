@@ -24,6 +24,7 @@ type Payload = {
     title: string;
     commits: number;
     updated_at: string;
+    user: { login: string };
     head: { sha: string; ref: string; repo: Repo };
     base: { sha: string; repo: Repo };
   };
@@ -35,7 +36,8 @@ export const FIXTURE_COMMITS = 2;
 /**
  * Posts the `pull_request.<fixture>` payload as PR `number` at the fixture repository's shas;
  * `repository` moves it to another repository (and App installation) than the fixture's, and
- * `branch` replaces the fixture's head branch name (`feature/edge-labels`).
+ * `branch` replaces the fixture's head branch name (`feature/edge-labels`); `author` replaces
+ * the PR author's GitHub login (`AUTHOR_LOGIN`).
  */
 export async function deliverPullRequest(
   request: APIRequestContext,
@@ -45,6 +47,7 @@ export async function deliverPullRequest(
   repository?: Repository,
   push?: { headSha: string; commits: number },
   branch?: string,
+  author?: string,
 ): Promise<void> {
   const { baseSha, headSha } = stackState();
   const file = new URL(
@@ -58,6 +61,7 @@ export async function deliverPullRequest(
   payload.pull_request.head.sha = headSha;
   payload.pull_request.base.sha = baseSha;
   if (branch) payload.pull_request.head.ref = branch;
+  if (author) payload.pull_request.user.login = author;
   if (push) {
     payload.before = payload.pull_request.head.sha;
     payload.after = push.headSha;

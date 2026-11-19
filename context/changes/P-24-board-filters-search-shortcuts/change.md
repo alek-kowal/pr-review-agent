@@ -84,3 +84,14 @@ when" checks are the plan. One commit per task, in the listed order.
 - **T7 toggle** is an icon button between Search and the status chip (Moon → dark, Sun →
   light, named "Switch to the dark/light theme"); the palette action "Toggle theme" does the
   same. Sonner gets the app's theme instead of `system`.
+- **T8 Kasia's login on the e2e stack is `wb-dev`** (every spec adds her with `AUTHOR_LOGIN`,
+  and a second "Kasia" would break their `/Kasia/` pickers), so the address reads
+  `?person=wb-dev`, not `?person=kasia`. To show narrowing, `deliverPullRequest` takes an
+  optional `author` (an outside contributor, `ola`, whose PR must disappear).
+- **T8 shared board.** Other specs' PRs share the board, so each check looks only at its own
+  cards: the urgency test compares the positions of its three cards (the findings PR is
+  delivered first, so age alone would put it on top). PR numbers: 230–250 (+ retry), a
+  questions PR in `QUESTION_PRS` (276 + retry, on the level-2 repository, since level 1 drops
+  questions), a failing PR at `FAILING_PR_FROM + 10`, and #272 for search (fixed; a retry
+  delivers it again). The prefilled signature comes from an init script that sets the last
+  signer, as if this browser had signed as Kasia before.
