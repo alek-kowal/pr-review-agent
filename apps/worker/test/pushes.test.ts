@@ -135,6 +135,20 @@ describe('pushes', () => {
     const load = await loadPrStateInput(deps.db, prId);
     expect(load!.input.chainRounds).toBe(3);
     expect(nextStep(load!.input).state).toBe('rounds_used');
+
+    // People then reject the finding: the bot's fix at the head was still never reviewed.
+    const redecided = await decideFindings(deps.db, {
+      pullRequestId: prId,
+      findingIds: [finding!.id],
+      expectedVersions: { [finding!.id]: 1 },
+      decision: 'reject',
+      reason: 'Not needed.',
+      signedBy: kasia.id,
+    });
+    expect(redecided.ok).toBe(true);
+    const after = await loadPrStateInput(deps.db, prId);
+    expect(after!.input.ownFixUnchecked).toBe(true);
+    expect(nextStep(after!.input).state).toBe('rounds_used');
   });
 
   test('a push during a running round leaves it running; its result stores 2 commits since', async () => {
