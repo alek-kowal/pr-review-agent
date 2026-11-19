@@ -35,3 +35,33 @@ in the listed order.
   Settings → Alerts previews the same string.
 - `AlertConfigSchema` (defaults: all on, $5, 80%, no general task) and `AlertConfigWriteSchema`
   (general task required) are shared by db, worker, api and web.
+
+### S-18-T2 (alert storage and config)
+
+- `alerts` (`packages/db/src/schema/alerts.ts`): title, next step and end note are reason-code
+  JSON. Delivery status is `pending | sent | not_configured | failed`; `to_general_task` records
+  whether the comment goes to the general alerts task. Ended by is `bot | hand`.
+- `alert_config` is one row (id 1) with real columns and checks (cost > 0, percent in 50/70/80/90);
+  migration `0021_alerts` inserts it by hand (like `app_settings` in 0015) and adds the
+  `pra_notify_change` trigger on `alerts`, so SSE sees every alert change. Keep both when the
+  migration is regenerated.
+- `knownAlerts(db, keys)` reads the active alerts plus any alert with one of the keys about to fire,
+  so reconcile never scans the whole history.
+
+### S-18-T3 (alert evaluation in the worker)
+
+- Evaluation runs in its own pg-boss job `alerts.evaluate` (policy `stately`: requests during an
+  evaluation merge into the next one), never inside a stage, so alerts cannot stop or delay a
+  round. Cron `ALERTS_CRON` every minute covers the budget and midnight.
+- Moments: instead of run hooks plus api calls, one worker listener on `pra_change` for `runs`,
+  `agent_sessions`, `pull_requests` and `app_settings` (throttled 500 ms) asks for an evaluation.
+  That covers a stage failing, a round completing, a chain ending, a retry or a new start made by
+  the api (no hook exists for those), each recorded session cost and each live turn cost, a PR
+  closing and a budget change. No hot file is edited.
+- Snapshot: open PRs only; state from the existing `loadPrStateInputs` + core `prState`. The
+  failure number is the failed round's run id (a retry is a new run). The rounds chain is the
+  latest round's chain id. Real spend is `sum(runs.cost_usd)` of kinds `round` and `implementer`
+  (live per turn, trials and the analyst left out). Today's spend is the existing `spentToday`
+  (every kind, as the budget gate counts it); the day is local to the app time zone.
+- Each fire adds a `alert_raised` timeline entry (actor bot, source key `alert:<id>`); clears add
+  none. NOTIFY comes from the `alerts` trigger.

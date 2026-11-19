@@ -25,7 +25,14 @@ export const JOBS = {
   reconcile: 'reconcile',
   /** Starts queued runs that may start now, oldest first, and refreshes why the others wait. */
   runDrain: 'run.drain',
+  /** Re-evaluates every alert (S-18-T3): after run changes, and every minute for the budget. */
+  alertsEvaluate: 'alerts.evaluate',
+  /** The ClickUp comment of one new alert (S-18-T4); keyed `<alertId>`. */
+  alertsDeliver: 'alerts.deliver',
 } as const;
+
+/** Every minute: the daily budget, and its alerts clearing at local midnight. */
+export const ALERTS_CRON = '* * * * *';
 
 /** Every 10 minutes (OQ18): the poll that corrects what webhooks missed (S-03-T14). */
 export const RECONCILE_CRON = '*/10 * * * *';
@@ -41,6 +48,8 @@ export interface JobPayloads {
   'clickup.follow-up': { batchId: number };
   reconcile: Record<string, never>;
   'run.drain': Record<string, never>;
+  'alerts.evaluate': Record<string, never>;
+  'alerts.deliver': { alertId: number };
 }
 
 type QueueSettings = Omit<QueueDefinition, 'name'>;
@@ -64,6 +73,9 @@ export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   reconcile: { retryLimit: 0 },
   // One drain runs at a time and one more waits: wakes during a drain are merged into the next.
   'run.drain': { policy: 'stately', retryLimit: 1 },
+  // Like the drain: requests during an evaluation merge into the next one.
+  'alerts.evaluate': { policy: 'stately', retryLimit: 1 },
+  'alerts.deliver': { policy: 'exclusive', retryLimit: 5, retryDelay: 30, retryBackoff: true },
 };
 
 /** Wakes the queue drainer (after a status change, a freed slot, and every minute). */

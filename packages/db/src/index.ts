@@ -20,6 +20,7 @@ export {
 export { migrateDatabase, type MigrationResult } from './migrate.ts';
 export * as schema from './schema/index.ts';
 export {
+  ALERTS_CRON,
   createQueue,
   FOLLOW_UP_DELAY_SECONDS,
   githubEventJobId,

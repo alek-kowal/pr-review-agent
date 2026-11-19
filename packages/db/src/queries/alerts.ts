@@ -2,6 +2,7 @@
 // again (core `reconcileAlerts` reads every key it is about to fire, plus the active ones).
 import {
   AlertConfigSchema,
+  type ClickUpSettings,
   DEFAULT_ALERT_CONFIG,
   type AlertConfig,
   type AlertEndNote,
@@ -19,6 +20,9 @@ import {
   type AlertEnder,
 } from '../schema/alerts.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
+import { runs } from '../schema/runs.ts';
+import { readRepositoryConfig } from './repositories.ts';
+import type { Run } from './runs.ts';
 
 export type AlertRow = typeof alerts.$inferSelect;
 
@@ -265,4 +269,75 @@ export async function activeAlertCountsByPr(
 export async function countActiveAlerts(db: Executor): Promise<number> {
   const [row] = await db.select({ n: count() }).from(alerts).where(eq(alerts.status, 'active'));
   return row?.n ?? 0;
+}
+
+// ---- What the evaluation reads ----
+
+/** Every open PR, the ones the alert rules check. */
+export async function openPullRequestIds(db: Executor): Promise<number[]> {
+  const rows = await db
+    .select({ id: pullRequests.id })
+    .from(pullRequests)
+    .where(eq(pullRequests.state, 'open'))
+    .orderBy(pullRequests.id);
+  return rows.map((r) => r.id);
+}
+
+/** The newest run of kind `round` of each PR: the failure it ended in, and its chain. */
+export async function latestRoundRuns(
+  db: Executor,
+  pullRequestIds: readonly number[],
+): Promise<Map<number, Pick<Run, 'id' | 'chainId' | 'status'>>> {
+  if (pullRequestIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      prId: runs.pullRequestId,
+      id: runs.id,
+      chainId: runs.chainId,
+      status: runs.status,
+    })
+    .from(runs)
+    .where(and(inArray(runs.pullRequestId, [...pullRequestIds]), eq(runs.kind, 'round')))
+    .orderBy(desc(runs.createdAt), desc(runs.id));
+  const latest = new Map<number, Pick<Run, 'id' | 'chainId' | 'status'>>();
+  for (const { prId, ...run } of rows) if (!latest.has(prId)) latest.set(prId, run);
+  return latest;
+}
+
+/** Run kinds that are real PR work; trials and the analyst do not count towards a PR's cost. */
+const REAL_SPEND_KINDS = ['round', 'implementer'] as const;
+
+/** Each PR's real spend in USD: every round, fix and retry; PRs without spend are left out. */
+export async function realSpendByPr(
+  db: Executor,
+  pullRequestIds: readonly number[],
+): Promise<Map<number, number>> {
+  if (pullRequestIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      prId: runs.pullRequestId,
+      usd: sql<string>`coalesce(sum(${runs.costUsd}), 0)`,
+    })
+    .from(runs)
+    .where(
+      and(
+        inArray(runs.pullRequestId, [...pullRequestIds]),
+        inArray(runs.kind, [...REAL_SPEND_KINDS]),
+      ),
+    )
+    .groupBy(runs.pullRequestId);
+  return new Map(rows.map((r) => [r.prId, Number(r.usd)]));
+}
+
+/**
+ * The ClickUp settings a comment on the general alerts task uses when the alert has no PR (the
+ * daily budget): the first connected repository with ClickUp set up. Null when none is.
+ */
+export async function anyClickUpSettings(db: Executor): Promise<ClickUpSettings | null> {
+  const rows = await db.select().from(repositories).orderBy(repositories.id);
+  for (const repository of rows) {
+    const clickup = readRepositoryConfig(repository).value.clickup;
+    if (clickup) return clickup;
+  }
+  return null;
 }
