@@ -35,7 +35,16 @@ describe('loggerOptions', () => {
     logger.info(
       {
         req: { method: 'POST', headers: { authorization: 'Bearer abc', 'x-other': 'kept' } },
-        env: { ANTHROPIC_API_KEY: 'sk-ant-1', GITHUB_WEBHOOK_SECRET: 'whsec', BLOB_DIR: '.data' },
+        env: {
+          ANTHROPIC_API_KEY: 'sk-ant-1',
+          GITHUB_WEBHOOK_SECRET: 'whsec',
+          AWS_SECRET_ACCESS_KEY: 'aws-secret',
+          DATABASE_URL: 'postgres://pra:pw@db/pra',
+          GIT_CONFIG_VALUE_0: 'Authorization: Basic eC1hY2Nlc3M=',
+          AWS_ACCESS_KEY_ID: 'AKIA-id',
+          BLOB_DIR: '.data',
+        },
+        s3: { credentials: { accessKeyId: 'AKIA-id', secretAccessKey: 'aws-secret' } },
         clickup: { apiKey: 'pk_1' },
         github: { privateKey: PEM, appId: 42 },
         keyFile: PEM,
@@ -48,8 +57,13 @@ describe('loggerOptions', () => {
       env: {
         ANTHROPIC_API_KEY: '[Redacted]',
         GITHUB_WEBHOOK_SECRET: '[Redacted]',
+        AWS_SECRET_ACCESS_KEY: '[Redacted]',
+        DATABASE_URL: '[Redacted]',
+        GIT_CONFIG_VALUE_0: '[Redacted]',
+        AWS_ACCESS_KEY_ID: 'AKIA-id',
         BLOB_DIR: '.data',
       },
+      s3: { credentials: { accessKeyId: 'AKIA-id', secretAccessKey: '[Redacted]' } },
       clickup: { apiKey: '[Redacted]' },
       github: { privateKey: '[Redacted]', appId: 42 },
       keyFile: '[Redacted]',
