@@ -200,6 +200,13 @@ describe('config resilience', () => {
       timeZone: 'Europe/Warsaw',
       defaultLevel: 1,
       afterRoundGithubComment: true,
+      githubPoll: {
+        intervalMinutes: 5,
+        from: '09:00',
+        to: '17:00',
+        days: [1, 2, 3, 4, 5],
+        timeZone: 'Europe/Warsaw',
+      },
     });
   });
 });
