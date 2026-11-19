@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, rm } from 'node:fs/promises';
+import { lstat, mkdir, readFile, realpath, rm } from 'node:fs/promises';
 import * as path from 'node:path';
 import { execa } from 'execa';
 
@@ -177,7 +177,8 @@ export class CliGitMirror implements GitMirror {
   }
 
   async worktreeChanges(worktree: string): Promise<WorktreeChange[]> {
-    const status = await this.#git(worktree, [
+    const git = await this.#worktreeGit(worktree);
+    const status = await git([
       'status',
       '--porcelain=v1',
       '-z',
@@ -191,10 +192,35 @@ export class CliGitMirror implements GitMirror {
       .map((entry) => entry.slice(3));
     const changes: WorktreeChange[] = [];
     for (const file of [...new Set(paths)].sort()) {
-      const base = await this.#git(worktree, ['show', `HEAD:${file}`]).catch(() => null);
+      const base = await git(['show', `HEAD:${file}`]).catch(() => null);
       changes.push({ path: file, base });
     }
     return changes;
+  }
+
+  /**
+   * Git on a run's worktree, with its admin dir named on the command line. An agent edits files in
+   * the worktree, so git never discovers its dir or config through `<worktree>/.git`: that file
+   * must be a plain file pointing into a mirror's `worktrees/` folder, and `core.fsmonitor` (a
+   * command git would run) is off.
+   */
+  async #worktreeGit(worktree: string): Promise<(args: string[]) => Promise<string>> {
+    const dir = path.resolve(worktree);
+    if (path.dirname(dir) !== path.join(this.rootDir, 'worktrees')) {
+      throw new TypeError(`Not a run worktree: ${JSON.stringify(worktree)}`);
+    }
+    const dotGit = path.join(dir, '.git');
+    if (!(await lstat(dotGit)).isFile()) throw new Error(`Not a git worktree: ${dir}`);
+    const pointer = /^gitdir: (.+)$/m.exec(await readFile(dotGit, 'utf8'))?.[1]?.trim();
+    const gitDir = pointer ? await realpath(path.resolve(dir, pointer)).catch(() => null) : null;
+    const mirrors = await realpath(path.join(this.rootDir, 'mirrors')).catch(() => null);
+    const relative = gitDir && mirrors ? path.relative(mirrors, gitDir).split(path.sep) : [];
+    // <mirrors>/<owner>/<repo>.git/worktrees/<name>
+    if (relative.length !== 4 || relative.includes('..') || relative[2] !== 'worktrees') {
+      throw new Error(`The worktree's .git does not point into a mirror: ${dir}`);
+    }
+    const fixed = ['--git-dir', gitDir!, '--work-tree', dir, '-c', 'core.fsmonitor=false'];
+    return (args) => this.#git(undefined, [...fixed, ...args]);
   }
 
   /** Clones the mirror if it is missing; returns whether it cloned. */
