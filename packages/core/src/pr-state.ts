@@ -247,14 +247,13 @@ export function nextStep(input: PrStateInput): NextStep {
       );
     case 'patch_ready': {
       const patch = input.patch!;
-      const banner =
-        patch.waiting === 'sensitive'
-          ? reason('state_autofix_waiting_sensitive')
-          : reason('state_patch_ready', {
-              fixed: patch.fixed,
-              total: patch.total,
-              reproductionsPass: patch.reproductionsPass,
-            });
+      const banner = patch.waiting
+        ? reason('state_autofix_waiting', { reason: patch.waiting })
+        : reason('state_patch_ready', {
+            fixed: patch.fixed,
+            total: patch.total,
+            reproductionsPass: patch.reproductionsPass,
+          });
       return step(banner, usuallyAuthor, action('push', true));
     }
     case 'questions_waiting':

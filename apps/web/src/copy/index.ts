@@ -1,6 +1,7 @@
 // UI copy (English). Components read strings from here, never inline them.
 import { activity } from './activity.ts';
 import { alerts } from './alerts.ts';
+import { autofix } from './autofix.ts';
 import { board } from './board.ts';
 import { budget } from './budget.ts';
 import { checklist } from './checklist.ts';
@@ -40,6 +41,7 @@ export const copy = {
     insights: 'Insights',
     settings: 'Settings',
   },
+  autofix,
   board,
   budget,
   nextStep,

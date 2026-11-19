@@ -141,14 +141,17 @@ export async function latestPatch(db: Executor, pullRequestId: number) {
   return (await latestPatchesOf(db, [pullRequestId])).get(pullRequestId);
 }
 
-/** A patch row as the core state table reads it. */
-export function corePatch(row: PatchRow): CorePatch {
+/**
+ * A patch row as the core state table reads it. `waiting` is why level 5 autofix did not push it
+ * (its latest autofix attempt, when that one waits).
+ */
+export function corePatch(row: PatchRow, waiting: Reason | null = null): CorePatch {
   return {
     status: row.status,
     fixed: row.fixedFindingIds.length,
     total: row.findingIds.length,
     reproductionsPass: patchReproductions(Object.values(row.reproductions)) === 'pass',
-    waiting: null,
+    waiting: row.status === 'ready' ? waiting : null,
   };
 }
 
