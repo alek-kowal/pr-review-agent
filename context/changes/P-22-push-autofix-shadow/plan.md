@@ -335,8 +335,8 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 6.1 autofix-decision.test.ts passes
-- [ ] 6.2 db autofix.test.ts passes, migration applies
+- [x] 6.1 autofix-decision.test.ts passes
+- [x] 6.2 db autofix.test.ts passes, migration applies
 
 ### Phase 7: S-15-T2
 

@@ -1,4 +1,12 @@
-import { HAND, usuallyDecidedBy, type Decision, type UsualDecider } from '@pra/core';
+import {
+  BOT,
+  BOT_SIGNATURE,
+  HAND,
+  member,
+  usuallyDecidedBy,
+  type Decision,
+  type UsualDecider,
+} from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Db, Executor } from '../client.ts';
@@ -24,8 +32,9 @@ export type CurrentDecision = {
   batchId: number;
   decision: Decision;
   reason: string | null;
-  signedBy: string;
-  /** Kept after the signer leaves the team. */
+  /** The signing member; null when the bot decided (level 5 autofix). */
+  signedBy: string | null;
+  /** Kept after the signer leaves the team; `pr-review-agent` for the bot. */
   signerName: string;
   decidedAt: Date;
   /** The PR author when it was decided (S-08-T5); null for decisions stored before that. */
@@ -53,7 +62,7 @@ export async function currentDecisions(
       decision: decisionBatches.decision,
       reason: decisionBatches.reason,
       signedBy: decisionBatches.signedBy,
-      signerName: teamMembers.name,
+      signerName: sql<string>`coalesce(${teamMembers.name}, ${BOT_SIGNATURE})`,
       decidedAt: decisionBatches.createdAt,
       authorLogin: decisionBatches.authorLogin,
       authorMemberId: decisionBatches.authorMemberId,
@@ -65,7 +74,7 @@ export async function currentDecisions(
     })
     .from(findingDecisions)
     .innerJoin(decisionBatches, eq(decisionBatches.id, findingDecisions.batchId))
-    .innerJoin(teamMembers, eq(teamMembers.id, decisionBatches.signedBy))
+    .leftJoin(teamMembers, eq(teamMembers.id, decisionBatches.signedBy))
     .leftJoin(authors, eq(authors.id, decisionBatches.authorMemberId))
     .where(
       and(inArray(findingDecisions.findingId, [...findingIds]), isNull(decisionBatches.undoneAt)),
@@ -124,8 +133,8 @@ export type DecideFindingsInput = {
   expectedVersions: Readonly<Record<number, number>>;
   decision: Decision;
   reason?: string | null;
-  /** The signing Team member's id; the caller checks they are active. */
-  signedBy: string;
+  /** The signing Team member's id (the caller checks they are active); null: the bot signs. */
+  signedBy: string | null;
 };
 
 /** A finding that moved since the signer saw it, with the decision that moved it. */
@@ -193,6 +202,7 @@ export async function decideFindings(
         decision: input.decision,
         reason: input.reason ?? null,
         signedBy: input.signedBy,
+        actor: input.signedBy ? 'member' : 'bot',
         // S-08-T5: the author as of now, so the label keeps naming who it was.
         authorLogin: author.login,
         authorMemberId: author.memberId,
@@ -207,7 +217,7 @@ export async function decideFindings(
     // S-03-T5: the signed decision on the Timeline, and the state it leaves the PR in.
     await recordTimelineEntry(tx, {
       pullRequestId: input.pullRequestId,
-      actor: { kind: 'member', memberId: input.signedBy },
+      actor: input.signedBy ? member(input.signedBy) : BOT,
       kind: 'findings_decided',
       params: { decision: input.decision, count: ids.length, reason: input.reason ?? null },
       at: batch!.createdAt,

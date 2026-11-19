@@ -40,6 +40,9 @@ export const teamMembers = pgTable(
   ],
 );
 
+/** Who signs a decision batch: a Team member, or the bot at level 5. */
+export const BATCH_ACTORS = ['member', 'bot'] as const;
+
 /** One signed decision on one or many findings of a PR. Undo marks it, never deletes it. */
 export const decisionBatches = pgTable(
   'decision_batches',
@@ -51,9 +54,9 @@ export const decisionBatches = pgTable(
     decision: text({ enum: DECISIONS }).notNull(),
     /** Why, for Reject (required there by the api) and optionally for the others. */
     reason: text(),
-    signedBy: uuid('signed_by')
-      .notNull()
-      .references(() => teamMembers.id),
+    /** The signing member; null when the bot decided (level 5 autofix, S-15-T2). */
+    signedBy: uuid('signed_by').references(() => teamMembers.id),
+    actor: text({ enum: BATCH_ACTORS }).notNull().default('member'),
     /**
      * The PR author when it was decided (S-08-T5, FR-041), so a decision by someone else reads
      * "Rejected by Tomek (author: Kasia)". The member is null when no active member had the login.
@@ -65,6 +68,10 @@ export const decisionBatches = pgTable(
   },
   (t) => [
     index('decision_batches_pull_request').on(t.pullRequestId, t.createdAt),
+    check(
+      'decision_batches_signer',
+      sql`(${t.actor} = 'member') = (${t.signedBy} is not null) and ${t.actor} in ('member', 'bot')`,
+    ),
     check(
       'decision_batches_decision',
       sql.raw(`decision in (${DECISIONS.map((d) => `'${d}'`).join(', ')})`),

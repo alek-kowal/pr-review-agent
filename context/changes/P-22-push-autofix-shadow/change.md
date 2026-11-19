@@ -81,6 +81,32 @@ questions (orchestrator rule: decide and record).
 - The implementer hold (`hold-implementer`) no longer holds sessions of the push repository: the
   two specs run in parallel and a held session starved implement-patch's Cancel test.
 
+### S-15-T1 (autofix attempts and shadow records)
+
+- The wrapper is `autofixCheck(point, input)`, not `autofixDecision(level, point, input)`:
+  `autofixDecision` stays the F-03 start rule it wraps. It returns `{ mode, allowed, reasons,
+  reason, findingIds }`; `mode` is `act` from level 5 (level 6 too, the ladder is cumulative),
+  `shadow` at 3–4, `off` below. `reason` is the first of `reasons` (the task's `reasonCode`).
+- Push adds the fork (first) and the cap to `pushByItself`. `autoPatchesInChain` means the
+  automatic patches made before this one at both points, so a third patch with N = 2 is held at
+  start and, if it exists anyway, at push.
+- An automatic patch is an implementer run autofix started in the chain (a `start`/`started`
+  attempt). A run that failed counts too, so a failing fix is not retried without end.
+  Implementer runs have no `chain_id`; the attempt carries it.
+- One `start` attempt per round (partial unique index), one shadow entry per round start and per
+  patch push; a second write adds nothing.
+- `recordAutofixAttempt` and `recordShadow` write their Timeline entry (actor bot) in the same
+  transaction: `autofix_started`, `autofix_waiting`, `autofix_shadow`. A `pushed` attempt writes
+  none, because the push job already writes `autofix_pushed`.
+- Shadow `fixed`/`total`: at start the findings it would implement out of those that need work;
+  at push the patch's fixed out of its findings.
+- Bot decisions: `decision_batches.signed_by` nullable plus `actor` (`member`|`bot`, check:
+  member ⇔ signer set). `decideFindings({ signedBy: null })` is the bot; `currentDecisions`
+  left-joins the signer and names the bot `pr-review-agent` (`BOT_SIGNATURE`). The api's decision
+  `signedBy.id` is nullable; `decisionLabelNames` never treats the bot as the author.
+- `shadowByRepository` keeps the latest entry per PR in code (the `Executor` type has no
+  `selectDistinctOn`).
+
 ### P-18 review observations applied here
 
 - O3: `canPush` refuses a closed or merged PR (`pr_closed`, from GitHub's fresh state), after the

@@ -31,11 +31,10 @@ export function usuallyDecidedBy(
  * their member name, else their login.
  */
 export function decisionLabelNames(
-  signer: { id: string; name: string },
+  signer: { id: string | null; name: string },
   author: UsualDecider,
 ): { signer: string; author: string | null } {
-  return {
-    signer: signer.name,
-    author: author.memberId === signer.id ? null : (author.name ?? author.login),
-  };
+  // The bot (id null) is never the author, even when the author has no member.
+  const authorSigned = signer.id !== null && author.memberId === signer.id;
+  return { signer: signer.name, author: authorSigned ? null : (author.name ?? author.login) };
 }
