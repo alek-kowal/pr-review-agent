@@ -25,7 +25,11 @@ questions (orchestrator rule: decide and record).
 - **Gateway CI maps to core CI** passed → `success`, failed → `failure`, pending → `null`.
 - **One merge at a time per PR:** the route holds the PR row `FOR UPDATE` for the whole check and
   GitHub call. A second request waits, then finds the PR merged (the route writes `state = merged`
-  in the same transaction) and answers 409 `pr_closed` without calling GitHub.
+  in the same transaction) and answers 409 `pr_closed` without calling GitHub. The signer is
+  locked before the PR row, the same order as Send back, so the two never deadlock.
+- **A GitHub failure that is not a refusal** (network, 5xx, app not installed) rolls the
+  transaction back and answers 502 `github_error` (`params.status` when GitHub answered); missing
+  App env vars answer 503 `github_not_configured`.
 - **Fresh-state order:** typed number (400 `merge_number_mismatch`), signature (400
   `signature_required` / `signer_unknown`), PR open (409 `pr_closed`), fresh head equals the
   reviewed SHA and the stored head (409 `head_moved` `{ reviewedSha, headSha }`), then core's
