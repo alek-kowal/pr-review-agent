@@ -1,0 +1,26 @@
+# Local development services. The project name is fixed, so every worktree shares one Postgres.
+name: pra
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      # Local, non-secret credentials (see DATABASE_URL in .env.example).
+      POSTGRES_USER: pra
+      POSTGRES_PASSWORD: pra
+      POSTGRES_DB: pra
+    # Room for parallel test runs from several worktrees (each run has its own database).
+    command: ['postgres', '-c', 'max_connections=300']
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pra -d pra']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  db-data:
