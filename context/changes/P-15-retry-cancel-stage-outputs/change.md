@@ -111,6 +111,13 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   banner and Run detail read it directly.
 - **Stage failed banner text** ends with "This round is not counted"; a `stage_timeout` reads
   "Review stage timed out after 30 min" with the level's stage timeout.
+- **E2e Checks and change type (T7).** The stack seeds `large-pr-repo` (level 2,
+  `largePrLines: 1`) and gives both level-two repositories `FIXTURE_CI` (2 passed, 1 failed) on the
+  fixture head; the level-two repository has fetch and install commands, which the stack's sandbox
+  double answers with exit 0. The order spec holds PR `HELD_PRS.from + 40` (retry-cancel keeps
+  +10 to +39) and releases it in a `finally`: the worker takes one `run.stage` job at a time, so a
+  hold left behind by a failed check would stall every other spec's round. The large-PR spec uses
+  PR 220, which no reviewer script holds or fails.
 - **Change type route is keyed** `PUT /api/prs/:repo/:number/change-type` (the existing keying,
   as P-11 did), unsigned, timeline "by hand". `large_pr`, CI counts and the install result come
   from the latest completed round's stage outputs; no new PR columns.
