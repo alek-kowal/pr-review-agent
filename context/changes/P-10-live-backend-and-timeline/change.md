@@ -147,11 +147,33 @@ are added per task below.
   stream never ends), and compares an md5 of every table in every schema before and after.
 - E2E (`pnpm test:e2e`) rerun once at the end because the stage runner changed: 4 passed.
 
+### Merge of main (P-05r, P-06, P-06f, P-08)
+
+Conflicts in five files. Where the two sides contradict, the P-05r review fix wins.
+
+- **After-round comment (P-05r wins):** P-10 wrote `posted` and the `github_comment_posted`
+  entry inside the `try`, so a failed write marked the row `failed` and a retry posted again.
+  Now the post is in the `try` (P-05r) and the `posted` update and the timeline entry share one
+  transaction after it. If that transaction fails, the row stays `sending` and nothing is
+  reposted. The P-05r test now fails the next `update` or `transaction` after the post.
+- **Interrupted stage (P-05r structure wins):** recovery at start and the retry of a stage left
+  running both go through `run/interrupt.ts`. P-10's additions moved there: running sessions of
+  the attempt end with the error code (they keep their cost) and `runs.current_stage` becomes
+  null. So a retry now also closes the live sessions. New check in the run-round retry test.
+- **Stage start:** main's `NotStarted { next }` (resend a lost next-stage job) plus P-10's
+  `instruction_versions`, `current_stage` and `run_started` entry in the same transaction.
+- **Store fallback:** main's `storeResult` (fails the stage `stage_error` when blobs or the
+  transaction throw) now carries the live runner. In the fallback there are no blob keys, so
+  live sessions keep their row without keys instead of crashing on a missing key.
+- **State loader:** P-08's `loadPrStateInput` replaces P-10's private `loadStateInput` (the
+  planned follow-up; both exported `runActor`). `recordStateChange` now uses the same input as
+  the board, with P-08's level, CI, answers and reviewers. P-10's `toRunRecord` gave way to P-08's
+  `runRecord` (Run detail round label).
+- **Stage timeout test:** both sides fixed it the same way; main's 3 s version is kept.
+- Result: `pnpm verify` green (657 tests), `pnpm test:e2e` 6 of 6 passed.
+
 ## Follow-ups for later packages
 
-- After P-08 merges: replace the private `loadStateInput` in `packages/db/src/queries/timeline.ts`
-  with P-08's `loadPrStateInput`, and call `recordStateChange` from P-08's decision route path
-  only through `decideFindings` (already wired).
 - P-12: copy for the new entry kinds and error codes (`run_not_found`, `session_not_found`,
   `transcript_not_found`).
 - P-15 (cancel/retry) and P-11 (chains) write their entries with `recordTimelineEntry` and a

@@ -219,6 +219,14 @@ export async function undoDecisionBatch(
   });
 }
 
+export async function getDecisionBatch(
+  db: Executor,
+  batchId: number,
+): Promise<DecisionBatch | null> {
+  const [row] = await db.select().from(decisionBatches).where(eq(decisionBatches.id, batchId));
+  return row ?? null;
+}
+
 /** The batches of a PR, newest first, with their finding ids. */
 export async function listDecisionBatches(
   db: Executor,

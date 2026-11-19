@@ -2,6 +2,7 @@ import { Ban, CheckCheck, ChevronDown, ChevronUp, CircleDashed, CircleHelp } fro
 import type { LucideIcon } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import type { Verdict } from '@pra/core';
+import { Checkbox } from '@/components/ui/checkbox.tsx';
 import { copy } from '@/copy/index.ts';
 import { FINDING_ACTION_SLOTS, FINDING_LINE_SLOTS, type FindingSlotProps } from './slots.ts';
 import { SeverityMark } from './SeverityMark.tsx';
@@ -47,8 +48,14 @@ function VerdictText({ verdict, level }: { verdict: Verdict; level: number }) {
 export function Finding({
   open,
   onToggle,
+  selection,
   ...slotProps
-}: FindingSlotProps & { open: boolean; onToggle: () => void }) {
+}: FindingSlotProps & {
+  open: boolean;
+  onToggle: () => void;
+  /** A checkbox before the line, for bulk decisions; left out when nothing can be decided. */
+  selection?: { checked: boolean; onChange: () => void };
+}) {
   const { finding: f, round } = slotProps;
   const bodyId = useId();
   const level = round.level.number;
@@ -57,37 +64,49 @@ export function Finding({
 
   return (
     <article
+      data-finding-id={f.id}
       aria-label={`${copy.findings.severities[f.severity].one}: ${f.title}`}
       className="rounded-lg border border-border bg-surface"
     >
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={bodyId}
-        onClick={onToggle}
-        className="block w-full min-w-0 cursor-pointer rounded-lg px-3 py-2.5 text-left hover:bg-surface-2 aria-expanded:rounded-b-none"
-      >
-        <div className="flex flex-wrap items-start gap-x-3 gap-y-1.5 lg:flex-nowrap">
-          <div className="min-w-[240px] flex-1">
-            <div className="flex items-start gap-2">
-              <SeverityMark severity={f.severity} className="mt-1.5" />
-              <span className={`font-medium ${dimmed ? 'text-text-3' : 'text-text'}`}>
-                {f.title}
-              </span>
+      <div className="flex items-start">
+        {selection && (
+          <div className="py-3 pl-3">
+            <Checkbox
+              checked={selection.checked}
+              onCheckedChange={selection.onChange}
+              aria-label={copy.decisions.select(f.title)}
+            />
+          </div>
+        )}
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={onToggle}
+          className="block w-full min-w-0 cursor-pointer rounded-lg px-3 py-2.5 text-left hover:bg-surface-2 aria-expanded:rounded-b-none"
+        >
+          <div className="flex flex-wrap items-start gap-x-3 gap-y-1.5 lg:flex-nowrap">
+            <div className="min-w-[240px] flex-1">
+              <div className="flex items-start gap-2">
+                <SeverityMark severity={f.severity} className="mt-1.5" />
+                <span className={`font-medium ${dimmed ? 'text-text-3' : 'text-text'}`}>
+                  {f.title}
+                </span>
+              </div>
+              <div className="mt-1 ml-4 font-mono text-[12px] break-all text-text-3">
+                {copy.findings.location(f.file, f.line)}
+              </div>
             </div>
-            <div className="mt-1 ml-4 font-mono text-[12px] break-all text-text-3">
-              {copy.findings.location(f.file, f.line)}
+            <div className="ml-4 flex flex-wrap items-center justify-end gap-x-3 gap-y-1 lg:ml-0 lg:max-w-[46%]">
+              {FINDING_LINE_SLOTS.map(({ key, Component }) => (
+                <Component key={key} {...slotProps} />
+              ))}
+              <VerdictText verdict={f.verdict} level={level} />
+              <Chevron aria-hidden="true" className="size-4 text-text-3" />
             </div>
           </div>
-          <div className="ml-4 flex flex-wrap items-center justify-end gap-x-3 gap-y-1 lg:ml-0 lg:max-w-[46%]">
-            {FINDING_LINE_SLOTS.map(({ key, Component }) => (
-              <Component key={key} {...slotProps} />
-            ))}
-            <VerdictText verdict={f.verdict} level={level} />
-            <Chevron aria-hidden="true" className="size-4 text-text-3" />
-          </div>
-        </div>
-      </button>
+        </button>
+      </div>
       {open && (
         <div
           id={bodyId}

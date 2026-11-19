@@ -1,22 +1,19 @@
 import {
-  findingsOf,
   findPullRequest,
   getRepositoryBySlug,
-  latestRound,
   listOpenPullRequests,
-  questionsOf,
+  loadPrStateInput,
   RUN_STATUSES,
 } from '@pra/db';
-import { SEVERITIES, VERDICTS } from '@pra/core';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
 import { buildPrView, PrViewSchema } from '../../../pr-view/index.ts';
-import { iso, roundLevel, RoundLevelSchema } from '../../../pr-view/round.ts';
+import { FindingsResponse, findingsView } from '../../../pr-view/findings.ts';
 import { RepositoryRefSchema } from '../../../pr-view/sections/pull-request.ts';
 import { timelineRoutes } from '../../../pr-view/timeline.ts';
 
-const PrParams = z.object({
+export const PrParams = z.object({
   repo: z.string().min(1),
   number: z.coerce.number().int().positive(),
 });
@@ -35,44 +32,7 @@ export const PrListResponse = z.object({
   ),
 });
 
-export const FindingSchema = z.object({
-  id: z.number().int(),
-  ordinal: z.number().int(),
-  severity: z.enum(SEVERITIES),
-  title: z.string(),
-  file: z.string(),
-  line: z.number().int().nullable(),
-  scenario: z.string(),
-  suggestion: z.string(),
-  verdict: z.enum(VERDICTS),
-  evidence: z.array(
-    z.object({ file: z.string(), line: z.number().int().nullable(), quote: z.string() }),
-  ),
-});
-
-export const QuestionSchema = z.object({
-  id: z.number().int(),
-  ordinal: z.number().int(),
-  text: z.string(),
-  options: z.array(z.string()),
-  recommended: z.number().int().nullable(),
-  why: z.string().nullable(),
-});
-
-export const FindingsResponse = z.object({
-  /** The latest completed round the findings come from; null when no round completed yet. */
-  round: z
-    .object({
-      id: z.number().int(),
-      number: z.number().int().nullable(),
-      level: RoundLevelSchema,
-      finishedAt: z.iso.datetime({ offset: true }).nullable(),
-    })
-    .nullable(),
-  findings: z.array(FindingSchema),
-  questions: z.array(QuestionSchema),
-  notChecked: z.array(z.string()),
-});
+export { FindingSchema, FindingsResponse, QuestionSchema } from '../../../pr-view/findings.ts';
 
 /** Read endpoints for the PR list and the PR page. They never write. */
 const prs: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
@@ -131,41 +91,9 @@ const prs: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       const found = await findPullRequest(db, request.params.repo, request.params.number);
       if (!found) return sendError(reply, 404, ApiErrorCode.PrNotFound, request.params);
 
-      const run = await latestRound(db, found.pullRequest.id, { completed: true });
-      if (!run) return { round: null, findings: [], questions: [], notChecked: [] };
-      const [findings, questions] = await Promise.all([
-        findingsOf(db, run.id),
-        questionsOf(db, run.id),
-      ]);
-      return {
-        round: {
-          id: run.id,
-          number: run.roundNo,
-          level: roundLevel(run),
-          finishedAt: iso(run.finishedAt),
-        },
-        findings: findings.map((f) => ({
-          id: f.id,
-          ordinal: f.ordinal,
-          severity: f.severity,
-          title: f.title,
-          file: f.file,
-          line: f.line,
-          scenario: f.scenario,
-          suggestion: f.suggestion,
-          verdict: f.verdict,
-          evidence: f.evidence,
-        })),
-        questions: questions.map((q) => ({
-          id: q.id,
-          ordinal: q.ordinal,
-          text: q.text,
-          options: q.options,
-          recommended: q.recommended,
-          why: q.why,
-        })),
-        notChecked: run.notChecked,
-      };
+      const load = await loadPrStateInput(db, found.pullRequest.id);
+      if (!load) return sendError(reply, 404, ApiErrorCode.PrNotFound, request.params);
+      return findingsView(load);
     },
   );
 };

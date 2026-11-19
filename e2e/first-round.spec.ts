@@ -107,9 +107,10 @@ test('a PR whose reviewer fails shows the failed-round line and posts nothing', 
   const title = `Break the reviewer ${number}`;
   await deliverReadyForReview(request, number, title);
 
-  const failedLine = page.getByText(
-    "Round 1 failed at Review: the reviewer's answer was not valid",
-  );
+  // The banner says it too (S-02-T7); this is the line on the Findings tab.
+  const failedLine = page
+    .getByTestId('round-failed')
+    .getByText("Round 1 failed at Review: the reviewer's answer was not valid");
   await expect(async () => {
     await page.goto(`/pr/workflowbuilder/${number}`);
     await expect(failedLine).toBeVisible({ timeout: 5_000 });

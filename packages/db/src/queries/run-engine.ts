@@ -1,5 +1,5 @@
 // Reads and writes the worker's run engine needs (S-01-T6, T10, T11).
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import {
@@ -39,6 +39,22 @@ export async function activeBlockingRun(db: Executor, pullRequestId: number): Pr
     .orderBy(desc(runs.id))
     .limit(1);
   return row ?? null;
+}
+
+/** Whether a round of the PR was created after `since` (any status). */
+export async function roundCreatedSince(
+  db: Executor,
+  pullRequestId: number,
+  since: Date,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: runs.id })
+    .from(runs)
+    .where(
+      and(eq(runs.pullRequestId, pullRequestId), eq(runs.kind, 'round'), gt(runs.createdAt, since)),
+    )
+    .limit(1);
+  return row !== undefined;
 }
 
 /** Runs in the given statuses, oldest first. */

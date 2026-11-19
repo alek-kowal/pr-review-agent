@@ -139,6 +139,37 @@ describe('after-round comment', () => {
     expect(commentsOn(pullRequest)).toHaveLength(1);
   });
 
+  test('a posted comment is never repeated when recording it fails', async () => {
+    const run = await aRound();
+    // The post goes out, then the next database write fails once (a dropped connection). The
+    // `posted` update and its timeline entry share one transaction.
+    let failNextUpdate = false;
+    const db = new Proxy(deps.db, {
+      get(target, key, receiver) {
+        if ((key === 'update' || key === 'transaction') && failNextUpdate) {
+          failNextUpdate = false;
+          throw new Error('connection reset');
+        }
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+    const github = {
+      postIssueComment: async (fullName: string, number: number, body: string) => {
+        const posted = await deps.github.postIssueComment(fullName, number, body);
+        failNextUpdate = true;
+        return posted;
+      },
+    } as unknown as typeof deps.github;
+
+    await expect(postAfterRoundComment({ ...deps, db, github }, run.id)).rejects.toThrow(
+      'connection reset',
+    );
+    expect(await postAfterRoundComment(deps, run.id)).toBe('already_posted');
+
+    expect(commentsOn(pullRequest)).toHaveLength(1);
+    expect(await actionsOf(run.id)).toEqual([expect.objectContaining({ result: 'sending' })]);
+  });
+
   test('the body has no URL and no finding text', async () => {
     const run = await aRound();
     await insertFindings(deps.db, [

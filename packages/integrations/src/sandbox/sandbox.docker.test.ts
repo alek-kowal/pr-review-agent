@@ -13,12 +13,23 @@ import { DEFAULT_SANDBOX_IMAGE, type SandboxRunSpec } from './sandbox.ts';
 const skipReason = await dockerSkipReason();
 if (skipReason) console.warn(`sandbox.docker.test.ts skipped: ${skipReason}`);
 
+/**
+ * The time limit of each container run. Every `pnpm test` on this machine (one per worktree)
+ * shares one Docker daemon: idle a run (create, start, rm) takes ~0.4 s, with parallel runs 2–4 s.
+ */
+const RUN_LIMIT_MS = 30_000;
+/**
+ * Each test runs one container, so its budget is one run plus the CLI calls around it. Vitest's
+ * 5 s default is for in-process tests and cut off runs that had not reached their own limit.
+ */
+const ONE_RUN_PER_TEST = { timeout: RUN_LIMIT_MS + 15_000 };
+
 /** Every container of this test run carries this label, so cleanup is checked by it. */
 const labels = { 'pra.sandbox.test': randomUUID() };
 const leftoverContainers = () =>
   labelledContainers(`pra.sandbox.test=${labels['pra.sandbox.test']}`);
 
-describe.skipIf(skipReason)('DockerSandbox on the local daemon', () => {
+describe.skipIf(skipReason)('DockerSandbox on the local daemon', ONE_RUN_PER_TEST, () => {
   const sandbox = new DockerSandbox();
   let dir: string;
 
@@ -28,7 +39,7 @@ describe.skipIf(skipReason)('DockerSandbox on the local daemon', () => {
       command: ['sh', '-c', command],
       workdir: '/work',
       mounts: [{ hostPath: dir, containerPath: '/work' }],
-      limits: { cpus: 1, memoryMb: 256, pids: 64, timeoutMs: 60_000 },
+      limits: { cpus: 1, memoryMb: 256, pids: 64, timeoutMs: RUN_LIMIT_MS },
       labels,
       ...extra,
     });
@@ -55,17 +66,21 @@ describe.skipIf(skipReason)('DockerSandbox on the local daemon', () => {
 
   test('has no network by default', async () => {
     const probe = `node -e "fetch('http://example.com').then(() => process.exit(0), () => process.exit(3))"`;
-    const result = await run(probe, {
-      limits: { cpus: 1, memoryMb: 256, pids: 64, timeoutMs: 30_000 },
-    });
+    const result = await run(probe);
     expect(result.exitCode).toBe(3);
   });
 
-  test('mounts read-only unless writable, and the root filesystem is read-only', async () => {
+  // One container per test: three runs in one test were what timed out under load.
+  test('mounts read-only by default', async () => {
     expect((await run('touch /work/ro.txt')).exitCode).not.toBe(0);
     expect(existsSync(path.join(dir, 'ro.txt'))).toBe(false);
-    expect((await run('touch /usr/local/x')).exitCode).not.toBe(0);
+  });
 
+  test('the root filesystem is read-only', async () => {
+    expect((await run('touch /usr/local/x')).exitCode).not.toBe(0);
+  });
+
+  test('a writable mount and /tmp can be written', async () => {
     const writable = await run('touch /work/rw.txt && touch /tmp/scratch', {
       mounts: [{ hostPath: dir, containerPath: '/work', writable: true }],
     });

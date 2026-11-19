@@ -6,7 +6,9 @@ import { freezeLevel, resolveLevel, type LevelNumber, type LevelOverrides } from
 import {
   asc,
   eq,
+  getGithubEvent,
   getRun,
+  insertAgentSession,
   insertRun,
   insertStageExecution,
   schema,
@@ -20,10 +22,16 @@ import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { sendStageJob } from '../src/run/jobs.ts';
-import { recoverRuns } from '../src/run/recover.ts';
+import { executeStage } from '../src/run/execute-stage.ts';
+import { recoverRuns, resendLostJobs } from '../src/run/recover.ts';
 import { startRound } from '../src/run/start-round.ts';
 import { startWorker, type RunningWorker } from '../src/worker.ts';
-import { connectRepository, createTestWorkerDeps, type TestWorkerDeps } from './support.ts';
+import {
+  connectRepository,
+  createTestWorkerDeps,
+  storeGithubEvent,
+  type TestWorkerDeps,
+} from './support.ts';
 
 let database: TestDatabase;
 let fixture: GitFixture;
@@ -242,6 +250,91 @@ describe('run.stage', () => {
     expect((await settled(next.id)).status).toBe('completed');
   });
 
+  test('a result that cannot be stored fails the stage with stage_error and keeps the cost', async () => {
+    deps.agentRunner.enqueue({ output: ANSWER, costUsd: 0.75 });
+    const store = deps.blobStore;
+    const put = store.put.bind(store);
+    store.put = () => {
+      store.put = put;
+      return Promise.reject(new Error('blob store is down'));
+    };
+    const run = await queueRound();
+
+    const ended = await settled(run.id);
+
+    expect(ended.status).toBe('failed');
+    expect(ended.costUsd).toBeCloseTo(0.75);
+    const [review] = (await stagesOf(run.id)).filter((s) => s.stage === 'review');
+    expect(review).toMatchObject({ status: 'failed', errorCode: 'stage_error' });
+    expect(await sessionsOf(run.id)).toEqual([
+      expect.objectContaining({ costUsd: 0.75, promptBlobKey: null }),
+    ]);
+  });
+
+  test('a job that finds its stage still running fails it interrupted', async () => {
+    const repository = await connectRepository(deps.db);
+    const { pullRequest } = await upsertPullRequest(deps.db, aPullRequest(repository.id));
+    const run = await insertRun(
+      deps.db,
+      aRun(pullRequest.id, { status: 'running', startedAt: new Date(), currentStage: 'review' }),
+    );
+    const execution = await insertStageExecution(deps.db, {
+      runId: run.id,
+      stage: 'review',
+      attempt: 1,
+      status: 'running',
+      startedAt: new Date(),
+    });
+    // The live runner's row of the session the lost attempt started (S-03-T3).
+    await insertAgentSession(deps.db, {
+      stageExecutionId: execution.id,
+      role: 'reviewer',
+      model: 'claude-test',
+      costUsd: 0.25,
+      costSource: 'reported',
+      status: 'running',
+    });
+
+    expect(await executeStage(deps, run.id, 'review')).toBe('interrupted');
+
+    expect(await getRun(deps.db, run.id)).toMatchObject({ status: 'failed', currentStage: null });
+    const [review] = await stagesOf(run.id);
+    expect(review).toMatchObject({ status: 'failed', errorCode: 'interrupted' });
+    const sessions = await deps.db
+      .select()
+      .from(schema.agentSessions)
+      .where(eq(schema.agentSessions.stageExecutionId, execution.id));
+    expect(sessions).toEqual([expect.objectContaining({ status: 'interrupted', costUsd: 0.25 })]);
+  });
+
+  test('a repeated job for a finished stage sends the next stage job again', async () => {
+    const repository = await connectRepository(deps.db);
+    const { pullRequest } = await upsertPullRequest(deps.db, aPullRequest(repository.id));
+    const run = await insertRun(
+      deps.db,
+      aRun(pullRequest.id, {
+        status: 'running',
+        startedAt: new Date(),
+        level: freezeLevel(resolveLevel(3)),
+      }),
+    );
+    for (const stage of ['checks', 'task', 'change_type', 'review']) {
+      await insertStageExecution(deps.db, {
+        runId: run.id,
+        stage,
+        attempt: 1,
+        status: 'succeeded',
+      });
+    }
+
+    expect(await executeStage(deps, run.id, 'review')).toBe('not_next');
+
+    // The worker takes the job; Verify has no executor in this package.
+    expect((await settled(run.id)).status).toBe('failed');
+    const verify = (await stagesOf(run.id)).find((s) => s.stage === 'verify');
+    expect(verify).toMatchObject({ status: 'failed', errorCode: 'stage_not_available' });
+  });
+
   test('with the real adapter and no key the run fails with model_access_not_configured', async () => {
     const claude = createClaudeAgentRunner({});
     deps.agentRunner.enqueue((input) => claude.run(input));
@@ -253,11 +346,10 @@ describe('run.stage', () => {
   });
 
   test('the level’s stage timeout aborts the session and fails with stage_timeout', async () => {
+    // Under load the timeout can fire before the session starts; the step then ends at once.
     const waitForAbort: FakeAgentStep = (input) =>
       new Promise((resolve) => {
-        // Under load the worktree setup can outlast the 180 ms timeout: the signal is then
-        // already aborted when the session starts.
-        const onAbort = () =>
+        const end = () =>
           resolve({
             status: 'cancelled',
             output: null,
@@ -269,11 +361,12 @@ describe('run.stage', () => {
             durationMs: 180,
             transcript: [],
           });
-        if (input.signal!.aborted) onAbort();
-        else input.signal!.addEventListener('abort', onAbort);
+        if (input.signal!.aborted) end();
+        else input.signal!.addEventListener('abort', end);
       });
     deps.agentRunner.enqueue(waitForAbort);
-    const run = await queueRunWith({ 1: { stageTimeoutMinutes: 0.003 } });
+    // 3 s: long enough for git under load, so the session is running when the timeout fires.
+    const run = await queueRunWith({ 1: { stageTimeoutMinutes: 0.05 } });
 
     expect((await settled(run.id)).status).toBe('failed');
     const [review] = (await stagesOf(run.id)).filter((s) => s.stage === 'review');
@@ -333,5 +426,22 @@ describe('restart', () => {
 
     expect(recovered.resent).toContain(run.id);
     expect((await settled(run.id)).status).toBe('completed');
+  });
+
+  test('a stored event whose job was never sent is processed after the resend', async () => {
+    const repository = await connectRepository(deps.db);
+    const event = await storeGithubEvent(deps, 'ping', { fullName: repository.githubFullName });
+    // The api wrote the row two minutes ago, then its send failed.
+    await deps.db
+      .update(schema.githubEvents)
+      .set({ receivedAt: new Date(Date.now() - 120_000) })
+      .where(eq(schema.githubEvents.id, event.id));
+
+    expect((await resendLostJobs(deps)).events).toContain(event.id);
+
+    await vi.waitFor(
+      async () => expect((await getGithubEvent(deps.db, event.id))?.processedAt).not.toBeNull(),
+      { timeout: 20_000, interval: 100 },
+    );
   });
 });

@@ -61,3 +61,6 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
   - After merging main, P-06 failed typecheck: the P-03 review had made `timeoutMs` required in `AgentRunInput`. A short fix session now passes the stage timeout from the frozen level config.
   - Continuation sessions now start with `git merge main`.
 - Running: P-08, P-09, P-10 (wave 4) and P-05r (impl-review of the review pipeline).
+- 06:10: P-05r impl-review merged (2ad38d7). It fixed 8 of 10 findings. The critical one: a round could stay "running" forever and block the PR. F10 is deferred to P-15/P-16. **For Alek (F6):** until P-16 nothing caps daily agent spend (one session is capped at $10). If you connect a real ANTHROPIC_API_KEY before then, set a monthly limit in the Anthropic console.
+- P-06f started: a Docker sandbox test fails under parallel load.
+- `supervise.sh` now does handoffs and continuations by itself, and wakes the orchestrator only when a package finishes or blocks.

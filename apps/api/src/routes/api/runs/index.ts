@@ -14,7 +14,7 @@ import {
   RUN_STATUSES,
   runsOfPullRequest,
   sessionOfRun,
-  toRunRecord,
+  runRecord,
   type AgentSession,
   type Run,
   type StageExecution,
@@ -179,7 +179,7 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
         return sendError(reply, 404, ApiErrorCode.RunNotFound, request.params);
       }
       const { run, stages, sessions } = detail;
-      const chain = chainState((await runsOfPullRequest(db, run.pullRequestId)).map(toRunRecord));
+      const chain = chainState((await runsOfPullRequest(db, run.pullRequestId)).map(runRecord));
       const rows = stageRows(stages, sessions);
       const isRound = run.kind === 'round' || run.kind === 'trial';
       const steps = isRound

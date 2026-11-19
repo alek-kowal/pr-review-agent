@@ -8,7 +8,7 @@ import {
   type LevelNumber,
   type RoundTrigger,
 } from '@pra/core';
-import { insertRun, isUniqueViolation, type PullRequest, type Run } from '@pra/db';
+import { insertRun, isUniqueViolation, type Executor, type PullRequest, type Run } from '@pra/db';
 import { randomUUID } from 'node:crypto';
 import type { WorkerDeps } from '../deps.ts';
 import { sendStageJob } from './jobs.ts';
@@ -21,6 +21,8 @@ export type StartRoundInput = {
   roundNumber: number;
   /** The chain this round continues; a new chain when omitted. */
   chainId?: string;
+  /** Runs in the transaction that inserts the run (for example to record what started it). */
+  inTransaction?: (tx: Executor, run: Run) => Promise<void>;
 };
 
 export type StartRoundResult =
@@ -42,18 +44,22 @@ export async function startRound(
 
   let run: Run;
   try {
-    run = await insertRun(deps.db, {
-      pullRequestId: pullRequest.id,
-      kind: 'round',
-      roundNo: roundNumber,
-      chainId: input.chainId ?? randomUUID(),
-      level,
-      headSha: pullRequest.headSha,
-      commitsCountAtStart: pullRequest.commitsCount,
-      status: 'queued',
-      startedBy: startedBy.kind,
-      startedByMemberId: startedBy.kind === 'member' ? startedBy.memberId : null,
-      trigger: input.trigger,
+    run = await deps.db.transaction(async (tx) => {
+      const inserted = await insertRun(tx, {
+        pullRequestId: pullRequest.id,
+        kind: 'round',
+        roundNo: roundNumber,
+        chainId: input.chainId ?? randomUUID(),
+        level,
+        headSha: pullRequest.headSha,
+        commitsCountAtStart: pullRequest.commitsCount,
+        status: 'queued',
+        startedBy: startedBy.kind,
+        startedByMemberId: startedBy.kind === 'member' ? startedBy.memberId : null,
+        trigger: input.trigger,
+      });
+      await input.inTransaction?.(tx, inserted);
+      return inserted;
     });
   } catch (error) {
     // Another event started a round for this PR first.

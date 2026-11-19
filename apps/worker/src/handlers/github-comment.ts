@@ -85,28 +85,31 @@ export async function postAfterRoundComment(
     return claim;
   }
 
+  let posted: { id: number };
   try {
-    const { id } = await deps.github.postIssueComment(
+    posted = await deps.github.postIssueComment(
       repository.githubFullName,
       pullRequest.number,
       claim.body,
     );
-    await db.transaction(async (tx) => {
-      await updateGithubAction(tx, claim.id, { result: 'posted', githubId: id });
-      await recordTimelineEntry(tx, {
-        pullRequestId: pullRequest.id,
-        actor: BOT,
-        kind: 'github_comment_posted',
-        params: { body: claim.body },
-        runId,
-        sourceKey: `github_action:${claim.id}`,
-      });
-    });
   } catch (error) {
     await updateGithubAction(db, claim.id, { result: 'failed' });
     logger.warn({ err: error, runId }, 'after-round comment failed');
     throw error;
   }
+  // The comment is on GitHub now. If recording that (and its timeline entry) fails, the row stays
+  // `sending`, so a retry never posts it a second time.
+  await db.transaction(async (tx) => {
+    await updateGithubAction(tx, claim.id, { result: 'posted', githubId: posted.id });
+    await recordTimelineEntry(tx, {
+      pullRequestId: pullRequest.id,
+      actor: BOT,
+      kind: 'github_comment_posted',
+      params: { body: claim.body },
+      runId,
+      sourceKey: `github_action:${claim.id}`,
+    });
+  });
   logger.info({ runId, pr: pullRequest.number }, 'after-round comment posted');
   return 'posted';
 }

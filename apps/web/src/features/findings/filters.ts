@@ -5,15 +5,11 @@ export const FILTER_FROM = 7;
 
 export type FindingFilterKey = 'all' | 'todo' | 'done';
 
-/**
- * Whether a finding still needs a decision. A nit never needs one and a refuted finding needs
- * none. Decisions arrive in P-08, which adds "and has no decision" here.
- */
-export const needsDecision = (f: FindingView): boolean =>
-  f.severity !== 'nit' && f.verdict !== 'refuted';
+/** Whether a finding still needs a decision: core's rule, sent by the api with each finding. */
+export const needsDecision = (f: FindingView): boolean => f.needsDecision.needed;
 
-/** Whether someone decided the finding. Always false until decisions arrive (P-08). */
-export const isDecided: (f: FindingView) => boolean = () => false;
+/** Whether someone decided the finding (a decision that was undone does not count). */
+export const isDecided = (f: FindingView): boolean => f.decision !== null;
 
 export const FINDING_FILTERS: readonly {
   key: FindingFilterKey;

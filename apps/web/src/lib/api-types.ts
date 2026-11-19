@@ -1,6 +1,15 @@
 // Response types of the api's read endpoints. The api's Zod schemas are the source of truth
 // (apps/api/src/routes/api, apps/api/src/pr-view); the web may not import server packages.
-import type { Severity, Verdict } from '@pra/core';
+import type {
+  ChecklistItemKey,
+  Decision,
+  Lane,
+  MainActionCode,
+  PrState,
+  Severity,
+  Tone,
+  Verdict,
+} from '@pra/core';
 
 export type RunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type StageStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'off' | 'reused';
@@ -9,16 +18,6 @@ export type ActorView = { kind: 'member'; memberId: string } | { kind: 'bot' } |
 
 export type RepositoryRef = { slug: string; name: string; githubFullName: string };
 export type RepositoriesResponse = { repositories: RepositoryRef[] };
-
-export type PrListItem = {
-  repository: { slug: string };
-  number: number;
-  title: string;
-  authorLogin: string;
-  isDraft: boolean;
-  latestRoundStatus: RunStatus | null;
-};
-export type PrListResponse = { pullRequests: PrListItem[] };
 
 export type StageView = {
   key: string;
@@ -62,10 +61,71 @@ export type PullRequestView = {
   githubUrl: string;
 };
 
+/** What is needed next, from core's state table (`nextStep`). */
+export type NextStepView = {
+  state: PrState;
+  /** null when the PR left the board (merged or closed). */
+  lane: Lane | null;
+  tone: Tone;
+  banner: ReasonView;
+  who: ReasonView;
+  mainAction: {
+    action: MainActionCode;
+    signed: boolean;
+    optional: boolean;
+    disabled: ReasonView | null;
+    stage: string | null;
+  } | null;
+};
+
+export type ChecklistView = {
+  ok: boolean;
+  items: { item: ChecklistItemKey; ok: boolean; reason: ReasonView }[];
+};
+
+/** The PR author, and the Team member with their GitHub login. */
+export type AuthorView = { login: string; memberId: string | null; name: string | null };
+
 /** `GET /api/prs/:repo/:number`: one key per PR view section. */
 export type PrView = {
   pullRequest: PullRequestView;
   latestRound: RoundView | null;
+  nextStep: NextStepView;
+  checklist: ChecklistView;
+  author: AuthorView;
+};
+
+/** A board card: `GET /api/board`. */
+export type BoardCard = {
+  repository: { slug: string };
+  number: number;
+  title: string;
+  author: AuthorView;
+  isDraft: boolean;
+  openedAt: string;
+  nextStep: NextStepView;
+  badges: ReasonView[];
+};
+
+export type BoardResponse = {
+  lanes: {
+    not_reviewed: { cards: BoardCard[]; drafts: BoardCard[] };
+    agents_working: { cards: BoardCard[] };
+    action_needed: { cards: BoardCard[] };
+    ready_to_merge: { cards: BoardCard[] };
+  };
+  mergedOrClosed: BoardCard[];
+  repositoryCount: number;
+};
+
+/** A finding's current decision. */
+export type DecisionView = {
+  /** The batch that decided it; Undo takes this id. */
+  batchId: number;
+  decision: Decision;
+  reason: string | null;
+  signedBy: { id: string; name: string };
+  decidedAt: string;
 };
 
 export type FindingView = {
@@ -79,6 +139,10 @@ export type FindingView = {
   suggestion: string;
   verdict: Verdict;
   evidence: { file: string; line: number | null; quote: string }[];
+  /** Sent back with a decision; a decision made in between gives 409 `decision_conflict`. */
+  version: number;
+  decision: DecisionView | null;
+  needsDecision: { needed: boolean; reason: ReasonView };
 };
 
 export type QuestionView = {
@@ -114,3 +178,18 @@ export type TeamMember = {
 };
 export type TeamResponse = { members: TeamMember[] };
 export type TeamMemberResponse = { member: TeamMember };
+
+/** `POST /api/prs/:repo/:number/decisions` and the undo: the refreshed PR view. */
+export type DecisionResult = {
+  nextStep: NextStepView;
+  checklist: ChecklistView;
+  findings: FindingsResponse;
+};
+export type DecideResponse = DecisionResult & { batchId: number };
+
+/** One finding of a `decision_conflict` error: who decided it in the meantime. */
+export type DecisionConflict = {
+  findingId: number;
+  version: number;
+  decision: DecisionView | null;
+};

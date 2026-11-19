@@ -36,6 +36,7 @@ import type { SessionRecord, StageError, StageExecutor, StageResult } from '../s
 import { removeRunFiles } from './cleanup.ts';
 import { passGates } from './gates.ts';
 import { fireHooks, type RunHookContext } from './hooks.ts';
+import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
 import { liveSessions, type LiveSessions } from './live-sessions.ts';
 import { recordRunStarted } from './timeline-hooks.ts';
@@ -51,7 +52,8 @@ export async function handleRunStages(
   for (const job of jobs) await executeStage(deps, job.data.runId, job.data.stage);
 }
 
-export type ExecuteStageOutcome = 'run_not_found' | 'not_next' | 'waiting' | 'succeeded' | 'failed';
+export type ExecuteStageOutcome =
+  'run_not_found' | 'not_next' | 'waiting' | 'interrupted' | 'succeeded' | 'failed';
 
 /** Runs one stage of one run. Returns what happened (for logs and tests). */
 export async function executeStage(
@@ -68,6 +70,18 @@ export async function executeStage(
   }
   const { pullRequest, repository } = found;
   const executor = deps.extensions.stageExecutors[stage];
+
+  // The queue holds one queued or active job per run and stage, so a job that finds its stage
+  // still running is a retry: the handler that started the attempt threw or its worker stopped.
+  if (found.run.status === 'running') {
+    const interrupted = await db.transaction((tx) => interruptIfLeftRunning(tx, runId, stage));
+    if (interrupted) {
+      logger.warn({ runId, stage }, 'stage left running by an earlier attempt: interrupted');
+      const hookContext = { deps, run: interrupted.run, pullRequest, repository };
+      await afterTransition(deps, hookContext, interrupted.state);
+      return 'interrupted';
+    }
+  }
 
   // Gates read outside the transaction: they may be slow, and the start re-checks the state.
   if (found.run.status === 'queued') {
@@ -98,7 +112,12 @@ export async function executeStage(
   }
 
   const started = await db.transaction((tx) => startStageInTx(tx, runId, repository.id, stage));
-  if (!started) return 'not_next';
+  if ('next' in started) {
+    // A repeated job for a finished stage: the send of the next stage's job may have been lost
+    // (the handler threw after its commit). The queue drops it while one is queued or active.
+    if (started.next) await sendStageJob(deps.queue, runId, started.next);
+    return 'not_next';
+  }
   const { run, executionId, attempt } = started;
   // Sessions get their row when they start and their cost per turn (S-03-T3).
   const live = liveSessions(deps, { runId, stageExecutionId: executionId });
@@ -112,10 +131,15 @@ export async function executeStage(
     abortGraceMs: options.abortGraceMs ?? ABORT_GRACE_MS,
   });
 
-  const blobKeys = await storeSessionBlobs(deps, run.id, stage, attempt, result.sessions);
-  const stored = await db.transaction((tx) =>
-    storeResultInTx(tx, { runId, stage, executionId, result, blobKeys, pullRequest, live }),
-  );
+  const stored = await storeResult(deps, {
+    runId,
+    stage,
+    attempt,
+    executionId,
+    result,
+    pullRequest,
+    live,
+  });
   if (!stored) {
     logger.warn({ runId, stage }, 'stage result dropped: the run changed while it ran');
     return result.status;
@@ -166,21 +190,37 @@ export async function afterTransition(
 }
 
 type Started = { run: Run; executionId: number; attempt: number };
+/** Not started: the job's stage is not the run's next one; `next` is, if any. */
+type NotStarted = { next: RunStageKey | null };
+
+async function interruptIfLeftRunning(
+  tx: Executor,
+  runId: number,
+  stage: string,
+): Promise<{ run: Run; state: RunState } | null> {
+  const run = await lockRun(tx, runId);
+  if (!run || run.status !== 'running') return null;
+  const executions = await stageExecutionsOfRun(tx, runId);
+  if (latestAttempt(executions, stage)?.status !== 'running') return null;
+  const state = await interruptRunningStage(tx, run, executions);
+  return state ? { run: (await lockRun(tx, runId))!, state } : null;
+}
 
 async function startStageInTx(
   tx: Executor & Transactor,
   runId: number,
   repositoryId: number,
   stage: string,
-): Promise<Started | null> {
+): Promise<Started | NotStarted> {
+  const notStarted: NotStarted = { next: null };
   let run = await lockRun(tx, runId);
-  if (!run) return null;
+  if (!run) return notStarted;
   let executions = await stageExecutionsOfRun(tx, runId);
   let state = runStateOf(run, executions);
 
   if (state.status === 'queued') {
     const begun = startRun(state);
-    if (!begun.ok) return null;
+    if (!begun.ok) return notStarted;
     state = begun.run;
     const now = new Date();
     // The instruction files this run reads, for Run detail (S-03-T5).
@@ -213,9 +253,10 @@ async function startStageInTx(
     executions = await stageExecutionsOfRun(tx, runId);
   }
 
-  if (nextStage(state) !== stage) return null;
+  const next = nextStage(state);
+  if (next !== stage) return { next };
   const transition = startStage(state, stage as RunStageKey);
-  if (!transition.ok) return null;
+  if (!transition.ok) return notStarted;
 
   const attempt = (latestAttempt(executions, stage)?.attempt ?? 0) + 1;
   const execution = await insertStageExecution(tx, {
@@ -349,10 +390,35 @@ type StoreInput = {
   live: Pick<LiveSessions, 'sessionIdOf'>;
 };
 
+type StoredResult = { run: Run; state: RunState; sessionIds: number[] };
+
+/**
+ * Blobs, then the stage transaction. When either throws (the blob store is down, the database
+ * refuses a value), the stage fails `stage_error` with its sessions and their cost instead, so
+ * the run does not stay running. Only when that fails too does the error reach pg-boss; its retry
+ * then fails the attempt `interrupted`.
+ */
+async function storeResult(
+  deps: WorkerDeps,
+  input: Omit<StoreInput, 'blobKeys'> & { attempt: number },
+): Promise<StoredResult | null> {
+  const { runId, stage, attempt, result } = input;
+  try {
+    const blobKeys = await storeSessionBlobs(deps, runId, stage, attempt, result.sessions);
+    return await deps.db.transaction((tx) => storeResultInTx(tx, { ...input, blobKeys }));
+  } catch (error) {
+    deps.logger.error({ err: error, runId, stage }, 'stage result could not be stored');
+    const fallback = failed({ code: 'stage_error', params: {} }, result.sessions);
+    return deps.db.transaction((tx) =>
+      storeResultInTx(tx, { ...input, result: fallback, blobKeys: [] }),
+    );
+  }
+}
+
 async function storeResultInTx(
   tx: Executor,
   { runId, stage, executionId, result, blobKeys, pullRequest, live }: StoreInput,
-): Promise<{ run: Run; state: RunState; sessionIds: number[] } | null> {
+): Promise<StoredResult | null> {
   const locked = await lockRun(tx, runId);
   if (!locked) return null;
   const state = runStateOf(locked, await stageExecutionsOfRun(tx, runId));
@@ -365,10 +431,14 @@ async function storeResultInTx(
     const { result: agent } = session;
     const liveId = live.sessionIdOf(agent);
     if (liveId !== undefined) {
-      await updateAgentSession(tx, liveId, {
-        promptBlobKey: blobKeys[index]!.prompt,
-        transcriptBlobKey: blobKeys[index]!.transcript,
-      });
+      // No keys when the blobs could not be written (the stage then fails `stage_error`).
+      const keys = blobKeys[index];
+      if (keys) {
+        await updateAgentSession(tx, liveId, {
+          promptBlobKey: keys.prompt,
+          transcriptBlobKey: keys.transcript,
+        });
+      }
       sessionIds.push(liveId);
       continue;
     }
@@ -386,8 +456,9 @@ async function storeResultInTx(
       turns: agent.turns,
       durationMs: Math.round(agent.durationMs),
       status: agent.status,
-      promptBlobKey: blobKeys[index]!.prompt,
-      transcriptBlobKey: blobKeys[index]!.transcript,
+      // No keys when the blobs could not be written (the stage then fails `stage_error`).
+      promptBlobKey: blobKeys[index]?.prompt ?? null,
+      transcriptBlobKey: blobKeys[index]?.transcript ?? null,
     });
     sessionIds.push(row.id);
   }
