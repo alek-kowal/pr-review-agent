@@ -294,8 +294,8 @@ Unit-level: brief, prompt, schema mapping. Integration: handlers on the shared t
 
 #### Automated
 
-- [ ] 6.1 pnpm test:e2e passes locally
-- [ ] 6.2 pnpm verify
+- [x] 6.1 pnpm test:e2e passes locally
+- [x] 6.2 pnpm verify
 
 #### Manual
 

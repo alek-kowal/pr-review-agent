@@ -1,7 +1,7 @@
 ---
 change_id: P-05
 title: Round 1 engine (S-01-T5, T6, T9, T10, T11, T15)
-status: in_progress
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -97,3 +97,26 @@ are added per task below.
   serialises claims.
 - `run-round.test.ts` also checks the whole chain: a completed round ends with one `posted`
   comment row.
+
+### S-01-T15 (end-to-end round 1)
+
+- The e2e stack (`e2e/support/stack.ts`) imports the api and worker by relative path: the apps
+  have no `exports`. Root devDependencies add `@pra/{agents,db,integrations}`, `pg` and
+  `@types/pg` for it.
+- `playwright.config.ts` starts two webServers; the api port is the web port + 7000 and Vite
+  proxies to it through `API_PROXY_TARGET`. No other fixed port besides the shared Postgres.
+- The reviewer double is scripted per PR number: PR numbers >= 400 answer invalid output, which
+  fails the round with `review_output_invalid`. Retries use the PR number plus
+  `testInfo.retry`, so a retry never meets the previous attempt's rows.
+- The spec signs the webhook fixture with `node:crypto` and reads `github_actions` with `pg`
+  (no test-only API route). It polls `/prs` until the PR appears, because the list does not poll.
+- The CI `e2e` job uploads no artifacts.
+
+### Merge of main (wave 3)
+
+- Conflicts in `apps/api/src/plugins/errors.ts` and `packages/db/src/queries/index.ts` kept both
+  sides. P-05 has no Drizzle migration of its own (queues come from `QUEUE_SETTINGS` via
+  `pnpm db:migrate`), so nothing was renumbered.
+- Main made `AgentRunInput.timeoutMs` required. The review stage passes the level's
+  `stageTimeoutMinutes`, the same limit as the stage timer in `execute-stage.ts`; that timer
+  still decides `stage_timeout`.
