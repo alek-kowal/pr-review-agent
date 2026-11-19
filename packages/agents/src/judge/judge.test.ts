@@ -3,6 +3,7 @@ import { DEFAULT_MODELS } from '@pra/core';
 import { describe, expect, test } from 'vitest';
 import { FakeMessagesClient } from '../testing/fake-judge.ts';
 import { costOf } from '../prices.ts';
+import { UsageLimitError } from '../usage-limit.ts';
 import { AnthropicJudge, createAnthropicJudge, type JudgeInput } from './judge.ts';
 
 const input: JudgeInput = {
@@ -128,5 +129,14 @@ describe('AnthropicJudge', () => {
     });
     expect(early.status).toBe('cancelled');
     expect(client.requests).toHaveLength(0);
+  });
+
+  test('a usage limit fails with usage_limit_reached and its reset (P-25)', async () => {
+    const client = new FakeMessagesClient({ error: new UsageLimitError({ resetsAt: null }) });
+    const result = await new AnthropicJudge({ oauthToken: 't', client }).judge(input);
+    expect(result).toMatchObject({
+      status: 'failed',
+      error: { code: 'usage_limit_reached', params: { resetsAt: null } },
+    });
   });
 });

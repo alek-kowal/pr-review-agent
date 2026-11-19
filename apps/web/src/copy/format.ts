@@ -70,3 +70,11 @@ export const dateTime = (iso: string): string =>
     hour: '2-digit',
     minute: '2-digit',
   });
+
+/** `14:02` today, else `20 Nov, 14:02` (the viewer's time zone). */
+export const clockOrDate = (iso: string, now: Date = new Date()): string =>
+  new Date(iso).toDateString() === now.toDateString() ? clock(iso) : dateTime(iso);
+
+/** Runs wait for the Claude subscription's usage limit (P-25), until just after its reset. */
+export const usageLimitPause = (until: string): string =>
+  `Paused until ${clockOrDate(until)}: Claude usage limit`;

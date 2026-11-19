@@ -42,6 +42,8 @@ export const AGENT_ERROR_CODES = [
   'max_turns_reached',
   'output_invalid',
   'agent_failed',
+  /** The Claude subscription's usage limit (P-25); params `{ resetsAt }` (ISO or null). */
+  'usage_limit_reached',
   'timeout',
   'cancelled',
 ] as const;

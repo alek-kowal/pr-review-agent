@@ -29,6 +29,7 @@ export {
   QUEUE_SETTINGS,
   RECONCILE_CRON,
   sendDrainJob,
+  sendUsageLimitDrainJob,
   sendJob,
   sendPatchCheckJob,
   sendPushJob,

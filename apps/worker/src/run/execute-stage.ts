@@ -7,12 +7,15 @@ import {
   failStage,
   invalidRunModel,
   nextStage,
+  reason,
   STAGE_ERROR,
   startRun,
   startStage,
+  usageLimitHold,
   type RunStageKey,
   type RunState,
   type Transition,
+  type UsageLimitHold,
 } from '@pra/core';
 import {
   addRunCost,
@@ -26,7 +29,11 @@ import {
   freezeRunInstructions,
   trialReplacements,
   insertStageExecution,
+  holdForUsageLimit,
   lockRun,
+  sendUsageLimitDrainJob,
+  sessionCountOf,
+  setRunWait,
   stageExecutionsOfRun,
   updateAgentSession,
   updateRun,
@@ -51,6 +58,9 @@ import { sendStageJob } from './jobs.ts';
 import { liveSessions, type LiveSessions } from './live-sessions.ts';
 import { recordRunStarted } from './timeline-hooks.ts';
 import { latestAttempt, runStateOf } from './state.ts';
+
+/** The agents' error code for the Claude usage limit (`@pra/agents`, P-25). */
+const USAGE_LIMIT_REACHED = 'usage_limit_reached';
 
 /** After the timeout aborts a session, how long the executor gets to return its costs. */
 export const ABORT_GRACE_MS = 30_000;
@@ -172,7 +182,7 @@ async function startAndRun(
     if (started.next) await sendStageJob(deps.queue, runId, started.next, job.run);
     return 'not_next';
   }
-  const { run, executionId, attempt } = started;
+  const { run, executionId, attempt, sessionOffset } = started;
   // Sessions get their row when they start and their cost per turn (S-03-T3).
   const live = liveSessions(deps, { runId, stageExecutionId: executionId });
 
@@ -191,6 +201,7 @@ async function startAndRun(
     runId,
     stage,
     attempt,
+    sessionOffset,
     executionId,
     result,
     pullRequest,
@@ -199,6 +210,12 @@ async function startAndRun(
   if (!stored) {
     logger.warn({ runId, stage }, 'stage result dropped: the run changed while it ran');
     return result.status;
+  }
+  if (stored.parked) {
+    // The drainer sends this stage's job again once the hold passes (P-25).
+    await sendUsageLimitDrainJob(deps.queue, stored.parked.until);
+    logger.warn({ runId, stage, attempt, ...stored.parked }, 'Claude usage limit: stage parked');
+    return 'waiting';
   }
   if (stored.state.status === 'cancelled') {
     logger.info({ runId, stage, attempt }, 'stage cancelled');
@@ -252,7 +269,8 @@ export async function afterTransition(
   await removeRunFiles(deps, context.repository, run.id);
 }
 
-type Started = { run: Run; executionId: number; attempt: number };
+/** `sessionOffset`: sessions the attempt already has (it was parked, P-25); new ones follow. */
+type Started = { run: Run; executionId: number; attempt: number; sessionOffset: number };
 /** Not started: the job's stage is not the run's next one; `next` is, if any. */
 type NotStarted = { next: RunStageKey | null };
 /** Not started: the run waits for its cancel to finish. */
@@ -328,19 +346,33 @@ async function startStageInTx(
   const transition = startStage(state, stage as RunStageKey);
   if (!transition.ok) return notStarted;
 
-  const attempt = (latestAttempt(executions, stage)?.attempt ?? 0) + 1;
-  const execution = await insertStageExecution(tx, {
-    runId,
-    stage,
-    attempt,
-    status: 'running',
-    startedAt: new Date(),
-  });
+  // An attempt parked by the usage limit (P-25) goes on as the same attempt.
+  const latest = latestAttempt(executions, stage);
+  let started: Started;
+  if (latest?.status === 'pending') {
+    await updateStageExecution(tx, latest.id, {
+      status: 'running',
+      errorCode: null,
+      errorDetail: null,
+    });
+    const sessionOffset = await sessionCountOf(tx, latest.id);
+    started = { run, executionId: latest.id, attempt: latest.attempt, sessionOffset };
+  } else {
+    const attempt = (latest?.attempt ?? 0) + 1;
+    const execution = await insertStageExecution(tx, {
+      runId,
+      stage,
+      attempt,
+      status: 'running',
+      startedAt: new Date(),
+    });
+    started = { run, executionId: execution.id, attempt, sessionOffset: 0 };
+  }
   if (run.currentStage !== stage) {
     await updateRun(tx, runId, { currentStage: stage });
-    run = { ...run, currentStage: stage };
+    started.run = { ...run, currentStage: stage };
   }
-  return { run, executionId: execution.id, attempt };
+  return started;
 }
 
 type RunInput = {
@@ -459,10 +491,11 @@ async function storeSessionBlobs(
   stage: string,
   attempt: number,
   sessions: readonly SessionRecord[],
+  sessionOffset = 0,
 ): Promise<BlobKeys> {
   const keys: BlobKeys = [];
   for (const [index, session] of sessions.entries()) {
-    const base = `runs/${runId}/${stage}-${attempt}/session-${index + 1}`;
+    const base = `runs/${runId}/${stage}-${attempt}/session-${sessionOffset + index + 1}`;
     const key = { prompt: `${base}/prompt.txt`, transcript: `${base}/transcript.json` };
     await deps.blobStore.put(key.prompt, Buffer.from(session.prompt), {
       contentType: 'text/plain; charset=utf-8',
@@ -489,7 +522,13 @@ type StoreInput = {
   live: Pick<LiveSessions, 'sessionIdOf'>;
 };
 
-type StoredResult = { run: Run; state: RunState; sessionIds: number[] };
+/** `parked`: the stage hit the Claude usage limit and waits for this hold (P-25). */
+type StoredResult = {
+  run: Run;
+  state: RunState;
+  sessionIds: number[];
+  parked?: UsageLimitHold;
+};
 
 /**
  * Blobs, then the stage transaction. When either throws (the blob store is down, the database
@@ -499,11 +538,18 @@ type StoredResult = { run: Run; state: RunState; sessionIds: number[] };
  */
 async function storeResult(
   deps: WorkerDeps,
-  input: Omit<StoreInput, 'blobKeys'> & { attempt: number },
+  input: Omit<StoreInput, 'blobKeys'> & { attempt: number; sessionOffset: number },
 ): Promise<StoredResult | null> {
-  const { runId, stage, attempt, result } = input;
+  const { runId, stage, attempt, result, sessionOffset } = input;
   try {
-    const blobKeys = await storeSessionBlobs(deps, runId, stage, attempt, result.sessions);
+    const blobKeys = await storeSessionBlobs(
+      deps,
+      runId,
+      stage,
+      attempt,
+      result.sessions,
+      sessionOffset,
+    );
     return await deps.db.transaction((tx) => storeResultInTx(tx, { ...input, blobKeys }));
   } catch (error) {
     deps.logger.error({ err: error, runId, stage }, 'stage result could not be stored');
@@ -577,6 +623,24 @@ async function storeResultInTx(
     });
     await updateRun(tx, runId, { status: 'cancelled', currentStage: null, finishedAt: now });
     return { run: (await lockRun(tx, runId))!, state: cancel.run, sessionIds };
+  }
+
+  // The Claude usage limit (P-25) is no failure: the attempt goes back to pending (no failed
+  // attempt, no new attempt number), the run keeps running and waits like a run at the session
+  // gate, and the hold stops every other run's sessions until the reset.
+  if (result.status === 'failed' && result.error.code === USAGE_LIMIT_REACHED) {
+    const resetsAt = result.error.params.resetsAt;
+    const hold = await holdForUsageLimit(
+      tx,
+      usageLimitHold(typeof resetsAt === 'string' ? resetsAt : null, now.getTime()),
+    );
+    await updateStageExecution(tx, executionId, {
+      status: 'pending',
+      errorCode: result.error.code,
+      errorDetail: JSON.stringify(result.error.params),
+    });
+    await setRunWait(tx, runId, reason(USAGE_LIMIT_REACHED, hold), 'session');
+    return { run: locked, state, sessionIds, parked: hold };
   }
 
   const transition: Transition =

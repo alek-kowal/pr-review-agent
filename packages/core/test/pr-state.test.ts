@@ -251,6 +251,13 @@ describe('PR state table', () => {
       who: { code: 'who_starts_by_itself' },
       mainAction: { action: 'cancel' },
     });
+    const until = '2026-11-19T15:01:00.000Z';
+    const limited = activeRun({ status: 'queued', queue: { cause: 'usage_limit', until } });
+    expect(nextStep(makePr({ activeRun: limited }))).toMatchObject({
+      banner: { code: 'state_queued_usage_limit', params: { until } },
+      who: { code: 'who_starts_by_itself' },
+      mainAction: { action: 'cancel' },
+    });
     expect(nextStep(makePr({ activeRun: activeRun() })).banner.code).toBe(
       'state_round_running_by_hand',
     );

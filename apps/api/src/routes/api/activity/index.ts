@@ -19,7 +19,10 @@ export const InProgressResponse = z.object({
       currentStage: z.string().nullable(),
       /** Grows per agent turn while a session runs. */
       costUsd: z.number(),
-      /** Why the run waits (S-10: `paused`, `budget_reached`, `slots_busy`); null when it does not. */
+      /**
+       * Why the run waits (S-10: `paused`, `budget_reached`, `slots_busy`; P-25:
+       * `usage_limit_reached`); null when it does not.
+       */
       wait: z.object({ code: z.string(), params: z.record(z.string(), z.unknown()) }).nullable(),
       createdAt: timestamp,
       startedAt: timestamp.nullable(),

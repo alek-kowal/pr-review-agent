@@ -4,6 +4,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { copy } from '@/copy/index.ts';
+import { clockOrDate, dateTime } from '@/copy/format.ts';
 import type { InProgressRun, NextStepView, StatusResponse } from '@/lib/api-types.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
 import {
@@ -26,6 +27,8 @@ const PAUSED = aStatus({
   pausedAt: '2026-11-19T09:30:00.000Z',
 });
 const BUDGET = aStatus({ state: 'budget_reached', todaySpendUsd: 50.2, dailyBudgetUsd: 50 });
+/** Not today, so the pause names the date too. */
+const UNTIL = '2026-01-20T14:01:00.000Z';
 
 const resume = { action: 'resume' as const, signed: true, optional: false, disabled: null };
 const cancel = { action: 'cancel' as const, signed: false, optional: false, disabled: null };
@@ -66,6 +69,12 @@ const FIXTURES: { name: string; status: StatusResponse; step: NextStepView; titl
     status: aStatus({ agentSlots: 2, queuedCount: 1 }),
     step: queued({ code: 'state_queued_slot', params: {} }, false),
     title: 'Queued: waiting for a free agent slot',
+  },
+  {
+    name: 'usage limit (P-25)',
+    status: aStatus({ modelAuth: 'subscription' }),
+    step: queued({ code: 'state_queued_usage_limit', params: { until: UNTIL } }, false),
+    title: `Paused until ${dateTime(UNTIL)}: Claude usage limit`,
   },
 ];
 
@@ -150,10 +159,24 @@ describe('Activity row', () => {
       wait: { code: 'slots_busy', params: { slots: 2, prs: [13, 14] } },
       text: 'Queued: 2 agent slots busy (#13, #14)',
     },
+    {
+      name: 'usage limit',
+      status: aStatus({ modelAuth: 'subscription' }),
+      wait: { code: 'usage_limit_reached', params: { until: UNTIL, resetsAt: null } },
+      text: `Paused until ${dateTime(UNTIL)}: Claude usage limit`,
+    },
   ])('$name: "$text"', async ({ status, wait, text }) => {
     stubFetch({ '/api/status': status, '/api/activity/in-progress': { runs: [run(wait)] } });
     renderApp('/activity');
     const table = await screen.findByRole('table', { name: copy.activity.inProgress.title });
     expect(await within(table).findByText(text)).toBeVisible();
+  });
+});
+
+describe('the usage limit pause time', () => {
+  it('is a clock time today and a date with the time otherwise', () => {
+    const now = new Date('2026-11-19T12:00:00');
+    expect(clockOrDate(new Date('2026-11-19T15:01:00').toISOString(), now)).toBe('15:01');
+    expect(clockOrDate(new Date('2026-11-20T09:05:00').toISOString(), now)).toBe('20 Nov, 09:05');
   });
 });

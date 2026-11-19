@@ -7,6 +7,7 @@ import {
   admitRun,
   clearRunWait,
   getAppSettings,
+  getUsageLimitHold,
   lockAgentQueue,
   queuedAheadOf,
   setRunWait,
@@ -19,11 +20,16 @@ import type { RunGate } from './gates.ts';
 
 type QueueState = Awaited<ReturnType<typeof readQueueState>>;
 
-/** Status, today's spend and the slot holders; call under `lockAgentQueue`. */
+/** Status, today's spend, the slot holders and the usage limit hold; call under `lockAgentQueue`. */
 export async function readQueueState(tx: Executor) {
   const status = (await getAppSettings(tx)).value;
   const spent = await spentToday(tx, { timeZone: status.timeZone });
-  return { status, spentUsd: spent.spentUsd, holders: await slotHolders(tx) };
+  return {
+    status,
+    spentUsd: spent.spentUsd,
+    holders: await slotHolders(tx),
+    usageLimit: await getUsageLimitHold(tx),
+  };
 }
 
 /**
@@ -45,6 +51,7 @@ export function decide(
   run: Pick<Run, 'id'>,
   kind: GateKind,
   queuedAhead = 0,
+  now: number = Date.now(),
 ): StartGateDecision {
   return startGate({
     status: state.status,
@@ -52,6 +59,8 @@ export function decide(
     activeRuns: state.holders.filter((holder) => holder.runId !== run.id),
     kind,
     queuedAhead,
+    usageLimit: state.usageLimit,
+    now,
   });
 }
 
@@ -66,7 +75,10 @@ export const queueRoundGate: RunGate = async ({ deps, run }) =>
     return decision;
   });
 
-/** Before every agent stage: the daily budget (a pause lets started rounds finish). */
+/**
+ * Before every agent stage: the daily budget and the Claude usage limit (P-25); a pause lets
+ * started rounds finish.
+ */
 export const queueSessionGate: RunGate = async ({ deps, run }) =>
   deps.db.transaction(async (tx) => {
     await lockAgentQueue(tx);

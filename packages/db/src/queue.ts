@@ -104,6 +104,20 @@ export function sendDrainJob(queue: Queue): Promise<string | null> {
 }
 
 /**
+ * Wakes the drainer just after a Claude usage limit resets (P-25), so parked runs go on at once.
+ * Its own singleton key: under the `stately` policy a plain delayed drain would take the queue's
+ * one waiting place until then and drop every other wake-up.
+ */
+export function sendUsageLimitDrainJob(queue: Queue, until: string): Promise<string | null> {
+  return sendJob(
+    queue,
+    JOBS.runDrain,
+    {},
+    { startAfter: new Date(until), singletonKey: `usage-limit:${until}` },
+  );
+}
+
+/**
  * Queues a patch's check. The singleton key makes the `stately` policy count per patch: without
  * it one check of any patch would block (and drop) the checks of every other patch.
  */

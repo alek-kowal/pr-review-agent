@@ -6,6 +6,7 @@ import { query as sdkQuery, type SDKResultMessage } from '@anthropic-ai/claude-a
 import { sessionEnv, type QueryFn } from './claude-agent-runner.ts';
 import type { MessagesClient } from './judge/judge.ts';
 import { modelAccessOf, type ModelCredentials } from './model-access.ts';
+import { UsageLimitError, usageLimitOf } from './usage-limit.ts';
 
 export type MessagesClientOptions = ModelCredentials & {
   /** A test double; used only while some model access is configured. */
@@ -58,6 +59,7 @@ async function create(
   const format = body.output_config?.format;
   let home: string | undefined;
   let final: SDKResultMessage | undefined;
+  const transcript: unknown[] = [];
   try {
     home = await mkdtemp(path.join(tmpdir(), 'pra-call-'));
     const messages = query({
@@ -81,13 +83,19 @@ async function create(
       },
     });
     for await (const message of messages) {
+      transcript.push(message);
       if (message.type === 'result') final = message;
     }
+  } catch (thrown) {
+    const limit = signal?.aborted ? null : usageLimitOf(transcript, thrown);
+    throw limit ? new UsageLimitError(limit) : thrown;
   } finally {
     signal?.removeEventListener('abort', cancel);
     if (home) await rm(home, { recursive: true, force: true });
   }
   if (signal?.aborted) throw new Error('aborted');
+  const limit = usageLimitOf(transcript);
+  if (limit) throw new UsageLimitError(limit);
   if (!final) throw new Error('agent_sdk_no_result');
   if (final.subtype !== 'success' || final.is_error) {
     throw new Error(`agent_sdk_${final.subtype === 'success' ? 'error' : final.subtype}`);

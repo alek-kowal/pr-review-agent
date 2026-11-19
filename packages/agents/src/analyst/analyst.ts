@@ -15,6 +15,7 @@ import { costOf } from '../prices.ts';
 import { messagesClientFor, type MessagesClientOptions } from '../sdk-messages.ts';
 import { renderPrompt } from '../prompt.ts';
 import type { AgentRunResult } from '../runner.ts';
+import { UsageLimitError } from '../usage-limit.ts';
 
 /**
  * Reads what happened on a closed PR and proposes at most 5 lesson candidates for the reviewer.
@@ -133,6 +134,11 @@ export class AnthropicAnalyst implements Analyst {
       transcript.push({ type: 'error', detail: detailOf(thrown) });
       if (thrown instanceof APIUserAbortError || input.signal?.aborted) {
         return result({ status: 'cancelled', error: error('cancelled'), durationMs, transcript });
+      }
+      if (thrown instanceof UsageLimitError) {
+        const params = { resetsAt: thrown.resetsAt };
+        const failed = error('usage_limit_reached', params);
+        return result({ status: 'failed', error: failed, durationMs, transcript });
       }
       const status = thrown instanceof APIError ? thrown.status : undefined;
       return result({

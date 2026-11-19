@@ -2,6 +2,7 @@ import { DEFAULT_MODELS } from '@pra/core';
 import { describe, expect, test } from 'vitest';
 import { costOf } from '../prices.ts';
 import { FakeMessagesClient } from '../testing/fake-judge.ts';
+import { UsageLimitError } from '../usage-limit.ts';
 import { AnthropicAnalyst, createAnthropicAnalyst, type AnalystInput } from './analyst.ts';
 
 const input: AnalystInput = {
@@ -132,5 +133,15 @@ describe('AnthropicAnalyst (S-23-T2)', () => {
     const result = await new AnthropicAnalyst({ apiKey: 'k', client }).analyse(input);
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('agent_failed');
+  });
+
+  test('a usage limit fails with usage_limit_reached and its reset (P-25)', async () => {
+    const resetsAt = '2026-11-19T15:00:00.000Z';
+    const client = new FakeMessagesClient({ error: new UsageLimitError({ resetsAt }) });
+    const result = await new AnthropicAnalyst({ oauthToken: 't', client }).analyse(input);
+    expect(result).toMatchObject({
+      status: 'failed',
+      error: { code: 'usage_limit_reached', params: { resetsAt } },
+    });
   });
 });

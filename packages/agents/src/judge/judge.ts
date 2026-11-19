@@ -14,6 +14,7 @@ import { costOf } from '../prices.ts';
 import { messagesClientFor, type MessagesClientOptions } from '../sdk-messages.ts';
 import { renderPrompt } from '../prompt.ts';
 import type { AgentRunResult } from '../runner.ts';
+import { UsageLimitError } from '../usage-limit.ts';
 
 /**
  * Reads the task a PR implements and says how risky the change is. One Messages API call with
@@ -101,6 +102,11 @@ export class AnthropicJudge implements Judge {
       transcript.push({ type: 'error', detail: detailOf(thrown) });
       if (thrown instanceof APIUserAbortError || input.signal?.aborted) {
         return result({ status: 'cancelled', error: error('cancelled'), durationMs, transcript });
+      }
+      if (thrown instanceof UsageLimitError) {
+        const params = { resetsAt: thrown.resetsAt };
+        const failed = error('usage_limit_reached', params);
+        return result({ status: 'failed', error: failed, durationMs, transcript });
       }
       const status = thrown instanceof APIError ? thrown.status : undefined;
       return result({

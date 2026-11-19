@@ -26,6 +26,7 @@ import {
 } from './model-access.ts';
 import { pathGuard } from './path-guard.ts';
 import { costOf } from './prices.ts';
+import { usageLimitOf } from './usage-limit.ts';
 import {
   NO_USAGE,
   type AgentErrorCode,
@@ -139,12 +140,6 @@ export class ClaudeAgentRunner implements AgentRunner {
       if (home) await rm(home, { recursive: true, force: true });
     }
 
-    // A session that finished keeps its result. One we stopped (cost, timeout, cancel) is
-    // explained by why we stopped it, even if the SDK still sent an error result.
-    if (final && (final.subtype === 'success' || !abort.signal.aborted)) {
-      return fromResult(final, input, transcript);
-    }
-
     const spent = final
       ? reportedSpend(final, transcript)
       : {
@@ -155,6 +150,22 @@ export class ClaudeAgentRunner implements AgentRunner {
           durationMs: this.#now() - startedAt,
           transcript,
         };
+    // The subscription's usage limit (P-25): the worker parks the stage until the reset.
+    const limit = abort.signal.aborted ? null : usageLimitOf(transcript, thrown);
+    if (limit) {
+      return result<T>({
+        ...spent,
+        status: 'failed',
+        error: error('usage_limit_reached', { resetsAt: limit.resetsAt }),
+      });
+    }
+
+    // A session that finished keeps its result. One we stopped (cost, timeout, cancel) is
+    // explained by why we stopped it, even if the SDK still sent an error result.
+    if (final && (final.subtype === 'success' || !abort.signal.aborted)) {
+      return fromResult(final, input, transcript);
+    }
+
     if (costStopped) {
       return result<T>({
         ...spent,
@@ -301,8 +312,12 @@ function fromResult<T>(
   transcript: unknown[],
 ): AgentRunResult<T> {
   const reported = reportedSpend(final, transcript);
-  if (final.subtype !== 'success') {
-    const code = RESULT_ERRORS[final.subtype] ?? 'agent_failed';
+  // A `success` result can still be an error (`is_error`, e.g. an API error the SDK gave up on).
+  if (final.subtype !== 'success' || final.is_error) {
+    const code =
+      final.subtype === 'success'
+        ? 'agent_failed'
+        : (RESULT_ERRORS[final.subtype] ?? 'agent_failed');
     return result<T>({
       ...reported,
       status: 'failed',
