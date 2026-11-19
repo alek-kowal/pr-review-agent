@@ -35,3 +35,9 @@ when" checks are the plan. One commit per task, in the listed order.
 - **T3 level filter** compares the level the next round starts at (`input.level`, the level the
   card shows), applied after loading because it needs the repository default. The other filters
   are SQL conditions in `boardPullRequestIds`. Filters also narrow the merged/closed list.
+- **T4 filter controls.** Person is a Popover + Command combobox (the SignatureField pattern) over
+  active Team members; a login in the address that is not in Team shows as `@login`. The Filters
+  Popover uses native `<select>`s (as the prototype does) and the shadcn Checkbox. The board
+  response gains `repositories` (slugs) for the Repository select, so the board needs no call to
+  Settings. An invalid value in the address is dropped, not shown as an error. The previous
+  board stays on screen while a new filter loads (`keepPreviousData`).

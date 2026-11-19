@@ -208,6 +208,8 @@ export type BoardResponse = {
   };
   mergedOrClosed: BoardCard[];
   repositoryCount: number;
+  /** Connected repositories' slugs, for the Repository filter. */
+  repositories: string[];
 };
 
 /** A finding's current decision. */

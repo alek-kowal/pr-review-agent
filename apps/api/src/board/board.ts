@@ -54,6 +54,8 @@ export const BoardResponse = z.object({
   mergedOrClosed: z.array(BoardCardSchema),
   /** Connected repositories; the web shows a card's repository only when there is more than one. */
   repositoryCount: z.number().int(),
+  /** Connected repositories' slugs, for the Repository filter. */
+  repositories: z.array(z.string()),
 });
 export type Board = z.output<typeof BoardResponse>;
 
@@ -144,5 +146,6 @@ export async function buildBoard(
     },
     mergedOrClosed,
     repositoryCount: repositories.length,
+    repositories: repositories.map((repository) => repository.slug).sort(),
   };
 }

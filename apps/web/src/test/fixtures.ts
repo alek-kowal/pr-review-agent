@@ -86,6 +86,7 @@ export const anEmptyBoard = (over: Partial<BoardResponse> = {}): BoardResponse =
   },
   mergedOrClosed: [],
   repositoryCount: 1,
+  repositories: ['wb'],
   ...over,
 });
 

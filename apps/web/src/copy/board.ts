@@ -31,6 +31,27 @@ export const board = {
   round: (n: number, max: number) => `round ${n} of ${max}`,
   fork: 'Fork',
   forkTitle: 'Fork: read-only review, started by hand',
+  /** The filters above the board (S-17-T4). */
+  filters: {
+    person: 'Person',
+    everyone: 'Everyone',
+    searchPeople: 'Search people',
+    noPerson: 'No one matches.',
+    /** A login in the address that is not in Team (a removed member). */
+    login: (login: string) => `@${login}`,
+    button: 'Filters',
+    buttonCount: (n: number) => `Filters · ${n}`,
+    panelLabel: 'Board filters',
+    repository: 'Repository',
+    allRepositories: 'All',
+    forks: 'Forks',
+    forkOptions: { show: 'Show', hide: 'Hide', only: 'Only forks' },
+    level: 'Review level',
+    anyLevel: 'Any',
+    hideDrafts: 'Hide drafts',
+    clear: 'Clear filters',
+    laneEmpty: 'Nothing matches the filters.',
+  },
   /** Copy for card badges, by reason code (`CARD_BADGES` in the api). */
   badges: {} as Record<string, (params: Record<string, unknown>) => string>,
 };
