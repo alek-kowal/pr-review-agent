@@ -8,11 +8,18 @@ import {
   type SDKResultMessage,
 } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentRole } from '@pra/core';
-import { z } from 'zod/v4';
+import {
+  agentError as error,
+  agentResult as result,
+  detailOf,
+  issuesOf,
+  jsonSchemaOf,
+  toUsage,
+  type ApiUsage,
+} from './agent-result.ts';
 import { costOf } from './prices.ts';
 import {
   NO_USAGE,
-  type AgentError,
   type AgentErrorCode,
   type AgentRunInput,
   type AgentRunner,
@@ -175,7 +182,7 @@ class UsageMeter {
     this.#model = model;
   }
 
-  add(messageId: string, usage: SdkUsage | undefined): void {
+  add(messageId: string, usage: ApiUsage | undefined): void {
     if (!usage) return;
     this.#byMessage.set(messageId, toUsage(usage));
   }
@@ -198,22 +205,6 @@ class UsageMeter {
   get costUsd(): number {
     return costOf(this.#model, this.usage);
   }
-}
-
-type SdkUsage = {
-  input_tokens?: number | null;
-  output_tokens?: number | null;
-  cache_read_input_tokens?: number | null;
-  cache_creation_input_tokens?: number | null;
-};
-
-function toUsage(usage: SdkUsage): AgentUsage {
-  return {
-    inputTokens: usage.input_tokens ?? 0,
-    outputTokens: usage.output_tokens ?? 0,
-    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
-    cacheWriteTokens: usage.cache_creation_input_tokens ?? 0,
-  };
 }
 
 const RESULT_ERRORS: Record<Exclude<SDKResultMessage['subtype'], 'success'>, AgentErrorCode> = {
@@ -250,40 +241,9 @@ function fromResult<T>(
       ...reported,
       status: 'failed',
       error: error('output_invalid', {
-        issues: parsed.error.issues.map((issue) => ({ path: issue.path, code: issue.code })),
+        issues: issuesOf(parsed.error),
       }),
     });
   }
   return result<T>({ ...reported, status: 'completed', output: parsed.data });
-}
-
-function result<T>(
-  partial: Partial<AgentRunResult<T>> & Pick<AgentRunResult<T>, 'status'>,
-): AgentRunResult<T> {
-  return {
-    output: null,
-    error: null,
-    usage: { ...NO_USAGE },
-    costUsd: 0,
-    costSource: 'computed',
-    turns: 0,
-    durationMs: 0,
-    transcript: [],
-    ...partial,
-  };
-}
-
-function error(code: AgentErrorCode, params: Record<string, unknown> = {}): AgentError {
-  return { code, params };
-}
-
-function jsonSchemaOf(schema: z.ZodType): Record<string, unknown> {
-  const json = z.toJSONSchema(schema) as Record<string, unknown>;
-  delete json.$schema;
-  return json;
-}
-
-function detailOf(thrown: unknown): string {
-  const text = thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : String(thrown);
-  return text.slice(0, 500);
 }

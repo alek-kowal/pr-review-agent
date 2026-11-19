@@ -78,3 +78,17 @@ The planning step ran without questions (orchestrator rule: decide and record).
   `labelledContainers`, `ensureDockerImage`) live in `@pra/integrations/testing`.
 - **S-04-T2: `installDependencies` creates the cache folder** if missing and uses default limits
   (fetch 2 CPU / 2 GB / 10 min, install 2 CPU / 4 GB / 15 min), overridable per call.
+- **S-04-T4: the judge's input has no `floor`** (overrides the plan contract). The v1 rules already
+  say the answer can only raise the paths' tier, core `raiseChangeType` enforces it, and the worker
+  decides whether to call the judge at all. Not showing the floor avoids anchoring the model.
+- **S-04-T4: the v1 prompt's files travel inline.** The prompt names `{{knowledgeDir}}/classify-rules.md`,
+  `task.md` and `files.txt`; one Messages API call has no file access, so the adapter replaces
+  `{{knowledgeDir}}` with `instructions` and appends each file as a `<file name="…">` block (task
+  text cannot close its block). The instruction files stay unchanged.
+- **S-04-T4: API errors are results, not throws**: `agent_failed` with the HTTP status, an abort is
+  `cancelled`; the request and response are the transcript. Shared result helpers moved to
+  `packages/agents/src/agent-result.ts` (used by `ClaudeAgentRunner` and the judge).
+- **S-04-T4: `FakeJudge` and `FakeMessagesClient`** in `@pra/agents/testing` for P-09's Change type
+  stage and for adapter tests.
+- **Seed CLI test timeout raised to 30 s**: it spawns the CLI twice and hit 5 s under a parallel
+  `pnpm verify`.

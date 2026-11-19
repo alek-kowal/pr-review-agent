@@ -36,7 +36,12 @@
     }
   },
   "instructions": {
-    "global": ["prompt-reviewer.md", "review-rules.md"],
+    "global": [
+      "prompt-reviewer.md",
+      "review-rules.md",
+      "prompt-classifier.md",
+      "classify-rules.md"
+    ],
     "repository": ["lessons.md", "feature-map/"]
   }
 }

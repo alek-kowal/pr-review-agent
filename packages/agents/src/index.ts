@@ -7,3 +7,4 @@ export {
   type ClaudeAgentRunnerOptions,
   type QueryFn,
 } from './claude-agent-runner.ts';
+export * from './judge/index.ts';

@@ -238,7 +238,7 @@ the guard. Every role also gets the guard as a PreToolUse hook.
 
 #### Automated
 
-- [ ] 3.1 judge.test.ts passes
+- [x] 3.1 judge.test.ts passes
 
 ### Phase 4: Verifier adapter
 
