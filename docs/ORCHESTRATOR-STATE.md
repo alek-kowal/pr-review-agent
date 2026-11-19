@@ -60,3 +60,19 @@ The first start in a new folder shows a trust dialog. Answer it with `herdr agen
 - Docker.app is installed, but the daemon may be stopped. `open -a Docker` is allowed if a slice needs Postgres.
 - No local Postgres binaries.
 - gh accounts: `aleksandrio` (active) and `alek-kowal`. Switch to `alek-kowal` for this repo.
+
+## How tasks are executed (decided 19 Nov, 02:15)
+
+- **One roadmap task means one fresh session**, running `/10x-new`, then `/10x-plan` (the agent approves its own plan), then `/10x-implement`, then tests, then a commit. If the session nears 28%, it writes `context/changes/<id>/HANDOFF.md` and the orchestrator starts a continuation session.
+- **Parallel tasks** come from the roadmap's parallel marks. Each runs in its own git worktree at `~/Projects/pr-review-agent.worktrees/<task-id>` on branch `task/<task-id>`, in its own Herdr tab in w2, with at most 3 agents at once. The first scaffold task runs alone on `main`, because everything depends on it.
+- **Merging is done by the orchestrator:**
+  1. In the worktree: `pnpm install`, then the tests, typecheck and lint.
+  2. In the main checkout: `git merge --no-ff task/<id>`. On a conflict, a fresh merge session resolves it.
+  3. Push `main` and remove the worktree.
+- **Review:** one `/10x-impl-review` session per finished slice, not per task. Its findings become follow-up tasks.
+- **Progress:** each task's status lives in the roadmap tasks file, under "Task progress" below.
+
+## Task progress
+
+| Task | State | Agent | Branch | Notes |
+| --- | --- | --- | --- | --- |
