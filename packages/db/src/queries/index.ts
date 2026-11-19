@@ -1,6 +1,7 @@
 export * from './repositories.ts';
 export * from './judge-samples.ts';
 export * from './github-events.ts';
+export * from './github-poll.ts';
 export * from './app-settings.ts';
 export * from './instructions.ts';
 export * from './runs.ts';

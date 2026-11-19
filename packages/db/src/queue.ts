@@ -23,6 +23,8 @@ export const JOBS = {
   clickupFollowUp: 'clickup.follow-up',
   /** The reconcile poll over every connected repository (cron `RECONCILE_CRON`). */
   reconcile: 'reconcile',
+  /** The GitHub poller without the App (P-28): a tick every minute, a poll when due. */
+  githubPoll: 'github.poll',
   /** Starts queued runs that may start now, oldest first, and refreshes why the others wait. */
   runDrain: 'run.drain',
   /** Reruns a patch's reproductions after an edit or revert, no model spend; keyed `<patchId>`. */
@@ -40,6 +42,8 @@ export const ALERTS_CRON = '* * * * *';
 
 /** Every 10 minutes (OQ18): the poll that corrects what webhooks missed (S-03-T14). */
 export const RECONCILE_CRON = '*/10 * * * *';
+/** The poller's tick; the schedule in Settings decides which tick polls (P-28). */
+export const GITHUB_POLL_CRON = '* * * * *';
 
 export type JobName = (typeof JOBS)[keyof typeof JOBS];
 
@@ -51,6 +55,8 @@ export interface JobPayloads {
   'github.comment': { runId: number };
   'clickup.follow-up': { batchId: number };
   reconcile: Record<string, never>;
+  /** `force`: Poll now, inside or outside the window (not during a rate-limit backoff). */
+  'github.poll': { force?: boolean };
   'run.drain': Record<string, never>;
   'patch.check': { patchId: number };
   /** `signedBy`: the Team member who signed the push; null when level 5 autofix pushes. */
@@ -78,6 +84,8 @@ export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   'clickup.follow-up': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
   // A failed poll is not retried: the next one comes 10 minutes later.
   reconcile: { retryLimit: 0 },
+  // One poll runs and one more waits; a failed poll waits for the next tick (no retry loop).
+  'github.poll': { policy: 'stately', retryLimit: 0 },
   // One drain runs at a time and one more waits: wakes during a drain are merged into the next.
   'run.drain': { policy: 'stately', retryLimit: 1 },
   // One check per patch at a time and one more waits: edits during a check queue the next one.

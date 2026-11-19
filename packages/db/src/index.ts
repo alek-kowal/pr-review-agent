@@ -23,6 +23,7 @@ export {
   ALERTS_CRON,
   createQueue,
   FOLLOW_UP_DELAY_SECONDS,
+  GITHUB_POLL_CRON,
   githubEventJobId,
   JOBS,
   QUEUE_SCHEMA,
@@ -41,6 +42,12 @@ export {
   type QueueOptions,
 } from './queue.ts';
 export * from './queries/index.ts';
+export {
+  githubEventBlobKey,
+  ingestGithubEvent,
+  type DeliveryBlobStore,
+  type GithubDelivery,
+} from './github-ingest.ts';
 export * from './seed/seed-repo.ts';
 export * from './seed/instructions-import.ts';
 export { PR_STATES, type PrState } from './schema/repositories.ts';
