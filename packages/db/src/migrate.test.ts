@@ -36,4 +36,30 @@ describe('on a database nobody migrated', () => {
       await closeDb(db);
     }
   });
+
+  test('a queue created with older settings gets the current ones on the next migrate', async () => {
+    await migrateDatabase(database.url);
+    const db = createDb(database.url, { max: 1 });
+    try {
+      await db.execute(sql`update pgboss.queue
+        set retry_limit = 2, retry_delay = 0, retry_backoff = false, expire_seconds = 900
+        where name = 'run.stage'`);
+
+      await migrateDatabase(database.url);
+
+      const queues = await db.execute<{
+        name: string;
+        retry_limit: number;
+        retry_delay: number;
+        retry_backoff: boolean;
+        expire_seconds: number;
+      }>(sql`select name, retry_limit, retry_delay, retry_backoff, expire_seconds
+        from pgboss.queue where name = 'run.stage'`);
+      expect(queues.rows).toEqual([
+        expect.objectContaining({ name: 'run.stage', expire_seconds: 5 * 60 * 60 }),
+      ]);
+    } finally {
+      await closeDb(db);
+    }
+  });
 });

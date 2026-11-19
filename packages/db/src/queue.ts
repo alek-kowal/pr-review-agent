@@ -37,9 +37,9 @@ type QueueSettings = Omit<QueueDefinition, 'name'>;
 const STAGE_JOB_EXPIRY_SECONDS = 5 * 60 * 60;
 
 /**
- * Per-queue settings `migrateQueue` creates the queues with. `exclusive` allows one queued or
- * active job per `singletonKey`, so a second send for the same run and stage is dropped.
- * pg-boss's default expiry (15 minutes) would retry a stage that is still running.
+ * Per-queue settings `migrateQueue` creates (and updates) the queues with. `exclusive` allows one
+ * queued or active job per `singletonKey`, so a second send for the same run and stage is
+ * dropped. pg-boss's default expiry (15 minutes) would retry a stage that is still running.
  */
 export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   'run.stage': { policy: 'exclusive', expireInSeconds: STAGE_JOB_EXPIRY_SECONDS },
@@ -103,6 +103,11 @@ export async function migrateQueue(url: string): Promise<{ schemaVersion: number
   try {
     for (const name of Object.values(JOBS)) {
       await boss.createQueue(name, QUEUE_SETTINGS[name] ?? {});
+      // `createQueue` leaves an existing queue as it was; later settings reach it here. The
+      // policy cannot change after creation.
+      const settings = { ...QUEUE_SETTINGS[name] };
+      delete settings.policy;
+      if (Object.keys(settings).length) await boss.updateQueue(name, settings);
     }
     if (failure) throw failure;
     return { schemaVersion: await boss.schemaVersion() };
