@@ -2,6 +2,7 @@
 // the models (core `modelFor`), the timeout (the level's settings) and the active instruction
 // versions; Settings → Pipeline draws it read-only.
 import { FEATURE_ON_FROM, STAGE_ON_FROM, type AgentRole, type LevelNumber } from '@pra/core';
+import { AnalystAnswerSchema } from './analyst/analyst.ts';
 import { ROLE_TOOLS } from './claude-agent-runner.ts';
 import { ImplementerAnswerSchema } from './implementer/implementer.ts';
 import { JudgeAnswerSchema } from './judge/judge.ts';
@@ -52,6 +53,13 @@ export const REVIEW_INSTRUCTION_FILES = [
   'review-rules.md',
   'lessons.md',
   'repo-knowledge.md',
+] as const;
+
+/** Instruction files the analyst reads (the v1 prompt names the rules and the lessons file). */
+export const ANALYST_INSTRUCTION_FILES = [
+  'prompt-analyst.md',
+  'analyst-rules.md',
+  'lessons.md',
 ] as const;
 
 /**
@@ -145,9 +153,8 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     role: 'analyst',
     tools: toolsOf('analyst'),
     integrations: [],
-    // P-21 (S-23) builds the analyst and names its instruction files.
-    instructionFiles: [],
-    output: { schema: 'LessonCandidates', fields: ['candidates'] },
+    instructionFiles: [...ANALYST_INSTRUCTION_FILES],
+    output: { schema: 'AnalystAnswer', fields: fieldsOf(AnalystAnswerSchema) },
     attempts: 1,
     repairs: 0,
     onFrom: FEATURE_ON_FROM.learning,

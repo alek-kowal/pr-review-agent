@@ -4,6 +4,7 @@ import type { WorkerDeps } from '../deps.ts';
 import { metricsOnClosed, metricsOnHeadChanged, metricsOnReady } from '../metrics/metric-logs.ts';
 import { chainsOnHeadChanged } from '../run/chains.ts';
 import { cancelOnClosed } from '../run/close-cancels.ts';
+import { learningOnClosed } from '../run/learning-hooks.ts';
 import { sensitiveOnHeadChanged } from '../run/sensitive-files.ts';
 import {
   timelineOnClosed,
@@ -52,8 +53,8 @@ export const PR_EVENT_HOOKS: PrEventHooks = {
     timelineOnHeadChanged,
     metricsOnHeadChanged,
   ],
-  closed: [timelineOnClosed, cancelOnClosed, metricsOnClosed],
-  merged: [timelineOnMerged, cancelOnClosed, metricsOnClosed],
+  closed: [timelineOnClosed, cancelOnClosed, metricsOnClosed, learningOnClosed],
+  merged: [timelineOnMerged, cancelOnClosed, metricsOnClosed, learningOnClosed],
 };
 
 /** Which hook lists an event fires, in this order. */

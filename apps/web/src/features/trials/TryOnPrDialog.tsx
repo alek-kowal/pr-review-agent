@@ -35,8 +35,17 @@ import { useStartTrial } from './queries.ts';
 
 const t = copy.trials.tryDialog;
 
+/** The draft a trial runs as run B, and the repository a repository file belongs to. */
+export type TrialTarget = {
+  fileKey: string;
+  /** Set for a repository file: only its repository's PRs are offered. */
+  repositorySlug: string | null;
+  draftId: number;
+  draftVersion: number;
+};
+
 /** The open PRs on the board; a repository file offers only its repository's PRs. */
-function candidates(board: BoardResponse | undefined, file: InstructionDetailResponse['file']) {
+function candidates(board: BoardResponse | undefined, target: TrialTarget) {
   if (!board) return [];
   const { lanes } = board;
   const cards: BoardCard[] = [
@@ -47,7 +56,7 @@ function candidates(board: BoardResponse | undefined, file: InstructionDetailRes
     ...lanes.ready_to_merge.cards,
   ];
   return cards.filter(
-    (card) => file.scope !== 'repository' || card.repository.slug === file.repository?.slug,
+    (card) => target.repositorySlug === null || card.repository.slug === target.repositorySlug,
   );
 }
 
@@ -66,6 +75,13 @@ export function TryOnPrDialog({
   draft: InstructionVersionView;
 }) {
   const [open, setOpen] = useState(false);
+  const target: TrialTarget = {
+    fileKey: detail.file.fileKey,
+    repositorySlug:
+      detail.file.scope === 'repository' ? (detail.file.repository?.slug ?? null) : null,
+    draftId: draft.id,
+    draftVersion: draft.version,
+  };
   return (
     <>
       <Button type="button" variant="outline" onClick={() => setOpen(true)}>
@@ -75,24 +91,17 @@ export function TryOnPrDialog({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           {/* Mounted per open, so each opening starts with no PR picked and no old error. */}
-          {open && <TryForm detail={detail} draft={draft} onCancel={() => setOpen(false)} />}
+          {open && <TryOnPrForm target={target} onCancel={() => setOpen(false)} />}
         </DialogContent>
       </Dialog>
     </>
   );
 }
 
-function TryForm({
-  detail,
-  draft,
-  onCancel,
-}: {
-  detail: InstructionDetailResponse;
-  draft: InstructionVersionView;
-  onCancel: () => void;
-}) {
+/** The dialog's form: pick an open PR and start the trial of `target`'s draft. */
+export function TryOnPrForm({ target, onCancel }: { target: TrialTarget; onCancel: () => void }) {
   const board = useQuery(boardQuery());
-  const prs = candidates(board.data, detail.file);
+  const prs = candidates(board.data, target);
   const [picked, setPicked] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +123,7 @@ function TryForm({
     start.mutate(
       {
         pr: { repo: selected.repository.slug, number: selected.number },
-        instructionDraft: draft.id,
+        instructionDraft: target.draftId,
       },
       {
         onSuccess: (trial) =>
@@ -131,7 +140,7 @@ function TryForm({
   return (
     <form onSubmit={submit} className="grid gap-4">
       <DialogHeader>
-        <DialogTitle>{t.title(detail.file.fileKey, draft.version)}</DialogTitle>
+        <DialogTitle>{t.title(target.fileKey, target.draftVersion)}</DialogTitle>
         <DialogDescription>{t.description}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1.5">

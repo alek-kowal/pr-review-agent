@@ -1,6 +1,7 @@
 // Stage executors by stage key (P-05 extension point). P-09 adds Checks, Task, Change type and
 // Verify, P-18 the implementer stages: add a file and a line here. A planned stage with no
 // executor fails with `stage_not_available`.
+import { analyseStage } from './analyse.ts';
 import { changeTypeStage } from './change-type.ts';
 import { checksStage } from './checks.ts';
 import { checkFixesStage, fixDiffStage, reproductionsStage } from './fix-check.ts';
@@ -20,4 +21,5 @@ export const STAGE_EXECUTORS: StageExecutors = {
   [fixDiffStage.key]: fixDiffStage,
   [checkFixesStage.key]: checkFixesStage,
   [reproductionsStage.key]: reproductionsStage,
+  [analyseStage.key]: analyseStage,
 };

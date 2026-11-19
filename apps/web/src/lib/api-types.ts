@@ -151,8 +151,23 @@ export type PrView = {
   roundProgress: RoundProgressView | null;
   task: TaskSectionView;
   checks: ChecksSectionView;
+  learning: LearningSectionView;
   /** The PR's active alerts, newest first (S-18). */
   alerts: AlertView[];
+};
+
+/** The PR's latest analysis (S-23-T6), for the learning line of a closed PR. */
+export type LearningSectionView = {
+  /** The PR's level has learning (level 6): the bot analyses it when it closes. */
+  levelLearns: boolean;
+  analysis: {
+    id: number;
+    status: 'running' | 'finished' | 'failed';
+    startedBy: 'bot' | 'hand';
+    candidates: number | null;
+    runId: number | null;
+    at: string;
+  } | null;
 };
 
 /** One alert (S-18): `GET /api/alerts`, Dismiss and the PR view's `alerts`. */
@@ -832,3 +847,28 @@ export type PipelineStageView = {
 };
 
 export type PipelineResponse = { stages: PipelineStageView[] };
+
+/** `GET /api/learning/candidates` (apps/api/src/routes/api/learning). */
+export type LessonCandidateView = {
+  id: number;
+  repo: string;
+  title: string;
+  text: string;
+  evidence: string;
+  status: 'proposed' | 'accepted' | 'rejected';
+  prCount: number;
+  /** PRs a candidate needs before it can be accepted. */
+  need: number;
+  sources: { repo: string; number: number; title: string; evidence: string }[];
+  rejectReason: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  lessonsVersion: number | null;
+  editedAt: string | null;
+  createdAt: string;
+};
+
+export type LearningCandidatesResponse = { candidates: LessonCandidateView[] };
+
+/** `POST /api/learning/candidates/:id/draft`: the lessons.md draft with the lesson added. */
+export type LessonDraftResponse = { fileId: number; versionId: number; version: number };

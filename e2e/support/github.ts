@@ -10,7 +10,8 @@ export const stackState = (): StackState =>
 /** The GitHub login of the fixtures' PR author. */
 export const AUTHOR_LOGIN = 'wb-dev';
 
-type Fixture = 'ready_for_review' | 'opened-draft' | 'synchronize' | 'closed';
+/** `merged` is the `closed` fixture as GitHub sends it after a merge. */
+type Fixture = 'ready_for_review' | 'opened-draft' | 'synchronize' | 'closed' | 'merged';
 
 type Repo = { full_name: string; name: string; owner: { login: string } };
 type Payload = {
@@ -24,6 +25,9 @@ type Payload = {
     title: string;
     commits: number;
     updated_at: string;
+    closed_at?: string | null;
+    merged?: boolean;
+    merged_at?: string | null;
     user: { login: string };
     head: { sha: string; ref: string; repo: Repo };
     base: { sha: string; repo: Repo };
@@ -51,10 +55,14 @@ export async function deliverPullRequest(
 ): Promise<void> {
   const { baseSha, headSha } = stackState();
   const file = new URL(
-    `../../packages/integrations/src/testing/fixtures/github/pull_request.${fixture}.json`,
+    `../../packages/integrations/src/testing/fixtures/github/pull_request.${fixture === 'merged' ? 'closed' : fixture}.json`,
     import.meta.url,
   );
   const payload = JSON.parse(readFileSync(file, 'utf8')) as Payload;
+  if (fixture === 'merged') {
+    payload.pull_request.merged = true;
+    payload.pull_request.merged_at = payload.pull_request.closed_at;
+  }
   payload.number = number;
   payload.pull_request.number = number;
   payload.pull_request.title = title;
