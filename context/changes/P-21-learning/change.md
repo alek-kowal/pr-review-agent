@@ -117,3 +117,17 @@ tries, rejects (signed) or accepts (signed) them, and an accepted lesson becomes
   and the PR page's learning section read `getAppSettings().defaultLevel`.
 - Main itself did not typecheck after P-24 (`board.ts` used the nullable repository default);
   the board card now uses `load.defaultLevel` (repository default, else global), as the PR page.
+- S-17-T9 (main) checks every route for a `data-work-start`: Learning marks its candidates
+  section and its load error; Models, Review levels, a level and Audit log got one too
+  (`Section` takes `workStart`).
+
+### Second merge of main (P-20 alerts)
+
+- Main's `0022_alerts` stays untouched; learning was regenerated again, now as `0023_learning`
+  (`pnpm db:generate --name learning`), same SQL plus the two hand-written notify triggers.
+- `board.ts`: main fixed the nullable default level itself (repository default ?? global from
+  `getAppSettings`), so main's version replaces this branch's `load.defaultLevel` fix.
+- `ReviewLevelsPage` `Section.workStart`: main added the same prop; main's comment kept.
+- Both sides kept in the schema and query barrels, API error codes and their copy, PR view
+  sections (learning, then alerts) and their test list, PR banner slots, live targets,
+  `PrView` types and web fixtures. `routeTree.gen.ts` regenerated with `vite build`.

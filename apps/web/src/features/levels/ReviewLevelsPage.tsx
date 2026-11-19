@@ -152,7 +152,7 @@ export function Section(props: {
   title: string;
   sub?: string;
   actions?: ReactNode;
-  /** The screen's work start (S-17-T9 layout check): the first section a page shows. */
+  /** The page's first section: where its work starts (`data-work-start`). */
   workStart?: boolean;
   children: ReactNode;
 }) {

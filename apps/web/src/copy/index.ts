@@ -1,5 +1,6 @@
 // UI copy (English). Components read strings from here, never inline them.
 import { activity } from './activity.ts';
+import { alerts } from './alerts.ts';
 import { board } from './board.ts';
 import { budget } from './budget.ts';
 import { checklist } from './checklist.ts';
@@ -295,9 +296,12 @@ export const copy = {
     candidate_not_open: 'Someone decided this candidate in the meantime. Reload the page.',
     needs_more_prs: 'This lesson needs one more PR before it can be accepted.',
     pr_open: 'The analyst runs only on a closed pull request.',
+    alert_not_found: 'This alert no longer exists. Reload the page.',
+    alert_not_active: 'This alert has already cleared or been dismissed.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity,
+  alerts,
   insights,
   instructions,
   trials,

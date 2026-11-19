@@ -73,6 +73,16 @@ export const HELD_PRS = { from: 350, to: 399 };
 export const HELD_TURN_COST_USD = 0.12;
 
 /**
+ * PR numbers in this range get a reviewer that fails its first session and costs
+ * `COSTLY_RETRY_USD` on the retry, which passes the $5 cost alert (alerts.spec.ts).
+ */
+export const COSTLY_RETRY_PRS = { from: 160, to: 169 };
+export const COSTLY_RETRY_USD = 5.5;
+
+/** The general alerts task the stack sets in `alert_config` (alerts.spec.ts). */
+export const GENERAL_ALERTS_TASK = 'WB-700';
+
+/**
  * PR numbers of instructions.spec.ts. Their reviewer answers with `TRIAL_RULE_FINDING` in place of
  * the Nit when the review rules it reads hold `trialRule(number)`, so a trial's run B differs.
  */

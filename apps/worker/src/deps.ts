@@ -27,6 +27,11 @@ export type WorkerDeps = {
   /** Throwaway containers for the Checks install and Verify's reproductions. */
   sandbox: Sandbox;
   clickup: ClickUpGateway;
+  /**
+   * The address people open the app at (`APP_BASE_URL`); alert comments link to it. Without it
+   * an alert is not posted ("Not sent: ClickUp not configured").
+   */
+  appBaseUrl?: string | null;
   /** Session files (brief, diff, instruction copies) live under `<dataDir>/sessions`. */
   dataDir: string;
   /** The registries later packages extend; `DEFAULT_EXTENSIONS` unless a test replaces some. */

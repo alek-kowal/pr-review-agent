@@ -1,4 +1,7 @@
-import { JOBS, RECONCILE_CRON, sendDrainJob, type JobPayloads } from '@pra/db';
+import { ALERTS_CRON, JOBS, RECONCILE_CRON, sendDrainJob, type JobPayloads } from '@pra/db';
+import { handleAlertDeliveries } from './alerts/deliver.ts';
+import { handleAlertEvaluation, requestAlertEvaluation } from './alerts/evaluate.ts';
+import { listenForAlertTriggers } from './alerts/triggers.ts';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
 import { handleGithubComments } from './handlers/github-comment.ts';
 import { handleFollowUps } from './handlers/clickup-follow-up.ts';
@@ -69,6 +72,17 @@ export async function startWorker(
   // Every minute: a budget that resets at local midnight and a lost wake-up start runs anyway.
   await queue.schedule(JOBS.runDrain, '* * * * *', {});
   await sendDrainJob(queue);
+  // Alerts (S-18): evaluated after run changes and every minute; each new one is delivered once.
+  await queue.work<JobPayloads['alerts.evaluate']>(JOBS.alertsEvaluate, work, () =>
+    handleAlertEvaluation(deps),
+  );
+  await queue.work<JobPayloads['alerts.deliver']>(JOBS.alertsDeliver, work, (jobs) =>
+    handleAlertDeliveries(deps, jobs),
+  );
+  await queue.schedule(JOBS.alertsEvaluate, ALERTS_CRON, {});
+  const alertTriggers = listenForAlertTriggers(deps);
+  await alertTriggers.ready;
+  await requestAlertEvaluation(queue);
   logger.info({ jobs: Object.values(JOBS) }, 'worker started');
 
   // A send that failed after its row was committed (the api's event job, a next stage job) is
@@ -91,6 +105,7 @@ export async function startWorker(
     async stop() {
       clearInterval(resend);
       await cancels.close();
+      await alertTriggers.close();
       await queue.stop({ graceful: true });
       logger.info('worker stopped');
     },

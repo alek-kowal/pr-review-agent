@@ -113,6 +113,9 @@ export const ApiErrorCode = {
   NeedsMorePrs: 'needs_more_prs',
   /** Run the analyst on a PR that is still open. */
   PrOpen: 'pr_open',
+  AlertNotFound: 'alert_not_found',
+  /** Dismissing an alert that was already cleared or dismissed. */
+  AlertNotActive: 'alert_not_active',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

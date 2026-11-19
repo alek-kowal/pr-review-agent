@@ -72,6 +72,8 @@ export const LIVE_TARGETS: Record<string, readonly QueryFamilyKey[]> = {
   // S-23: the PR page's learning line and Settings → Learning.
   analyses: ['prView', 'learning'],
   lesson_candidates: ['learning'],
+  // S-18: alerts (the Activity lists sit under `activity`), the card bell, the banner line, the chip.
+  alerts: ['activity', 'board', 'prView', 'status'],
 };
 
 const DEFAULT_TARGETS: readonly QueryFamilyKey[] = ['pr', 'board'];

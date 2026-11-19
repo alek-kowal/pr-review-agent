@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { MainActionCode } from '@pra/core';
 import type { NextStepView, PrView } from '@/lib/api-types.ts';
+import { PrAlertLine } from '@/features/alerts/PrAlertLine.tsx';
 import { ResumeAction } from '@/features/budget/ResumeAction.tsx';
 import { ChangeTypePanel } from '@/features/checks/ChangeTypePanel.tsx';
 import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
@@ -45,6 +46,7 @@ export const BANNER_LINES: PrSlot[] = [
   { key: 'round-progress', Component: RoundProgress },
   { key: 'sensitive', Component: SensitiveBannerLine },
   { key: 'learning', Component: LearningBannerLine },
+  { key: 'alerts', Component: PrAlertLine },
 ];
 
 /**

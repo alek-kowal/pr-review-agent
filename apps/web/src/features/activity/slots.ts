@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { AlertsSection } from '@/features/alerts/AlertsSection.tsx';
 import { CancelRowAction } from '@/features/runs/CancelAction.tsx';
 import type { InProgressRun } from '@/lib/api-types.ts';
 
@@ -12,7 +13,7 @@ export const ACTIVITY_SECTIONS: {
   key: string;
   position: 'before' | 'after';
   Component: ComponentType;
-}[] = [];
+}[] = [{ key: 'alerts', position: 'before', Component: AlertsSection }];
 
 export const IN_PROGRESS_ROW_ACTIONS: {
   key: string;
