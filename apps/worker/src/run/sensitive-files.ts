@@ -12,7 +12,7 @@ import type { WorkerDeps } from '../deps.ts';
 import type { PrEventHook } from '../github-events/pr-hooks.ts';
 import type { RunGate } from './gates.ts';
 
-/** The paths a diff changes. */
+/** The paths a diff changes; a renamed file counts under its old and its new path. */
 async function changedPaths(
   deps: Pick<WorkerDeps, 'gitMirror'>,
   repository: Repository,
@@ -20,7 +20,13 @@ async function changedPaths(
   toSha: string,
 ): Promise<string[]> {
   const diff = await deps.gitMirror.diff(repository.githubFullName, fromSha, toSha);
-  return diff.files.map((file) => file.path);
+  return [
+    ...new Set(
+      diff.files.flatMap((file) =>
+        file.previousPath ? [file.path, file.previousPath] : [file.path],
+      ),
+    ),
+  ];
 }
 
 /** Adds the sensitive files the PR changes up to the run's head. Throws when git fails. */

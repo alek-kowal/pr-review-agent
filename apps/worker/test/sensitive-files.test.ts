@@ -236,4 +236,42 @@ describe('sensitive files', () => {
     expect(after!.status).toBe('queued');
     expect(await files()).toEqual([]);
   });
+
+  test('a file renamed out of a sensitive path still needs a person', async () => {
+    const OLD = 'db/migrations/0000_init.sql';
+    const renamed = await createGitFixture({
+      base: { ...DEFAULT_FEATURE_FILES, [OLD]: 'create table edges (id int);\n' },
+      feature: { [OLD]: null, 'archive/0000_init.sql': 'create table edges (id int);\n' },
+    });
+    const mirror = deps.gitMirror;
+    deps.gitMirror = new CliGitMirror({
+      rootDir: path.join(deps.dataDir, 'git-renamed'),
+      remoteUrl: () => renamed.dir,
+      exec: isolatedGitExec,
+    });
+    try {
+      await deps.gitMirror.fetch(repository.githubFullName);
+      await deliver('pull_request.ready_for_review', renamed.headSha);
+      const [pullRequest] = await deps.db
+        .update(schema.pullRequests)
+        .set({ baseSha: renamed.baseSha })
+        .where(eq(schema.pullRequests.id, (await pr()).id))
+        .returning();
+      const [run] = await deps.db
+        .select()
+        .from(schema.runs)
+        .where(eq(schema.runs.pullRequestId, pullRequest!.id));
+      await sensitiveFilesGate({
+        deps,
+        run: run!,
+        pullRequest: pullRequest!,
+        repository,
+        stage: 'review',
+      });
+      expect(await files()).toEqual([expect.objectContaining({ path: OLD, status: 'pending' })]);
+    } finally {
+      deps.gitMirror = mirror;
+      await renamed.remove();
+    }
+  });
 });
