@@ -2,7 +2,7 @@
 // `interrupted`. At start and then every few minutes, jobs a lost send left missing are sent
 // again: the next stage of queued or running runs (the `run.stage` queue drops a duplicate while
 // one is queued or active) and stored GitHub events nobody processed (fixed job id per delivery).
-import { nextStage } from '@pra/core';
+import { nextStage, STAGE_ERROR } from '@pra/core';
 import {
   cancelRequested,
   getRunContext,
@@ -41,7 +41,13 @@ export async function recoverRuns(deps: WorkerDeps): Promise<RecoveryResult> {
     const state = await db.transaction(async (tx) => {
       const run = await lockRun(tx, candidate.id);
       if (!run || run.status !== 'running') return null;
-      return interruptRunningStage(tx, run, await stageExecutionsOfRun(tx, run.id));
+      // One worker process: at its start no stage of ours is live (S-09-T6).
+      return interruptRunningStage(
+        tx,
+        run,
+        await stageExecutionsOfRun(tx, run.id),
+        STAGE_ERROR.interruptedByRestart,
+      );
     });
     if (!state) continue;
     interrupted.push(candidate.id);
