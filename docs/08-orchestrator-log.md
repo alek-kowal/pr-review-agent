@@ -44,3 +44,5 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
 | 17 | 90 days for full transcripts and raw GitHub events in object storage. DB rows (runs, findings, decisions, costs) are kept with no limit. Configurable |
 | 18 | Webhook to board in under 10 s (SSE). A reconcile poll every 10 min as a safety net |
 | 19 | "General" is fine |
+| 19 Nov 02:40 | orchestrator | What is "one task" given 230 roadmap tasks? | One **roadmap item** (F-01, S-01, and so on) gets one `/10x-new` and one `/10x-plan`. Its tasks T1–Tn become plan phases, and implementation continues across fresh sessions (each under 28%, handed over through HANDOFF.md). A separate 10x cycle for each of the 230 tasks would burn tokens on repeated setup | Alek: "oszczędzaj kontekst" |
+| 19 Nov 02:40 | orchestrator | Repo | `alek-kowal/pr-review-agent` created as **private**; history pushed | Alek: repo on alek-kowal |
