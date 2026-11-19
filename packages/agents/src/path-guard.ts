@@ -1,4 +1,4 @@
-import { realpath } from 'node:fs/promises';
+import { lstat, realpath } from 'node:fs/promises';
 import * as path from 'node:path';
 import type { CanUseTool, HookCallback } from '@anthropic-ai/claude-agent-sdk';
 
@@ -41,7 +41,8 @@ const GLOB_CHARS = /[*?[\]{}]/;
 /**
  * Decides one tool call. Reads must resolve inside `cwd` or a read dir, writes inside `cwd`.
  * A path resolves through the real path of its nearest existing ancestor, so `..`, absolute paths
- * and symlinks that point out are all caught. Tools without a path (such as the SDK's own
+ * and symlinks that point out are all caught; a dangling symlink is denied, and a write never goes
+ * through a symlink at all. Tools without a path (such as the SDK's own
  * structured-output tool) are left to the session's tool list.
  */
 export async function checkToolPath(
@@ -63,14 +64,23 @@ export async function checkToolPath(
     if (path.isAbsolute(input.pattern)) targets.push(globPrefix(input.pattern));
   }
 
-  const roots = writing ? [policy.cwd] : [policy.cwd, ...policy.readDirs];
-  const realRoots = await Promise.all(roots.map((root) => resolveReal(root, root)));
-  for (const target of targets) {
-    if (target.startsWith('~')) return deny(`${field} must not start with ~`);
-    const real = await resolveReal(policy.cwd, target);
-    if (!realRoots.some((root) => isInside(root, real))) {
-      return deny(`${writing ? 'writes' : 'reads'} only inside the allowed folders: ${target}`);
+  try {
+    const roots = writing ? [policy.cwd] : [policy.cwd, ...policy.readDirs];
+    const realRoots = await Promise.all(roots.map((root) => resolveReal(root, root)));
+    for (const target of targets) {
+      if (target.startsWith('~')) return deny(`${field} must not start with ~`);
+      const real = await resolveReal(policy.cwd, target);
+      if (!realRoots.some((root) => isInside(root, real))) {
+        return deny(`${writing ? 'writes' : 'reads'} only inside the allowed folders: ${target}`);
+      }
+      // A write follows a symlink wherever it points at write time: never write through one.
+      if (writing && (await isSymlink(path.resolve(policy.cwd, target)))) {
+        return deny(`writes never go through a symlink: ${target}`);
+      }
     }
+  } catch {
+    // A dangling symlink, a loop or an unreadable folder: the real target is unknown.
+    return deny(`${field} cannot be resolved`);
   }
   return { allowed: true };
 }
@@ -100,7 +110,11 @@ export function pathGuard(policy: PathPolicy): { hook: HookCallback; canUseTool:
   };
 }
 
-/** `target` against `base`, through the real path of its nearest existing ancestor. */
+/**
+ * `target` against `base`, through the real path of its nearest existing ancestor. Only a truly
+ * missing entry is skipped while walking up: an entry that exists but has no real path (a dangling
+ * symlink, which a write would follow out of the folder, or a symlink loop) throws.
+ */
 async function resolveReal(base: string, target: string): Promise<string> {
   const absolute = path.resolve(base, target);
   const rest: string[] = [];
@@ -109,11 +123,32 @@ async function resolveReal(base: string, target: string): Promise<string> {
     try {
       return path.join(await realpath(current), ...rest.reverse());
     } catch {
+      if (!(await isMissing(current))) throw new Error(`unresolvable path: ${current}`);
       const parent = path.dirname(current);
       if (parent === current) return absolute;
       rest.push(path.basename(current));
       current = parent;
     }
+  }
+}
+
+/** True only when nothing, not even a dangling symlink, exists at `entry`. */
+async function isMissing(entry: string): Promise<boolean> {
+  try {
+    await lstat(entry);
+    return false;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return true;
+    throw error;
+  }
+}
+
+async function isSymlink(entry: string): Promise<boolean> {
+  try {
+    return (await lstat(entry)).isSymbolicLink();
+  } catch {
+    return false;
   }
 }
 

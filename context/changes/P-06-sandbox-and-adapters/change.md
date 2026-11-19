@@ -138,6 +138,12 @@ The planning step ran without questions (orchestrator rule: decide and record).
   sub-agents are denied by name even if a tool list ever named them. Tools without a path argument
   (the SDK's own structured-output tool) are left to the session's `tools` list, so structured
   output keeps working under `permissionMode: 'default'`.
+- **S-13-T1 (security review fix): dangling symlinks are denied, and writes never go through a
+  symlink.** `realpath` fails on a dangling link, and the guard used to walk up past it as if the
+  entry were missing, so a PR could add `src/x -> /outside/file` and a Write would create the
+  target outside the worktree. Now only an entry that `lstat` cannot find is skipped; anything
+  else unresolvable is denied, and a write whose last path part is a symlink is denied even when it
+  points inside (reads may still follow links that stay inside).
 - **S-13-T1: env stays `ANTHROPIC_API_KEY`, `PATH` and a throwaway `HOME`** (see Planning); the test
   asserts no `GITHUB_*`, `CLICKUP_*` or `DATABASE_URL`. The `role_not_supported` runner test now
   uses `analyst`, the only role still without tools.

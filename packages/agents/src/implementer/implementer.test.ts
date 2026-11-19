@@ -34,6 +34,11 @@ beforeAll(async () => {
   // A symlink inside the worktree that points out of it.
   await symlink(path.join(outside, 'app-key.pem'), path.join(worktree, 'src', 'key-link.ts'));
   await symlink(outside, path.join(worktree, 'linked-dir'));
+  // Dangling symlinks: their targets do not exist yet, so a write would create them outside.
+  await symlink(path.join(outside, 'not-yet.ts'), path.join(worktree, 'src', 'dangling.ts'));
+  await symlink(path.join(outside, 'no-dir'), path.join(worktree, 'dangling-dir'));
+  // A symlink that stays inside the worktree.
+  await symlink(path.join(worktree, 'src', 'save.ts'), path.join(worktree, 'src', 'inner-link.ts'));
 });
 afterAll(() => rm(root, { recursive: true, force: true }));
 
@@ -159,6 +164,19 @@ describe('the implementer session on the Agent SDK', () => {
     });
     expect(await ask('Glob', { pattern: '../outside/*' })).toMatchObject({ behavior: 'deny' });
     expect(await ask('Bash', { command: 'cat /etc/passwd' })).toMatchObject({ behavior: 'deny' });
+    // Dangling symlinks, as a file and as a folder on the way.
+    expect(await ask('Write', { file_path: 'src/dangling.ts', content: 'x' })).toMatchObject({
+      behavior: 'deny',
+    });
+    expect(await ask('Edit', edit('src/dangling.ts'))).toMatchObject({ behavior: 'deny' });
+    expect(await ask('Write', { file_path: 'dangling-dir/new.ts', content: 'x' })).toMatchObject({
+      behavior: 'deny',
+    });
+    // A write through a symlink is denied even when it points inside; a read may follow it.
+    expect(await ask('Edit', edit('src/inner-link.ts'))).toMatchObject({ behavior: 'deny' });
+    expect(await ask('Read', { file_path: 'src/inner-link.ts' })).toMatchObject({
+      behavior: 'allow',
+    });
 
     expect(await ask('Edit', edit('src/save.ts'))).toMatchObject({ behavior: 'allow' });
     expect(await ask('Write', { file_path: 'src/new/file.ts', content: 'x' })).toMatchObject({
