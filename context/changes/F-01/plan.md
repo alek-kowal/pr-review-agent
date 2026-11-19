@@ -236,18 +236,18 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Automated
 
-- [x] 1.1 `pnpm install` and `pnpm typecheck` exit 0
-- [x] 1.2 `pnpm -r ls --depth -1` lists the five `@pra/*` packages
-- [x] 1.3 `pnpm test` runs the core test under Vitest and it passes
-- [x] 1.4 `.env.example` holds names only
+- [x] 1.1 `pnpm install` and `pnpm typecheck` exit 0 — 729c17b
+- [x] 1.2 `pnpm -r ls --depth -1` lists the five `@pra/*` packages — 729c17b
+- [x] 1.3 `pnpm test` runs the core test under Vitest and it passes — 729c17b
+- [x] 1.4 `.env.example` holds names only — 729c17b
 
 ### Phase 2: apps/api from the Fastify generator
 
 #### Automated
 
-- [ ] 2.1 `pnpm --filter @pra/api test` passes the ported tests under Vitest
-- [ ] 2.2 `grep -r "node:test" apps/api` finds nothing
-- [ ] 2.3 `curl -i localhost:3000/` returns 200 with the api dev server running
+- [x] 2.1 `pnpm --filter @pra/api test` passes the ported tests under Vitest
+- [x] 2.2 `grep -r "node:test" apps/api` finds nothing
+- [x] 2.3 `curl -i localhost:3000/` returns 200 with the api dev server running
 
 ### Phase 3: Zod schemas, OpenAPI and the error shape
 
