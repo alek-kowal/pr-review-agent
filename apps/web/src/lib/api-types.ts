@@ -140,6 +140,17 @@ export type FindingView = {
   suggestion: string;
   verdict: Verdict;
   evidence: { file: string; line: number | null; quote: string }[];
+  /** How Verify reached the verdict (level 3 and up); null when Verify did not run. */
+  verification: {
+    reason: ReasonView;
+    verifierReason: string | null;
+    reproduction: {
+      exitCode: number | null;
+      timedOut: boolean;
+      outputTail: string | null;
+      repaired: boolean;
+    } | null;
+  } | null;
   /** Sent back with a decision; a decision made in between gives 409 `decision_conflict`. */
   version: number;
   decision: DecisionView | null;
@@ -165,6 +176,8 @@ export type FindingsResponse = {
   findings: FindingView[];
   questions: QuestionView[];
   notChecked: string[];
+  /** Below level 3: how many findings no verifier checked; null at level 3 and up. */
+  unchecked: number | null;
 };
 
 export const isActiveStatus = (status: RunStatus | null | undefined): boolean =>

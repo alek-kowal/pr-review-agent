@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import type { Verdict } from '@pra/core';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
+import type { FindingView } from '@/lib/api-types.ts';
 import { copy } from '@/copy/index.ts';
 import { FINDING_ACTION_SLOTS, FINDING_LINE_SLOTS, type FindingSlotProps } from './slots.ts';
 import { SeverityMark } from './SeverityMark.tsx';
@@ -122,14 +123,24 @@ export function Finding({
               </Block>
             </div>
             <div className="grid min-w-0 content-start gap-3.5">
-              {f.verdict === 'unchecked' && (
+              {f.verdict === 'unchecked' ? (
                 <div className="rounded-lg border border-dashed border-border p-3 text-sm text-text-2">
                   <div className="flex items-center gap-1.5 font-medium text-text">
                     <CircleDashed aria-hidden="true" className="size-3.5" />
                     {copy.findings.verdicts.unchecked(level)}
                   </div>
-                  <p className="mt-1">{copy.findings.uncheckedBody}</p>
+                  <p className="mt-1">
+                    {f.verification?.reason.code === 'verify_off_for_change_type'
+                      ? copy.findings.uncheckedForChangeType
+                      : copy.findings.uncheckedBody}
+                  </p>
                 </div>
+              ) : (
+                f.verification?.verifierReason && (
+                  <Block title={copy.findings.verifier(copy.findings.verdicts[f.verdict])}>
+                    <p className="text-sm whitespace-pre-wrap">{f.verification.verifierReason}</p>
+                  </Block>
+                )
               )}
               {f.evidence.length > 0 && (
                 <Block title={copy.findings.evidence}>
@@ -150,6 +161,9 @@ export function Finding({
                   </ul>
                 </Block>
               )}
+              {f.verification?.reproduction && (
+                <Reproduction reproduction={f.verification.reproduction} />
+              )}
             </div>
           </div>
           {FINDING_ACTION_SLOTS.map(({ key, Component }) => (
@@ -158,6 +172,33 @@ export function Finding({
         </div>
       )}
     </article>
+  );
+}
+
+type ReproductionView = NonNullable<NonNullable<FindingView['verification']>['reproduction']>;
+
+/** The sandboxed reproduction that decided the verdict, folded under technical details. */
+function Reproduction({ reproduction: r }: { reproduction: ReproductionView }) {
+  return (
+    <details className="group min-w-0 text-sm">
+      <summary className="w-fit cursor-pointer text-xs font-medium text-text-2 underline-offset-2 hover:underline">
+        {copy.findings.technicalDetails}
+      </summary>
+      <section className="mt-2 min-w-0">
+        <h4 className="mb-1 text-xs font-semibold text-text-2">
+          {copy.findings.reproduction}{' '}
+          <span className="font-normal text-text-3">
+            · {copy.findings.reproductionResult(r.exitCode, r.timedOut)}
+          </span>
+        </h4>
+        {r.repaired && (
+          <p className="mb-1 text-xs text-text-3">{copy.findings.reproductionRepaired}</p>
+        )}
+        <pre className="overflow-x-auto rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-[12px] leading-[18px]">
+          {r.outputTail || copy.findings.reproductionNoOutput}
+        </pre>
+      </section>
+    </details>
   );
 }
 

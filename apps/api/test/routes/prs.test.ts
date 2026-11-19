@@ -248,7 +248,13 @@ describe('GET /api/prs/:repo/:number/findings', () => {
     const empty = await app.inject({ url: `/api/prs/${alpha}/2/findings` });
     const missing = await app.inject({ url: `/api/prs/${alpha}/999/findings` });
 
-    expect(empty.json()).toEqual({ round: null, findings: [], questions: [], notChecked: [] });
+    expect(empty.json()).toEqual({
+      round: null,
+      findings: [],
+      questions: [],
+      notChecked: [],
+      unchecked: null,
+    });
     expect(missing.statusCode).toBe(404);
     expect(missing.json().error.code).toBe('pr_not_found');
   });

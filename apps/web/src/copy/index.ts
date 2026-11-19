@@ -89,7 +89,19 @@ export const copy = {
       unchecked: (level: number) =>
         `Level ${level} does not verify findings. Nobody has checked this one yet.`,
     },
-    uncheckedBody: 'Not verified at this level.',
+    uncheckedBody: 'Not verified at this level. For a verdict, start a review at level 3.',
+    uncheckedForChangeType: 'Not verified: this change type verifies only some findings.',
+    verifier: (verdict: string) => `Verifier: ${verdict.toLowerCase()}`,
+    technicalDetails: 'Technical details',
+    reproduction: 'Reproduction',
+    reproductionResult: (exitCode: number | null, timedOut: boolean) => {
+      if (timedOut) return 'timed out: could not run';
+      const outcome =
+        exitCode === 0 ? 'reproduced' : exitCode === 3 ? 'does not happen' : 'could not run';
+      return `exit ${exitCode ?? 'none'}: ${outcome}`;
+    },
+    reproductionRepaired: 'The first script could not run; this is the repaired one.',
+    reproductionNoOutput: 'No output.',
     location: (file: string, line: number | null) => (line === null ? file : `${file}:${line}`),
     scenario: 'Scenario',
     suggestion: 'Suggestion',
