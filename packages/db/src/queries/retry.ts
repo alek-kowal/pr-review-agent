@@ -67,6 +67,9 @@ async function insertRetry(
 ): Promise<Inserted | Reason> {
   const failedRun = await lockRun(tx, runId);
   if (!failedRun) return reason('run_not_found', { runId });
+  // A trial leaves the PR untouched and its run B reads a draft linked by run id (S-22-T6): a
+  // retry would write the PR timeline and read the active version, so a trial is started again.
+  if (failedRun.kind === 'trial') return reason('run_not_retryable', { kind: failedRun.kind });
   const executions = await stageExecutionsOfRun(tx, runId);
   const transition = retryFromStage(runStateOf(failedRun, executions));
   if (!transition.ok) return transition.reason;

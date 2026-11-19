@@ -179,7 +179,7 @@ export function RunPage({
                   <li key={v.id} className="flex justify-between gap-2 px-3.5 py-2 text-sm">
                     <span className="font-mono text-[13px]">{v.fileKey}</span>
                     <span className="text-xs text-text-3">
-                      {copy.runs.detail.instructionVersion(v.scope, v.version)}
+                      {copy.runs.detail.instructionVersion(v.scope, v.version, v.level)}
                     </span>
                   </li>
                 ))}

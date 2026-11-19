@@ -133,6 +133,18 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   the merge `decide.spec.ts` failed once in the full e2e run (no conflict alert after the second
   browser's decision) and passed in the next two full runs; neither side touched it, so it is
   left as a flaky check to watch.
+- **Merge with main (P-17, instructions, trials and pipeline).** Main's `0017_instruction_files`,
+  `0018_instruction_versions_by_file`, `0019_trials` and their snapshots and journal are kept; ours
+  is regenerated as `0020_retry_cancel` (SQL identical to the old 0017). The e2e stack keeps both
+  sides: P-17's `scriptedReview` (`TRIAL_PRS` 290–297, reads `review-rules.md` from `readDirs`) and
+  our `waitForFile` that stops on a cancel's abort signal. PR ranges stay apart. A retry run is
+  queued, so it freezes the instruction versions active when it starts (P-17's
+  `freezeRunInstructions`); stages it reuses keep the failed run's outputs. A trial is never
+  retried: `retryRun` refuses it with the new reason `run_not_retryable` (`{ kind }`, api 409,
+  web copy), because a retry writes the PR timeline (a trial leaves the PR untouched) and the
+  trial's draft is linked to run B by id. The PR banner never offers it (trials are not state
+  runs). Cancelling a trial already leaves the PR alone (`runEnded` skips trials).
+  `routeTree.gen.ts` was regenerated (`vite build`): main's settings routes, no further diff.
 - **Retry is keyed by run id** (`POST /api/runs/:id/retry`, 201 `{run: {id, fromStage}}`); the
   banner retries `view.latestRound.id`, which is the failed round while the state is Stage failed.
   The stage a retry starts from is stored (`runs.retry_from`) rather than re-derived, so the PR

@@ -104,6 +104,10 @@ export const RunDetailResponse = z.object({
         scope: z.string(),
         fileKey: z.string(),
         version: z.number().int(),
+        /** The level of a level copy. */
+        level: z.number().int().nullable().optional(),
+        /** The instruction file, for a link to its editor; missing on runs before S-22. */
+        fileId: z.number().int().nullable().optional(),
       }),
     ),
     /** The stage and error code a failed run stopped at. */
@@ -280,12 +284,13 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
         if (code === 'run_not_found') {
           return sendError(reply, 404, ApiErrorCode.RunNotFound, request.params);
         }
-        return sendError(
-          reply,
-          409,
-          code === 'run_active' ? ApiErrorCode.RunActive : ApiErrorCode.RunNotFailed,
-          params,
-        );
+        const conflict =
+          code === 'run_active'
+            ? ApiErrorCode.RunActive
+            : code === 'run_not_retryable'
+              ? ApiErrorCode.RunNotRetryable
+              : ApiErrorCode.RunNotFailed;
+        return sendError(reply, 409, conflict, params);
       }
       return reply.code(201).send({ run: { id: result.run.id, fromStage: result.fromStage } });
     },

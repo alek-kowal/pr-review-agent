@@ -38,14 +38,9 @@ export {
 } from './queue.ts';
 export * from './queries/index.ts';
 export * from './seed/seed-repo.ts';
-export {
-  INSTRUCTION_SCOPES,
-  INSTRUCTION_STATUSES,
-  PR_STATES,
-  type InstructionScope,
-  type InstructionStatus,
-  type PrState,
-} from './schema/repositories.ts';
+export * from './seed/instructions-import.ts';
+export { PR_STATES, type PrState } from './schema/repositories.ts';
+export { INSTRUCTION_STATUSES, type InstructionStatus } from './schema/instructions.ts';
 export {
   ACTIVE_RUN_STATUSES,
   BLOCKING_RUN_KINDS,

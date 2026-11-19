@@ -29,6 +29,8 @@ export const ApiErrorCode = {
   RunNotFound: 'run_not_found',
   /** Retry of a run that did not fail (S-09-T2). */
   RunNotFailed: 'run_not_failed',
+  /** Retry of a trial run, which is started again instead (S-22-T6). */
+  RunNotRetryable: 'run_not_retryable',
   /** Cancel of a run that already ended (S-09-T4). */
   RunFinished: 'run_finished',
   /** The session does not exist or belongs to another run. */
@@ -66,6 +68,18 @@ export const ApiErrorCode = {
   ClickupAuthFailed: 'clickup_auth_failed',
   /** ClickUp did not answer as expected. */
   ClickupError: 'clickup_error',
+  InstructionFileNotFound: 'instruction_file_not_found',
+  /** A version id that is not one of the file's versions. */
+  InstructionVersionNotFound: 'instruction_version_not_found',
+  /** Activate a version that is not the draft, or roll back to one that is not archived. */
+  InstructionVersionStatus: 'instruction_version_status',
+  /** A repository or level copy of this file is already there (`params.fileId`). */
+  InstructionCopyExists: 'instruction_copy_exists',
+  /** A copy of a file that has no active version to start from. */
+  InstructionNoActive: 'instruction_no_active',
+  /** A trial of a version that is not a draft (`params.status`). */
+  TrialNeedsDraft: 'trial_needs_draft',
+  TrialNotFound: 'trial_not_found',
   /** A question is not one of this PR's (S-08-T1). */
   QuestionNotFound: 'question_not_found',
   /** An answer names neither an option nor an own text, or both, or an option out of range. */

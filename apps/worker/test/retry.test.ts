@@ -238,6 +238,16 @@ test('only a failed run can be retried, and not while the PR is held', async () 
     reason: { code: 'run_active', params: { kind: 'round', status: 'running' } },
   });
 
+  // A trial is started again from Experiments (S-22-T6), never retried.
+  const trial = await insertRun(
+    deps.db,
+    aRun(pullRequest.id, { kind: 'trial', status: 'failed', headSha: fixture.headSha }),
+  );
+  expect(await retryRun(deps, trial.id, HAND)).toEqual({
+    retried: false,
+    reason: { code: 'run_not_retryable', params: { kind: 'trial' } },
+  });
+
   expect(await retryRun(deps, 999_999, HAND)).toEqual({
     retried: false,
     reason: { code: 'run_not_found', params: { runId: 999_999 } },
