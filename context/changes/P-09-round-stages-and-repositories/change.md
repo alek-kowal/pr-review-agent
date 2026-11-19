@@ -223,3 +223,21 @@ listed order.
   fields, whole numbers above 0): marked fields block the dialog with a message; a sensitive row
   without a reason says "Each sensitive file pattern needs a reason." The api validates again.
 - Added the shadcn `Switch` primitive (`components/ui/switch.tsx`, radix-ui).
+
+### S-20-T7 (Integrations page)
+
+- `/settings/integrations`, registered under General. Three cards (labelled regions): GitHub App,
+  "Comment on the PR in GitHub", ClickUp, with the prototype's copy where it has some.
+- Status pill per integration: "Connected", "Not configured" (with the missing env var names,
+  never values) or, for GitHub, "Not reachable" when listing installations failed. The prototype
+  has no not-configured state; this follows the task's rule that missing credentials never look
+  like success.
+- GitHub shows installations (account · repository count), the repositories it can act on, last
+  delivery (time and `event.action`), 24 h deliveries and failed signatures, and "Reconcile poll:
+  not running" (no poll exists yet). Repository names are not linked: the status has no ids.
+- ClickUp shows its last call (time, answered or the error's copy) and "Test the connection";
+  the result shows inline in a status line (ok with the key's user, or the error's copy) instead
+  of the prototype's toast, so it stays readable and testable.
+- The comment Switch goes through `useSettingsForm`, the save bar (one unsaved change) and the
+  signed dialog ("GitHub comment after a round": On → Off).
+- Settings → Repositories now links "GitHub App" to this page.

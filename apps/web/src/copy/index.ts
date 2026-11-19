@@ -2,6 +2,7 @@
 import { board } from './board.ts';
 import { checklist } from './checklist.ts';
 import { decisions } from './decisions.ts';
+import { integrations } from './integrations.ts';
 import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
 
@@ -21,6 +22,7 @@ export const copy = {
   checklist,
   decisions,
   repositories,
+  integrations,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',
@@ -151,6 +153,10 @@ export const copy = {
     github_not_configured: 'GitHub is not configured on this server.',
     repository_not_reachable: 'The GitHub App cannot reach this repository.',
     repository_already_connected: 'This repository is already connected.',
+    clickup_not_configured: 'ClickUp is not configured on this server.',
+    clickup_auth_failed: 'ClickUp refused the API key.',
+    clickup_error: 'ClickUp did not answer as expected.',
+    github_error: 'GitHub did not answer as expected.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity: {

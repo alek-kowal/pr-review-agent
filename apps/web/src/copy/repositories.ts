@@ -30,7 +30,7 @@ export const repositories = {
   off: 'Off',
   patterns: (n: number) => (n === 1 ? '1 pattern' : `${n} patterns`),
   open: (name: string) => `Open the settings of ${name}`,
-  fromGithubApp: 'Repositories come from the GitHub App.',
+  fromGithubApp: { before: 'Repositories come from the ', link: 'GitHub App', after: '.' },
   connect: {
     label: 'Connect a repository',
     search: 'Search repositories',

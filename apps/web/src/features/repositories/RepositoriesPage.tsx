@@ -105,7 +105,13 @@ export function RepositoriesPage() {
               </table>
             </div>
           )}
-          <p className="text-sm text-text-3">{t.fromGithubApp}</p>
+          <p className="text-sm text-text-3">
+            {t.fromGithubApp.before}
+            <Link to="/settings/integrations" className="font-medium text-brand-text underline">
+              {t.fromGithubApp.link}
+            </Link>
+            {t.fromGithubApp.after}
+          </p>
         </>
       )}
     </SettingsPage>
