@@ -102,3 +102,13 @@ The planning step ran without questions (orchestrator rule: decide and record).
 - **S-05-T1: the adapter's own prompt lines are English** (fork: quotes only; repair: fix the
   script), appended to the stored v1 prompt as v1 did. `renderPrompt` / `withSessionDir` live in
   `packages/agents/src/prompt.ts`.
+- **S-06-T1: settings carry an optional `spaceId`** next to `workspaceId`: v1 searched one space
+  (`space_ids[]`); without it the search covers the whole workspace. A repository without settings
+  fails with `clickup_not_configured` (`missing: ['RepositoryConfig.clickup']`); no key gives the
+  `UnconfiguredClickUpGateway` (`missing: ['CLICKUP_API_KEY']`).
+- **S-06-T1: request shapes not yet checked against the live API** (Alek's real-wiring list):
+  a mention is sent as a v2 rich comment `comment: [{type: 'tag', user: {id}}, {text}]`, plain
+  comments as `comment_text`; a new task's description as `markdown_content` (v1 sent
+  `markdown_description`); `parent` must be the parent's ClickUp id, not its custom id.
+- **S-06-T1: `getTask` returns null on 404**; 401 is `clickup_auth_failed`; any other status, and
+  a network failure (`status: null`), is `clickup_error`.

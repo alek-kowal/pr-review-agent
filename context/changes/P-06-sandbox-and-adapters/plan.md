@@ -250,7 +250,7 @@ the guard. Every role also gets the guard as a PreToolUse hook.
 
 #### Automated
 
-- [ ] 5.1 clickup.test.ts passes
+- [x] 5.1 clickup.test.ts passes
 
 ### Phase 6: Task IDs and ClickUp settings
 
