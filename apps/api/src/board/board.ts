@@ -1,6 +1,6 @@
 // The board: every PR in its lane, from core's state table.
 import {
-  actionNeededOrder,
+  byUrgency,
   LANES,
   LEVEL_NUMBERS,
   MAX_CHAIN_ROUNDS,
@@ -58,8 +58,8 @@ export const BoardResponse = z.object({
 export type Board = z.output<typeof BoardResponse>;
 
 /**
- * Builds the board. Cards come most recently opened first; Action needed is sorted by what blocks
- * most (core `actionNeededOrder`), newest first inside each group.
+ * Builds the board. Cards come most recently opened first; Action needed is sorted by urgency
+ * (core `byUrgency`: FR-008 order, then the longest waiting first).
  */
 export async function buildBoard(db: Executor, now: Date = new Date()): Promise<Board> {
   const [ids, repositories] = await Promise.all([
@@ -100,8 +100,12 @@ export async function buildBoard(db: Executor, now: Date = new Date()): Promise<
     else lanes[step.lane].push(card);
   }
 
-  // Array.prototype.sort is stable, so the newest-first order stays inside each group.
-  lanes.action_needed.sort((a, b) => actionNeededOrder(a.nextStep.state, b.nextStep.state));
+  lanes.action_needed.sort((a, b) =>
+    byUrgency(
+      { state: a.nextStep.state, openedAt: a.openedAt },
+      { state: b.nextStep.state, openedAt: b.openedAt },
+    ),
+  );
 
   return {
     lanes: {

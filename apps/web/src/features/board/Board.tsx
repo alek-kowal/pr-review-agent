@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Bot, ChevronRight, CircleCheck, CircleDashed, UserRound } from 'lucide-react';
-import { LANES, type Lane } from '@pra/core';
+import { byUrgency, LANES, type Lane } from '@pra/core';
 import { cn } from 'cn';
 import { copy } from '@/copy/index.ts';
 import { ApiError } from '@/lib/api.ts';
@@ -41,14 +41,23 @@ export function Board() {
   );
 }
 
+/** Action needed by urgency (FR-008), then the longest waiting first. */
+const sortByUrgency = (cards: Card[]) =>
+  [...cards].sort((a, b) =>
+    byUrgency(
+      { state: a.nextStep.state, openedAt: a.openedAt },
+      { state: b.nextStep.state, openedAt: b.openedAt },
+    ),
+  );
+
 function Lanes({ board, now }: { board: BoardResponse; now: number }) {
   const showRepository = board.repositoryCount > 1;
   return (
     <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_2fr_1fr]">
       {LANES.map((lane) => {
-        const { cards } = board.lanes[lane];
-        const drafts = lane === 'not_reviewed' ? board.lanes.not_reviewed.drafts : [];
         const hot = lane === 'action_needed';
+        const cards = hot ? sortByUrgency(board.lanes[lane].cards) : board.lanes[lane].cards;
+        const drafts = lane === 'not_reviewed' ? board.lanes.not_reviewed.drafts : [];
         const count = cards.length + drafts.length;
         const Icon = LANE_ICON[lane];
         const id = `lane-${lane}`;

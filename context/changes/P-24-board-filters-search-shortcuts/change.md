@@ -20,3 +20,8 @@ when" checks are the plan. One commit per task, in the listed order.
   only from round 2 on, the repository only when several are connected (as before), and a Fork
   badge on forks (the prototype's exception badges). The author and the age never shrink; the
   round label and the repository truncate first.
+- **T2 age tie-break: longest waiting first.** "Then by age" in an urgency sort reads as: among
+  equal ranks, the PR opened first is the most urgent. This replaces P-08's newest-first order
+  inside each group (its api test now expects oldest first). Core gets `actionNeededRank` and the
+  comparator `byUrgency` in `urgency.ts` (not in the hot `pr-state.ts`); the api and the web lane
+  both sort with it, so the lane is right whatever order the api sends.
