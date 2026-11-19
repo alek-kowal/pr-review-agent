@@ -117,6 +117,10 @@ export const runs = {
     instructionVersion: (scope: string, version: number) =>
       scope === 'global' ? `v${version}` : `${scope} · v${version}`,
     notChecked: 'Not checked',
+    models: 'Models',
+    modelsHint: 'Frozen when the run was created.',
+    modelSource: (source: string, level: number | null) =>
+      source === 'level' ? `Level ${level ?? ''}` : source === 'settings' ? 'Settings' : 'Default',
     transcript: {
       loading: 'Loading the transcript…',
       empty: 'This session has no stored transcript.',

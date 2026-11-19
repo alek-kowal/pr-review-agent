@@ -6,6 +6,7 @@ import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
 import { integrations } from './integrations.ts';
+import { models } from './models.ts';
 import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
@@ -33,6 +34,7 @@ export const copy = {
   runs,
   clickup,
   timeline,
+  models,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',
@@ -193,6 +195,7 @@ export const copy = {
     model_access_not_configured: 'model access is not configured',
     stage_not_available: 'this stage is not available yet',
     stage_timeout: 'the stage ran out of time',
+    model_invalid: 'a model name in Settings → Models or Review levels is not valid',
     interrupted: 'the app restarted while it ran',
     stage_error: 'an unexpected error stopped it',
     cancelled: 'it was cancelled',

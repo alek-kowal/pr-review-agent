@@ -38,6 +38,10 @@ const FAILED_RUN: RunDetail = {
     notChecked: [],
     instructionVersions: [{ id: 7, scope: 'global', fileKey: 'review-rules.md', version: 3 }],
     error: { stage: 'review', code: 'stage_timeout' },
+    models: [
+      { role: 'reviewer', model: 'claude-opus-5-5', source: 'level', level: 2 },
+      { role: 'verifier', model: 'claude-haiku-5-5', source: 'settings', level: null },
+    ],
   },
   pullRequest: { repository: { slug: 'wb' }, number: 12, title: 'Add node grouping' },
   label: {
@@ -174,6 +178,10 @@ describe('Run detail', () => {
       '/pr/wb/12',
     );
     expect(screen.getByText('review-rules.md')).toBeVisible();
+    // S-21-T2: the models the run used, with where each came from.
+    const models = screen.getByRole('list', { name: 'Models' });
+    expect(models).toHaveTextContent('Reviewerclaude-opus-5-5Level 2');
+    expect(models).toHaveTextContent('Verifierclaude-haiku-5-5Settings');
   });
 
   it('lists the sessions with their cost and files read; stages expand to their output', async () => {

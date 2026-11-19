@@ -4,6 +4,7 @@
 import {
   completeStage,
   failStage,
+  invalidRunModel,
   nextStage,
   startRun,
   startStage,
@@ -296,6 +297,9 @@ async function runExecutor(
   input: RunInput,
 ): Promise<StageResult> {
   if (!executor) return failed({ code: 'stage_not_available', params: { stage: input.stage } });
+  // S-21-T2: a snapshot model that fails the model-name check fails the run before any spend.
+  const badModel = invalidRunModel(input.run.models);
+  if (badModel) return failed(badModel);
 
   const minutes = input.run.level.settings.stageTimeoutMinutes;
   const controller = new AbortController();

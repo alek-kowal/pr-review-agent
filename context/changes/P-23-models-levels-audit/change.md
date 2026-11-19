@@ -32,3 +32,16 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
 - `modelFor` no longer skips a set but invalid name: the run that would use it fails before any
   spend (`model_invalid`, S-21-T2) instead of quietly running another model.
 - Tests that write level or model settings use their own database (the tables are global).
+
+### S-21-T2 (worker snapshots the settings per run)
+
+- The snapshot is taken in `createRun` (in `@pra/db`, where every run is created), not when the
+  first stage starts: the level was already frozen there. `runs.level` now carries the level
+  overrides; the new `runs.models` column holds every role's `ModelChoice`. Stages read
+  `runModel(run, role)` instead of the live app settings, so a running run keeps its models.
+- An invalid snapshot model fails the run's first stage with `model_invalid` (`runExecutor`,
+  before any executor or session), so nothing is spent.
+- Run detail: the API returns `run.models` (role, model, source, level) and the page shows a
+  "Models" side card. Runs from before the snapshot show their level override or the default.
+- The level 5 patch cap is in the snapshot (`level.settings.autofixMaxPatches`); `autofixDecision`
+  has no caller on this branch, so P-22 (or the merge, if P-22 lands first) wires it.

@@ -1,6 +1,7 @@
 // Response types of the api's read endpoints. The api's Zod schemas are the source of truth
 // (apps/api/src/routes/api, apps/api/src/pr-view); the web may not import server packages.
 import type {
+  AgentRole,
   ChecklistItemKey,
   Decision,
   Lane,
@@ -444,6 +445,8 @@ export type RunDetail = {
     notChecked: string[];
     instructionVersions: { id: number; scope: string; fileKey: string; version: number }[];
     error: { stage: string; code: string } | null;
+    /** The model of every role, frozen when the run was created. */
+    models: ModelChoiceView[];
   };
   pullRequest: { repository: { slug: string }; number: number; title: string };
   /** `round_label`; null for a run that is not a round. */
@@ -481,4 +484,13 @@ export type TimelineEntryView = {
   runId: number | null;
   /** A finished run's final cost. */
   costUsd: number | null;
+};
+
+/** A role's model and where it comes from (core `ModelChoice`). */
+export type ModelChoiceView = {
+  role: AgentRole;
+  model: string;
+  /** `level`: a level override (`level` names it); `settings`: Settings → Models. */
+  source: 'level' | 'settings' | 'default';
+  level: number | null;
 };
