@@ -46,8 +46,9 @@ PR Review Agent fixes that:
   real spend, never estimates.
 
 > [!NOTE]
-> Pilot build. Review levels 1–3 work end to end today; levels 4–6 (fixes, autofix, learning) are
-> on the [roadmap](context/foundation/roadmap.md). Hosting is not chosen yet: run it locally.
+> Pilot build. Review levels 1–3 and level 6 (learning) work today; levels 4 and 5 (fixes and
+> autofix) are on the [roadmap](context/foundation/roadmap.md). Hosting is not chosen yet: run it
+> locally.
 
 ## How it works
 
@@ -90,7 +91,7 @@ flowchart LR
 | 3     | Verified       | Verify: a verdict with quoted evidence and a reproduction            | Yes     |
 | 4     | Fix on request | Implement with agent; nothing is pushed without a person             | Planned |
 | 5     | Autofix        | Fixes and pushes by itself when every autofix condition holds        | Planned |
-| 6     | Learning       | After a PR closes, the analyst proposes lessons for a person to keep | Planned |
+| 6     | Learning       | After a PR closes, the analyst proposes lessons for a person to keep | Yes     |
 
 ## Screenshots
 
@@ -125,24 +126,25 @@ GitHub theme. Click one for full size.
 
 ## Features
 
-| Area                    | What ships today                                                                                                                                |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Rounds**              | Round 1 starts when a PR turns ready; anyone starts a round by hand at any level. A push by a person never starts one.                          |
-| **Findings**            | Severity, file and line, scenario and suggestion; at level 3 a verdict with quoted code and a reproduction.                                     |
-| **Questions, opinions** | Answer the reviewer's questions, give signed opinions, save them as one signed review and notify the author in ClickUp.                         |
-| **Decisions**           | Implement, Reject (with a reason) or Defer to ClickUp, for many findings with one signature; deferred findings become ClickUp tasks.            |
-| **Board**               | Four lanes from one state table, urgency sort, filters in the URL, command palette (⌘K), keyboard triage, light and dark theme.                 |
-| **Live view**           | Stepper and cost per turn over SSE, Timeline, Activity, and Run detail with each agent's transcript.                                            |
-| **Safety rails**        | Sensitive files need a person's OK. Retry from the failed stage, cancel that stops spend, pause, daily budget, agent slots, queue with reasons. |
-| **Merge**               | A merge checklist, then a signed squash merge pinned to the reviewed commit; never bypasses branch protection.                                  |
-| **Instructions**        | Versioned review instructions per scope, trial runs with Compare, and a read-only pipeline diagram.                                             |
-| **Alerts**              | A failed run, a chain out of rounds, an expensive PR or the daily budget, as ClickUp comments you can dismiss.                                  |
-| **Insights**            | Five pilot metrics with sample sizes, plus Cost, Quality and the Trust ladder.                                                                  |
-| **Settings, audit**     | Repositories, Team, models per role, review levels, budget, integrations and alerts; every signed change in the Audit log.                      |
+| Area                    | What ships today                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Rounds**              | Round 1 starts when a PR turns ready; anyone starts a round by hand at any level. A push by a person never starts one.                            |
+| **Findings**            | Severity, file and line, scenario and suggestion; at level 3 a verdict with quoted code and a reproduction.                                       |
+| **Questions, opinions** | Answer the reviewer's questions, give signed opinions, save them as one signed review and notify the author in ClickUp.                           |
+| **Decisions**           | Implement, Reject (with a reason) or Defer to ClickUp, for many findings with one signature; deferred findings become ClickUp tasks.              |
+| **Board**               | Four lanes from one state table, urgency sort, filters in the URL, command palette (⌘K), keyboard triage, light and dark theme.                   |
+| **Live view**           | Stepper and cost per turn over SSE, Timeline, Activity, and Run detail with each agent's transcript.                                              |
+| **Safety rails**        | Sensitive files need a person's OK. Retry from the failed stage, cancel that stops spend, pause, daily budget, agent slots, queue with reasons.   |
+| **Merge**               | A merge checklist, then a signed squash merge pinned to the reviewed commit; never bypasses branch protection.                                    |
+| **Instructions**        | Versioned review instructions per scope, trial runs with Compare, and a read-only pipeline diagram.                                               |
+| **Alerts**              | A failed run, a chain out of rounds, an expensive PR or the daily budget, as ClickUp comments you can dismiss.                                    |
+| **Learning**            | At level 6 the analyst reads a closed PR and proposes lessons; a person edits and accepts them, signed, into the lessons file the reviewer reads. |
+| **Insights**            | Five pilot metrics with sample sizes, plus Cost, Quality and the Trust ladder.                                                                    |
+| **Settings, audit**     | Repositories, Team, models per role, review levels, budget, integrations, alerts and learning; every signed change in the Audit log.              |
 
 **On the roadmap:** Implement with agent and patch review (level 4), signed push and level 5
-autofix with a shadow log, the analyst and its lessons (level 6), read-only fork PRs, and a hosted
-deploy. See [the roadmap](context/foundation/roadmap.md) and the
+autofix with a shadow log, read-only fork PRs, and a hosted deploy. See
+[the roadmap](context/foundation/roadmap.md) and the
 [work packages](context/foundation/work-packages.md).
 
 ## Quick start
@@ -184,17 +186,17 @@ A repository differs from another only by its settings, never by code.
 A pnpm monorepo in TypeScript. The api takes webhooks and serves the SPA's data; the worker runs
 each round as pg-boss jobs, one per stage, and calls the agents.
 
-| Path                    | Package             | What it holds                                                                               |
-| ----------------------- | ------------------- | ------------------------------------------------------------------------------------------- |
-| `apps/web`              | `@pra/web`          | Vite + React 19 SPA, TanStack Router and Query, Tailwind, shadcn/ui                         |
-| `apps/api`              | `@pra/api`          | Fastify API with Zod schemas and an OpenAPI document; GitHub webhooks; SSE for live updates |
-| `apps/worker`           | `@pra/worker`       | pg-boss jobs, one per round stage, plus alerts and the reconcile poll                       |
-| `packages/core`         | `@pra/core`         | Pure domain rules: PR states, the run state machine, levels, reason codes. No I/O           |
-| `packages/db`           | `@pra/db`           | Drizzle schema, migrations and queries                                                      |
-| `packages/integrations` | `@pra/integrations` | `GitHubGateway`, `ClickUpGateway`, `BlobStore`, `GitMirror`, `Sandbox`, logging             |
-| `packages/agents`       | `@pra/agents`       | `AgentRunner` (Claude Agent SDK) and the reviewer, verifier, implementer and judge adapters |
-| `e2e`                   | Playwright          | End-to-end specs on a test stack with doubles (`e2e/support/`)                              |
-| `deploy`                | Docker Compose      | One-VM deploy: Caddy with the SPA, api, worker; see [deploy/README.md](deploy/README.md)    |
+| Path                    | Package             | What it holds                                                                                        |
+| ----------------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
+| `apps/web`              | `@pra/web`          | Vite + React 19 SPA, TanStack Router and Query, Tailwind, shadcn/ui                                  |
+| `apps/api`              | `@pra/api`          | Fastify API with Zod schemas and an OpenAPI document; GitHub webhooks; SSE for live updates          |
+| `apps/worker`           | `@pra/worker`       | pg-boss jobs, one per round stage, plus alerts and the reconcile poll                                |
+| `packages/core`         | `@pra/core`         | Pure domain rules: PR states, the run state machine, levels, reason codes. No I/O                    |
+| `packages/db`           | `@pra/db`           | Drizzle schema, migrations and queries                                                               |
+| `packages/integrations` | `@pra/integrations` | `GitHubGateway`, `ClickUpGateway`, `BlobStore`, `GitMirror`, `Sandbox`, logging                      |
+| `packages/agents`       | `@pra/agents`       | `AgentRunner` (Claude Agent SDK) and the reviewer, verifier, implementer, judge and analyst adapters |
+| `e2e`                   | Playwright          | End-to-end specs on a test stack with doubles (`e2e/support/`)                                       |
+| `deploy`                | Docker Compose      | One-VM deploy: Caddy with the SPA, api, worker; see [deploy/README.md](deploy/README.md)             |
 
 The rules that keep it this way are lint errors: `packages/core` imports no Node APIs and no other
 `@pra/*` package with I/O, `apps/web` imports only `@pra/core`, and every integration sits behind
