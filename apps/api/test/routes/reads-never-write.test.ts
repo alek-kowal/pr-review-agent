@@ -141,6 +141,7 @@ test('no GET route changes any table', async () => {
       '/api/settings/models/',
       '/api/settings/levels/',
       '/api/settings/levels/:n',
+      '/api/audit/',
     ]),
   );
 

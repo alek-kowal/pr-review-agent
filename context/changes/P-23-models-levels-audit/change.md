@@ -96,3 +96,18 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
 - The save sends the level's complete own values (`inherit` for the rest) and the stored own
   values as `before`. N goes in only from level 5 (lower levels have no autofix).
 - The autofix rules show on level 5 (N editable) and level 6 (N as text, inherited from 5).
+
+### S-21-T6 (Audit log API)
+
+- `GET /api/audit` reads `settings_changes` only (still the one audit log) through
+  `searchSettingsChanges` and `settingsChangeFacets` in `@pra/db`.
+- `q` is a case-insensitive substring search over the area, entity, actor kind, signer name, note
+  and the before/after JSON as text, so "verifier" finds a model change by its role key. LIKE
+  wildcards in `q` match themselves.
+- `actor` is `bot`, `hand` or a member id; `from` is inclusive and `to` exclusive, both ISO
+  instants (the page turns local dates into instants, so days follow the viewer's time zone).
+- Pagination is keyset on `(at, id)`, newest first. `cursor` is the last row's id; the next page
+  compares against that row's stored `at`, so microsecond timestamps and rows written while paging
+  never shift a page. `limit` defaults to 50 (max 200).
+- The response also carries every area in the log and every signer (name kept after they leave
+  Team) for the page's filters.
