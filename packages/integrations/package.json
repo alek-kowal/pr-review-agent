@@ -34,6 +34,7 @@
     "@opentelemetry/instrumentation-pg": "^0.78.0",
     "@opentelemetry/resources": "^3.1.1",
     "@opentelemetry/sdk-trace": "^3.1.1",
+    "@pra/core": "workspace:*",
     "@sentry/node": "^11.14.0",
     "execa": "^10.2.1",
     "pino": "^10.4.0",

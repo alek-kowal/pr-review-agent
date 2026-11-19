@@ -7,11 +7,9 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { IntegrationNotConfiguredError } from '../errors.ts';
 import { githubFixture, signWebhook } from '../testing/index.ts';
-import {
-  createGitHubGateway,
-  OctokitGitHubGateway,
-  UnconfiguredGitHubGateway,
-} from './octokit-github-gateway.ts';
+import { createGitHubGateway } from './create-github-gateway.ts';
+import { OctokitGitHubGateway } from './octokit-github-gateway.ts';
+import { TokenGitHubGateway } from './token-github-gateway.ts';
 
 const API = 'https://api.github.com';
 const REPO = 'synergycodes/workflowbuilder';
@@ -148,9 +146,15 @@ describe('repository calls', () => {
     const queries: string[] = [];
     const pr = (number: number) => ({
       number,
+      title: `PR ${number}`,
+      html_url: `https://github.com/${REPO}/pull/${number}`,
+      state: 'open',
       draft: number % 2 === 0,
+      created_at: `2026-11-18T09:00:00Z`,
       updated_at: `2026-11-18T10:00:00Z`,
-      head: { sha: `sha-${number}` },
+      user: { login: 'kasia' },
+      head: { sha: `sha-${number}`, ref: `branch-${number}`, repo: { full_name: REPO } },
+      base: { sha: 'base', ref: 'main', repo: { full_name: REPO } },
     });
     server.use(
       http.get(`${API}/repos/:owner/:repo/pulls`, ({ request }) => {
@@ -165,11 +169,12 @@ describe('repository calls', () => {
     const open = await gateway().listOpenPullRequests(REPO);
 
     expect(open).toHaveLength(101);
-    expect(open[1]).toEqual({
+    expect(open[1]).toMatchObject({
       number: 2,
       headSha: 'sha-2',
       isDraft: true,
       updatedAt: '2026-11-18T10:00:00Z',
+      snapshot: { number: 2, fullName: REPO, isDraft: true, commitsCount: 0, state: 'open' },
     });
     expect(queries).toEqual(['?state=open&per_page=100&page=1', '?state=open&per_page=100&page=2']);
   });
@@ -332,56 +337,58 @@ describe('createGitHubGateway', () => {
   });
   afterAll(() => rm(dir, { recursive: true, force: true }));
 
-  test('missing env gives github_not_configured on every call, with no request', async () => {
+  test('no App and no token reads anonymously; webhooks are not configured, no request', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const github = createGitHubGateway({});
+    expect(github).toBeInstanceOf(TokenGitHubGateway);
+    expect(github.mode).toBe('anonymous');
 
-    const calls = [
-      github.verifyWebhook('{}', 'sha256=00'),
-      github.getRepoInstallationId(REPO),
+    const error = await github.verifyWebhook('{}', 'sha256=00').then(
+      () => null,
+      (rejection: unknown) => rejection,
+    );
+    expect(error).toBeInstanceOf(IntegrationNotConfiguredError);
+    expect(error).toMatchObject({
+      code: 'github_not_configured',
+      params: {
+        missing: ['GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY_PATH', 'GITHUB_WEBHOOK_SECRET'],
+      },
+    });
+    for (const write of [
       github.getInstallationToken(INSTALLATION),
-      github.getPullRequest(REPO, 1),
       github.postIssueComment(REPO, 1, 'hello'),
-      github.compareCommits(REPO, 'a', 'b'),
-    ];
-
-    for (const call of calls) {
-      const error = await call.then(
-        () => null,
-        (rejection: unknown) => rejection,
-      );
-      expect(error).toBeInstanceOf(IntegrationNotConfiguredError);
-      expect(error).toMatchObject({
-        code: 'github_not_configured',
-        params: {
-          missing: ['GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY_PATH', 'GITHUB_WEBHOOK_SECRET'],
-        },
-      });
+      github.squashMerge({ fullName: REPO, number: 1, sha: 'a', title: 't', message: 'm' }),
+      github.getBotIdentity(),
+    ]) {
+      await expect(write).rejects.toMatchObject({ code: 'github_read_only' });
     }
+    expect(await github.getRepoInstallationId(REPO)).toBeNull();
+    expect(await github.listAccessibleRepositories()).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
 
-  test('a missing or empty key file counts as not configured', () => {
-    const env = { GITHUB_APP_ID: '1', GITHUB_WEBHOOK_SECRET: 's' };
+  test('a token gives token mode; the App, when complete, wins over it', () => {
+    expect(createGitHubGateway({ GITHUB_TOKEN: 'x' }).mode).toBe('token');
+    const app = createGitHubGateway({
+      GITHUB_APP_ID: '1000001',
+      GITHUB_APP_PRIVATE_KEY_PATH: path.join(dir, 'app.pem'),
+      GITHUB_WEBHOOK_SECRET: SECRET,
+      GITHUB_TOKEN: 'x',
+    });
+    expect(app).toBeInstanceOf(OctokitGitHubGateway);
+    expect(app.mode).toBe('app');
+  });
+
+  test('a missing or empty key file falls back to token mode and names the key', () => {
+    const env = { GITHUB_APP_ID: '1', GITHUB_WEBHOOK_SECRET: 's', GITHUB_TOKEN: 'x' };
     for (const key of ['missing.pem', 'empty.pem']) {
       const github = createGitHubGateway({
         ...env,
         GITHUB_APP_PRIVATE_KEY_PATH: path.join(dir, key),
       });
-      expect(github).toBeInstanceOf(UnconfiguredGitHubGateway);
-      expect((github as UnconfiguredGitHubGateway).missing).toEqual([
-        'GITHUB_APP_PRIVATE_KEY_PATH',
-      ]);
+      expect(github.mode).toBe('token');
+      expect(github.missingEnv).toEqual(['GITHUB_APP_PRIVATE_KEY_PATH']);
     }
-  });
-
-  test('all three set gives the Octokit gateway', () => {
-    const github = createGitHubGateway({
-      GITHUB_APP_ID: '1000001',
-      GITHUB_APP_PRIVATE_KEY_PATH: path.join(dir, 'app.pem'),
-      GITHUB_WEBHOOK_SECRET: SECRET,
-    });
-    expect(github).toBeInstanceOf(OctokitGitHubGateway);
   });
 });
