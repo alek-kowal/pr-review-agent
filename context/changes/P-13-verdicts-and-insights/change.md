@@ -30,3 +30,15 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
   for its change type (`verify_off_for_change_type`) says so instead of "Not verified at this
   level".
 - No loader or core change: core `needsDecision` already drops Refuted findings from "to decide".
+
+### S-05-T4 (end-to-end verified findings)
+
+- The e2e stack seeds two more repositories instead of changing WB's level (other specs share
+  the stack): `acme/verified-repo` at level 3 with `db/migrations/**` as a sensitive pattern (the
+  fixture's migration makes the change a one-way door, so Verify checks every finding, nits
+  included) and `acme/level-two-repo` at level 2. Both are in the GitHub double's installations.
+- The stack's agent double (`ScriptedAgents`) answers verifier sessions per finding title; the
+  `FakeSandbox` handler exits with the code the reproduction script ends with. Results: first
+  Blocking Confirmed (exit 0), second Refuted (exit 3), Worth fixing Not proven after a broken
+  script and its repair (exit 1 twice), Nit Not proven without proof.
+- `prompt-verifier.md` and `verify-rules.md` are imported as global instruction files v1.
