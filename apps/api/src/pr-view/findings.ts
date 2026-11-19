@@ -5,6 +5,7 @@ import {
   commitsSinceRun,
   coreFinding,
   FOLLOW_UP_STATUSES,
+  type CurrentAnswer,
   verificationsOfRun,
   type CurrentDecision,
   type Executor,
@@ -88,7 +89,28 @@ export const QuestionSchema = z.object({
   options: z.array(z.string()),
   recommended: z.number().int().nullable(),
   why: z.string().nullable(),
+  /** The current answer; null while the question is open. Sent back as `expectedAnswerId`. */
+  answer: z
+    .object({
+      id: z.number().int(),
+      /** The picked option; null for an own answer. */
+      option: z.number().int().nullable(),
+      text: z.string(),
+      signedBy: z.object({ id: z.string(), name: z.string() }),
+      savedAt: timestamp,
+    })
+    .nullable(),
 });
+
+export function answerView(answer: CurrentAnswer): z.output<typeof QuestionSchema>['answer'] {
+  return {
+    id: answer.id,
+    option: answer.option,
+    text: answer.text,
+    signedBy: { id: answer.signedBy, name: answer.signerName },
+    savedAt: answer.savedAt.toISOString(),
+  };
+}
 
 export const FindingsResponse = z.object({
   /** The latest completed round the findings come from; null when no round completed yet. */
@@ -194,6 +216,7 @@ export function findingsView(
       options: q.options,
       recommended: q.recommended,
       why: q.why,
+      answer: load.answers.has(q.id) ? answerView(load.answers.get(q.id)!) : null,
     })),
     notChecked: run.notChecked,
     unchecked:

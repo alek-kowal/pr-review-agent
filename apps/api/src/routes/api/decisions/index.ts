@@ -55,7 +55,8 @@ export const DecideResponse = DecisionResult.extend({
 
 const errors = { 400: ApiErrorSchema, 404: ApiErrorSchema, 409: ApiErrorSchema };
 
-async function refreshedView(db: Executor, pullRequestId: number) {
+/** The Next step, checklist and Findings tab as they are now (also after answers and reviews). */
+export async function refreshedView(db: Executor, pullRequestId: number) {
   const load = await loadPrStateInput(db, pullRequestId);
   if (!load) throw new Error(`pull request ${pullRequestId} disappeared`);
   return {
