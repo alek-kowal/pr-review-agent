@@ -214,6 +214,8 @@ export const copy = {
     fix_diff: 'Fix diff',
     check_fixes: 'Check fixes',
     reproductions: 'Reproductions',
+    worktree: 'Worktree',
+    implement: 'Implement',
   } as Record<string, string>,
   /** Why something failed, by reason code; the sentence reads after "failed at <stage>:". */
   reasons: {
@@ -232,6 +234,9 @@ export const copy = {
     fork_read_only: 'off for forks',
     implement_below_level: 'needs a higher level',
     no_implement_decisions: 'no finding is decided Implement',
+    implementer_instructions_missing: 'the implementer prompt or rules file is missing',
+    implementer_request_missing: 'the implementer run has no findings to fix',
+    implement_output_missing: 'the Implement stage left no result',
   } as Record<string, string>,
   unknownReason: (code: string) => `error ${code}`,
   errors: {
