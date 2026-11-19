@@ -3,6 +3,7 @@
 import { roundStartForEvent } from '@pra/core';
 import {
   activeBlockingRun,
+  getAppSettings,
   getPullRequest,
   getRepositoryByFullName,
   prLevel,
@@ -52,7 +53,7 @@ export async function handlePullRequestEvent({
       // A late delivery speaks for the moment it was sent: a draft then was not ready then.
       draft: pullRequest.isDraft || (stale && snapshot.isDraft),
       fork: pullRequest.isFork,
-      level: prLevel(repository, pullRequest),
+      level: prLevel(repository, pullRequest, (await getAppSettings(db)).value.defaultLevel),
     },
     await activeBlockingRun(db, pullRequest.id),
   );

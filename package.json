@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "eslint --max-warnings 0 . && prettier --check .",
+    "lint": "eslint --max-warnings 0 . && prettier --check . && node scripts/check-repo-agnostic.ts",
     "format": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
     "test": "vitest run",

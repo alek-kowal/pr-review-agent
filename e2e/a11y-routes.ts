@@ -12,4 +12,9 @@ export const A11Y_ROUTES: readonly A11yRoute[] = [
   { name: 'Settings → Instructions', path: '/settings/instructions' },
   { name: 'Settings → Experiments', path: '/settings/experiments' },
   { name: 'Settings → Pipeline', path: '/settings/pipeline' },
+  // S-21: Settings → Models, Review levels and Audit log.
+  { name: 'Settings → Models', path: '/settings/models' },
+  { name: 'Settings → Review levels', path: '/settings/review-levels' },
+  { name: 'Settings → Review levels → Level 5', path: '/settings/review-levels/5' },
+  { name: 'Settings → Audit log', path: '/settings/audit' },
 ];

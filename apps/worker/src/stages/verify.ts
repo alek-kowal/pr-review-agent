@@ -12,7 +12,7 @@ import {
   applyReproduction,
   checkQuotes,
   limitsFor,
-  modelFor,
+  runModel,
   reproRepairAllowed,
   skipVerification,
   type Evidence,
@@ -20,13 +20,7 @@ import {
   type Verdict,
   type VerifierCheck,
 } from '@pra/core';
-import {
-  findingsOfRun,
-  getAppSettings,
-  saveVerifications,
-  type FindingRow,
-  type VerificationWrite,
-} from '@pra/db';
+import { findingsOfRun, saveVerifications, type FindingRow, type VerificationWrite } from '@pra/db';
 import { DEFAULT_SANDBOX_IMAGE, type SandboxLimits, type SandboxResult } from '@pra/integrations';
 import { randomUUID } from 'node:crypto';
 import { constants, readFileSync, realpathSync } from 'node:fs';
@@ -125,7 +119,7 @@ async function runVerify(context: StageContext): Promise<StageResult> {
     pullRequest.baseSha,
     run.headSha,
   );
-  const model = modelFor((await getAppSettings(deps.db)).value, level, 'verifier').model;
+  const model = runModel(run, 'verifier');
   const runScripts = !pullRequest.isFork;
   const base = {
     model,

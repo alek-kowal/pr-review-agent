@@ -82,6 +82,8 @@ async function insertRetry(
     roundNo: failedRun.roundNo,
     chainId: failedRun.chainId,
     level: failedRun.level,
+    // The retry keeps the failed run's model snapshot (S-21-T2), like its frozen level.
+    models: failedRun.models,
     headSha: failedRun.headSha,
     commitsCountAtStart: failedRun.commitsCountAtStart,
     status: 'queued',

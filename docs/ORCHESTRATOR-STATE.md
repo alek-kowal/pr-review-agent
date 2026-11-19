@@ -102,5 +102,10 @@ All of them are in `/private/tmp/claude-501/-Users-alek-Projects/bac86def-abc6-4
 | Task | State | Agent | Branch | Notes |
 | --- | --- | --- | --- | --- |
 
-## 08:40 pause (usage limit)
-All wave-6 agents (t-p-14, 15, 16, 17, 19, 11r) hit the subscription usage limit mid-task; they resume automatically at 10:20. Nothing new merged after P-11. Supervisor stopped (it reads "done" as finished, so restart it only after 10:20). CI on main 26758ca: green after a rerun; e2e/decide.spec.ts conflict scenario is flaky (to stabilise). Next ready: P-23.
+## Lessons
+Read `docs/orchestrator-lessons.md` before coordinating new work; add a lesson when a problem repeats.
+
+## 14:25 status
+Merged since 08:40: P-11r, P-19, P-16, P-14, P-17, P-15 (main bc351f1). Running: P-18, P-20, P-21, P-24 (implementing) and P-23 (merge-fix, done implementing). Next: P-22 once P-18 merges; impl-review planned for P-18 and P-22.
+Merge loop: `merge-or-fix.sh <id>` (exits the agent, merges when calm; on conflict aborts main and starts a merge-fix agent, prints MERGED/FIXING/FAIL). Run merges one at a time; pause a merge-fix while another package is about to land, to avoid migration-number races.
+supervise.sh now re-prompts an agent stopped by "API Error". Flaky: e2e/decide.spec.ts conflict scenario.

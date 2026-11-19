@@ -157,7 +157,7 @@ describe('Settings → Repositories', () => {
       signedBy: tomek.id,
       config: {
         defaultBranch: 'develop',
-        defaultLevel: 1,
+        defaultLevel: null,
         fetchCommand: null,
         installCommand: null,
         clickup: null,

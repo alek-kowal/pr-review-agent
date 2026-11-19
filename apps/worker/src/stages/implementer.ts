@@ -4,10 +4,9 @@
 // row is written when the run completes (`storePatchOnCompleted`), so a cancelled or failed run
 // never leaves one.
 import { runImplementer, type AgentRunner, type ImplementerFinding } from '@pra/agents';
-import { modelFor, REPRO_EXIT, type PatchReproduction } from '@pra/core';
+import { REPRO_EXIT, runModel, type PatchReproduction } from '@pra/core';
 import {
   answersOfPullRequest,
-  getAppSettings,
   getPatch,
   implementerFindings,
   implementerRequest,
@@ -206,7 +205,7 @@ export const implementStage: StageExecutor = {
       question: a.question,
       answer: a.answer,
     }));
-    const model = modelFor((await getAppSettings(deps.db)).value, level, 'implementer').model;
+    const model = runModel(run, 'implementer');
 
     let sentPrompt = '';
     const runner: AgentRunner = {

@@ -5,13 +5,13 @@
 import { judgeRequest } from '@pra/agents';
 import {
   classifyChange,
-  modelFor,
+  runModel,
   needsPerson,
   raiseChangeType,
   type ChangeType,
   type Reason,
 } from '@pra/core';
-import { getAppSettings, readRepositoryConfig, succeededStageOutput, type Db } from '@pra/db';
+import { readRepositoryConfig, succeededStageOutput, type Db } from '@pra/db';
 import { stageInstructions } from './instructions.ts';
 import type { SessionRecord, StageContext, StageExecutor, StageResult } from './stage.ts';
 import { taskOfRun, taskText } from './task.ts';
@@ -46,7 +46,7 @@ export const changeTypeStage: StageExecutor = {
 };
 
 async function runChangeType(context: StageContext): Promise<StageResult> {
-  const { deps, run, pullRequest, repository, level, signal } = context;
+  const { deps, run, pullRequest, repository, signal } = context;
   const config = readRepositoryConfig(repository).value;
 
   await runWorktree(context);
@@ -79,7 +79,7 @@ async function runChangeType(context: StageContext): Promise<StageResult> {
       const missing = [JUDGE_PROMPT_FILE, JUDGE_RULES_FILE].filter((key) => !instructions.get(key));
       judgeSkipped = { code: 'judge_instructions_missing', params: { missing } };
     } else {
-      const model = modelFor((await getAppSettings(deps.db)).value, level, 'judge').model;
+      const model = runModel(run, 'judge');
       const input = {
         model,
         instructions: { prompt, rules },
