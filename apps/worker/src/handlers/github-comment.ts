@@ -1,5 +1,5 @@
 // The after-round GitHub comment (S-01-T11, FR-027): one sentence per completed round, posted at
-// most once per run. No URL and no finding text: WB's PRs are public (NFR Privacy).
+// most once per run. No URL and no finding text: a repository's PRs may be public (NFR Privacy).
 import { BOT } from '@pra/core';
 import {
   getAppSettings,

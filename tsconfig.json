@@ -4,5 +4,5 @@
     "noEmit": true,
     "sourceMap": false
   },
-  "include": ["*.ts", "e2e"]
+  "include": ["*.ts", "e2e", "scripts"]
 }

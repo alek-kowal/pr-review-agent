@@ -1,7 +1,7 @@
 ---
 change_id: P-23
 title: Models, levels and audit log (S-21-T1–T8, S-20-T5)
-status: in_progress
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -137,3 +137,35 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
   models, level 3 and the default level back through the API when they differ.
 - `e2e/a11y-routes.ts` is created with the four new Settings routes only; S-17-T9 (P-24) owns the
   a11y spec and the rest of the list. If P-24 also creates the file, keep both lists.
+
+### Merge of main (before S-20-T5)
+
+- main (P-16, P-19) brought migrations `0014_pr_checks` and `0015_pause_budget_queue`. Main's are
+  kept; this package's migration is regenerated as `0016_level_model_settings` with the
+  hand-written default rows copied back.
+- `app_settings` keeps main's `timeZone` and `MAX_AGENT_SLOTS`, plus `defaultLevel`; `models`
+  stays out of it (they live in `model_settings` since S-21-T1). Main's Budget and Integrations
+  stores patch app settings, so they never overwrite `defaultLevel`.
+- Settings now opens on Budget & status (first in the approved order), then Models.
+
+### S-20-T5 (retire the WB seed)
+
+- The WB seed moved to `packages/db/src/testing/fixtures/workflowbuilder.json`; `packages/db/seeds/`
+  is gone. The seed command stays generic (any seed file, plus `--instructions` and the ClickUp
+  flags), because importing instruction files as version 1 has no Settings page yet. No migration
+  touches the WB row already in a database.
+- `scripts/check-repo-agnostic.ts` runs at the end of `pnpm lint`. It scans every text file under
+  `apps/` and `packages/` and fails on `workflow builder`, `synergycodes` or `wb-factory` (spaces,
+  `-` or `_` between the words, any case). Bare `WB` is allowed: `WB-123` is the ClickUp task id
+  example in copy and comments.
+- Skipped: `*.test.*`/`*.spec.*` files and the folders `test`, `tests`, `__tests__`, `testing`,
+  `fixtures`, `e2e`, `node_modules`, `dist` and `coverage`. One allowed file:
+  `packages/core/PORTING.md`, which maps the old tool's tests by their path.
+- Its test runs the script over a copy of the layout in a temporary folder (never the real tree,
+  so `pnpm lint` running beside it sees nothing), and also checks the real tree is clean. Root
+  `vitest.config.ts` has a `scripts` project and root `tsconfig.json` includes `scripts/`.
+- The worker's after-round comment no longer says "WB's PRs are public"; it says a repository's PRs
+  may be public.
+- AGENTS.md: the seed line points at the fixture, and a new "Connect a repository" section
+  describes Settings → Repositories. The two Needs Alek rows in `work-packages.md` that named
+  `packages/db/seeds/` now name the fixture and Settings.

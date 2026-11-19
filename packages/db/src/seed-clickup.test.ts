@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { closeDb, createDb, schema } from './index.ts';
 import { testDatabaseUrl, uniqueId } from './testing/index.ts';
 
-const WB_SEED = fileURLToPath(new URL('../seeds/workflowbuilder.json', import.meta.url));
+const WB_SEED = fileURLToPath(new URL('./testing/fixtures/workflowbuilder.json', import.meta.url));
 const CLI = fileURLToPath(new URL('./cli/seed-repo.ts', import.meta.url));
 
 const db = createDb(testDatabaseUrl(), { max: 2 });
