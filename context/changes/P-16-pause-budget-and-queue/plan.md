@@ -170,7 +170,7 @@ web component tests with `stubFetch`, one Playwright spec.
 
 ### Phase 4: API
 
-- [ ] 4.1 `pnpm --filter @pra/api test status-routes.test.ts`
+- [x] 4.1 `pnpm --filter @pra/api test status-routes.test.ts`
 
 ### Phase 5: Chip controls and Budget & status page
 

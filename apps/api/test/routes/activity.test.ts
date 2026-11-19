@@ -93,5 +93,12 @@ test("the status is running with today's spend: sessions since 00:00 UTC", async
   );
   expect(after.state).toBe('running');
   expect(after.todaySpendUsd - before.todaySpendUsd).toBeCloseTo(0.75, 6);
-  expect(new Date(after.since).getUTCHours()).toBe(0);
+  // The day starts at local midnight in the configured time zone.
+  const localHour = new Intl.DateTimeFormat('en-GB', {
+    timeZone: after.timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(after.since));
+  expect(localHour).toBe('00:00');
 });

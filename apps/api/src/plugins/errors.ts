@@ -62,6 +62,10 @@ export const ApiErrorCode = {
   ClickupAuthFailed: 'clickup_auth_failed',
   /** ClickUp did not answer as expected. */
   ClickupError: 'clickup_error',
+  /** `POST /api/status/pause` while PR Review Agent is already paused. */
+  AlreadyPaused: 'already_paused',
+  /** `POST /api/status/resume` while PR Review Agent is running. */
+  NotPaused: 'not_paused',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
