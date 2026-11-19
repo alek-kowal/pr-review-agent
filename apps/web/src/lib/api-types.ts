@@ -401,6 +401,8 @@ export type InProgressRun = {
   currentStage: string | null;
   /** Grows per agent turn while a session runs. */
   costUsd: number;
+  /** Why the run waits: `paused`, `budget_reached` or `slots_busy`; null when it does not. */
+  wait: ReasonView | null;
   createdAt: string;
   startedAt: string | null;
   pullRequest: { repository: { slug: string }; number: number; title: string };

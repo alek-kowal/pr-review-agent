@@ -1,8 +1,9 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, test } from 'vitest';
 import { copy } from '@/copy/index.ts';
-import type { NextStepView } from '@/lib/api-types.ts';
+import type { NextStepView, PrView } from '@/lib/api-types.ts';
 import {
   aChecklist,
   aFinding,
@@ -17,6 +18,16 @@ import { Checklist } from './Checklist.tsx';
 import { NextStepBanner } from './NextStepBanner.tsx';
 
 afterEach(restoreFetch);
+
+/** The banner reads the status (who paused) through a query. */
+function renderBanner(view: PrView) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <NextStepBanner repo="wb" number="12" view={view} />
+    </QueryClientProvider>,
+  );
+}
 
 const action = (code: NonNullable<NextStepView['mainAction']>['action'], signed = false) => ({
   action: code,
@@ -108,7 +119,7 @@ describe('the Next step banner', () => {
     '$name: copy, tone and main action',
     ({ step, title, meta, tone, button }) => {
       const view = aPrView({ nextStep: step, author: anAuthor({ name: 'Kasia', memberId: 'm1' }) });
-      render(<NextStepBanner repo="wb" number="12" view={view} />);
+      renderBanner(view);
 
       const banner = screen.getByRole('region', { name: copy.nextStep.label });
       expect(within(banner).getByRole('heading', { level: 2 })).toHaveTextContent(title);
@@ -129,7 +140,7 @@ describe('the Next step banner', () => {
       who: { code: 'who_nobody', params: {} },
       mainAction: null,
     });
-    render(<NextStepBanner repo="wb" number="12" view={aPrView({ nextStep: step })} />);
+    renderBanner(aPrView({ nextStep: step }));
 
     const banner = screen.getByRole('region', { name: copy.nextStep.stateLabel });
     expect(banner).toHaveTextContent('Merged');

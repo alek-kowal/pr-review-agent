@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_APP_SETTINGS, startGate, type GateStatus } from '../src/index.ts';
+import { DEFAULT_APP_SETTINGS, queueCauseOf, startGate, type GateStatus } from '../src/index.ts';
 
 const TOMEK = '6f1c2a54-0000-4000-8000-000000000001';
 const running: GateStatus = { ...DEFAULT_APP_SETTINGS, dailyBudgetUsd: 50 };
@@ -88,5 +88,26 @@ describe('startGate', () => {
   it('a paused factory reports paused before the budget and the slots', () => {
     const decision = startGate({ status: paused, spentToday: 99, activeRuns: busy, kind: 'round' });
     expect(decision).toMatchObject({ start: false, reason: { code: 'paused' } });
+  });
+});
+
+describe('queueCauseOf', () => {
+  it('maps each stored wait reason to the PR state queue cause', () => {
+    const wait = (status: GateStatus, spent: number, activeRuns = busy) => {
+      const decision = startGate({ status, spentToday: spent, activeRuns, kind: 'round' });
+      return decision.start ? null : decision.reason;
+    };
+    expect(queueCauseOf(wait(paused, 0))).toEqual({
+      cause: 'paused',
+      by: { kind: 'member', memberId: TOMEK },
+      note: 'release freeze',
+    });
+    expect(queueCauseOf(wait(running, 50))).toEqual({
+      cause: 'budget',
+      spentUsd: 50,
+      budgetUsd: 50,
+    });
+    expect(queueCauseOf(wait(running, 0))).toEqual({ cause: 'slot' });
+    expect(queueCauseOf(null)).toEqual({ cause: 'slot' });
   });
 });

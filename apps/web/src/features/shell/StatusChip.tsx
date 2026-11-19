@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { ChevronDown, CircleAlert, Pause } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx';
 import { copy } from '@/copy/index.ts';
 import { SpendBar } from '@/features/budget/SpendBar.tsx';
+import { useOpenStatusChip } from './open-status-chip.ts';
 import { CHIP_SECTIONS, CHIP_SEGMENTS, CHIP_TONES, type ChipTone } from './status-chip-slots.ts';
 import { statusQuery } from './status-query.ts';
 
@@ -21,6 +22,7 @@ const TONE_CLASS: Record<ChipTone, string> = {
 export function StatusChip() {
   const status = useQuery(statusQuery());
   const [open, setOpen] = useState(false);
+  useOpenStatusChip(useCallback(() => setOpen(true), []));
   if (!status.data) return null;
 
   const { state, queuedCount } = status.data;
