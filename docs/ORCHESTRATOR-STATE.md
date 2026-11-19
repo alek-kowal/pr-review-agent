@@ -105,7 +105,8 @@ All of them are in `/private/tmp/claude-501/-Users-alek-Projects/bac86def-abc6-4
 ## Lessons
 Read `docs/orchestrator-lessons.md` before coordinating new work; add a lesson when a problem repeats.
 
-## 14:25 status
-Merged since 08:40: P-11r, P-19, P-16, P-14, P-17, P-15 (main bc351f1). Running: P-18, P-20, P-21, P-24 (implementing) and P-23 (merge-fix, done implementing). Next: P-22 once P-18 merges; impl-review planned for P-18 and P-22.
-Merge loop: `merge-or-fix.sh <id>` (exits the agent, merges when calm; on conflict aborts main and starts a merge-fix agent, prints MERGED/FIXING/FAIL). Run merges one at a time; pause a merge-fix while another package is about to land, to avoid migration-number races.
-supervise.sh now re-prompts an agent stopped by "API Error". Flaky: e2e/decide.spec.ts conflict scenario.
+## 18:25 status
+Merged: all packages P-01..P-21, P-23, P-24, plus reviews P-03r, P-05r, P-11r and a README package (main d61080e+). Running: P-22 (last package) and P-18r (impl-review of P-18, merged at d61080e).
+After P-22 merges: run its impl-review (P-22r), then flip README levels 4 and 5 from "Planned" to "Yes" (see context/changes/README/change.md), then the final summary for Alek.
+Merge loop: `merge-or-fix.sh <id>`: exits the agent, merges main into the worktree, verifies that tree, merges into main; on conflict starts a merge-fix agent (prints MERGED/FIXING/FAIL). One merge at a time.
+supervise.sh: handoff at 26%, re-prompts after "API Error", waits through "Usage limit reached" and "... still running".
