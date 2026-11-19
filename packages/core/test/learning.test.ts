@@ -28,7 +28,7 @@ const candidate = (overrides: Partial<LessonCandidate> = {}): LessonCandidate =>
 });
 
 describe('learning', () => {
-  it("leaves the PR author's own comments out of what the analyst reads (P admin.test.ts:64)", () => {
+  it("leaves the PR author's own comments out of what the analyst reads (P admin.test.ts:86)", () => {
     const comments = [
       comment('kasia', 'fixed'),
       comment('tomek', 'why?'),
@@ -37,7 +37,7 @@ describe('learning', () => {
     expect(buildCases(comments, '@kasia')).toEqual([comment('tomek', 'why?')]);
   });
 
-  it('a duplicate adds its PR to the open candidate; a rejected one starts over (P admin.test.ts:79)', () => {
+  it('a duplicate adds its PR to the open candidate; a rejected one starts over (P admin.test.ts:64)', () => {
     const open = candidate();
     const merged = mergeCandidate([open], {
       id: 'c2',
@@ -63,7 +63,7 @@ describe('learning', () => {
     expect(again.candidates).toHaveLength(2);
   });
 
-  it('accepting needs 2 PRs and a signature, and the lesson keeps the rest of the file (P admin.test.ts:86)', () => {
+  it('accepting needs 2 PRs and a signature', () => {
     expect(canAccept(candidate({ prs: [270, 278] }), member('alek'))).toEqual({
       ok: true,
       reason: { code: 'can_accept', params: { prs: 2 } },
@@ -72,13 +72,28 @@ describe('learning', () => {
       ok: false,
       reason: { code: 'signature_required', params: {} },
     });
+  });
+
+  it('an accepted lesson replaces the placeholder line, names its PRs and keeps the rest of the file (P admin.test.ts:79)', () => {
+    const empty = '# Lessons\n\n<!-- agents read this file -->\n\nNo accepted lessons yet.\n';
+    const first = withLesson(
+      empty,
+      { title: 'A', rule: 'Ra', prs: [1, 2] },
+      { placeholder: 'No accepted lessons yet.' },
+    );
+    expect(first).toBe(
+      '# Lessons\n\n<!-- agents read this file -->\n\n## A\n\nRa\n\nFrom PRs: #1, #2.\n',
+    );
+    const second = withLesson(first, { title: 'B', rule: 'Rb', prs: [3, 4] });
+    expect(second.indexOf('## A')).toBeLessThan(second.indexOf('## B'));
     const text =
       '# Lessons\n\n## Keep public exports in changesets\n\nEvery new export needs one.\n';
     const next = withLesson(text, candidate());
     expect(next).toBe(
       '# Lessons\n\n## Keep public exports in changesets\n\nEvery new export needs one.\n\n' +
         '## Docs links must be checked when a page is removed\n\n' +
-        'When a PR deletes a docs page, report every link to it.\n',
+        'When a PR deletes a docs page, report every link to it.\n\n' +
+        'From PRs: #270.\n',
     );
     expect(withLesson(next, candidate())).toBe(next);
     expect(withLesson('', candidate())).toMatch(/^## Docs links/);
