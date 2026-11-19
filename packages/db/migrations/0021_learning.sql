@@ -51,4 +51,9 @@ CREATE INDEX "analyses_pull_request" ON "analyses" USING btree ("pull_request_id
 CREATE UNIQUE INDEX "analyses_run" ON "analyses" USING btree ("run_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "analyses_one_by_bot" ON "analyses" USING btree ("pull_request_id") WHERE "analyses"."started_by" = 'bot';--> statement-breakpoint
 CREATE INDEX "lesson_candidate_sources_analysis" ON "lesson_candidate_sources" USING btree ("analysis_id");--> statement-breakpoint
-CREATE INDEX "lesson_candidates_repository" ON "lesson_candidates" USING btree ("repository_id","status");
+CREATE INDEX "lesson_candidates_repository" ON "lesson_candidates" USING btree ("repository_id","status");--> statement-breakpoint
+-- Live updates (hand-written): the PR page's learning line and Settings → Learning.
+CREATE TRIGGER analyses_notify_change AFTER INSERT OR UPDATE ON analyses
+  FOR EACH ROW EXECUTE FUNCTION pra_notify_change();--> statement-breakpoint
+CREATE TRIGGER lesson_candidates_notify_change AFTER INSERT OR UPDATE ON lesson_candidates
+  FOR EACH ROW EXECUTE FUNCTION pra_notify_change();

@@ -2,6 +2,7 @@ import { buildSections, sectionsSchema, type PrViewContext } from './section.ts'
 import { checksSection } from './sections/checks.ts';
 import { headSection } from './sections/head.ts';
 import { latestRoundSection } from './sections/latest-round.ts';
+import { learningSection } from './sections/learning.ts';
 import { authorSection, checklistSection, nextStepSection } from './sections/next-step.ts';
 import { pullRequestSection } from './sections/pull-request.ts';
 import { roundProgressSection } from './sections/round-progress.ts';
@@ -20,6 +21,7 @@ export const PR_VIEW_SECTIONS = [
   roundProgressSection,
   taskSection,
   checksSection,
+  learningSection,
 ] as const;
 
 export const PrViewSchema = sectionsSchema(PR_VIEW_SECTIONS);

@@ -233,12 +233,29 @@ describe('POST /api/prs/:repo/:number/analyst', () => {
     const pullRequest = await closedPr('closed');
     const response = await post(`/api/prs/${repository.slug}/${pullRequest.number}/analyst`);
     expect(response.statusCode).toBe(202);
-    const { runId } = response.json();
+    const { runId, analysisId } = response.json();
     expect(await getRun(db, runId)).toMatchObject({
       kind: 'analyst',
       status: 'queued',
       startedBy: 'hand',
     });
+
+    // The PR view's learning section shows it running, then finished with its candidates.
+    const view = async () =>
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/api/prs/${repository.slug}/${pullRequest.number}`,
+        })
+      ).json().learning;
+    expect(await view()).toMatchObject({
+      analysis: { id: analysisId, status: 'running', startedBy: 'hand', candidates: null, runId },
+    });
+    await finishAnalysis(db, {
+      analysisId,
+      proposals: [{ title: 'One lesson', lesson: 'Do it once.', evidence: '' }],
+    });
+    expect(await view()).toMatchObject({ analysis: { status: 'finished', candidates: 1 } });
   });
 
   test('refuses an open PR with 409 pr_open', async () => {

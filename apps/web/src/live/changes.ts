@@ -34,6 +34,8 @@ export const QUERY_FAMILIES = {
   run: (key, change) => key[0] === 'run' && (change.runId === null || key[1] === change.runId),
   /** Trials and their Compare pages: a trial's status and buckets follow its two runs. */
   trials: (key) => key[0] === 'trials',
+  /** Settings → Learning: candidates an analysis created or merged. */
+  learning: (key) => key[0] === 'learning',
   prView: (key, change, context) =>
     isPrKey(key) && key.length === 3 && samePr(key, change, context),
   prFindings: (key, change, context) =>
@@ -67,6 +69,9 @@ export const LIVE_TARGETS: Record<string, readonly QueryFamilyKey[]> = {
   // S-10: pause, budget and slots, and why a run waits.
   app_settings: ['status', 'board', 'prView', 'activity'],
   run_waits: ['prView', 'board', 'activity', 'status'],
+  // S-23: the PR page's learning line and Settings → Learning.
+  analyses: ['prView', 'learning'],
+  lesson_candidates: ['learning'],
 };
 
 const DEFAULT_TARGETS: readonly QueryFamilyKey[] = ['pr', 'board'];

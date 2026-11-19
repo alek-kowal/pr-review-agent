@@ -2,6 +2,7 @@
 import type {
   TaskSectionView,
   ChecksSectionView,
+  LearningSectionView,
   AuthorView,
   BoardCard,
   BoardResponse,
@@ -115,6 +116,8 @@ export const aPrView = (
     roundProgress?: RoundProgressView | null;
     task?: TaskSectionView;
     checks?: ChecksSectionView;
+    learning?: LearningSectionView;
+    state?: PrView['pullRequest']['state'];
   } = {},
 ): PrView => ({
   pullRequest: {
@@ -123,7 +126,7 @@ export const aPrView = (
     number: over.number ?? 12,
     title: 'Add node grouping',
     authorLogin: 'octocat',
-    state: 'open',
+    state: over.state ?? 'open',
     isDraft: false,
     isFork: false,
     headRef: 'feature/grouping',
@@ -143,6 +146,7 @@ export const aPrView = (
   roundProgress: over.roundProgress ?? null,
   task: over.task ?? { configured: true, link: null },
   checks: over.checks ?? aChecks(),
+  learning: over.learning ?? { levelLearns: false, analysis: null },
 });
 
 /** A PR with no completed round yet: nothing to show in the Change type panel. */

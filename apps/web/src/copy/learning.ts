@@ -45,6 +45,19 @@ export const learning = {
     submit: 'Reject',
     cancel: 'Cancel',
   },
+  status: {
+    label: 'Learning:',
+    running: 'Analyst is running',
+    finished: (n: number) => `Analyst finished: ${n} ${n === 1 ? 'candidate' : 'candidates'}`,
+    failed: 'Analyst failed',
+    openLearning: 'Open Learning',
+    openRun: 'Run detail',
+  },
+  runAnalyst: {
+    button: 'Run analyst',
+    title: 'Run the analyst on this closed PR. Unsigned, recorded as by hand.',
+    started: 'Analyst started.',
+  },
   accept: {
     open: 'Accept…',
     title: (title: string) => `Accept “${title}”?`,

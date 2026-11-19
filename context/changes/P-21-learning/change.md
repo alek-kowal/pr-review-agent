@@ -74,3 +74,14 @@ tries, rejects (signed) or accepts (signed) them, and an accepted lesson becomes
   key, repository, draft) and its form is exported as `TryOnPrForm`. The Learning card first
   saves the lessons draft, then opens that form limited to the candidate's repository.
 - Reject and Accept send the text the signer saw, so an edit in between is 409 `settings_stale`.
+
+### S-23-T6 (status on closed PRs)
+
+- A `learning` PR view section: `levelLearns` and the latest analysis (status, who started it,
+  candidate count, run). The banner line shows on any closed PR that has an analysis, not only
+  at level 6, so a hand-run analysis (S-23-T8's smoke) shows its status too.
+- Failed links to the run's Run detail; finished links to Settings → Learning.
+- "Run analyst" is a header action on every closed PR, disabled while an analysis runs.
+- Live updates: the learning migration adds `pra_notify_change` triggers on `analyses` (PR view
+  and Learning) and `lesson_candidates` (Learning); the web maps them in `LIVE_TARGETS`.
+- "Merged by <name>" already comes from the merged state's banner (P-19); nothing added.

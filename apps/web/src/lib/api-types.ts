@@ -150,6 +150,21 @@ export type PrView = {
   roundProgress: RoundProgressView | null;
   task: TaskSectionView;
   checks: ChecksSectionView;
+  learning: LearningSectionView;
+};
+
+/** The PR's latest analysis (S-23-T6), for the learning line of a closed PR. */
+export type LearningSectionView = {
+  /** The PR's level has learning (level 6): the bot analyses it when it closes. */
+  levelLearns: boolean;
+  analysis: {
+    id: number;
+    status: 'running' | 'finished' | 'failed';
+    startedBy: 'bot' | 'hand';
+    candidates: number | null;
+    runId: number | null;
+    at: string;
+  } | null;
 };
 
 export type ChangeType = 'uses_existing' | 'changes_behaviour' | 'one_way_door';
