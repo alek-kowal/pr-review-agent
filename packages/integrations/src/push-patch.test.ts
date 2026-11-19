@@ -89,6 +89,17 @@ describe('pushPatch', () => {
 
   it('refuses with head_moved when the branch moved, leaving the remote unchanged', async () => {
     const { mirror: m } = mirror(path.join(root, 'two'));
+    // A person pushed on top of the PR head; this test does not rely on another test's push.
+    const theirs = await git(
+      bare,
+      'commit-tree',
+      `${fixture.headSha}^{tree}`,
+      '-p',
+      fixture.headSha,
+      '-m',
+      'their commit',
+    );
+    await git(bare, 'update-ref', 'refs/heads/feature', theirs);
     await m.fetch('acme/widgets', TOKEN);
     const before = await git(bare, 'rev-parse', 'refs/heads/feature');
 
