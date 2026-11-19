@@ -14,6 +14,7 @@ export * from './autofix.ts';
 export * from './config.ts';
 export * from './start-gate.ts';
 export * from './learning.ts';
+export * from './lesson-candidates.ts';
 export * from './pr-state.ts';
 export * from './checklist.ts';
 export * from './glob.ts';
