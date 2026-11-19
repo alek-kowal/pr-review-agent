@@ -169,6 +169,20 @@ describe('ClaudeAgentRunner', () => {
     expect(progress).toHaveBeenCalledTimes(3);
   });
 
+  it('prices each message on its own, so two short Haiku 5.5 prompts stay at the short rate', async () => {
+    const usage = { input_tokens: 60_000, output_tokens: 1_000, cache_read_input_tokens: 0 };
+    const { query } = fakeQuery([assistant('m1', usage), assistant('m2', usage)], {
+      waitForAbort: true,
+    });
+    const result = await new ClaudeAgentRunner({ apiKey: 'sk-test', query }).run(
+      input({ model: 'claude-haiku-5-5', maxCostUsd: 0.01 }),
+    );
+
+    // 120K prompt tokens in total, but each request is under the 100K long-prompt threshold.
+    expect(result.usage.inputTokens).toBe(120_000);
+    expect(result.costUsd).toBeCloseTo((2 * (60_000 * 0.1 + 1_000 * 0.5)) / 1_000_000);
+  });
+
   it('fails with model_access_not_configured without starting a session when the key is missing', async () => {
     const query = vi.fn<QueryFn>();
     const result = await new ClaudeAgentRunner({ apiKey: '', query }).run(input());
