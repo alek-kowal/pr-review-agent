@@ -20,6 +20,7 @@ import { Route as InsightsQualityRouteImport } from './routes/insights.quality.t
 import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
+import { Route as SettingsAuditRouteImport } from './routes/settings.audit.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
 import { Route as SettingsModelsRouteImport } from './routes/settings.models.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
@@ -85,6 +86,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsAuditRoute = SettingsAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/audit'
     | '/settings/integrations'
     | '/settings/models'
     | '/settings/team'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/audit'
     | '/settings/integrations'
     | '/settings/models'
     | '/settings/team'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/audit'
     | '/settings/integrations'
     | '/settings/models'
     | '/settings/team'
@@ -356,6 +368,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/audit': {
+      id: '/settings/audit'
+      path: '/audit'
+      fullPath: '/settings/audit'
+      preLoaderRoute: typeof SettingsAuditRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/integrations': {
       id: '/settings/integrations'
       path: '/integrations'
@@ -441,6 +460,7 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
 )
 
 interface SettingsRouteChildren {
+  SettingsAuditRoute: typeof SettingsAuditRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsModelsRoute: typeof SettingsModelsRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
@@ -453,6 +473,7 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAuditRoute: SettingsAuditRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
   SettingsModelsRoute: SettingsModelsRoute,
   SettingsTeamRoute: SettingsTeamRoute,

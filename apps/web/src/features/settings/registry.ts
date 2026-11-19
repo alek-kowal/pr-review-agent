@@ -1,7 +1,7 @@
 // The Settings page registry. Only built pages are registered, so the sidebar (and the command
 // palette's Settings group) never shows a page that does not exist yet. A new Settings page adds
 // its route file `routes/settings.<id>.tsx` and one entry to `settingsPages`.
-import { Cpu, FolderGit2, Layers, Plug, Users, type LucideIcon } from 'lucide-react';
+import { Cpu, FolderGit2, Layers, Plug, ScrollText, Users, type LucideIcon } from 'lucide-react';
 
 export const SETTINGS_GROUPS = ['general', 'repositories', 'review', 'improve', 'system'] as const;
 export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
@@ -31,6 +31,7 @@ export const settingsPages: readonly SettingsPageEntry[] = [
   { id: 'integrations', to: '/settings/integrations', icon: Plug },
   { id: 'repositories', to: '/settings/repositories', icon: FolderGit2 },
   { id: 'review-levels', to: '/settings/review-levels', icon: Layers },
+  { id: 'audit', to: '/settings/audit', icon: ScrollText },
 ];
 
 export const groupOf = (id: SettingsPageId): SettingsGroup =>

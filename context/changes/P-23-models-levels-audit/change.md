@@ -111,3 +111,16 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
   never shift a page. `limit` defaults to 50 (max 200).
 - The response also carries every area in the log and every signer (name kept after they leave
   Team) for the page's filters.
+
+### S-21-T7 (Audit log page)
+
+- Route `/settings/audit` with search params `q`, `area`, `who` (`bot`, `hand` or a member id)
+  and `from`/`to` (local `YYYY-MM-DD`, both days included). The page turns the days into the
+  API's instants at local midnight (`to` = the next midnight). The search text reaches the URL
+  300 ms after the last key; Select and date changes go at once (`replace`, no history spam).
+- The "Who" Select lists the signers in the log, then Bot and By hand; the "Area" Select lists the
+  areas in the log by their Settings page name (an unknown area shows as stored).
+- The summary is derived from before/after: "Added <entity>", "Removed <entity>", or "Changed"
+  with the top-level keys that differ (first three, then "and N more"). A row expands to the full
+  before and after as formatted JSON.
+- Pages of 50 with "Load more" (an infinite query over `nextCursor`).

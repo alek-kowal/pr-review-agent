@@ -519,6 +519,27 @@ export type LevelView = {
 /** `GET /api/settings/levels`. */
 export type LevelsResponse = { defaultLevel: LevelNumber; levels: LevelView[] };
 
+/** One `settings_changes` row (S-21-T6). */
+export type AuditEntry = {
+  id: number;
+  at: string;
+  area: string;
+  entity: string;
+  actor: 'member' | 'bot' | 'hand';
+  signer: { id: string; name: string } | null;
+  before: unknown;
+  after: unknown;
+  note: string | null;
+};
+
+/** `GET /api/audit`: a page of changes, newest first, and the filters' options. */
+export type AuditResponse = {
+  entries: AuditEntry[];
+  nextCursor: string | null;
+  areas: string[];
+  signers: { id: string; name: string }[];
+};
+
 /** A role's model and where it comes from (core `ModelChoice`). */
 export type ModelChoiceView = {
   role: AgentRole;

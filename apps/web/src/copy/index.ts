@@ -5,6 +5,7 @@ import { checklist } from './checklist.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
+import { audit } from './audit.ts';
 import { integrations } from './integrations.ts';
 import { levels } from './levels.ts';
 import { models } from './models.ts';
@@ -37,6 +38,7 @@ export const copy = {
   timeline,
   models,
   levels,
+  audit,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',
