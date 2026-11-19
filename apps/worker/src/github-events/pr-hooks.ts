@@ -1,6 +1,7 @@
 import type { GitHubPullRequest } from '@pra/integrations';
 import type { PullRequest, Repository } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
+import { metricsOnClosed, metricsOnHeadChanged, metricsOnReady } from '../metrics/metric-logs.ts';
 import {
   timelineOnClosed,
   timelineOnHeadChanged,
@@ -21,6 +22,8 @@ export type PrEventContext = {
   snapshot: GitHubPullRequest;
   action: string;
   eventId: number;
+  /** The raw webhook payload (`before`, `after` and `sender` of a `synchronize`). */
+  payload: Record<string, unknown>;
 };
 
 /**
@@ -39,10 +42,10 @@ export type PrEventHooks = Record<PrEventKind, PrEventHook[]>;
  * Register a hook by adding it to its list.
  */
 export const PR_EVENT_HOOKS: PrEventHooks = {
-  ready: [timelineOnReady],
-  headChanged: [timelineOnHeadChanged],
-  closed: [timelineOnClosed],
-  merged: [timelineOnMerged],
+  ready: [timelineOnReady, metricsOnReady],
+  headChanged: [timelineOnHeadChanged, metricsOnHeadChanged],
+  closed: [timelineOnClosed, metricsOnClosed],
+  merged: [timelineOnMerged, metricsOnClosed],
 };
 
 /** Which hook lists an event fires, in this order. */

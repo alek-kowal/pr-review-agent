@@ -14,6 +14,10 @@ import { Route as ActivityRouteImport } from './routes/activity.tsx'
 import { Route as InsightsRouteImport } from './routes/insights.tsx'
 import { Route as PrsRouteImport } from './routes/prs.tsx'
 import { Route as SettingsRouteImport } from './routes/settings.tsx'
+import { Route as InsightsIndexRouteImport } from './routes/insights.index.tsx'
+import { Route as InsightsCostRouteImport } from './routes/insights.cost.tsx'
+import { Route as InsightsQualityRouteImport } from './routes/insights.quality.tsx'
+import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
@@ -47,6 +51,26 @@ const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsIndexRoute = InsightsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => InsightsRoute,
+} as any)
+const InsightsCostRoute = InsightsCostRouteImport.update({
+  id: '/cost',
+  path: '/cost',
+  getParentRoute: () => InsightsRoute,
+} as any)
+const InsightsQualityRoute = InsightsQualityRouteImport.update({
+  id: '/quality',
+  path: '/quality',
+  getParentRoute: () => InsightsRoute,
+} as any)
+const InsightsTrustRoute = InsightsTrustRouteImport.update({
+  id: '/trust',
+  path: '/trust',
+  getParentRoute: () => InsightsRoute,
 } as any)
 const RunsRunIdRoute = RunsRunIdRouteImport.update({
   id: '/runs/$runId',
@@ -94,12 +118,16 @@ const SettingsRepositoriesConnectRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/insights': typeof InsightsRoute
+  '/insights': typeof InsightsRouteWithChildren
   '/prs': typeof PrsRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/insights/cost': typeof InsightsCostRoute
+  '/insights/quality': typeof InsightsQualityRoute
+  '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/insights/': typeof InsightsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
@@ -109,11 +137,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/insights': typeof InsightsRoute
   '/prs': typeof PrsRoute
+  '/insights/cost': typeof InsightsCostRoute
+  '/insights/quality': typeof InsightsQualityRoute
+  '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/insights': typeof InsightsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
@@ -124,12 +155,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/insights': typeof InsightsRoute
+  '/insights': typeof InsightsRouteWithChildren
   '/prs': typeof PrsRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/insights/cost': typeof InsightsCostRoute
+  '/insights/quality': typeof InsightsQualityRoute
+  '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/insights/': typeof InsightsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
@@ -144,9 +179,13 @@ export interface FileRouteTypes {
     | '/insights'
     | '/prs'
     | '/settings'
+    | '/insights/cost'
+    | '/insights/quality'
+    | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
+    | '/insights/'
     | '/settings/'
     | '/pr/$repo/$number'
     | '/settings/repositories/$id'
@@ -156,11 +195,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/activity'
-    | '/insights'
     | '/prs'
+    | '/insights/cost'
+    | '/insights/quality'
+    | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
+    | '/insights'
     | '/settings'
     | '/pr/$repo/$number'
     | '/settings/repositories/$id'
@@ -173,9 +215,13 @@ export interface FileRouteTypes {
     | '/insights'
     | '/prs'
     | '/settings'
+    | '/insights/cost'
+    | '/insights/quality'
+    | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
+    | '/insights/'
     | '/settings/'
     | '/pr/$repo/$number'
     | '/settings/repositories/$id'
@@ -186,7 +232,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
-  InsightsRoute: typeof InsightsRoute
+  InsightsRoute: typeof InsightsRouteWithChildren
   PrsRoute: typeof PrsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   RunsRunIdRoute: typeof RunsRunIdRoute
@@ -229,6 +275,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/insights/': {
+      id: '/insights/'
+      path: '/'
+      fullPath: '/insights/'
+      preLoaderRoute: typeof InsightsIndexRouteImport
+      parentRoute: typeof InsightsRoute
+    }
+    '/insights/cost': {
+      id: '/insights/cost'
+      path: '/cost'
+      fullPath: '/insights/cost'
+      preLoaderRoute: typeof InsightsCostRouteImport
+      parentRoute: typeof InsightsRoute
+    }
+    '/insights/quality': {
+      id: '/insights/quality'
+      path: '/quality'
+      fullPath: '/insights/quality'
+      preLoaderRoute: typeof InsightsQualityRouteImport
+      parentRoute: typeof InsightsRoute
+    }
+    '/insights/trust': {
+      id: '/insights/trust'
+      path: '/trust'
+      fullPath: '/insights/trust'
+      preLoaderRoute: typeof InsightsTrustRouteImport
+      parentRoute: typeof InsightsRoute
     }
     '/runs/$runId': {
       id: '/runs/$runId'
@@ -289,6 +363,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface InsightsRouteChildren {
+  InsightsCostRoute: typeof InsightsCostRoute
+  InsightsQualityRoute: typeof InsightsQualityRoute
+  InsightsTrustRoute: typeof InsightsTrustRoute
+  InsightsIndexRoute: typeof InsightsIndexRoute
+}
+
+const InsightsRouteChildren: InsightsRouteChildren = {
+  InsightsCostRoute: InsightsCostRoute,
+  InsightsQualityRoute: InsightsQualityRoute,
+  InsightsTrustRoute: InsightsTrustRoute,
+  InsightsIndexRoute: InsightsIndexRoute,
+}
+
+const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
+  InsightsRouteChildren,
+)
+
 interface SettingsRouteChildren {
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
@@ -314,7 +406,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
-  InsightsRoute: InsightsRoute,
+  InsightsRoute: InsightsRouteWithChildren,
   PrsRoute: PrsRoute,
   SettingsRoute: SettingsRouteWithChildren,
   RunsRunIdRoute: RunsRunIdRoute,

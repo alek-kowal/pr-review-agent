@@ -148,6 +148,7 @@ export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
     suggestion: `Suggestion ${id}`,
     verdict: 'unchecked',
     evidence: [],
+    verification: null,
     version: 0,
     decision: null,
     // Core's rule (`needsDecision` in @pra/core): decided, refuted and nit findings need none.
@@ -165,5 +166,6 @@ export const aFindingsResponse = (over: Partial<FindingsResponse> = {}): Finding
   findings: [],
   questions: [],
   notChecked: [],
+  unchecked: null,
   ...over,
 });

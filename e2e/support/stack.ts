@@ -28,11 +28,14 @@ import {
   FAILING_PR_FROM,
   HELD_PRS,
   HELD_TURN_COST_USD,
+  LEVEL_TWO_REPOSITORY,
   releaseFile,
   SECOND_REPOSITORY,
   STATE_FILE,
+  VERIFIED_REPOSITORY,
   type StackState,
 } from './env.ts';
+import { seedInsightsHistory } from './insights-seed.ts';
 
 const FULL_NAME = 'synergycodes/workflowbuilder';
 const INSTALLATION_ID = 55500001;
@@ -79,6 +82,52 @@ export const SCRIPTED_REVIEW = {
   notChecked: ['Keyboard focus after renaming'],
 };
 
+/** A reproduction's last line says how it ends; the sandbox double exits with that code. */
+const reproduction = (exitCode: number) => `console.log('repro');\nprocess.exit(${exitCode});\n`;
+
+/**
+ * What the verifier answers per finding title (verified-findings.spec.ts): the first Blocking is
+ * Confirmed by a reproduction (exit 0), the second Refuted by one (exit 3), the Worth fixing one
+ * stays Not proven after a broken script and its repair (exit 1 twice), the rest without proof.
+ */
+const VERIFIER_ANSWERS: Record<string, { script?: string; quote?: string }> = {
+  'Empty label hides the edge': {
+    quote: 'export const label = (edge: { name: string }) => edge.name.trim();',
+    script: reproduction(0),
+  },
+  'Renaming drops the undo history': { script: reproduction(3) },
+  'SDK entry exports an internal type': {
+    quote: "export * from './edges.ts';",
+    script: reproduction(1),
+  },
+};
+
+async function verifierAnswer(cwd: string) {
+  const finding = JSON.parse(await readFile(path.join(cwd, 'finding.json'), 'utf8')) as {
+    title: string;
+    file: string;
+  };
+  const answer = VERIFIER_ANSWERS[finding.title] ?? {};
+  return {
+    verdict: 'confirmed',
+    reason: `Checked ${finding.file} at the reviewed commit.`,
+    evidence: answer.quote ? [{ file: finding.file, line: 1, quote: answer.quote }] : [],
+    ...(answer.script ? { script: answer.script } : {}),
+    remedy: { kind: 'obvious', why: 'One clear fix.' },
+  };
+}
+
+/** Exits with the code the reproduction script ends with (see `reproduction`). */
+const sandbox = new FakeSandbox(async (spec) => {
+  const [mount] = spec.mounts;
+  const script = spec.command[1];
+  if (!mount || !script) return { exitCode: 1, output: 'no script' };
+  const source = await readFile(path.join(mount.hostPath, path.basename(script)), 'utf8');
+  const exitCode = Number(/process\.exit\((\d+)\)/.exec(source)?.[1] ?? 1);
+  const output = exitCode === 0 ? 'label: ""\nbug reproduced' : `repro exited with ${exitCode}`;
+  return { exitCode, output, outputTail: output };
+});
+
 /** Waits until `file` exists, at most `ms` (a held reviewer never blocks the stack for good). */
 async function waitForFile(file: string, ms: number): Promise<void> {
   const until = Date.now() + ms;
@@ -95,11 +144,16 @@ async function waitForFile(file: string, ms: number): Promise<void> {
 }
 
 /**
- * Reads the PR number from the brief and answers per number: from `FAILING_PR_FROM`, invalid; in
- * `HELD_PRS`, one reported turn, then the review once the spec releases it.
+ * The reviewer reads the PR number from the brief and answers per number: from
+ * `FAILING_PR_FROM`, invalid; in `HELD_PRS`, one reported turn, then the review once the spec
+ * releases it. The verifier answers per finding title.
  */
-class ScriptedReviewer implements AgentRunner {
+class ScriptedAgents implements AgentRunner {
   async run<T>(input: AgentRunInput<T>): Promise<AgentRunResult<T>> {
+    if (input.role === 'verifier') {
+      const output = await verifierAnswer(input.cwd);
+      return new FakeAgentRunner([{ output, costUsd: 0.05, turns: 3 }]).run(input);
+    }
     const brief = await readFile(path.join(input.cwd, 'brief.md'), 'utf8');
     const number = Number(/PR #(\d+)/.exec(brief)?.[1]);
     if (number >= HELD_PRS.from && number <= HELD_PRS.to) {
@@ -136,6 +190,8 @@ const github = new FakeGitHubGateway({
     [FULL_NAME]: INSTALLATION_ID,
     // Reachable but not connected: Settings → Repositories connects it (connect-repo.spec.ts).
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
+    [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
+    [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
   },
 });
 const blobStore = new LocalBlobStore(path.join(root, 'blobs'));
@@ -150,6 +206,33 @@ await importInstructionV1(db, {
   fileKey: 'review-rules.md',
   content: '# Review rules\n\nReport real problems only.\n',
 });
+// verified-findings.spec.ts: one repository per level, so WB stays at level 1 for the others.
+await upsertRepository(
+  db,
+  {
+    slug: VERIFIED_REPOSITORY.slug,
+    githubFullName: VERIFIED_REPOSITORY.fullName,
+    defaultLevel: 3,
+    sensitivePatterns: [{ pattern: 'db/migrations/**', reason: 'Migrations cannot be undone.' }],
+  },
+  { installationId: VERIFIED_REPOSITORY.installationId },
+);
+await upsertRepository(
+  db,
+  {
+    slug: LEVEL_TWO_REPOSITORY.slug,
+    githubFullName: LEVEL_TWO_REPOSITORY.fullName,
+    defaultLevel: 2,
+  },
+  { installationId: LEVEL_TWO_REPOSITORY.installationId },
+);
+for (const [fileKey, content] of [
+  ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
+  ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
+] as const) {
+  await importInstructionV1(db, { scope: 'global', fileKey, content });
+}
+await seedInsightsHistory(db);
 
 // One ClickUp double for the api and the worker, like one key on one server.
 const clickup = new FakeClickUpGateway();
@@ -165,9 +248,9 @@ const worker = await startWorker(
       remoteUrl: () => fixture.dir,
       exec: isolatedGitExec,
     }),
-    agentRunner: new ScriptedReviewer(),
+    agentRunner: new ScriptedAgents(),
     judge: new FakeJudge(),
-    sandbox: new FakeSandbox(),
+    sandbox,
     clickup,
     dataDir: path.join(root, 'data'),
   },

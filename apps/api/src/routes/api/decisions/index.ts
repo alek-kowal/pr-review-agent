@@ -14,7 +14,7 @@ import {
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
-import { decisionView, FindingsResponse, findingsView } from '../../../pr-view/findings.ts';
+import { decisionView, FindingsResponse, loadFindingsView } from '../../../pr-view/findings.ts';
 import {
   ChecklistSchema,
   checklistView,
@@ -61,7 +61,7 @@ async function refreshedView(db: Executor, pullRequestId: number) {
   return {
     nextStep: nextStepView(nextStep(load.input)),
     checklist: checklistView(checklist(load.input)),
-    findings: findingsView(load),
+    findings: await loadFindingsView(db, load),
   };
 }
 

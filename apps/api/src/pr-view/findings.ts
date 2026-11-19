@@ -1,7 +1,15 @@
 // The Findings tab: the newest completed round's findings with their current decisions, its
 // questions and what it did not check.
 import { DECISIONS, needsDecision, SEVERITIES, VERDICTS } from '@pra/core';
-import { coreFinding, FOLLOW_UP_STATUSES, type CurrentDecision, type PrStateLoad } from '@pra/db';
+import {
+  coreFinding,
+  FOLLOW_UP_STATUSES,
+  verificationsOfRun,
+  type CurrentDecision,
+  type Executor,
+  type FindingVerification,
+  type PrStateLoad,
+} from '@pra/db';
 import { z } from 'zod/v4';
 import { iso, ReasonSchema, roundLevel, RoundLevelSchema } from './round.ts';
 
@@ -40,6 +48,25 @@ export const FindingSchema = z.object({
   evidence: z.array(
     z.object({ file: z.string(), line: z.number().int().nullable(), quote: z.string() }),
   ),
+  /**
+   * How the Verify stage reached the verdict (level 3 and up): the core reason code, the
+   * verifier's own words and the reproduction that decided. Null when Verify did not run.
+   */
+  verification: z
+    .object({
+      reason: ReasonSchema,
+      verifierReason: z.string().nullable(),
+      reproduction: z
+        .object({
+          exitCode: z.number().int().nullable(),
+          timedOut: z.boolean(),
+          outputTail: z.string().nullable(),
+          /** Whether the one repair attempt produced the script that decided. */
+          repaired: z.boolean(),
+        })
+        .nullable(),
+    })
+    .nullable(),
   /** Sent back with a decision, so a decision made in between conflicts (409). */
   version: z.number().int(),
   decision: DecisionSchema.nullable(),
@@ -69,6 +96,8 @@ export const FindingsResponse = z.object({
   findings: z.array(FindingSchema),
   questions: z.array(QuestionSchema),
   notChecked: z.array(z.string()),
+  /** Below level 3: how many findings no verifier checked. Null at level 3 and up. */
+  unchecked: z.number().int().nullable(),
 });
 export type FindingsView = z.output<typeof FindingsResponse>;
 
@@ -83,9 +112,43 @@ export function decisionView(decision: CurrentDecision): z.output<typeof Decisio
   };
 }
 
-export function findingsView(load: PrStateLoad): FindingsView {
+type VerificationView = z.output<typeof FindingSchema>['verification'];
+
+function verificationView(row: FindingVerification | undefined): VerificationView {
+  if (!row) return null;
+  const ran = row.sandboxRuns > 0 || row.exitCode !== null || row.timedOut;
+  return {
+    reason: { code: row.reason.code, params: row.reason.params },
+    verifierReason: row.verifierReason,
+    reproduction: ran
+      ? {
+          exitCode: row.exitCode,
+          timedOut: row.timedOut,
+          outputTail: row.outputTail,
+          repaired: row.repaired,
+        }
+      : null,
+  };
+}
+
+/** Verdicts start at level 3; a lower round's findings are all unchecked. */
+const VERIFYING_LEVEL = 3;
+
+/** The Findings tab for a loaded PR, with the reviewed round's verification rows. */
+export async function loadFindingsView(db: Executor, load: PrStateLoad): Promise<FindingsView> {
+  const verifications = load.reviewedRound
+    ? await verificationsOfRun(db, load.reviewedRound.id)
+    : [];
+  return findingsView(load, verifications);
+}
+
+export function findingsView(
+  load: PrStateLoad,
+  verifications: readonly FindingVerification[] = [],
+): FindingsView {
   const run = load.reviewedRound;
-  if (!run) return { round: null, findings: [], questions: [], notChecked: [] };
+  if (!run) return { round: null, findings: [], questions: [], notChecked: [], unchecked: null };
+  const byFinding = new Map(verifications.map((v) => [v.findingId, v]));
   return {
     round: {
       id: run.id,
@@ -106,6 +169,7 @@ export function findingsView(load: PrStateLoad): FindingsView {
         suggestion: f.suggestion,
         verdict: f.verdict,
         evidence: f.evidence,
+        verification: verificationView(byFinding.get(f.id)),
         version: f.version,
         decision: decision ? decisionView(decision) : null,
         needsDecision: needsDecision(coreFinding(f, decision)),
@@ -120,5 +184,9 @@ export function findingsView(load: PrStateLoad): FindingsView {
       why: q.why,
     })),
     notChecked: run.notChecked,
+    unchecked:
+      run.level.number < VERIFYING_LEVEL
+        ? load.findings.filter((f) => f.verdict === 'unchecked').length
+        : null,
   };
 }

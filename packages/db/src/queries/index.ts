@@ -16,3 +16,5 @@ export * from './verifications.ts';
 export * from './integrations-health.ts';
 export * from './timeline.ts';
 export * from './pr-state.ts';
+export * from './metric-logs.ts';
+export * from './insights.ts';
