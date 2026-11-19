@@ -1,6 +1,6 @@
 // GitHub webhook ingest (S-01-T5): verify, store the payload unchanged, record the delivery once,
 // queue it for the worker. The CSRF guard exempts this route; the signature protects it.
-import { JOBS, recordGithubEvent, sendJob, stableJobId } from '@pra/db';
+import { githubEventJobId, JOBS, recordGithubEvent, sendJob } from '@pra/db';
 import { assertBlobKey, GITHUB_NOT_CONFIGURED } from '@pra/integrations';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
@@ -100,7 +100,7 @@ const webhooks: FastifyPluginAsyncZod = async (fastify) => {
         queue,
         JOBS.githubEvent,
         { eventId: row.id },
-        { id: stableJobId(`${JOBS.githubEvent}:${deliveryId}`) },
+        { id: githubEventJobId(deliveryId) },
       );
       return reply.code(202).send({ eventId: row.id });
     },

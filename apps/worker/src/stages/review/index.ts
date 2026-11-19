@@ -47,9 +47,13 @@ async function runReview(context: StageContext): Promise<StageResult> {
   const token = repository.installationId
     ? (await deps.github.getInstallationToken(repository.installationId)).token
     : undefined;
+  // Git takes no signal: after the stage timeout, stop at the next step instead of going on to
+  // a worktree and a session nobody waits for.
   await deps.gitMirror.fetch(fullName, token);
+  signal.throwIfAborted();
   const worktree = await deps.gitMirror.addWorktree(fullName, worktreeKey(run.id), run.headSha);
   const diff = await deps.gitMirror.diff(fullName, pullRequest.baseSha, run.headSha);
+  signal.throwIfAborted();
   const changed = diff.files.map((file) => file.path);
 
   const config = readRepositoryConfig(repository).value;
@@ -84,6 +88,7 @@ async function runReview(context: StageContext): Promise<StageResult> {
     runDir: sessionDir,
   });
   const model = modelFor((await getAppSettings(deps.db)).value, level, 'reviewer').model;
+  signal.throwIfAborted();
   const result = await deps.agentRunner.run({
     role: 'reviewer',
     model,

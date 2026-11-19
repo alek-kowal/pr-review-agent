@@ -37,13 +37,15 @@ type QueueSettings = Omit<QueueDefinition, 'name'>;
 const STAGE_JOB_EXPIRY_SECONDS = 5 * 60 * 60;
 
 /**
- * Per-queue settings `migrateQueue` creates the queues with. `exclusive` allows one queued or
- * active job per `singletonKey`, so a second send for the same run and stage is dropped.
- * pg-boss's default expiry (15 minutes) would retry a stage that is still running.
+ * Per-queue settings `migrateQueue` creates (and updates) the queues with. `exclusive` allows one
+ * queued or active job per `singletonKey`, so a second send for the same run and stage is
+ * dropped. pg-boss's default expiry (15 minutes) would retry a stage that is still running.
+ * pg-boss retries twice at once by default; the comment waits instead (1, 2, 4, 8, 16 minutes),
+ * so a GitHub outage or a secondary rate limit does not drop it.
  */
 export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   'run.stage': { policy: 'exclusive', expireInSeconds: STAGE_JOB_EXPIRY_SECONDS },
-  'github.comment': { policy: 'exclusive' },
+  'github.comment': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
 };
 
 /**
@@ -54,6 +56,10 @@ export function stableJobId(key: string): string {
   const hex = createHash('sha256').update(key).digest('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
+
+/** The `github.event` job id of one delivery: the api and the worker's resend agree on it. */
+export const githubEventJobId = (deliveryId: string): string =>
+  stableJobId(`${JOBS.githubEvent}:${deliveryId}`);
 
 export type Queue = PgBoss;
 /** A job as a handler receives it. */
@@ -99,6 +105,11 @@ export async function migrateQueue(url: string): Promise<{ schemaVersion: number
   try {
     for (const name of Object.values(JOBS)) {
       await boss.createQueue(name, QUEUE_SETTINGS[name] ?? {});
+      // `createQueue` leaves an existing queue as it was; later settings reach it here. The
+      // policy cannot change after creation.
+      const settings = { ...QUEUE_SETTINGS[name] };
+      delete settings.policy;
+      if (Object.keys(settings).length) await boss.updateQueue(name, settings);
     }
     if (failure) throw failure;
     return { schemaVersion: await boss.schemaVersion() };
