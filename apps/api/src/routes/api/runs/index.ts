@@ -1,9 +1,12 @@
-// S-03-T6: Run detail and a session's full transcript. Reads only.
+// S-03-T6: Run detail and a session's full transcript. S-09: Retry (T2) and Cancel (T4), both
+// unsigned ("by hand").
 import { summarizeTranscript } from '@pra/agents/transcript';
-import { chainState, roundLabel } from '@pra/core';
+import { chainState, HAND, roundLabel } from '@pra/core';
 import {
   getRunContext,
   getRunDetail,
+  recordTimelineEntry,
+  retryRun,
   RUN_STATUSES,
   runsOfPullRequest,
   sessionOfRun,
@@ -63,6 +66,19 @@ const RunStageSchema = z.object({
   output: z.unknown(),
   /** Sessions of every attempt, oldest first. */
   sessions: z.array(SessionSchema),
+  /** A retry's copy of a stage the failed run finished ("reused from the failed round"). */
+  reused: z.boolean(),
+});
+
+/** A run linked by retry: its id, status and what it spent. */
+const LinkedRunSchema = z.object({
+  id: z.number().int(),
+  status: z.enum(RUN_STATUSES),
+  costUsd: z.number(),
+});
+
+export const RetryRunResponse = z.object({
+  run: z.object({ id: z.number().int(), fromStage: z.string() }),
 });
 
 export const RunDetailResponse = z.object({
@@ -88,6 +104,12 @@ export const RunDetailResponse = z.object({
     ),
     /** The stage and error code a failed run stopped at. */
     error: z.object({ stage: z.string(), code: z.string() }).nullable(),
+    /** The failed run this run retries, with its cost up to the failure. */
+    retryOf: LinkedRunSchema.nullable(),
+    /** The stage this retry started from. */
+    retryFrom: z.string().nullable(),
+    /** The run that retried this failed run, if any. */
+    retriedBy: LinkedRunSchema.nullable(),
   }),
   pullRequest: z.object({
     repository: z.object({ slug: z.string() }),
@@ -143,7 +165,7 @@ async function sessionView(blobStore: BlobStore, session: AgentSession) {
 }
 
 const runs: FastifyPluginAsyncZod = async (fastify) => {
-  const { db, blobStore } = fastify.deps;
+  const { db, queue, blobStore } = fastify.deps;
 
   fastify.get(
     '/:id',
@@ -157,7 +179,10 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
         return sendError(reply, 404, ApiErrorCode.RunNotFound, request.params);
       }
       const { run, stages, sessions } = detail;
-      const chain = chainState((await runsOfPullRequest(db, run.pullRequestId)).map(runRecord));
+      const prRuns = await runsOfPullRequest(db, run.pullRequestId);
+      const chain = chainState(prRuns.map(runRecord));
+      const linked = (other: Run | undefined) =>
+        other ? { id: other.id, status: other.status, costUsd: other.costUsd } : null;
       const rows = stageRows(stages, sessions);
       const steps = runSteps(run, rows);
       const views = new Map(
@@ -183,6 +208,7 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
           sessions: sessions
             .filter((s) => ids.has(s.stageExecutionId))
             .map((s) => views.get(s.id)!),
+          reused: latest?.status === 'reused',
         };
       });
       const failed =
@@ -203,6 +229,9 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
           notChecked: run.notChecked,
           instructionVersions: run.instructionVersions,
           error: failed ? { stage: failed.key, code: failed.errorCode ?? 'stage_error' } : null,
+          retryOf: linked(prRuns.find((other) => other.id === run.retryOf)),
+          retryFrom: run.retryFrom,
+          retriedBy: linked(prRuns.find((other) => other.retryOf === run.id)),
         },
         pullRequest: {
           repository: { slug: context.repository.slug },
@@ -213,6 +242,48 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
         stages: stageViews,
         totalCostUsd: sessions.reduce((sum, s) => sum + s.costUsd, 0),
       };
+    },
+  );
+
+  fastify.post(
+    '/:id/retry',
+    {
+      schema: {
+        params: RunParams,
+        response: { 201: RetryRunResponse, 404: ApiErrorSchema, 409: ApiErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const result = await retryRun({ db, queue }, request.params.id, HAND, {
+        // "Retry from Review started by hand"
+        inTransaction: (tx, retry, failedRun, fromStage) =>
+          recordTimelineEntry(tx, {
+            pullRequestId: retry.pullRequestId,
+            actor: HAND,
+            kind: 'run_retried',
+            params: {
+              stage: fromStage,
+              failedRunId: failedRun.id,
+              runKind: retry.kind,
+              roundNumber: retry.roundNo,
+            },
+            runId: retry.id,
+            sourceKey: `run:${retry.id}:retry`,
+          }),
+      });
+      if (!result.retried) {
+        const { code, params } = result.reason;
+        if (code === 'run_not_found') {
+          return sendError(reply, 404, ApiErrorCode.RunNotFound, request.params);
+        }
+        return sendError(
+          reply,
+          409,
+          code === 'run_active' ? ApiErrorCode.RunActive : ApiErrorCode.RunNotFailed,
+          params,
+        );
+      }
+      return reply.code(201).send({ run: { id: result.run.id, fromStage: result.fromStage } });
     },
   );
 

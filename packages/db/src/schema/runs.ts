@@ -117,6 +117,8 @@ export const runs = pgTable(
       .default(sql`'{}'::text[]`),
     /** The failed run this run retries (S-09-T1): same chain, round, level and head. */
     retryOf: integer('retry_of').references((): AnyPgColumn => runs.id),
+    /** The stage a retry starts from (the failed run's failed stage). */
+    retryFrom: text('retry_from'),
     /**
      * A cancel was asked for (S-09-T3); the run stays queued or running until the worker has
      * stopped its work and set `cancelled`. Who asked and why stay for the timeline.

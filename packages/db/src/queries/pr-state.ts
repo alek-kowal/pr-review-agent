@@ -111,8 +111,8 @@ function activeRun(run: Run | undefined): ActiveRun | null {
     startedBy: runActor(run),
     roundNumber: run.kind === 'round' ? (run.roundNo ?? 1) : null,
     fixSha: run.trigger === 'own_fix' ? run.headSha : null,
-    // Retry from a stage arrives in S-09, the queue's other causes in S-10.
-    retryFrom: null,
+    // The queue's other causes arrive in S-10.
+    retryFrom: (run.retryFrom as StageKey | null) ?? null,
     queue: status === 'queued' ? { cause: 'slot' } : null,
   };
 }
@@ -290,7 +290,10 @@ export async function loadPrStateInputs(
             stage: (failedStage?.stage ?? 'unknown') as StageKey,
             errorCode: failedStage?.errorCode ?? 'unknown',
             roundNumber: p.latestRound.roundNo ?? 1,
-            timeoutMinutes: null,
+            timeoutMinutes:
+              failedStage?.errorCode === 'stage_timeout'
+                ? p.latestRound.level.settings.stageTimeoutMinutes
+                : null,
           }
         : null;
     const authorMember =

@@ -32,10 +32,7 @@ export function runStateOf(run: Run, executions: readonly StageExecution[]): Run
     ...plan,
     status: run.status,
     stages,
-    // A retry starts from its first stage that is not reused.
-    retryFrom: run.retryOf
-      ? (stages.find((s) => s.status !== 'reused' && s.status !== 'off')?.key ?? null)
-      : null,
+    retryFrom: (run.retryFrom as RunStageKey | null) ?? null,
     error:
       run.status === 'failed' && failed
         ? { stage: failed.key, code: failed.errorCode ?? 'stage_error' }

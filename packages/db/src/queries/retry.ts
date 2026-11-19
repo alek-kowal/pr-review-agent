@@ -87,6 +87,7 @@ async function insertRetry(
     trigger: failedRun.trigger,
     notChecked: failedRun.notChecked,
     retryOf: failedRun.id,
+    retryFrom: fromStage,
   });
 
   for (const stage of transition.run.stages.filter((s) => s.status === 'reused')) {

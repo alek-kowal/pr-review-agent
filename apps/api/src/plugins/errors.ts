@@ -27,6 +27,10 @@ export const ApiErrorCode = {
   SettingsStale: 'settings_stale',
   TeamMemberNotFound: 'team_member_not_found',
   RunNotFound: 'run_not_found',
+  /** Retry of a run that did not fail (S-09-T2). */
+  RunNotFailed: 'run_not_failed',
+  /** Cancel of a run that already ended (S-09-T4). */
+  RunFinished: 'run_finished',
   /** The session does not exist or belongs to another run. */
   SessionNotFound: 'session_not_found',
   /** The session has no stored transcript (yet, or it was removed). */
