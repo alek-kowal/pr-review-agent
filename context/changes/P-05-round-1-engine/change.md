@@ -33,3 +33,26 @@ are added per task below.
 - Worker tests: pg-boss 12 only sends from a started instance, so `test/support.ts` starts the
   queue with `supervise` and `schedule` off; "an unchanged PR is left alone" is checked by the row's
   `xmin`. The smoke test runs on its own database (`createTestDatabase()`).
+
+### S-01-T9 (review stage)
+
+- The executor lives in `apps/worker/src/stages/review/` (`index.ts`, `schema.ts`, `brief.ts`,
+  `prompt.ts`, `context.ts`) instead of one `stages/review.ts`; the stage contract is
+  `src/stages/stage.ts`, paths in `src/stages/paths.ts`.
+- The brief and the built-in prompt are English (project language); WB's imported
+  `prompt-reviewer.md` replaces the built-in prompt when it has `{{knowledgeDir}}` and `{{repoDir}}`.
+- The brief always has a "Limits" section (max findings, allowed severities, questions); "Review
+  level" only when the frozen level has a `brief`, "Change risk" only with a change type (P-09).
+- Workspace documents (README, CLAUDE, AGENTS, `*.decision-log.md`) come from walking the touched
+  `apps/*`/`packages/*` folders of the fresh worktree: `GitMirror` has no file listing, and a new
+  worktree holds only tracked files.
+- After `enforce` (which keeps the reviewer's order) findings are sorted most severe first, stable,
+  so ordinal 1 is the most severe. A line ≤ 0 is stored as null; a `recommended` index outside the
+  options as null. P's optional `fix` has no column yet: it stays in the stage output by ordinal,
+  with `summary`, `risk`, `gatedNotes`, the reported counts and `enforce`'s dropped counts.
+- The installation token is fetched only when the repository has an installation id; a local or
+  public remote needs none.
+- The knowledge directory is materialised with files `0444` and folders `0555`; `removeTree`
+  restores write access before deleting. A file key that leaves the folder is skipped.
+- `createGitFixture` and `isolatedGitExec` went into `@pra/integrations/testing` now (plan:
+  phase 6), since the review-stage test needs them.

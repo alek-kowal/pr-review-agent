@@ -273,8 +273,8 @@ Unit-level: brief, prompt, schema mapping. Integration: handlers on the shared t
 
 #### Automated
 
-- [ ] 3.1 review-stage.test.ts passes
-- [ ] 3.2 pnpm verify
+- [x] 3.1 review-stage.test.ts passes
+- [x] 3.2 pnpm verify
 
 ### Phase 4: `run.stage` handler (S-01-T10)
 

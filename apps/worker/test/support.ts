@@ -22,10 +22,11 @@ import {
 } from '@pra/integrations/testing';
 import type { RepositoryConfig } from '@pra/core';
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from '../src/deps.ts';
+import { removeTree } from '../src/stages/review/prompt.ts';
 
 export type TestWorkerDeps = WorkerDeps & {
   github: FakeGitHubGateway;
@@ -72,7 +73,8 @@ export async function createTestWorkerDeps(
     async close() {
       await queue.stop({ graceful: false }).catch(() => {});
       await closeDb(db);
-      rmSync(root, { recursive: true, force: true });
+      // Knowledge directories are read-only.
+      await removeTree(root);
     },
   };
 }
