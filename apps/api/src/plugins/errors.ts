@@ -43,6 +43,15 @@ export const ApiErrorCode = {
   /** Undo after one of the batch's findings changed (`params.findingIds`). */
   DecisionChangedSince: 'decision_changed_since',
   DecisionAlreadyUndone: 'decision_already_undone',
+  /** What was typed is neither a ClickUp task id nor a task link. */
+  TaskRefInvalid: 'task_ref_invalid',
+  /** ClickUp has no task with this id. */
+  TaskNotFound: 'task_not_found',
+  /** The repository has no ClickUp settings, or the server has no `CLICKUP_API_KEY`. */
+  ClickupNotConfigured: 'clickup_not_configured',
+  ClickupAuthFailed: 'clickup_auth_failed',
+  /** ClickUp did not answer as expected. */
+  ClickupError: 'clickup_error',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

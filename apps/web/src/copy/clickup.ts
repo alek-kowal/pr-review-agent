@@ -19,4 +19,21 @@ export const clickup = {
   taskStatus: (status: string) => `status: ${status}`,
   description: 'Description',
   noDescription: 'The task has no description.',
+  /** The task panel on the PR page. */
+  panel: {
+    title: 'ClickUp task',
+    open: (taskId: string) => `Open ${taskId} in ClickUp`,
+    linkButton: 'Link a ClickUp task',
+    changeButton: 'Link another task',
+  },
+  /** The dialog that links a task by hand (unsigned). */
+  linkDialog: {
+    title: 'Link a ClickUp task',
+    description: 'The next round reads this task. Recorded on the timeline as by hand.',
+    field: 'Task ID or link',
+    placeholder: 'WB-123 or https://app.clickup.com/t/…',
+    cancel: 'Cancel',
+    confirm: 'Link task',
+    saving: 'Checking the task…',
+  },
 };

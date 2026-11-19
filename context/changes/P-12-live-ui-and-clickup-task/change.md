@@ -112,3 +112,26 @@ tasks' "Done when" checks are the plan. One commit per task, in the listed order
   under 10 s after the webhook POST, Activity row at Review with $0.12, PR page stepper with
   Review running and "running · $0.12 so far", the stepper folding into the round line after the
   release, Run detail, the Timeline's bot and by-hand entries, and Activity without the run.
+
+### S-06-T4 (link a task by hand, task panel)
+
+- The route is `PUT /api/prs/:repo/:number/task-link` (`routes/api/task-links`), not `:id`: every
+  PR route that exists so far (decisions, timeline, view) is keyed by repo and number, and so are
+  the web's queries. Unsigned; `X-PRA-Request` and the Origin check apply as to every write.
+- Body `{ taskIdOrUrl }`; core `taskIdFromRef` reads an id (`WB-123`, `86c1abc`, `#86c1abc`) or a
+  ClickUp task link (`/t/<id>` or `/t/<workspace>/<custom id>`). Errors: 422 `task_ref_invalid`,
+  422 `task_not_found` `{ taskId }`, 422 `clickup_not_configured` (no repository settings or no
+  key), 502 `clickup_auth_failed` / `clickup_error`. ClickUp errors are read by shape, as in the
+  integrations route (autoload loads routes through their own module graph).
+- A valid task replaces any earlier link (`upsertTaskLink`, how `hand`, linked by `hand`) and adds
+  a `task_linked` timeline entry by hand, in one transaction. The next round's Task stage already
+  reads the stored link first, so nothing changed in the worker.
+- New PR view section `task` `{ configured, link }`; the panel `features/clickup/TaskPanel.tsx`
+  sits in `PR_PANELS` for open PRs: the task's name (opens ClickUp) with its ID and how it was
+  linked, plus "Link another task"; "No ClickUp task linked" with "Link a ClickUp task"; or
+  "ClickUp not configured for this repository". The dialog keeps the reason on an error and
+  closes after a link; the PR view and Timeline refetch.
+- No live trigger for `pr_task_links`: the Task stage's link arrives with its stage change (which
+  already refreshes the PR view) and a hand link refreshes through its own request.
+- Also added the P-10 follow-up copy for `run_not_found`, `session_not_found` and
+  `transcript_not_found`.

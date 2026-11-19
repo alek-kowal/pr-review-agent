@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { MainActionCode } from '@pra/core';
 import type { NextStepView, PrView } from '@/lib/api-types.ts';
+import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
 import { RoundProgress } from '@/features/round/RoundProgress.tsx';
 import { Checklist } from './Checklist.tsx';
 import { DecideAction } from './DecideAction.tsx';
@@ -31,6 +32,7 @@ export const BANNER_LINES: PrSlot[] = [{ key: 'round-progress', Component: Round
  */
 export const PR_PANELS: PrPanel[] = [
   { key: 'checklist', Component: Checklist, shows: (view) => view.nextStep.lane !== null },
+  { key: 'clickup-task', Component: TaskPanel, shows: (view) => view.pullRequest.state === 'open' },
 ];
 
 /** Quiet buttons in the PR header, before the GitHub link (extension point from P-08). */

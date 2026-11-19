@@ -118,6 +118,22 @@ export type PrView = {
   checklist: ChecklistView;
   author: AuthorView;
   roundProgress: RoundProgressView | null;
+  task: TaskSectionView;
+};
+
+/** The PR's ClickUp task (`task` section of the PR view, S-06-T4). */
+export type TaskLinkView = {
+  /** As ClickUp knows it: a custom id such as `WB-123`, or the task's own id. */
+  taskId: string;
+  name: string;
+  url: string;
+  how: 'branch' | 'title' | 'search' | 'hand';
+  linkedBy: ActorView['kind'];
+};
+export type TaskSectionView = {
+  /** The repository has ClickUp settings. */
+  configured: boolean;
+  link: TaskLinkView | null;
 };
 
 /** A board card: `GET /api/board`. */
