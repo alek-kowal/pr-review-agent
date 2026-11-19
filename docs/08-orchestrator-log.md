@@ -46,3 +46,9 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
 | 19 | "General" is fine |
 | 19 Nov 02:40 | orchestrator | What is "one task" given 230 roadmap tasks? | One **roadmap item** (F-01, S-01, and so on) gets one `/10x-new` and one `/10x-plan`. Its tasks T1–Tn become plan phases, and implementation continues across fresh sessions (each under 28%, handed over through HANDOFF.md). A separate 10x cycle for each of the 230 tasks would burn tokens on repeated setup | Alek: "oszczędzaj kontekst" |
 | 19 Nov 02:40 | orchestrator | Repo | `alek-kowal/pr-review-agent` created as **private**; history pushed | Alek: repo on alek-kowal |
+
+## 19 Nov, 04:20: packages, wave 1
+
+- P-01 merged (7d581f6). Each test run gets its own database; pg-boss queues are created in `pnpm db:migrate`; the API starts without fastify-cli.
+- P-02 hit 30% after T1–T12 and handed off. A fresh session continues T13 (merge checklist) and T14 (PORTING.md).
+- Prompt fix: agents read "never touch ~/Projects/wb-factory*" as "never read". Reading the old code is allowed (it is the reference); writing, running or non-GET requests are not. Both package prompts now say so.
