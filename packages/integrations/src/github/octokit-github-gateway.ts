@@ -18,6 +18,7 @@ import {
   type CiCheck,
   type CiStatus,
   type CommitComparison,
+  type GitHubComment,
   type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,
@@ -229,6 +230,59 @@ export class OctokitGitHubGateway implements GitHubGateway {
     });
   }
 
+  async listReviewComments(fullName: string, number: number): Promise<GitHubComment[]> {
+    return this.#withInstallation(fullName, async (octokit) => {
+      const repo = splitFullName(fullName);
+      const comments: GitHubComment[] = [];
+      type User = { login: string; type?: string } | null;
+      const add = (
+        kind: string,
+        item: {
+          id: number | bigint;
+          user: User;
+          body?: string | null;
+          created_at?: string | null;
+        },
+        place: { path?: string | null; line?: number | null } = {},
+      ) => {
+        if (!item.user || item.user.type === 'Bot' || !item.body?.trim()) return;
+        comments.push({
+          id: `${kind}:${item.id}`,
+          author: item.user.login,
+          body: item.body,
+          path: place.path ?? null,
+          line: place.line ?? null,
+          createdAt: item.created_at ?? '',
+        });
+      };
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data } = await octokit.request(
+          'GET /repos/{owner}/{repo}/pulls/{pull_number}/comments',
+          { ...repo, pull_number: number, per_page: PER_PAGE, page },
+        );
+        for (const c of data) add('review_comment', c, { path: c.path, line: c.line ?? null });
+        if (data.length < PER_PAGE) break;
+      }
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data } = await octokit.request(
+          'GET /repos/{owner}/{repo}/issues/{issue_number}/comments',
+          { ...repo, issue_number: number, per_page: PER_PAGE, page },
+        );
+        for (const c of data) add('issue_comment', c);
+        if (data.length < PER_PAGE) break;
+      }
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data } = await octokit.request(
+          'GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews',
+          { ...repo, pull_number: number, per_page: PER_PAGE, page },
+        );
+        for (const r of data) add('review', { ...r, created_at: r.submitted_at ?? null });
+        if (data.length < PER_PAGE) break;
+      }
+      return comments.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    });
+  }
+
   async squashMerge(merge: SquashMerge): Promise<MergeResult> {
     return this.#withInstallation(merge.fullName, async (octokit) => {
       try {
@@ -379,6 +433,9 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     return this.#fail();
   }
   listChangesRequested(): Promise<string[]> {
+    return this.#fail();
+  }
+  listReviewComments(): Promise<GitHubComment[]> {
     return this.#fail();
   }
   squashMerge(): Promise<MergeResult> {

@@ -1,5 +1,5 @@
 {
-  "id": "fadd63c0-263d-4a9f-b3ad-3afb3c771a82",
+  "id": "4888b90f-c21e-417d-abff-e64c2f00c249",
   "prevId": "a8f08597-0c73-4144-a668-e7c57e245146",
   "version": "7",
   "dialect": "postgresql",
@@ -4124,72 +4124,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.implementer_requests": {
-      "name": "implementer_requests",
-      "schema": "",
-      "columns": {
-        "run_id": {
-          "name": "run_id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "finding_ids": {
-          "name": "finding_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revises_patch_id": {
-          "name": "revises_patch_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "implementer_requests_run_id_runs_id_fk": {
-          "name": "implementer_requests_run_id_runs_id_fk",
-          "tableFrom": "implementer_requests",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "implementer_requests_revises_patch_id_patches_id_fk": {
-          "name": "implementer_requests_revises_patch_id_patches_id_fk",
-          "tableFrom": "implementer_requests",
-          "tableTo": "patches",
-          "columnsFrom": [
-            "revises_patch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.patch_files": {
-      "name": "patch_files",
+    "public.analyses": {
+      "name": "analyses",
       "schema": "",
       "columns": {
         "id": {
@@ -4199,96 +4135,7 @@
           "notNull": true,
           "identity": {
             "type": "always",
-            "name": "patch_files_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "patch_id": {
-          "name": "patch_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "base_blob_key": {
-          "name": "base_blob_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "blob_key": {
-          "name": "blob_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'changed'"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "patch_files_patch_id_patches_id_fk": {
-          "name": "patch_files_patch_id_patches_id_fk",
-          "tableFrom": "patch_files",
-          "tableTo": "patches",
-          "columnsFrom": [
-            "patch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "patch_files_path": {
-          "name": "patch_files_path",
-          "nullsNotDistinct": false,
-          "columns": [
-            "patch_id",
-            "path"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "patch_files_status": {
-          "name": "patch_files_status",
-          "value": "\"patch_files\".\"status\" in ('changed', 'edited', 'reverted')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.patches": {
-      "name": "patches",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "patches_id_seq",
+            "name": "analyses_id_seq",
             "schema": "public",
             "increment": "1",
             "startWith": "1",
@@ -4308,71 +4155,7 @@
           "name": "run_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
-        },
-        "base_sha": {
-          "name": "base_sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "finding_ids": {
-          "name": "finding_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fixed_finding_ids": {
-          "name": "fixed_finding_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reproductions": {
-          "name": "reproductions",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "summary": {
-          "name": "summary",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "revise_note": {
-          "name": "revise_note",
-          "type": "text",
-          "primaryKey": false,
           "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ready'"
-        },
-        "checking": {
-          "name": "checking",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "check_version": {
-          "name": "check_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "started_by": {
           "name": "started_by",
@@ -4380,9 +4163,344 @@
           "primaryKey": false,
           "notNull": true
         },
-        "started_by_member_id": {
-          "name": "started_by_member_id",
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'running'"
+        },
+        "candidate_count": {
+          "name": "candidate_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "analyses_pull_request": {
+          "name": "analyses_pull_request",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "analyses_run": {
+          "name": "analyses_run",
+          "columns": [
+            {
+              "expression": "run_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "analyses_one_by_bot": {
+          "name": "analyses_one_by_bot",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"analyses\".\"started_by\" = 'bot'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "analyses_pull_request_id_pull_requests_id_fk": {
+          "name": "analyses_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "analyses",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "analyses_run_id_runs_id_fk": {
+          "name": "analyses_run_id_runs_id_fk",
+          "tableFrom": "analyses",
+          "tableTo": "runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "analyses_started_by": {
+          "name": "analyses_started_by",
+          "value": "\"analyses\".\"started_by\" in ('bot', 'hand')"
+        },
+        "analyses_status": {
+          "name": "analyses_status",
+          "value": "\"analyses\".\"status\" in ('running', 'finished', 'failed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.lesson_candidate_sources": {
+      "name": "lesson_candidate_sources",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "lesson_candidate_sources_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "candidate_id": {
+          "name": "candidate_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "analysis_id": {
+          "name": "analysis_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "evidence": {
+          "name": "evidence",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "lesson_candidate_sources_analysis": {
+          "name": "lesson_candidate_sources_analysis",
+          "columns": [
+            {
+              "expression": "analysis_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lesson_candidate_sources_candidate_id_lesson_candidates_id_fk": {
+          "name": "lesson_candidate_sources_candidate_id_lesson_candidates_id_fk",
+          "tableFrom": "lesson_candidate_sources",
+          "tableTo": "lesson_candidates",
+          "columnsFrom": [
+            "candidate_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lesson_candidate_sources_pull_request_id_pull_requests_id_fk": {
+          "name": "lesson_candidate_sources_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "lesson_candidate_sources",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lesson_candidate_sources_analysis_id_analyses_id_fk": {
+          "name": "lesson_candidate_sources_analysis_id_analyses_id_fk",
+          "tableFrom": "lesson_candidate_sources",
+          "tableTo": "analyses",
+          "columnsFrom": [
+            "analysis_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "lesson_candidate_sources_pr": {
+          "name": "lesson_candidate_sources_pr",
+          "nullsNotDistinct": false,
+          "columns": [
+            "candidate_id",
+            "pull_request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lesson_candidates": {
+      "name": "lesson_candidates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "lesson_candidates_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "repository_id": {
+          "name": "repository_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "evidence": {
+          "name": "evidence",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'proposed'"
+        },
+        "pr_count": {
+          "name": "pr_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "reject_reason": {
+          "name": "reject_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_member_id": {
+          "name": "decided_by_member_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lessons_version": {
+          "name": "lessons_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "edited_at": {
+          "name": "edited_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -4402,17 +4520,17 @@
         }
       },
       "indexes": {
-        "patches_pull_request": {
-          "name": "patches_pull_request",
+        "lesson_candidates_repository": {
+          "name": "lesson_candidates_repository",
           "columns": [
             {
-              "expression": "pull_request_id",
+              "expression": "repository_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "revision",
+              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4425,12 +4543,12 @@
         }
       },
       "foreignKeys": {
-        "patches_pull_request_id_pull_requests_id_fk": {
-          "name": "patches_pull_request_id_pull_requests_id_fk",
-          "tableFrom": "patches",
-          "tableTo": "pull_requests",
+        "lesson_candidates_repository_id_repositories_id_fk": {
+          "name": "lesson_candidates_repository_id_repositories_id_fk",
+          "tableFrom": "lesson_candidates",
+          "tableTo": "repositories",
           "columnsFrom": [
-            "pull_request_id"
+            "repository_id"
           ],
           "columnsTo": [
             "id"
@@ -4438,25 +4556,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "patches_run_id_runs_id_fk": {
-          "name": "patches_run_id_runs_id_fk",
-          "tableFrom": "patches",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "patches_started_by_member_id_team_members_id_fk": {
-          "name": "patches_started_by_member_id_team_members_id_fk",
-          "tableFrom": "patches",
+        "lesson_candidates_decided_by_member_id_team_members_id_fk": {
+          "name": "lesson_candidates_decided_by_member_id_team_members_id_fk",
+          "tableFrom": "lesson_candidates",
           "tableTo": "team_members",
           "columnsFrom": [
-            "started_by_member_id"
+            "decided_by_member_id"
           ],
           "columnsTo": [
             "id"
@@ -4466,28 +4571,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "patches_run": {
-          "name": "patches_run",
-          "nullsNotDistinct": false,
-          "columns": [
-            "run_id"
-          ]
-        },
-        "patches_revision": {
-          "name": "patches_revision",
-          "nullsNotDistinct": false,
-          "columns": [
-            "pull_request_id",
-            "revision"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "patches_status": {
-          "name": "patches_status",
-          "value": "\"patches\".\"status\" in ('ready', 'superseded', 'pushed', 'discarded')"
+        "lesson_candidates_status": {
+          "name": "lesson_candidates_status",
+          "value": "\"lesson_candidates\".\"status\" in ('proposed', 'accepted', 'rejected')"
+        },
+        "lesson_candidates_reject_reason": {
+          "name": "lesson_candidates_reject_reason",
+          "value": "\"lesson_candidates\".\"status\" <> 'rejected' or \"lesson_candidates\".\"reject_reason\" is not null"
         }
       },
       "isRLSEnabled": false

@@ -1,6 +1,6 @@
 // Worker entry (`pnpm dev`): builds dependencies from env, starts the job handlers and stops
 // gracefully on SIGTERM or SIGINT.
-import { createAnthropicJudge, createClaudeAgentRunner } from '@pra/agents';
+import { createAnthropicAnalyst, createAnthropicJudge, createClaudeAgentRunner } from '@pra/agents';
 import { closeDb, createDb, createQueue } from '@pra/db';
 import {
   CliGitMirror,
@@ -46,6 +46,7 @@ try {
     gitMirror: new CliGitMirror({ rootDir: path.join(dataDir, 'git') }),
     agentRunner: createClaudeAgentRunner(),
     judge: createAnthropicJudge(),
+    analyst: createAnthropicAnalyst(),
     sandbox: createSandbox(),
     clickup: createClickUpGateway(),
     appBaseUrl: process.env.APP_BASE_URL || null,

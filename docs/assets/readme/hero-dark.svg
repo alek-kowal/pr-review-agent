@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340" role="img" aria-labelledby="title desc">
+  <title id="title">PR Review Agent</title>
+  <desc id="desc">Agents review and verify pull requests; the team decides with a signature. A round runs Checks, Task, Change type, Review and Verify, then a person signs the decision.</desc>
+  <defs>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#383a40" fill-opacity="0.9"/>
+    </pattern>
+    <radialGradient id="glow" cx="50%" cy="22%" r="55%">
+      <stop offset="0" stop-color="#3969ff" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#3969ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#151516" stop-opacity="0"/>
+      <stop offset="1" stop-color="#151516" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0.5" y="0.5" width="1279" height="339" rx="18" fill="#151516" stroke="#383a40"/>
+  <rect x="1" y="1" width="1278" height="338" rx="18" fill="url(#dots)"/>
+  <rect x="1" y="1" width="1278" height="338" rx="18" fill="url(#fade)"/>
+  <rect x="1" y="1" width="1278" height="338" rx="18" fill="url(#glow)"/>
+
+  <!-- Logo: the app's mark, scaled up -->
+  <g transform="translate(608 34) scale(2.6667)">
+    <rect width="24" height="24" rx="6" fill="#3969ff"/>
+    <path d="M6 8.5h5.5a3 3 0 0 1 3 3V17" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="6.5" cy="8.5" r="2" fill="#fff"/>
+    <circle cx="14.5" cy="17" r="2.2" fill="#ed4c46" stroke="#fff" stroke-width="1.2"/>
+  </g>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif" text-anchor="middle">
+    <text x="640" y="156" font-size="50" font-weight="700" fill="#f5f5f7" letter-spacing="-1">PR Review Agent</text>
+    <text x="640" y="196" font-size="21" fill="#b3b7c2">Agents review and verify your pull requests. Your team decides, with a signature.</text>
+  </g>
+
+  <!-- One round: agent stages, then the person's signed decision -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" text-anchor="middle">
+    <g stroke="#5e626d" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M312 262h16m-4-4 4 4-4 4"/>
+      <path d="M432 262h16m-4-4 4 4-4 4"/>
+      <path d="M612 262h16m-4-4 4 4-4 4"/>
+      <path d="M756 262h16m-4-4 4 4-4 4"/>
+      <path d="M896 262h16m-4-4 4 4-4 4"/>
+    </g>
+
+    <g fill="#212225" stroke="#383a40">
+      <rect x="188" y="242" width="120" height="40" rx="20"/>
+      <rect x="332" y="242" width="96" height="40" rx="20"/>
+      <rect x="452" y="242" width="156" height="40" rx="20"/>
+      <rect x="632" y="242" width="120" height="40" rx="20"/>
+      <rect x="776" y="242" width="116" height="40" rx="20"/>
+    </g>
+    <g fill="#4ade80">
+      <circle cx="208" cy="262" r="5"/>
+      <circle cx="352" cy="262" r="5"/>
+      <circle cx="472" cy="262" r="5"/>
+      <circle cx="652" cy="262" r="5"/>
+      <circle cx="796" cy="262" r="5"/>
+    </g>
+    <g fill="#f5f5f7">
+      <text x="256" y="267">Checks</text>
+      <text x="388" y="267">Task</text>
+      <text x="538" y="267">Change type</text>
+      <text x="700" y="267">Review</text>
+      <text x="842" y="267">Verify</text>
+    </g>
+
+    <rect x="916" y="242" width="176" height="40" rx="20" fill="#3969ff"/>
+    <path d="M934 270l2-6 9-9 4 4-9 9-6 2z" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round"/>
+    <text x="1016" y="267" fill="#ffffff">Signed decision</text>
+
+    <path d="M200 292v6h680v-6M928 292v6h152v-6" fill="none" stroke="#5e626d" stroke-width="1.2"/>
+    <g font-size="13" font-weight="500" fill="#b3b7c2">
+      <text x="540" y="320">agents</text>
+      <text x="1004" y="320">a person</text>
+    </g>
+  </g>
+</svg>

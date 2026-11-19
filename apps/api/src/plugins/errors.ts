@@ -122,6 +122,13 @@ export const ApiErrorCode = {
   PatchStale: 'patch_stale',
   /** Revise needs a note. */
   NoteRequired: 'note_required',
+  LessonCandidateNotFound: 'lesson_candidate_not_found',
+  /** Edit, reject or accept a candidate that is already decided (`params.status`). */
+  CandidateNotOpen: 'candidate_not_open',
+  /** Accept below the PR minimum (`params.have`, `params.need`): "1 of 2 PRs: waits for one more". */
+  NeedsMorePrs: 'needs_more_prs',
+  /** Run the analyst on a PR that is still open. */
+  PrOpen: 'pr_open',
   AlertNotFound: 'alert_not_found',
   /** Dismissing an alert that was already cleared or dismissed. */
   AlertNotActive: 'alert_not_active',

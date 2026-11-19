@@ -1,15 +1,18 @@
 // The e2e test stack (S-01-T15): api and worker in one process on test doubles: its own
-// database, `FakeGitHubGateway`, a reviewer scripted per PR number, a local blob store and a
-// `CliGitMirror` on a local fixture repository. Playwright starts it (`webServer`) and stops it
-// with SIGTERM; the specs read `STATE_FILE`.
+// database, `FakeGitHubGateway`, a reviewer and an analyst scripted per PR number, a local blob
+// store and a `CliGitMirror` on a local fixture repository. Playwright starts it (`webServer`) and
+// stops it with SIGTERM; the specs read `STATE_FILE`.
 import {
   NO_USAGE,
   TEAM_ANSWERS_TITLE,
   type AgentRunInput,
   type AgentRunner,
   type AgentRunResult,
+  type Analyst,
+  type AnalystInput,
+  type AnalystOutput,
 } from '@pra/agents';
-import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
+import { FakeAgentRunner, FakeAnalyst, FakeJudge } from '@pra/agents/testing';
 import {
   closeDb,
   createDb,
@@ -52,6 +55,8 @@ import * as path from 'node:path';
 import { buildServer } from '../../apps/api/src/server.ts';
 import { startWorker } from '../../apps/worker/src/worker.ts';
 import {
+  analystHoldFile,
+  analystInputFile,
   API_PORT,
   API_URL,
   briefFile,
@@ -70,11 +75,17 @@ import {
   IMPLEMENTER_REPOSITORY,
   LARGE_PR_REPOSITORY,
   HELD_TURN_COST_USD,
+  LEARNING_COMMENTS,
+  LEARNING_LESSONS,
+  LEARNING_PRS,
+  LEARNING_REPOSITORY,
+  lessonsFile,
   LEVEL_TWO_REPOSITORY,
   MERGE_REFUSAL,
   MERGE_REPOSITORY,
   NOTIFY_REPOSITORY,
   QUESTION_PRS,
+  README_REPOSITORY,
   REFUSED_MERGE_PRS,
   releaseFile,
   SECOND_REPOSITORY,
@@ -281,17 +292,33 @@ async function waitForFile(file: string, ms: number, signal?: AbortSignal): Prom
   }
 }
 
+/** Waits while `file` exists, or until the session is aborted (a cancel). */
+async function whileExists(file: string, signal?: AbortSignal): Promise<void> {
+  while (!signal?.aborted && (await stat(file).catch(() => null))) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+
+/** The first `name` in `dirs`, or null. */
+async function readFirst(dirs: readonly string[], name: string): Promise<string | null> {
+  for (const dir of dirs) {
+    const text = await readFile(path.join(dir, name), 'utf8').catch(() => null);
+    if (text !== null) return text;
+  }
+  return null;
+}
+
 /** The reviewer of a fix check at this head leaves the first finding unresolved (chains.spec.ts). */
 const FIX_NOT_RESOLVED_AT = 1;
 
 /**
- * Answers per session kind. A full review keeps its brief (`briefFile`) and reads the PR number
- * from it: from `FAILING_PR_FROM`, invalid; in `FAIL_ONCE_PRS`, invalid the first time only; in
- * `HELD_PRS`, one reported turn, then the review once the spec releases it or cancels the run; in
- * `QUESTION_PRS`, questions until the brief has the team's answers; while `hold-<number>` exists
- * in `holdDir` it waits. A fix check (no brief,
- * `findings.json`) resolves every finding, except at `fixShas[FIX_NOT_RESOLVED_AT]`, where the
- * first stays unresolved. The verifier answers per finding title.
+ * Answers per session kind. A full review keeps its brief (`briefFile`) and the `lessons.md` it
+ * reads (`lessonsFile`), and reads the PR number from the brief: from `FAILING_PR_FROM`, invalid;
+ * in `FAIL_ONCE_PRS`, invalid the first time only; in `HELD_PRS`, one reported turn, then the
+ * review once the spec releases it or cancels the run; in `QUESTION_PRS`, questions until the
+ * brief has the team's answers; while `hold-<number>` exists in `holdDir` it waits. A fix check
+ * (no brief, `findings.json`) resolves every finding, except at `fixShas[FIX_NOT_RESOLVED_AT]`,
+ * where the first stays unresolved. The verifier answers per finding title.
  */
 class ScriptedAgents implements AgentRunner {
   readonly #holdDir: string;
@@ -325,6 +352,8 @@ class ScriptedAgents implements AgentRunner {
     const k = (this.#reviews.get(number) ?? 0) + 1;
     this.#reviews.set(number, k);
     await writeFile(briefFile(this.#holdDir, number, k), brief);
+    const lessons = await readFirst(input.readDirs ?? [], 'lessons.md');
+    if (lessons !== null) await writeFile(lessonsFile(this.#holdDir, number, k), lessons);
     const held = number >= HELD_PRS.from && number <= HELD_PRS.to;
     if (held) {
       input.onProgress?.({ turns: 1, costUsd: HELD_TURN_COST_USD, usage: NO_USAGE });
@@ -379,7 +408,7 @@ class ScriptedAgents implements AgentRunner {
       file: string;
     }[];
     const note = await readFile(path.join(dir, 'revise-note.md'), 'utf8').catch(() => null);
-    await this.#whileFlag(path.join(this.#holdDir, IMPLEMENTER_HOLD), input.signal);
+    await whileExists(path.join(this.#holdDir, IMPLEMENTER_HOLD), input.signal);
     if (input.signal?.aborted) {
       return new FakeAgentRunner([{ fail: 'cancelled', turns: 0 }]).run(input);
     }
@@ -400,13 +429,40 @@ class ScriptedAgents implements AgentRunner {
   }
 
   async #whileHeld(number: number, signal?: AbortSignal): Promise<void> {
-    await this.#whileFlag(path.join(this.#holdDir, `hold-${number}`), signal);
+    await whileExists(path.join(this.#holdDir, `hold-${number}`), signal);
+  }
+}
+
+const inRange = (number: number, range: { from: number; to: number }) =>
+  number >= range.from && number <= range.to;
+
+/**
+ * The analyst double (learning.spec.ts): keeps its input as JSON (`analystInputFile`), waits while
+ * `analystHoldFile` exists, then proposes the lesson of the PR's range in `LEARNING_PRS`, or none.
+ */
+class ScriptedAnalyst implements Analyst {
+  readonly #holdDir: string;
+
+  constructor(holdDir: string) {
+    this.#holdDir = holdDir;
   }
 
-  async #whileFlag(flag: string, signal?: AbortSignal): Promise<void> {
-    while (!signal?.aborted && (await stat(flag).catch(() => null))) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
+  async analyse(input: AnalystInput): Promise<AgentRunResult<AnalystOutput>> {
+    const { signal, ...kept } = input;
+    const { number } = input.pr;
+    await writeFile(analystInputFile(this.#holdDir, number), JSON.stringify(kept, null, 2));
+    await whileExists(analystHoldFile(this.#holdDir, number), signal);
+    if (signal?.aborted) return new FakeAnalyst([{ fail: 'cancelled' }]).analyse(input);
+    const lesson =
+      inRange(number, LEARNING_PRS.snapshot) || inRange(number, LEARNING_PRS.merged)
+        ? LEARNING_LESSONS.snapshot
+        : inRange(number, LEARNING_PRS.source)
+          ? LEARNING_LESSONS.source
+          : null;
+    const candidates = lesson
+      ? [{ ...lesson, evidence: `Seen on #${number}.`, duplicateOf: null }]
+      : [];
+    return new FakeAnalyst([{ candidates }]).analyse(input);
   }
 }
 
@@ -518,6 +574,8 @@ const github = new StackGitHub(db, {
     [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
     [GLOBAL_LEVEL_REPOSITORY.fullName]: GLOBAL_LEVEL_REPOSITORY.installationId,
     [CLICKUP_REPOSITORY.fullName]: CLICKUP_REPOSITORY.installationId,
+    [LEARNING_REPOSITORY.fullName]: LEARNING_REPOSITORY.installationId,
+    [README_REPOSITORY.fullName]: README_REPOSITORY.installationId,
   },
 });
 // GitHub's compare on the branch's commits, as the worker measures commits since a review.
@@ -525,16 +583,24 @@ const branch = [fixture.headSha, ...fixture.fixShas];
 for (const [i, base] of branch.entries()) {
   for (const [j, head] of branch.entries()) {
     if (j <= i) continue;
-    for (const fullName of [FULL_NAME, SENSITIVE_REPOSITORY.fullName, MERGE_REPOSITORY.fullName]) {
+    for (const fullName of [
+      FULL_NAME,
+      SENSITIVE_REPOSITORY.fullName,
+      MERGE_REPOSITORY.fullName,
+      LEARNING_REPOSITORY.fullName,
+    ]) {
       github.setComparison(fullName, base, head, j - i);
     }
   }
 }
-// merge.spec.ts: CI green at the fixture head, and GitHub refusing the PRs in its refused range.
-github.setCiChecks(MERGE_REPOSITORY.fullName, fixture.headSha, [
-  { name: 'build', source: 'check_run', state: 'passed' },
-  { name: 'e2e', source: 'check_run', state: 'passed' },
-]);
+// merge.spec.ts and learning.spec.ts: CI green at the fixture head, and GitHub refusing the PRs in
+// merge.spec.ts's refused range.
+for (const fullName of [MERGE_REPOSITORY.fullName, LEARNING_REPOSITORY.fullName]) {
+  github.setCiChecks(fullName, fixture.headSha, [
+    { name: 'build', source: 'check_run', state: 'passed' },
+    { name: 'e2e', source: 'check_run', state: 'passed' },
+  ]);
+}
 for (let number = REFUSED_MERGE_PRS.from; number <= REFUSED_MERGE_PRS.to; number++) {
   github.refuseMerge(MERGE_REPOSITORY.fullName, number, MERGE_REFUSAL);
 }
@@ -641,6 +707,17 @@ await upsertRepository(
   },
   { installationId: NOTIFY_REPOSITORY.installationId },
 );
+// README screenshots (e2e/readme/shots.readme.ts): level 3, so findings carry verdicts, and green CI.
+await upsertRepository(
+  db,
+  { slug: README_REPOSITORY.slug, githubFullName: README_REPOSITORY.fullName, defaultLevel: 3 },
+  { installationId: README_REPOSITORY.installationId },
+);
+github.setCiChecks(README_REPOSITORY.fullName, fixture.headSha, [
+  { name: 'build', source: 'check_run', state: 'passed' },
+  { name: 'lint', source: 'check_run', state: 'passed' },
+  { name: 'e2e', source: 'check_run', state: 'passed' },
+]);
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
   ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
@@ -649,8 +726,35 @@ for (const [fileKey, content] of [
     'Fix the findings in {{runDir}}/findings.json. Rules: {{knowledgeDir}}.\n',
   ],
   ['implement-rules.md', '# Implement rules\n\nChange only what a finding needs.\n'],
+  ['prompt-analyst.md', 'Propose lessons from the closed PR. Rules: {{knowledgeDir}}.\n'],
+  ['analyst-rules.md', '# Analyst rules\n\nPropose a lesson only when the PR shows it.\n'],
 ] as const) {
   await importInstructionV1(db, { scope: 'global', fileKey, content });
+}
+// learning.spec.ts: at level 6 closing or merging a PR starts the analyst, which reads the
+// repository's lessons.md; each merged PR has a comment by its author and one by a reviewer.
+const learning = await upsertRepository(
+  db,
+  { slug: LEARNING_REPOSITORY.slug, githubFullName: LEARNING_REPOSITORY.fullName, defaultLevel: 6 },
+  { installationId: LEARNING_REPOSITORY.installationId },
+);
+await importInstructionV1(db, {
+  scope: 'repository',
+  repositoryId: learning.id,
+  fileKey: 'lessons.md',
+  content:
+    '## Changesets must match the declared bump\n\nCheck that the changeset bump matches the change.\n',
+});
+for (let number = LEARNING_PRS.merged.from; number <= LEARNING_PRS.merged.to; number++) {
+  const { author, reviewer } = LEARNING_COMMENTS;
+  github.addComment(LEARNING_REPOSITORY.fullName, number, author.login, author.body);
+  github.addComment(
+    LEARNING_REPOSITORY.fullName,
+    number,
+    reviewer.login,
+    reviewer.body,
+    reviewer.place,
+  );
 }
 await seedInsightsHistory(db);
 // Specs run in parallel on one stack: with every agent slot open no round waits for another
@@ -701,6 +805,7 @@ const worker = await startWorker(
     }),
     agentRunner: new ScriptedAgents(holdDir, fixture.fixShas, agentCalls),
     judge: new FakeJudge(),
+    analyst: new ScriptedAnalyst(holdDir),
     sandbox: loggedSandbox(sandboxCalls),
     clickup,
     // Alert comments link to the web app the specs open.

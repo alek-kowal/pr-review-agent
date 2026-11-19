@@ -1,5 +1,5 @@
 // Worker test dependencies: doubles, temp dirs, and stored webhook deliveries.
-import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
+import { FakeAgentRunner, FakeAnalyst, FakeJudge } from '@pra/agents/testing';
 import {
   closeDb,
   createDb,
@@ -35,6 +35,7 @@ export type TestWorkerDeps = WorkerDeps & {
   github: FakeGitHubGateway;
   agentRunner: FakeAgentRunner;
   judge: FakeJudge;
+  analyst: FakeAnalyst;
   sandbox: FakeSandbox;
   clickup: FakeClickUpGateway;
   blobStore: LocalBlobStore;
@@ -48,13 +49,14 @@ export type TestWorkerDepsOptions = Partial<Omit<WorkerDepsInput, 'db' | 'queue'
   github?: FakeGitHubGateway;
   agentRunner?: FakeAgentRunner;
   judge?: FakeJudge;
+  analyst?: FakeAnalyst;
   sandbox?: FakeSandbox;
   clickup?: FakeClickUpGateway;
 };
 
 /**
  * Worker deps on a test database: a started queue without maintenance (pg-boss sends need a
- * started instance), a silent logger, a `FakeGitHubGateway`, a `FakeAgentRunner`, a `FakeJudge`,
+ * started instance), a silent logger, a `FakeGitHubGateway`, a `FakeAgentRunner`, a `FakeJudge`, a `FakeAnalyst`,
  * a `FakeSandbox`, a `FakeClickUpGateway`, and a temp dir for blobs, git and sessions. `startWorker` may start the same queue again (a no-op).
  */
 export async function createTestWorkerDeps(
@@ -76,6 +78,7 @@ export async function createTestWorkerDeps(
     gitMirror: new CliGitMirror({ rootDir: path.join(root, 'git') }),
     agentRunner: new FakeAgentRunner(),
     judge: new FakeJudge(),
+    analyst: new FakeAnalyst(),
     sandbox: new FakeSandbox(),
     clickup: new FakeClickUpGateway(),
     ...rest,

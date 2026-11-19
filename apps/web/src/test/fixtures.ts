@@ -3,6 +3,7 @@ import type {
   AlertView,
   TaskSectionView,
   ChecksSectionView,
+  LearningSectionView,
   AuthorView,
   BoardCard,
   BoardResponse,
@@ -125,6 +126,8 @@ export const aPrView = (
     checks?: ChecksSectionView;
     implementer?: Partial<ImplementerView>;
     isFork?: boolean;
+    learning?: LearningSectionView;
+    state?: PrView['pullRequest']['state'];
     alerts?: AlertView[];
   } = {},
 ): PrView => ({
@@ -134,7 +137,7 @@ export const aPrView = (
     number: over.number ?? 12,
     title: 'Add node grouping',
     authorLogin: 'octocat',
-    state: 'open',
+    state: over.state ?? 'open',
     isDraft: false,
     isFork: over.isFork ?? false,
     headRef: 'feature/grouping',
@@ -155,6 +158,7 @@ export const aPrView = (
   task: over.task ?? { configured: true, link: null },
   checks: over.checks ?? aChecks(),
   implementer: anImplementer(over.implementer),
+  learning: over.learning ?? { levelLearns: false, analysis: null },
   alerts: over.alerts ?? [],
 });
 
