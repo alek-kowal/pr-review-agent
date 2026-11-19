@@ -1,5 +1,6 @@
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner.tsx';
+import { useCostBasis } from '@/features/shell/cost-basis.ts';
 import { TopBar } from '@/features/shell/TopBar.tsx';
 import { ShortcutsDialog } from '@/features/shortcuts/ShortcutsDialog.tsx';
 import { useTheme } from '@/features/theme/theme.ts';
@@ -13,11 +14,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootLayout() {
   useLiveUpdates();
   const theme = useTheme();
+  const cost = useCostBasis();
   return (
     <div className="min-h-svh">
       <TopBar />
-      <main className="px-4 py-6 sm:px-6">
-        <Outlet />
+      <main key={cost.basis} className="px-4 py-6 sm:px-6">
+        {cost.ready && <Outlet />}
       </main>
       <ShortcutsDialog />
       <Toaster theme={theme} />

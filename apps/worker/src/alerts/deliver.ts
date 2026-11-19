@@ -55,6 +55,7 @@ export async function deliverAlert(deps: WorkerDeps, alertId: number): Promise<D
     nextStep: alert.nextStep,
     prNumber,
     link: appLink(deps.appBaseUrl!, path),
+    apiEquivalent: deps.modelAuth === 'subscription',
   });
   try {
     const comment = await deps.clickup.createComment(settings, alert.clickupTaskId!, { text });

@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import AutoLoad, { type AutoloadPluginOptions } from '@fastify/autoload';
+import type { ModelAuthMode } from '@pra/core';
 import type { Db, Queue } from '@pra/db';
 import type { BlobStore, ClickUpGateway, GitHubGateway } from '@pra/integrations';
 import { type FastifyPluginAsync } from 'fastify';
@@ -26,6 +27,8 @@ export type AppDeps = {
   clickup: ClickUpGateway;
   /** SSE clients of `GET /api/live`; a new hub by default (tests pass one to inspect it). */
   live?: LiveHub;
+  /** How the agents reach the model (core `modelAuthModeOf` over the env); `none` by default. */
+  modelAuth?: ModelAuthMode;
 };
 
 export type AppOptions = AppDeps & Partial<AutoloadPluginOptions>;
@@ -39,9 +42,9 @@ declare module 'fastify' {
 }
 
 const app: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
-  const { db, queue, github, blobStore, clickup, live, ...autoloadOptions } = opts;
+  const { db, queue, github, blobStore, clickup, live, modelAuth, ...autoloadOptions } = opts;
   // Decorated before the plugins and routes load, so all of them see it.
-  fastify.decorate('deps', { db, queue, github, blobStore, clickup, live });
+  fastify.decorate('deps', { db, queue, github, blobStore, clickup, live, modelAuth });
   fastify.decorate('signatureFailures', new SignatureFailures());
 
   // Support plugins reused across the application.

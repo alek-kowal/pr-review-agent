@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx';
 import { copy } from '@/copy/index.ts';
 import { SpendBar } from '@/features/budget/SpendBar.tsx';
+import { ModelAuthLine } from './ModelAuthLine.tsx';
 import { useOpenStatusChip } from './open-status-chip.ts';
 import { CHIP_SECTIONS, CHIP_SEGMENTS, CHIP_TONES, type ChipTone } from './status-chip-slots.ts';
 import { statusQuery } from './status-query.ts';
@@ -73,6 +74,8 @@ export function StatusChip() {
           {CHIP_SECTIONS.map(({ key, Component }) => (
             <Component key={key} status={status.data} close={close} />
           ))}
+          <ModelAuthLine mode={status.data.modelAuth} />
+
           <Link to="/activity" onClick={close} className="text-xs text-brand-text">
             {copy.status.openActivity}
           </Link>

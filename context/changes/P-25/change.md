@@ -51,6 +51,23 @@ second option. Plan: brief, below. One commit per step.
 - **Sandbox**: the container already got only its spec's env. The docker CLI used to inherit the
   worker's whole env; it now runs with `extendEnv: false` and the worker's env minus every secret
   name (`isSecretName`, the same pattern the log redaction uses).
+- **Visible mode**: the api and the worker get the mode in their deps from their composition
+  roots (`modelAuthModeOf(process.env)`; both read the same `.env`), default `none`.
+  `GET /api/status` answers `modelAuth`; the chip's popover and Settings → Budget & status (the
+  page with the daily budget) show "Model access: Claude subscription / API key / Not
+  configured", the latter with a one-line hint naming the env var.
+- **Cost wording** (steps 2 and 3 share one commit: the same copy files and status type). On a
+  subscription every amount reads `$1.23 API-equivalent`; a pair is labelled once (`$1.20 of
+  $10.00 API-equivalent`). The hints that said "Real spend" or "billed" say what the number is.
+  Chart ticks stay bare (the tooltip carries the label). The web's formatters read a module-level
+  cost basis that `RootLayout` sets from the status query before it renders any page; the page
+  is keyed by the basis, so a mode change re-renders every amount. The ClickUp alert comment
+  gets the same label (`alertCommentText({ apiEquivalent })`, worker `deps.modelAuth`). The
+  daily budget, alerts and Insights keep working on the same number, so the budget is a usage
+  guard on the API-equivalent cost. API mode reads exactly as before.
+- **E2E stack mode**: the shared e2e api runs without a mode (`none`), so the 40-odd cost
+  assertions of other specs stay valid; the P-25 spec answers `/api/status` with
+  `modelAuth: 'subscription'` through Playwright's `page.route` (a test double in `e2e/` only).
 - **How the SDK reports a usage limit** (SDK 0.3.328 `sdk.d.ts`): a `rate_limit_event` message
   with `rate_limit_info.status: 'rejected'`, `resetsAt` (Unix seconds) and `rateLimitType`
   (`five_hour`, `seven_day`, ...); the assistant message carries `error: 'rate_limit'` and text

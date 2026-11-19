@@ -2,6 +2,7 @@
 // every state code (`state_*`) and who code (`who_*`), and the main action labels.
 import type { MainActionCode } from '@pra/core';
 import { autofix } from './autofix.ts';
+import { moneyOf } from './format.ts';
 
 export type StepParams = Record<string, unknown>;
 
@@ -24,7 +25,6 @@ const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`;
 /** A commit as its first 7 characters. */
 export const shortSha = (sha: unknown): string => String(sha ?? '').slice(0, 7);
-const money = (usd: unknown) => `$${n(usd).toFixed(2)}`;
 const round = (p: StepParams) => `round ${n(p.roundNumber)} of ${n(p.max)}`;
 
 /** The banner title on the PR page. */
@@ -34,8 +34,7 @@ const banner: Record<string, Line> = {
   state_queued_slot: () => 'Queued: waiting for a free agent slot',
   state_queued_paused: (p, c) =>
     `Queued: paused by ${c.actor(p.by)}${p.note ? ` (${String(p.note)})` : ''}`,
-  state_queued_budget: (p) =>
-    `Queued: daily budget reached (${money(p.spentUsd)} of ${money(p.budgetUsd)})`,
+  state_queued_budget: (p) => `Queued: daily budget reached (${moneyOf(p.spentUsd, p.budgetUsd)})`,
   state_round_starting: (p) => `Review starting: PR marked ready for review (${round(p)})`,
   state_round_running_by_hand: (p) => `Review running: started by hand (${round(p)})`,
   state_round_retrying: (p, c) =>

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { copy } from '@/copy/index.ts';
 import { dateTime, money } from '@/copy/format.ts';
+import { ModelAuthLine } from '@/features/shell/ModelAuthLine.tsx';
 import { SaveBar } from '@/features/settings/SaveBar.tsx';
 import { SettingsPage } from '@/features/settings/SettingsPage.tsx';
 import { SignedSaveDialog } from '@/features/settings/SignedSaveDialog.tsx';
@@ -215,6 +216,9 @@ function LimitsForm({ status }: { status: StatusResponse }) {
           <Link to="/insights/cost" className="mt-2 inline-block text-xs text-brand-text">
             {t.spend.insightsLink}
           </Link>
+          <div className="mt-3">
+            <ModelAuthLine mode={status.modelAuth} withHint />
+          </div>
         </Row>
         <Row label={t.spend.dailyBudget} hint={t.spend.dailyBudgetHint} htmlFor="budget-daily">
           <div className="flex items-center gap-2">

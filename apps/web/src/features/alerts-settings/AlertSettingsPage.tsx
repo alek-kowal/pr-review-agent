@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select.tsx';
 import { Switch } from '@/components/ui/switch.tsx';
 import { copy } from '@/copy/index.ts';
+import { isApiEquivalent } from '@/copy/format.ts';
 import { SaveBar } from '@/features/settings/SaveBar.tsx';
 import { SettingsPage } from '@/features/settings/SettingsPage.tsx';
 import { SignedSaveDialog } from '@/features/settings/SignedSaveDialog.tsx';
@@ -296,6 +297,7 @@ function CommentPreview({ maxUsd }: { maxUsd: number }) {
     nextStep: reason('alert_next_split'),
     prNumber: SAMPLE_PR,
     link: `${window.location.origin}/pr/${t.comment.sampleRepo}/${SAMPLE_PR}`,
+    apiEquivalent: isApiEquivalent(),
   });
   return (
     <figure

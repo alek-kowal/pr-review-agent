@@ -70,6 +70,16 @@ async function status(app: FastifyInstance) {
   return StatusResponse.parse(response.json());
 }
 
+describe('model access mode (P-25)', () => {
+  test('the status names the mode it was started with, never a value', async () => {
+    expect((await status(await api())).modelAuth).toBe('none');
+    const app = await build({ db, queue, modelAuth: 'subscription' });
+    const response = await app.inject({ method: 'GET', url: '/api/status' });
+    expect(response.json()).toMatchObject({ modelAuth: 'subscription' });
+    expect(response.body).not.toMatch(/CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY/);
+  });
+});
+
 describe('every change needs a signature', () => {
   test.each([
     ['POST', '/pause', { reason: 'release freeze' }],
