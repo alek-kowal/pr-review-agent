@@ -136,6 +136,8 @@ test('no GET route changes any table', async () => {
       '/api/status/',
       '/api/insights/overview',
       '/api/insights/cost',
+      '/api/insights/quality',
+      '/api/insights/trust',
     ]),
   );
 

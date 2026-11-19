@@ -1,14 +1,27 @@
-// S-19: Insights. Read-only: the five pilot metrics over finished PRs (Overview) and real spend
-// (Cost). Every number carries its sample size; nothing compares periods.
-import { pilotMetrics, prMetrics, type Metric } from '@pra/core';
+// S-19: Insights. Read-only: the five pilot metrics over finished PRs (Overview), real spend
+// (Cost), verdict and decision rates (Quality) and each repository's level (Trust ladder). Every
+// number carries its sample size; nothing compares periods.
+import {
+  LEVEL_NUMBERS,
+  STAGE_ON_FROM,
+  pilotMetrics,
+  prMetrics,
+  qualityRates,
+  type FindingOutcome,
+  type Metric,
+} from '@pra/core';
 import {
   averageRoundCost,
   finishedPrHistories,
   getAppSettings,
   getRepositoryBySlug,
+  instructionVersionLabels,
+  qualityInputs,
+  repositoryLevels,
   spendRows,
   spendSince,
   type Db,
+  type QualityRun,
 } from '@pra/db';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
@@ -100,6 +113,67 @@ export const CostResponse = z.object({
   averageRoundUsd: z.number().nullable(),
 });
 
+/** Quality rates of a group of findings; every rate is null below 5 findings (`tooFew`). */
+const RatesSchema = {
+  findings: z.number().int(),
+  decided: z.number().int(),
+  /** Levels 1–2 do not verify: Confirmed and Refuted say "Unchecked". */
+  unchecked: z.boolean(),
+  tooFew: z.boolean(),
+  confirmedRate: z.number().nullable(),
+  refutedRate: z.number().nullable(),
+  /** The share of decided findings marked Implement. */
+  implementShare: z.number().nullable(),
+};
+
+export const QualityResponse = z.object({
+  range: z.union([z.literal(14), z.literal(30)]),
+  since: timestamp,
+  /** Levels 1 to 6, each with its rounds in the range. */
+  levels: z.array(
+    z.object({
+      level: z.number().int(),
+      rounds: z.number().int(),
+      ...RatesSchema,
+      averageRoundUsd: z.number().nullable(),
+    }),
+  ),
+  /** Per instruction version runs recorded; `instruction` null groups runs with none recorded. */
+  versions: z.array(
+    z.object({
+      instruction: z
+        .object({
+          id: z.number().int(),
+          scope: z.enum(['global', 'repository']),
+          repository: z.string().nullable(),
+          fileKey: z.string(),
+          version: z.number().int(),
+          active: z.boolean(),
+        })
+        .nullable(),
+      runs: z.number().int(),
+      ...RatesSchema,
+      averageCostUsd: z.number().nullable(),
+    }),
+  ),
+});
+
+export const TrustResponse = z.object({
+  /** One row per repository, by slug. */
+  repositories: z.array(
+    z.object({
+      repository: z.string(),
+      level: z.number().int(),
+      /** When the current level was set, and whole days since. */
+      since: timestamp,
+      days: z.number().int(),
+      /** Rounds of this repository at its current level, and their findings' rates. */
+      rounds: z.number().int(),
+      ...RatesSchema,
+    }),
+  ),
+});
+
 const ScopeQuery = z.object({
   range: RangeSchema,
   repo: z.string().min(1).optional(),
@@ -114,6 +188,20 @@ async function repositoryFilter(db: Db, slug: string | undefined) {
 const sinceOf = (range: number, now: Date) => new Date(now.getTime() - range * DAY_MS);
 
 const sample = <T>(m: Metric<T>) => ({ sampleSize: m.sampleSize, tooFew: m.tooFew });
+
+const mean = (values: number[]) =>
+  values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+/** The findings of these runs as core counts them. */
+function outcomesOf(
+  runs: readonly QualityRun[],
+  findings: Awaited<ReturnType<typeof qualityInputs>>['findings'],
+): FindingOutcome[] {
+  const verifyRan = new Map(runs.map((run) => [run.id, run.verifyRan]));
+  return findings
+    .filter((f) => verifyRan.has(f.runId))
+    .map((f) => ({ verdict: f.verdict, decision: f.decision, verifyRan: verifyRan.get(f.runId)! }));
+}
 
 const insights: FastifyPluginAsyncZod = async (fastify) => {
   const { db } = fastify.deps;
@@ -242,6 +330,121 @@ const insights: FastifyPluginAsyncZod = async (fastify) => {
         separate: { trial: separate('trial'), analyst: separate('analyst') },
         today: { spentUsd: spentToday, budgetUsd: settings.value.dailyBudgetUsd },
         averageRoundUsd,
+      };
+    },
+  );
+
+  fastify.get(
+    '/quality',
+    {
+      schema: {
+        querystring: ScopeQuery,
+        response: { 200: QualityResponse, 404: ApiErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const { range, repo } = request.query;
+      const repository = await repositoryFilter(db, repo);
+      if (repository === null) {
+        return sendError(reply, 404, ApiErrorCode.RepositoryNotFound, { repo });
+      }
+      const since = sinceOf(range, new Date());
+      const { runs, findings } = await qualityInputs(db, { since, repositoryId: repository?.id });
+
+      const levels = LEVEL_NUMBERS.map((level) => {
+        const rounds = runs.filter((run) => run.kind === 'round' && run.level === level);
+        const rates = qualityRates(outcomesOf(rounds, findings));
+        const unchecked = level < STAGE_ON_FROM.verify;
+        return {
+          level,
+          rounds: rounds.length,
+          ...rates,
+          unchecked,
+          ...(unchecked && { confirmedRate: null, refutedRate: null }),
+          averageRoundUsd: mean(rounds.map((run) => run.costUsd)),
+        };
+      });
+
+      const groups = new Map<number | null, QualityRun[]>();
+      for (const run of runs) {
+        const ids = run.instructionVersions.length
+          ? [...new Set(run.instructionVersions.map((v) => v.id))]
+          : [null];
+        for (const id of ids) groups.set(id, [...(groups.get(id) ?? []), run]);
+      }
+      const labels = new Map(
+        (
+          await instructionVersionLabels(
+            db,
+            [...groups.keys()].filter((id): id is number => id !== null),
+          )
+        ).map((label) => [label.id, label]),
+      );
+      const versions = [...groups]
+        .map(([id, groupRuns]) => {
+          const label = id === null ? undefined : labels.get(id);
+          return {
+            instruction: label
+              ? {
+                  id: label.id,
+                  scope: label.scope,
+                  repository: label.repositorySlug,
+                  fileKey: label.fileKey,
+                  version: label.version,
+                  active: label.status === 'active',
+                }
+              : null,
+            runs: groupRuns.length,
+            ...qualityRates(outcomesOf(groupRuns, findings)),
+            averageCostUsd: mean(groupRuns.map((run) => run.costUsd)),
+          };
+        })
+        // By file, newest version first; runs with no recorded version last.
+        .sort((a, b) =>
+          !a.instruction || !b.instruction
+            ? Number(!a.instruction) - Number(!b.instruction)
+            : a.instruction.fileKey.localeCompare(b.instruction.fileKey) ||
+              (a.instruction.repository ?? '').localeCompare(b.instruction.repository ?? '') ||
+              b.instruction.version - a.instruction.version,
+        );
+
+      return { range, since: since.toISOString(), levels, versions };
+    },
+  );
+
+  fastify.get(
+    '/trust',
+    {
+      schema: {
+        querystring: z.object({ repo: z.string().min(1).optional() }),
+        response: { 200: TrustResponse, 404: ApiErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const { repo } = request.query;
+      const repository = await repositoryFilter(db, repo);
+      if (repository === null) {
+        return sendError(reply, 404, ApiErrorCode.RepositoryNotFound, { repo });
+      }
+      const now = Date.now();
+      const [repositories, { runs, findings }] = await Promise.all([
+        repositoryLevels(db, repository?.id),
+        qualityInputs(db, { since: null, repositoryId: repository?.id }),
+      ]);
+      return {
+        repositories: repositories.map((row) => {
+          const rounds = runs.filter(
+            (run) => run.repositoryId === row.id && run.kind === 'round' && run.level === row.level,
+          );
+          return {
+            repository: row.slug,
+            level: row.level,
+            since: row.since.toISOString(),
+            days: Math.max(0, Math.floor((now - row.since.getTime()) / DAY_MS)),
+            rounds: rounds.length,
+            ...qualityRates(outcomesOf(rounds, findings)),
+          };
+        }),
       };
     },
   );

@@ -1,12 +1,21 @@
 // Insights (S-19-T3, T4): read-only queries over finished PRs and agent spend. The metrics
 // themselves are core rules (`prMetrics`, `pilotMetrics`); these load their inputs.
-import type { PrHistory } from '@pra/core';
+import type { Decision, LevelNumber, PrHistory, RunKind, Verdict } from '@pra/core';
 import { and, asc, eq, gte, inArray, sql, type SQL } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { headChanges } from '../schema/metrics.ts';
-import { pullRequests, repositories } from '../schema/repositories.ts';
-import { agentSessions, runs, stageExecutions } from '../schema/runs.ts';
+import { instructionVersions, pullRequests, repositories } from '../schema/repositories.ts';
+import {
+  agentSessions,
+  findings,
+  runs,
+  stageExecutions,
+  type RunInstructionVersion,
+} from '../schema/runs.ts';
+import { settingsChanges } from '../schema/settings-changes.ts';
 import { prStateChanges } from '../schema/timeline.ts';
+import { currentDecisions } from './decisions.ts';
+import { readRepositoryConfig } from './repositories.ts';
 
 export type InsightsScope = { since: Date; repositoryId?: number | null };
 
@@ -180,4 +189,137 @@ export async function averageRoundCost(db: Executor, scope: InsightsScope): Prom
       ),
     );
   return row?.average == null ? null : Number(row.average);
+}
+
+export type QualityRun = {
+  id: number;
+  repositoryId: number;
+  kind: RunKind;
+  level: LevelNumber;
+  /** The run's frozen level ran Verify. */
+  verifyRan: boolean;
+  costUsd: number;
+  instructionVersions: RunInstructionVersion[];
+};
+export type QualityFinding = { runId: number; verdict: Verdict; decision: Decision | null };
+
+/**
+ * Rounds and implementer runs created since `since` (every one when null), with their findings
+ * and each finding's current decision. Trials and the analyst are not PR work.
+ */
+export async function qualityInputs(
+  db: Executor,
+  scope: { since: Date | null; repositoryId?: number | null },
+): Promise<{ runs: QualityRun[]; findings: QualityFinding[] }> {
+  const runRows = await db
+    .select({
+      id: runs.id,
+      repositoryId: pullRequests.repositoryId,
+      kind: runs.kind,
+      level: sql<number>`(${runs.level} ->> 'number')::int`.mapWith(Number),
+      verifyRan: sql<boolean>`coalesce((${runs.level} -> 'stages' ->> 'verify')::boolean, false)`,
+      costUsd: runs.costUsd,
+      instructionVersions: runs.instructionVersions,
+    })
+    .from(runs)
+    .innerJoin(pullRequests, eq(pullRequests.id, runs.pullRequestId))
+    .where(
+      and(
+        inArray(runs.kind, ['round', 'implementer']),
+        ...(scope.since ? [gte(runs.createdAt, scope.since)] : []),
+        ...(scope.repositoryId ? [eq(pullRequests.repositoryId, scope.repositoryId)] : []),
+      ),
+    )
+    .orderBy(asc(runs.id));
+  if (runRows.length === 0) return { runs: [], findings: [] };
+  const findingRows = await db
+    .select({ id: findings.id, runId: findings.runId, verdict: findings.verdict })
+    .from(findings)
+    .where(
+      inArray(
+        findings.runId,
+        runRows.map((run) => run.id),
+      ),
+    );
+  const decisions = await currentDecisions(
+    db,
+    findingRows.map((row) => row.id),
+  );
+  return {
+    runs: runRows.map((run) => ({ ...run, level: run.level as LevelNumber })),
+    findings: findingRows.map((row) => ({
+      runId: row.runId,
+      verdict: row.verdict,
+      decision: decisions.get(row.id)?.decision ?? null,
+    })),
+  };
+}
+
+export type InstructionVersionLabel = {
+  id: number;
+  scope: 'global' | 'repository';
+  fileKey: string;
+  version: number;
+  status: string;
+  repositorySlug: string | null;
+};
+
+/** The instruction versions with these ids, for labels. */
+export function instructionVersionLabels(
+  db: Executor,
+  ids: readonly number[],
+): Promise<InstructionVersionLabel[]> {
+  if (ids.length === 0) return Promise.resolve([]);
+  return db
+    .select({
+      id: instructionVersions.id,
+      scope: instructionVersions.scope,
+      fileKey: instructionVersions.fileKey,
+      version: instructionVersions.version,
+      status: instructionVersions.status,
+      repositorySlug: repositories.slug,
+    })
+    .from(instructionVersions)
+    .leftJoin(repositories, eq(repositories.id, instructionVersions.repositoryId))
+    .where(inArray(instructionVersions.id, [...ids]));
+}
+
+export type RepositoryLevel = {
+  id: number;
+  slug: string;
+  level: LevelNumber;
+  /** When the current default level was set: its last change in the settings log, else when the
+   * repository was connected. */
+  since: Date;
+};
+
+/** Every repository (or one) with its current default level and since when it holds. */
+export async function repositoryLevels(
+  db: Executor,
+  repositoryId?: number | null,
+): Promise<RepositoryLevel[]> {
+  // The outer row is named in full: inside the subquery a bare "id" would be settings_changes.id.
+  const levelChanged = sql<Date | null>`(
+    select max(${settingsChanges.at}) from ${settingsChanges}
+    where ${settingsChanges.area} = 'repositories'
+      and ${settingsChanges.entity} = "repositories"."id"::text
+      and (${settingsChanges.before} is null
+        or ${settingsChanges.before} ->> 'defaultLevel'
+          is distinct from ${settingsChanges.after} ->> 'defaultLevel'))`;
+  const rows = await db
+    .select({
+      repository: repositories,
+      levelChanged: levelChanged.mapWith((value: string | Date | null) =>
+        value === null ? null : new Date(value),
+      ),
+    })
+    .from(repositories)
+    .where(repositoryId ? eq(repositories.id, repositoryId) : undefined)
+    .orderBy(asc(repositories.slug));
+  return rows.map(({ repository, levelChanged: changed }) => ({
+    id: repository.id,
+    slug: repository.slug,
+    level: readRepositoryConfig(repository).value.defaultLevel,
+    since: changed ?? repository.createdAt,
+  }));
 }

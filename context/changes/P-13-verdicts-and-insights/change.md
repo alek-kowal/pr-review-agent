@@ -107,3 +107,20 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
 - `seedPrHistory` (`@pra/db/testing`) writes one PR with its runs (one stage and one session
   each), findings with verdicts and decisions, state rows and head changes. The API tests and
   the e2e seed share it.
+
+### S-19-T4 (Quality and Trust ladder API)
+
+- Rates are a core rule (`qualityRates`, `TOO_FEW_FINDINGS = 5`): Confirmed and Refuted are
+  shares of the findings whose round ran Verify (the run's frozen level), Implement is the share
+  of decided findings (a current, not undone decision). Below 5 findings every rate is null.
+- Quality takes `range` and `repo` like Cost (no author filter): rounds and implementer runs
+  created in the range. Trials and the analyst count nowhere. Levels 1–6 are always listed; a
+  level row says `unchecked` for levels below Verify's level (1–2), whatever its findings.
+  Average round = mean run cost of that level's rounds.
+- Per instruction version: a run counts once for every version it recorded (`runs.instruction_versions`),
+  so groups overlap; runs with none recorded form one group with `instruction: null`, listed
+  last. Labels (file, version, scope, repository, `active`) come from `instruction_versions`.
+- Trust ladder: one row per repository by slug (the `repo` filter applies). The level is the
+  config's `defaultLevel`; it holds since its last change in `settings_changes` (area
+  `repositories`, `defaultLevel` differs or the row created it), else since the repository was
+  connected. Rates use every round of the repository at that level, of any age.

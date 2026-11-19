@@ -5,6 +5,8 @@ import {
   median,
   pilotMetrics,
   prMetrics,
+  qualityRates,
+  type FindingOutcome,
   type PrHistory,
   type PrState,
 } from '../src/index.ts';
@@ -258,5 +260,43 @@ describe('isBaseMerge', () => {
       false,
     );
     expect(isBaseMerge({ ...base, commit: null })).toBe(false);
+  });
+});
+
+describe('quality rates (S-19-T4)', () => {
+  const f = (patch: Partial<FindingOutcome> = {}): FindingOutcome => ({
+    verdict: 'confirmed',
+    decision: null,
+    verifyRan: true,
+    ...patch,
+  });
+  test('rates over verified findings; Implement over decided findings only', () => {
+    const rates = qualityRates([
+      f({ decision: 'implement' }),
+      f({ decision: 'implement' }),
+      f({ verdict: 'refuted', decision: 'reject' }),
+      f({ verdict: 'not_proven' }),
+      f({ verdict: 'unchecked', verifyRan: false, decision: 'defer' }),
+    ]);
+    expect(rates).toEqual({
+      findings: 5,
+      decided: 4,
+      unchecked: false,
+      tooFew: false,
+      confirmedRate: 2 / 4,
+      refutedRate: 1 / 4,
+      implementShare: 2 / 4,
+    });
+  });
+  test('4 findings hide every rate', () => {
+    const rates = qualityRates(Array.from({ length: 4 }, () => f({ decision: 'implement' })));
+    expect(rates).toMatchObject({ findings: 4, tooFew: true, confirmedRate: null });
+    expect(rates.implementShare).toBeNull();
+  });
+  test('findings no round verified are Unchecked', () => {
+    const rates = qualityRates(
+      Array.from({ length: 6 }, () => f({ verdict: 'unchecked', verifyRan: false })),
+    );
+    expect(rates).toMatchObject({ unchecked: true, confirmedRate: null, implementShare: null });
   });
 });

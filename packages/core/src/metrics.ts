@@ -2,7 +2,7 @@
 import type { RunStatus } from './model.ts';
 import { laneOf, type PrState } from './pr-state.ts';
 import { timeSummary } from './time-summary.ts';
-import type { RunKind } from './vocabulary.ts';
+import type { Decision, RunKind, Verdict } from './vocabulary.ts';
 
 /** A commit as GitHub reports it: its parents in order, and its message. */
 export type CommitInfo = { parents: readonly string[]; message: string };
@@ -199,5 +199,50 @@ export function pilotMetrics(prs: readonly PrMetrics[]): PilotMetrics {
       ...metric(merged.filter((p) => p.changedAfterReady === true).length, merged.length),
       ignoredBaseMerges: sum(merged.map((p) => p.ignoredBaseMerges)),
     },
+  };
+}
+
+/** Below this many findings a quality rate is hidden (the prototype's minimum sample). */
+export const TOO_FEW_FINDINGS = 5;
+
+/** One finding as Quality counts it. */
+export interface FindingOutcome {
+  verdict: Verdict;
+  /** Its current decision; null while undecided. */
+  decision: Decision | null;
+  /** Its round ran Verify (level 3 and up). */
+  verifyRan: boolean;
+}
+
+export interface QualityRates {
+  findings: number;
+  decided: number;
+  /** No finding came from a round that ran Verify: Confirmed and Refuted say "Unchecked". */
+  unchecked: boolean;
+  /** Fewer than `TOO_FEW_FINDINGS` findings: every rate is hidden. */
+  tooFew: boolean;
+  /** Shares of the findings whose round ran Verify. */
+  confirmedRate: number | null;
+  refutedRate: number | null;
+  /** The share of decided findings marked Implement; undecided ones do not count. */
+  implementShare: number | null;
+}
+
+/** Quality rates over a group of findings (a review level, an instruction version). */
+export function qualityRates(findings: readonly FindingOutcome[]): QualityRates {
+  const checked = findings.filter((f) => f.verifyRan);
+  const decided = findings.filter((f) => f.decision !== null);
+  const tooFew = findings.length < TOO_FEW_FINDINGS;
+  const unchecked = checked.length === 0;
+  const share = (part: number, whole: number) => (tooFew || whole === 0 ? null : part / whole);
+  const verdicts = (v: Verdict) => checked.filter((f) => f.verdict === v).length;
+  return {
+    findings: findings.length,
+    decided: decided.length,
+    unchecked,
+    tooFew,
+    confirmedRate: share(verdicts('confirmed'), checked.length),
+    refutedRate: share(verdicts('refuted'), checked.length),
+    implementShare: share(decided.filter((f) => f.decision === 'implement').length, decided.length),
   };
 }
