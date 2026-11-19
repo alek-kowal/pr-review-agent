@@ -85,6 +85,10 @@ in the listed order.
 
 - `main` landed its own `0021_level_model_settings`; the alerts migration is now `0022_alerts`
   (regenerated, with the hand-written config row INSERT and the `alerts` NOTIFY trigger kept).
+- Second merge (board filters, urgency sort, search): no new migration. `main` itself did not
+  typecheck: the board card's `level.repositoryDefault` read the repository's level, which is now
+  null for "Global default". The board now falls back to `app_settings.defaultLevel`, as
+  `insights.ts` does; the card's alert count sits next to main's new `level` and `round`.
 
 ### S-18-T5 (alerts API)
 
@@ -138,3 +142,26 @@ in the listed order.
   Dismiss add none.
 - The chip count is checked through its accessible name (the count is global across parallel
   specs, so the spec checks that a count shows, not its value).
+
+### S-21-T9 (Settings → Alerts)
+
+- API: `alertsStore()` is the `SettingsStore` of area `alerts` with one entity, `config` (the
+  config is one row). `GET/PUT /api/settings/alerts` take and return `{ config }`; the PUT body is
+  `{ config, before?, signedBy? }` and goes through `applySignedSettingsChange`, so a write leaves
+  one `settings_changes` row and a stale `before` gives 409 `settings_stale`. The write schema
+  (`AlertConfigWriteSchema`) requires the general alerts task; the stored config may still hold
+  null until someone saves the page.
+- Web: `features/alerts-settings/AlertSettingsPage.tsx`, route `/settings/alerts`, sidebar entry
+  in General after Integrations (Bell icon). Layout follows the prototype: "When to alert" (four
+  switches, cost threshold in $, budget Select 50/70/80/90 "and at 100%") and "Where alerts go"
+  (ClickUp comment with a preview, the general alerts task, "On the dashboard · Activity").
+- The draft keeps the cost as typed text; the save dialog shows one row per setting ("Above
+  $5.00" / "Off", "80% and 100%" / "Off"), so a threshold and its switch read as one change, as in
+  the prototype. Save is blocked (summary alert plus field errors) when the cost alert is on and
+  the cost is not above 0, or the general task is empty. With the cost alert off, an invalid typed
+  threshold falls back to the saved one.
+- The preview renders core `alertCommentText` (the string the worker posts) for a sample cost
+  alert on #42 at 108% of the typed threshold, linking to `window.location.origin/pr/example/42`
+  (the sample repository name is copy).
+- Activity → Alerts has the "Alert settings" link at the right of its heading.
+

@@ -2,6 +2,7 @@
 // (apps/api/src/routes/api, apps/api/src/pr-view); the web may not import server packages.
 import type {
   AgentRole,
+  AlertConfig,
   ChecklistItemKey,
   Decision,
   Lane,
@@ -178,6 +179,9 @@ export type AlertView = {
 };
 
 export type AlertsResponse = { alerts: AlertView[]; activeCount: number; pastCount: number };
+
+/** `GET/PUT /api/settings/alerts` (S-21-T9). */
+export type AlertSettingsResponse = { config: AlertConfig };
 
 export type ChangeType = 'uses_existing' | 'changes_behaviour' | 'one_way_door';
 

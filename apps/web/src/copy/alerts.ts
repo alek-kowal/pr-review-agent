@@ -107,6 +107,76 @@ export const alerts = {
       `Cost ${money(p.spentUsd)}, above the ${money(p.maxUsd)} threshold · alert`,
     alert: 'Alert',
   },
+  /** Settings → Alerts (S-21-T9). */
+  settings: {
+    title: 'Alerts',
+    affects: 'when the app speaks up about a problem, and where. Alerts never stop a round.',
+    loading: 'Loading alert settings…',
+    when: 'When to alert',
+    where: 'Where alerts go',
+    failed: {
+      label: 'A run failed',
+      hint: 'A stage timed out or crashed. The alert names the stage and the Retry action.',
+      toggle: 'Alert when a run fails',
+    },
+    rounds: {
+      label: 'Automatic rounds used',
+      hint: 'A chain used all its automatic rounds and a fix is still open. Someone has to look at the PR.',
+      toggle: 'Alert when automatic rounds are used up',
+    },
+    cost: {
+      label: 'Cost of one PR',
+      hint: 'Real spend on the PR: every round, fix and retry. Trials and the analyst do not count. A warning, not a limit: rounds keep running.',
+      toggle: 'Alert when one PR costs too much',
+      above: 'above',
+      currency: '$',
+      perPr: 'per PR',
+      input: 'Cost threshold in dollars',
+      invalid: 'Enter a cost above $0.',
+    },
+    budget: {
+      label: 'Daily budget',
+      hint: "Once when today's spend passes the threshold, and once when the budget is reached.",
+      toggle: 'Alert about the daily budget',
+      at: 'at',
+      select: 'Budget threshold',
+      percent: (percent: number) => `${percent}%`,
+      andFull: 'and at 100%',
+    },
+    comment: {
+      label: 'ClickUp comment',
+      hint: "On the PR's ClickUp task, so everyone who follows the task gets a notification. Signed by the bot in the text. Always on.",
+      where: "On the PR's task",
+      show: 'Preview comment',
+      hide: 'Hide preview',
+      example: (prNumber: number) => `Example: a cost alert on #${prNumber}`,
+      /** The repository in the preview's link. */
+      sampleRepo: 'example',
+    },
+    task: {
+      label: 'General alerts task',
+      hint: 'Budget alerts, and alerts for PRs with no linked task, go here.',
+      input: 'General alerts task ID',
+      placeholder: 'ClickUp task ID',
+      invalid: 'Enter a ClickUp task ID for general alerts.',
+    },
+    dashboard: {
+      label: 'On the dashboard',
+      hint: 'Always on, so nobody has to open ClickUp to see that something is wrong: a bell on the PR card, a line in the Next step banner, the strip above the board, the count on the status chip and the list in Activity.',
+      value: 'Always on',
+      activity: 'Activity',
+    },
+    on: 'On',
+    off: 'Off',
+    /** How each setting reads in the save dialog. */
+    values: {
+      cost: (usd: number) => `Above ${money(usd)}`,
+      budget: (percent: number) => `${percent}% and 100%`,
+      noTask: 'Not set',
+    },
+    invalidSummary: 'Fix the highlighted fields to save.',
+    saveTitle: 'Save alert settings',
+  },
   /** Timeline entries `alert_raised` (by the bot) and `alert_dismissed` (by hand). */
   timeline: {
     raised: (p: Params, c: AlertNames) =>

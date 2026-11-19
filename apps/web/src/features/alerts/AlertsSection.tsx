@@ -51,17 +51,22 @@ export function AlertsSection() {
 
   return (
     <section aria-labelledby="activity-alerts" className="flex flex-col gap-2">
-      <h2 id="activity-alerts" className="m-0 flex items-center gap-2 text-sm font-semibold">
-        {t.section.title}
-        {alerts.length > 0 && (
-          <span
-            data-testid="alerts-count"
-            className="rounded-full bg-bad-bg px-1.5 text-xs font-medium text-bad tabular-nums"
-          >
-            {alerts.length}
-          </span>
-        )}
-      </h2>
+      <div className="flex items-center gap-2">
+        <h2 id="activity-alerts" className="m-0 flex items-center gap-2 text-sm font-semibold">
+          {t.section.title}
+          {alerts.length > 0 && (
+            <span
+              data-testid="alerts-count"
+              className="rounded-full bg-bad-bg px-1.5 text-xs font-medium text-bad tabular-nums"
+            >
+              {alerts.length}
+            </span>
+          )}
+        </h2>
+        <Link to="/settings/alerts" className="ml-auto text-xs text-brand-text hover:underline">
+          {t.section.settings}
+        </Link>
+      </div>
       {active.isPending ? (
         <p className="text-sm text-text-3">{t.section.loading}</p>
       ) : active.isError ? (

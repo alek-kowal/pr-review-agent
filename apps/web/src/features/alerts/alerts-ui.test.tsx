@@ -87,6 +87,10 @@ describe('Activity → Alerts', () => {
     renderApp('/activity');
 
     const table = await screen.findByRole('table', { name: copy.alerts.section.title });
+    expect(screen.getByRole('link', { name: copy.alerts.section.settings })).toHaveAttribute(
+      'href',
+      '/settings/alerts',
+    );
     const failedRow = rowOf(table, failed.id);
     expect(failedRow).toHaveTextContent('Review stage timed out after 20 min on #12');
     expect(

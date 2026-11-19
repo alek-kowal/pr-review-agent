@@ -2,6 +2,7 @@
 // palette's Settings group) never shows a page that does not exist yet. A new Settings page adds
 // its route file `routes/settings.<id>.tsx` and one entry to `settingsPages`.
 import {
+  Bell,
   Cpu,
   FileText,
   FlaskConical,
@@ -42,6 +43,7 @@ export const settingsPages: readonly SettingsPageEntry[] = [
   { id: 'models', to: '/settings/models', icon: Cpu },
   { id: 'team', to: '/settings/team', icon: Users },
   { id: 'integrations', to: '/settings/integrations', icon: Plug },
+  { id: 'alerts', to: '/settings/alerts', icon: Bell },
   { id: 'repositories', to: '/settings/repositories', icon: FolderGit2 },
   { id: 'review-levels', to: '/settings/review-levels', icon: Layers },
   { id: 'instructions', to: '/settings/instructions', icon: FileText },

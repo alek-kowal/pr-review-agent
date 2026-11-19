@@ -20,6 +20,7 @@ import { Route as InsightsQualityRouteImport } from './routes/insights.quality.t
 import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
+import { Route as SettingsAlertsRouteImport } from './routes/settings.alerts.tsx'
 import { Route as SettingsAuditRouteImport } from './routes/settings.audit.tsx'
 import { Route as SettingsBudgetRouteImport } from './routes/settings.budget.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
@@ -90,6 +91,11 @@ const RunsRunIdRoute = RunsRunIdRouteImport.update({
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAlertsRoute = SettingsAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsAuditRoute = SettingsAuditRouteImport.update({
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
@@ -216,6 +223,7 @@ export interface FileRoutesByTo {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
@@ -246,6 +254,7 @@ export interface FileRoutesById {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/alerts'
     | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
@@ -304,6 +314,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/alerts'
     | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
@@ -333,6 +344,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/alerts'
     | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
@@ -440,6 +452,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/alerts': {
+      id: '/settings/alerts'
+      path: '/alerts'
+      fullPath: '/settings/alerts'
+      preLoaderRoute: typeof SettingsAlertsRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/audit': {
@@ -576,6 +595,7 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
 )
 
 interface SettingsRouteChildren {
+  SettingsAlertsRoute: typeof SettingsAlertsRoute
   SettingsAuditRoute: typeof SettingsAuditRoute
   SettingsBudgetRoute: typeof SettingsBudgetRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
@@ -595,6 +615,7 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAlertsRoute: SettingsAlertsRoute,
   SettingsAuditRoute: SettingsAuditRoute,
   SettingsBudgetRoute: SettingsBudgetRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
