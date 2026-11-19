@@ -224,22 +224,22 @@ Compose checks are run by hand once per phase, on free ports and own project nam
 
 #### Automated
 
-- [ ] 1.1 `pnpm --filter @pra/integrations test github` passes
-- [ ] 1.2 `pnpm verify` passes
+- [x] 1.1 `pnpm --filter @pra/integrations test github` passes — f06677e
+- [x] 1.2 `pnpm verify` passes — f06677e
 
 ### Phase 2: GitMirror
 
 #### Automated
 
-- [ ] 2.1 `pnpm --filter @pra/integrations test git-mirror` passes
-- [ ] 2.2 `pnpm verify` passes
+- [x] 2.1 `pnpm --filter @pra/integrations test git-mirror` passes — 7066feb
+- [x] 2.2 `pnpm verify` passes — 7066feb
 
 ### Phase 3: AgentRunner and the reviewer adapter
 
 #### Automated
 
-- [ ] 3.1 `pnpm --filter @pra/agents test` passes
-- [ ] 3.2 `pnpm verify` passes
+- [x] 3.1 `pnpm --filter @pra/agents test` passes
+- [x] 3.2 `pnpm verify` passes
 
 ### Phase 4: Dockerfiles
 

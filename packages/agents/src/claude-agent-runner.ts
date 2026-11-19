@@ -238,7 +238,11 @@ function fromResult<T>(
   };
   if (final.subtype !== 'success') {
     const code = RESULT_ERRORS[final.subtype] ?? 'agent_failed';
-    return result<T>({ ...reported, status: 'failed', error: error(code, { subtype: final.subtype }) });
+    return result<T>({
+      ...reported,
+      status: 'failed',
+      error: error(code, { subtype: final.subtype }),
+    });
   }
   const parsed = input.outputSchema.safeParse(final.structured_output);
   if (!parsed.success) {
@@ -274,7 +278,8 @@ function error(code: AgentErrorCode, params: Record<string, unknown> = {}): Agen
 }
 
 function jsonSchemaOf(schema: z.ZodType): Record<string, unknown> {
-  const { $schema: _ignored, ...json } = z.toJSONSchema(schema) as Record<string, unknown>;
+  const json = z.toJSONSchema(schema) as Record<string, unknown>;
+  delete json.$schema;
   return json;
 }
 
