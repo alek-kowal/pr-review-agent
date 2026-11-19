@@ -77,5 +77,5 @@ Every task's "Done when" test passes, `pnpm test:e2e implement-patch.spec.ts` an
 - [x] 6 S-13-T7 e2e implementer flow
 - [x] 7 S-16-T1 fork run policy in core
 - [x] 8 S-16-T2 fork policy in the worker
-- [ ] 9 S-16-T3 fork PR on board and PR page
-- [ ] 10 S-16-T4 e2e fork review
+- [x] 9 S-16-T3 fork PR on board and PR page
+- [x] 10 S-16-T4 e2e fork review

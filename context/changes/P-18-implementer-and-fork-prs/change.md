@@ -1,7 +1,7 @@
 ---
 change_id: P-18
 title: Implementer and fork PRs (S-13-T2–T7, S-16-T1–T4)
-status: planned
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -49,3 +49,36 @@ questions (orchestrator rule: decide and record).
   `/api/prs/:id/implement`.
 - **Disabled reasons are visible text, not a Tooltip:** a disabled control cannot take focus, so
   the reason sits under the checkbox and the banner button, tied with `aria-describedby`.
+- **The implement stage stores the runner's own result** as its output; the patch is built from
+  it when the run completes.
+- **The patch API diffs with core `lineDiff`** over the base and after blobs, so it needs no git.
+- **Revise writes `patch_revise_requested` as "by hand"**, like every patch endpoint.
+- **Fork policy lives in the plan:** core `planRun({ fork })` gives `RunState.offSteps` (install in
+  Checks, reproductions in Verify, `fork_read_only`) and turns a fix check's Reproductions stage
+  off. `runPlanOf(run, pullRequest)` recomputes it from the PR's fork flag, so no column stores
+  it; the manual start passes `fork` into `planRun` too.
+- **Off steps reach the web as `offSteps` on every stage view** (latest round, the stepper's
+  `roundProgress` steps, Run detail), computed by `offStepsOf` from the same core
+  `forkOffSteps`. The stepper and Run detail print "Install: off for forks"; a stage off for a
+  fork reads "off for forks", not "off at level N".
+- **The manual start keeps 201**, not the 202 the S-16-T3 text names: the endpoint already
+  answered 201 with the new run, and the web and tests rely on it.
+- **The Start review popover note is its own line** with the task's exact words; it replaces the
+  shorter "Fork: read-only review." hint.
+- **DecisionForm reads `implementer.block` from the cached PR view** instead of a request of its
+  own.
+- **"Raise this PR to level 4" is also in the Implement form**, or the S-13-T7 flow cannot reach
+  level 4 before deciding.
+- **The Fixing banner names Team members** (`useTeamNames`) only when `startedBy` is a member;
+  Cancel there uses `implementer.activeRun.id`.
+- **Patch detail is cached as `['patch', id, checkVersion]`**, outside the PR keys, so a new
+  check result does not refetch the PR; reverted files are hidden from the diff list.
+- **e2e doubles:** the Sandbox double exits 3 on a patched worktree (the bug no longer happens)
+  and logs each call to `sandboxCalls` (JSON lines with the mounted host paths, so a spec counts
+  a run's calls by `run-<id>`); `StackGitHub.getPullRequest` falls back to the stored row, which
+  carries `isFork`; `deliverPullRequest` takes a fork owner for the head repository. The
+  implementer hold flag is global (`IMPLEMENTER_HOLD`), so `implement-patch.spec.ts` runs
+  serially.
+- **Merge with main (P-20 alerts):** alerts kept migration 0022; the implementer migration was
+  regenerated as 0023 with its hand-added `patches_notify_change` trigger. The board keeps main's
+  level resolution (repository default, else the global default).
