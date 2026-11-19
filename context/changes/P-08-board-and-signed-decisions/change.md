@@ -66,3 +66,18 @@ when" checks are the plan. One commit per task.
   `version`, `decision` (`batchId`, decision, reason, `signedBy: { id, name }`, `decidedAt`) and
   core's `needsDecision`. Its schemas moved to `apps/api/src/pr-view/findings.ts`, and it is now
   built from `loadPrStateInput`, so the tab and the state table read the same round.
+- T6: `/prs` is the board (`apps/web/src/features/board`). The S-01 list (`features/prs/PrList`,
+  its `?repo=` filter, `prListQuery`, `repositoriesQuery` and `copy.prs`) is removed; filters come
+  back in S-17 (P-24). `GET /api/prs` stays in the api, unused by the web.
+- T6: copy lives in new files `copy/nextStep.ts` (banner title, card short line and who line for
+  every `state_*` and `who_*` code, main action labels; texts from the prototype's `nextStep()`)
+  and `copy/board.ts`, each registered with one line in `copy/index.ts`, so later packages append
+  without touching one long object. `lib/next-step.ts` turns a `NextStepView` into text; actors
+  are named "PR Review Agent", "hand" or the member's name (else "a teammate").
+- T6: card ages count from the board's fetch time (`dataUpdatedAt`), so render stays pure (the
+  `react-hooks/purity` lint) and the age refreshes with the 10 s refetch. The title is the card's
+  link, stretched over the card, so its accessible name is the title (the S-01 e2e finds PRs by
+  it). Cards leave out "usually X (author)", "no one needs to act" and an empty who; Ready to merge
+  cards are two lines; the merged-or-closed table shows the banner text as the outcome.
+- T6 (extension point): `CARD_BADGE_SLOTS` (`features/board/slots.ts`) for badges that need more
+  than a reason code; reason-code badges from the api render with `copy.board.badges[code]`.

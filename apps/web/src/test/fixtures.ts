@@ -1,8 +1,12 @@
 // Response builders for web tests. Shapes follow `@/lib/api-types.ts`.
 import type {
+  AuthorView,
+  BoardCard,
+  BoardResponse,
+  ChecklistView,
   FindingView,
   FindingsResponse,
-  PrListItem,
+  NextStepView,
   PrView,
   RepositoryRef,
   RoundView,
@@ -15,13 +19,63 @@ export const aRepository = (over: Partial<RepositoryRef> = {}): RepositoryRef =>
   ...over,
 });
 
-export const aPrListItem = (over: Partial<PrListItem> = {}): PrListItem => ({
+export const anAuthor = (over: Partial<AuthorView> = {}): AuthorView => ({
+  login: 'octocat',
+  memberId: null,
+  name: null,
+  ...over,
+});
+
+/** The Next step of a PR with `count` findings to decide; pass `over` for other states. */
+export const aNextStep = (over: Partial<NextStepView> = {}): NextStepView => ({
+  state: 'findings_to_decide',
+  lane: 'action_needed',
+  tone: 'action',
+  banner: { code: 'state_findings_to_decide', params: { count: 3, reviewers: 0 } },
+  who: { code: 'who_usually_author', params: { author: 'octocat' } },
+  mainAction: { action: 'decide', signed: true, optional: false, disabled: null, stage: null },
+  ...over,
+});
+
+export const aChecklist = (over: Partial<ChecklistView> = {}): ChecklistView => ({
+  ok: false,
+  items: [
+    {
+      item: 'review_covers_head',
+      ok: true,
+      reason: { code: 'checklist_review_on_head', params: { sha: 'abc1234def' } },
+    },
+    {
+      item: 'nothing_undecided',
+      ok: false,
+      reason: { code: 'checklist_findings_undecided', params: { count: 3 } },
+    },
+  ],
+  ...over,
+});
+
+let nextCardNumber = 100;
+export const aBoardCard = (over: Partial<BoardCard> = {}): BoardCard => ({
   repository: { slug: 'wb' },
-  number: 12,
+  number: nextCardNumber++,
   title: 'Add node grouping',
-  authorLogin: 'octocat',
+  author: anAuthor(),
   isDraft: false,
-  latestRoundStatus: 'completed',
+  openedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+  nextStep: aNextStep(),
+  badges: [],
+  ...over,
+});
+
+export const anEmptyBoard = (over: Partial<BoardResponse> = {}): BoardResponse => ({
+  lanes: {
+    not_reviewed: { cards: [], drafts: [] },
+    agents_working: { cards: [] },
+    action_needed: { cards: [] },
+    ready_to_merge: { cards: [] },
+  },
+  mergedOrClosed: [],
+  repositoryCount: 1,
   ...over,
 });
 
@@ -41,7 +95,15 @@ export const aRound = (over: Partial<RoundView> = {}): RoundView => ({
   ...over,
 });
 
-export const aPrView = (over: { round?: RoundView | null; number?: number } = {}): PrView => ({
+export const aPrView = (
+  over: {
+    round?: RoundView | null;
+    number?: number;
+    nextStep?: NextStepView;
+    checklist?: ChecklistView;
+    author?: AuthorView;
+  } = {},
+): PrView => ({
   pullRequest: {
     repository: aRepository(),
     number: over.number ?? 12,
@@ -59,6 +121,9 @@ export const aPrView = (over: { round?: RoundView | null; number?: number } = {}
     githubUrl: 'https://github.com/synergycodes/workflowbuilder/pull/12',
   },
   latestRound: over.round === undefined ? aRound() : over.round,
+  nextStep: over.nextStep ?? aNextStep(),
+  checklist: over.checklist ?? aChecklist(),
+  author: over.author ?? anAuthor(),
 });
 
 let nextFindingId = 1;
@@ -76,6 +141,12 @@ export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
     suggestion: `Suggestion ${id}`,
     verdict: 'unchecked',
     evidence: [],
+    version: 0,
+    decision: null,
+    needsDecision: {
+      needed: (over.severity ?? 'worth_fixing') !== 'nit' && !over.decision,
+      reason: { code: 'unchecked_needs_person', params: { severity: 'worth_fixing' } },
+    },
     ...over,
   };
 };
