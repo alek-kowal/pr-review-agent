@@ -299,7 +299,7 @@ export const copy = {
     with_agent_needs_implement: 'Only an Implement decision can go to the agent.',
     patch_not_found: 'This patch no longer exists. Reload the page.',
     patch_file_not_found: 'This file is no longer part of the patch. Reload the page.',
-    patch_stale: 'The patch changed in the meantime. Reload it to see the new revision.',
+    patch_stale: 'The patch changed in the meantime. It now shows the current files.',
     note_required: 'Write a note for the implementer.',
     author_has_no_clickup_user:
       'The author has no ClickUp user in Team. Add it in Settings → Team, then notify.',
