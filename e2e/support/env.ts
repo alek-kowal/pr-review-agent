@@ -65,8 +65,15 @@ export const lessonsFile = (holdDir: string, number: number, k: number): string 
  */
 export const QUESTION_PRS = { from: 270, to: 279 };
 
-/** PR numbers from this one up get a failing reviewer. */
+/** PR numbers from this one up to `FAILING_PR_TO` get a failing reviewer. */
 export const FAILING_PR_FROM = 400;
+export const FAILING_PR_TO = 999;
+
+/**
+ * decide.spec.ts: two PRs per attempt from here, 10 apart for each `--repeat-each` copy (those run
+ * in parallel), so no attempt sees another's decisions.
+ */
+export const DECIDE_PRS_FROM = 1000;
 
 /** PR numbers in this range get a reviewer that fails its first session only (retry-cancel.spec.ts). */
 export const FAIL_ONCE_PRS = { from: 150, to: 159 };

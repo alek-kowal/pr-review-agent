@@ -33,7 +33,7 @@ Recurring problems seen while running parallel agent sessions on this repo, and 
 
 15. **Shared ports.** e2e used a fixed Vite port, so one worktree could test another's code. Each checkout now gets its own port from a hash of its path.
 16. **Shared test data.** Two specs used the same test repository name or PR numbers and collided in the shared database. Each spec uses its own repository name and PR-number range.
-17. **Known flaky tests:** `e2e/decide.spec.ts` (two-browser conflict scenario); API tests near the 5 s limit under heavy load. Re-run once before treating a failure as real.
+17. **Known flaky tests:** API tests near the 5 s limit under heavy load. Re-run once before treating a failure as real. Fixed (FLAKY): `e2e/decide.spec.ts` step 6 was a real app race (a live update refreshed the finding's version in an open decision form, so the conflict was missed); it now passes `--repeat-each 10`. Sandbox tests no longer leave `pra-sbx-*` containers: a timed-out test's run is aborted in `afterAll`, and the next `pnpm test` removes the containers of an interrupted run (Vitest skips teardown on SIGINT/SIGTERM). A flaky failure that passes on re-run is a race to find, not to retry.
 
 ## Orchestrator itself
 
