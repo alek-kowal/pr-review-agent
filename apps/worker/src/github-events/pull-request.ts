@@ -5,7 +5,7 @@ import {
   activeBlockingRun,
   getPullRequest,
   getRepositoryByFullName,
-  readRepositoryConfig,
+  prLevel,
   roundCreatedSince,
   setGithubEventOutcome,
   setRepositoryInstallationId,
@@ -44,7 +44,6 @@ export async function handlePullRequestEvent({
     ? previous
     : (await upsertPullRequest(db, toSnapshotRow(repository.id, snapshot))).pullRequest;
 
-  const config = readRepositoryConfig(repository).value;
   const decision = roundStartForEvent(
     { action },
     {
@@ -52,7 +51,7 @@ export async function handlePullRequestEvent({
       // A late delivery speaks for the moment it was sent: a draft then was not ready then.
       draft: pullRequest.isDraft || (stale && snapshot.isDraft),
       fork: pullRequest.isFork,
-      level: config.defaultLevel,
+      level: prLevel(repository, pullRequest),
     },
     await activeBlockingRun(db, pullRequest.id),
   );
@@ -70,14 +69,13 @@ export async function handlePullRequestEvent({
     outcome = 'event_stale';
   } else if (decision.start) {
     const result = await startRound(deps, {
-      pullRequest,
+      pullRequestId: pullRequest.id,
       level: decision.level,
       trigger: decision.trigger,
       startedBy: decision.startedBy,
-      roundNumber: decision.roundNumber,
       inTransaction: (tx) => setGithubEventOutcome(tx, event.id, 'round_started'),
     });
-    outcome = result.started ? 'round_started' : result.reason;
+    outcome = result.started ? 'round_started' : result.reason.code;
   }
 
   if (!stale) {

@@ -12,6 +12,7 @@ declare module '../reason.ts' {
     push_never_starts: NoParams;
     run_active: { kind: RunKind; status: RunStatus };
     pr_closed: NoParams;
+    pr_not_found: { pullRequestId: number };
     event_ignored: { action: string };
     head_not_own_fix: { headSha: string; fixSha: string | null };
     rounds_used: { used: number; max: number };

@@ -81,13 +81,12 @@ async function queueRound(level: LevelNumber = 1): Promise<Run> {
     aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
   );
   const started = await startRound(deps, {
-    pullRequest,
+    pullRequestId: pullRequest.id,
     level,
     trigger: 'ready_for_review',
     startedBy: { kind: 'bot' },
-    roundNumber: 1,
   });
-  if (!started.started) throw new Error(started.reason);
+  if (!started.started) throw new Error(started.reason.code);
   return started.run;
 }
 

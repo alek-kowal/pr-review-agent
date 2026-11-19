@@ -102,10 +102,14 @@ function activeRun(run: Run | undefined): ActiveRun | null {
   };
 }
 
-/** The PR's level: its latest round's frozen level, else the repository's default. */
-function prLevel(repository: Repository, latest: Run | undefined): LevelNumber {
-  if (latest) return latest.level.number;
-  return readRepositoryConfig(repository).value.defaultLevel;
+/** The level of a PR's next round: its own level (FR-059), else the repository's default. */
+export function prLevel(
+  repository: Repository,
+  pullRequest: Pick<PullRequest, 'level'>,
+): LevelNumber {
+  return (
+    (pullRequest.level as LevelNumber | null) ?? readRepositoryConfig(repository).value.defaultLevel
+  );
 }
 
 /**
@@ -227,7 +231,7 @@ export async function loadPrStateInputs(
       draft: pullRequest.isDraft,
       fork: pullRequest.isFork,
       author: pullRequest.authorLogin,
-      level: prLevel(repository, p.latestRound),
+      level: prLevel(repository, pullRequest),
       headSha: pullRequest.headSha,
       reviewedSha: reviewed?.headSha ?? null,
       commitsSinceReview: reviewed

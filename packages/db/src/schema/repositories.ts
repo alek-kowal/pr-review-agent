@@ -55,6 +55,8 @@ export const pullRequests = pgTable(
     commitsCount: integer('commits_count').notNull(),
     /** A change type a person forced (FR-030); it wins over the rules and skips the judge. */
     forcedChangeType: text('forced_change_type', { enum: CHANGE_TYPES }),
+    /** The review level for this PR's next rounds (FR-059); null: the repository's default. */
+    level: integer(),
     /** GitHub's dates, refreshed with every snapshot. */
     openedAt: timestamp('opened_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
