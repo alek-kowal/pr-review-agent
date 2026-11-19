@@ -93,7 +93,12 @@ export function PrPage({
               ))}
             </TabsList>
             {PR_TABS.map(({ key, Panel }) => (
-              <TabsContent key={key} value={key} className="pt-3">
+              <TabsContent
+                key={key}
+                value={key}
+                data-work-start={key === tab ? '' : undefined}
+                className="pt-3"
+              >
                 <Panel {...slotProps} />
               </TabsContent>
             ))}

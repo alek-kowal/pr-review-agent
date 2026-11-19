@@ -142,7 +142,7 @@ export function RunPage({
         <RetryLinks detail={detail} />
       </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div data-work-start className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Tabs value={tab} onValueChange={(next) => onTabChange(next as RunTab)} className="min-w-0">
           <TabsList variant="line" aria-label={copy.runs.detail.tabsLabel}>
             {RUN_TABS.map((key) => (

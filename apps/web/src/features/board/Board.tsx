@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Bot, ChevronRight, CircleCheck, CircleDashed, UserRound } from 'lucide-react';
-import { LANES, type Lane } from '@pra/core';
+import { byUrgency, LANES, type Lane } from '@pra/core';
 import { cn } from 'cn';
 import { copy } from '@/copy/index.ts';
 import { AlertStrip } from '@/features/alerts/BoardAlerts.tsx';
@@ -10,6 +10,8 @@ import type { BoardCard as Card, BoardResponse } from '@/lib/api-types.ts';
 import { authorName, bannerText, stepContext } from '@/lib/next-step.ts';
 import { errorText } from '@/lib/reasons.ts';
 import { BoardCard, DraftRow } from './BoardCard.tsx';
+import { BoardFilterBar } from './BoardFilters.tsx';
+import { activeCount, FILTER_KEYS, type BoardFilters } from './filters.ts';
 import { boardQuery } from './queries.ts';
 
 const LANE_ICON = {
@@ -19,23 +21,43 @@ const LANE_ICON = {
   ready_to_merge: CircleCheck,
 } satisfies Record<Lane, unknown>;
 
-/** The board (`/prs`): four lanes by whose move it is, from `GET /api/board`. */
-export function Board() {
-  const board = useQuery(boardQuery());
+/**
+ * The board (`/prs`): four lanes by whose move it is, from `GET /api/board`, narrowed by the
+ * filters in the page address (S-17-T4).
+ */
+export function Board({
+  filters = {},
+  onFiltersChange = () => {},
+}: {
+  filters?: BoardFilters;
+  /** Sets or clears the given filters; the others stay. */
+  onFiltersChange?: (patch: BoardFilters) => void;
+}) {
+  // The previous board stays while a new filter loads, so the page does not jump.
+  const board = useQuery({ ...boardQuery(filters), placeholderData: keepPreviousData });
+  const filtered = activeCount(filters, FILTER_KEYS) > 0;
 
   return (
     <section className="flex flex-col gap-4">
-      <h1 className="font-heading text-xl font-semibold">{copy.board.title}</h1>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <h1 className="font-heading text-xl font-semibold">{copy.board.title}</h1>
+        <BoardFilterBar
+          filters={filters}
+          onChange={onFiltersChange}
+          repositories={board.data?.repositories ?? []}
+        />
+      </div>
       {board.isPending ? (
         <p className="text-text-3">{copy.board.loading}</p>
       ) : board.isError ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {errorText(board.error instanceof ApiError ? board.error.code : 'http_error')}
         </p>
       ) : (
         <>
           <AlertStrip />
-          <Lanes board={board.data} now={board.dataUpdatedAt} />
+          <Lanes board={board.data} now={board.dataUpdatedAt} filtered={filtered} />
+
           <MergedOrClosed cards={board.data.mergedOrClosed} />
         </>
       )}
@@ -43,14 +65,26 @@ export function Board() {
   );
 }
 
-function Lanes({ board, now }: { board: BoardResponse; now: number }) {
+/** Action needed by urgency (FR-008), then the longest waiting first. */
+const sortByUrgency = (cards: Card[]) =>
+  [...cards].sort((a, b) =>
+    byUrgency(
+      { state: a.nextStep.state, openedAt: a.openedAt },
+      { state: b.nextStep.state, openedAt: b.openedAt },
+    ),
+  );
+
+function Lanes({ board, now, filtered }: { board: BoardResponse; now: number; filtered: boolean }) {
   const showRepository = board.repositoryCount > 1;
   return (
-    <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_2fr_1fr]">
+    <div
+      data-work-start
+      className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_2fr_1fr]"
+    >
       {LANES.map((lane) => {
-        const { cards } = board.lanes[lane];
-        const drafts = lane === 'not_reviewed' ? board.lanes.not_reviewed.drafts : [];
         const hot = lane === 'action_needed';
+        const cards = hot ? sortByUrgency(board.lanes[lane].cards) : board.lanes[lane].cards;
+        const drafts = lane === 'not_reviewed' ? board.lanes.not_reviewed.drafts : [];
         const count = cards.length + drafts.length;
         const Icon = LANE_ICON[lane];
         const id = `lane-${lane}`;
@@ -87,7 +121,9 @@ function Lanes({ board, now }: { board: BoardResponse; now: number }) {
               </span>
             </h2>
             {count === 0 && (
-              <p className="px-1 pb-1 text-[13px] text-text-3">{copy.board.lanes[lane].empty}</p>
+              <p className="px-1 pb-1 text-[13px] text-text-3">
+                {filtered ? copy.board.filters.laneEmpty : copy.board.lanes[lane].empty}
+              </p>
             )}
             {cards.length > 0 && (
               <ul className={cn('grid gap-2', hot && 'xl:grid-cols-2')}>

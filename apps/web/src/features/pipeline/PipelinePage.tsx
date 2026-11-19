@@ -35,7 +35,7 @@ export function PipelinePage() {
     <SettingsPage title={t.title} affects={t.affects}>
       {!stages ? (
         query.isError ? (
-          <p role="alert" className="text-bad">
+          <p role="alert" data-work-start className="text-bad">
             {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
           </p>
         ) : (
@@ -43,7 +43,7 @@ export function PipelinePage() {
         )
       ) : (
         <>
-          <section className="rounded-lg border border-border bg-surface p-3">
+          <section data-work-start className="rounded-lg border border-border bg-surface p-3">
             <PipelineDiagram stages={stages} selected={selected} onPick={pick} />
             <p className="mt-1 text-xs text-text-3">{t.hint}</p>
           </section>

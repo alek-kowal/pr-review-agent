@@ -8,3 +8,6 @@ export const OPINION_ICONS: Record<OpinionValue, LucideIcon> = {
   worth: ThumbsUp,
   not_worth: ThumbsDown,
 };
+
+/** The triage key that toggles each value in the focused finding's draft (S-17-T6). */
+export const OPINION_KEYS: Record<OpinionValue, string> = { worth: 'w', not_worth: 'n' };

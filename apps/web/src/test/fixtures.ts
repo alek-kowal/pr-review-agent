@@ -70,7 +70,10 @@ export const aBoardCard = (over: Partial<BoardCard> = {}): BoardCard => ({
   title: 'Add node grouping',
   author: anAuthor(),
   isDraft: false,
+  isFork: false,
   openedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+  level: { number: 2, repositoryDefault: 2 },
+  round: { number: 1, max: 3 },
   nextStep: aNextStep(),
   badges: [],
   alertCount: 0,
@@ -86,6 +89,7 @@ export const anEmptyBoard = (over: Partial<BoardResponse> = {}): BoardResponse =
   },
   mergedOrClosed: [],
   repositoryCount: 1,
+  repositories: ['wb'],
   ...over,
 });
 

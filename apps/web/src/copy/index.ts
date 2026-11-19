@@ -17,6 +17,7 @@ import { models } from './models.ts';
 import { nextStep } from './nextStep.ts';
 import { notify } from './notify.ts';
 import { opinions } from './opinions.ts';
+import { palette, shortcuts, theme } from './palette.ts';
 import { questions } from './questions.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
@@ -299,6 +300,9 @@ export const copy = {
   trials,
   pipeline,
   merge,
+  palette,
+  shortcuts,
+  theme,
   settings: {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',

@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { CircleAlert, CircleCheck, CircleDashed, Loader, UserRound } from 'lucide-react';
 import type { Tone } from '@pra/core';
 import { cn } from 'cn';
@@ -64,7 +65,41 @@ function ReasonBadges({ card }: { card: Card }) {
   );
 }
 
-/** `#12 · repo · Kasia · 3d`, plus badges. The repository shows only when there are several. */
+/** A small outlined badge at the end of the card's second line. */
+function Badge({ title, children }: { title: string; children: string }) {
+  return (
+    <span
+      title={title}
+      className="shrink-0 rounded border border-border px-1.5 text-[11px] leading-4 text-text-2"
+    >
+      <span aria-hidden="true">{children}</span>
+      <span className="sr-only">{title}</span>
+    </span>
+  );
+}
+
+/** A Fork badge, and the level when it is not the repository's default. */
+function ExceptionBadges({ card }: { card: Card }) {
+  const { number, repositoryDefault } = card.level;
+  return (
+    <>
+      {card.isFork && <Badge title={copy.board.forkTitle}>{copy.board.fork}</Badge>}
+      {number !== repositoryDefault && (
+        <Badge title={copy.board.levelTitle(number, repositoryDefault)}>
+          {copy.board.level(number)}
+        </Badge>
+      )}
+    </>
+  );
+}
+
+type MetaPart = { key: string; node: ReactNode; shrinks: boolean };
+
+/**
+ * `#12 · repo · Kasia · 3d · round 2 of 3`, plus badges (FR-006). The repository shows only when
+ * there are several, the round from round 2 on. The author never shortens: the round label and
+ * the repository give way first.
+ */
 function CardMeta({
   card,
   showRepository,
@@ -74,27 +109,52 @@ function CardMeta({
   showRepository: boolean;
   now: number;
 }) {
-  const parts = [
-    <span key="n" className="font-mono">
-      {copy.board.number(card.number)}
-    </span>,
-    showRepository && (
-      <span key="r" className="truncate">
-        {card.repository.slug}
-      </span>
-    ),
-    <span key="a">{authorName(card.author)}</span>,
-    <Age key="t" iso={card.openedAt} now={now} />,
-  ].filter(Boolean);
+  const parts: MetaPart[] = [
+    {
+      key: 'n',
+      node: <span className="font-mono">{copy.board.number(card.number)}</span>,
+      shrinks: false,
+    },
+  ];
+  if (showRepository) {
+    parts.push({
+      key: 'r',
+      node: <span className="truncate">{card.repository.slug}</span>,
+      shrinks: true,
+    });
+  }
+  parts.push(
+    { key: 'a', node: <span data-author>{authorName(card.author)}</span>, shrinks: false },
+    { key: 't', node: <Age iso={card.openedAt} now={now} />, shrinks: false },
+  );
+  if (card.round.number >= 2) {
+    const text = copy.board.round(card.round.number, card.round.max);
+    parts.push({
+      key: 'o',
+      node: (
+        <span data-round title={text} className="truncate">
+          {text}
+        </span>
+      ),
+      shrinks: true,
+    });
+  }
   return (
     <div className="flex min-w-0 items-center gap-1.5 text-[13px] text-text-3">
-      {parts.map((part, i) => (
-        <span key={i} className="flex min-w-0 items-center gap-1.5">
+      {parts.map(({ key, node, shrinks }, i) => (
+        <span
+          key={key}
+          className={cn(
+            'flex items-center gap-1.5 whitespace-nowrap',
+            shrinks ? 'min-w-0' : 'shrink-0',
+          )}
+        >
           {i > 0 && <span aria-hidden="true">·</span>}
-          {part}
+          {node}
         </span>
       ))}
       <span className="flex-1" />
+      <ExceptionBadges card={card} />
       <ReasonBadges card={card} />
     </div>
   );
