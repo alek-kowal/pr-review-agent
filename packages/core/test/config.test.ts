@@ -199,8 +199,11 @@ describe('config resilience', () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
       paused: false,
       pausedReason: null,
+      pausedBy: null,
+      pausedAt: null,
       dailyBudgetUsd: null,
       agentSlots: 2,
+      timeZone: 'Europe/Warsaw',
       models: {},
       afterRoundGithubComment: true,
     });

@@ -86,13 +86,35 @@ export const RepositoryConfigSchema = z.object({
 });
 export type RepositoryConfig = z.output<typeof RepositoryConfigSchema>;
 
+/** Whether `zone` is an IANA time zone the runtime knows (for example `Europe/Warsaw`). */
+export function isValidTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const DEFAULT_TIME_ZONE = 'Europe/Warsaw';
+export const MAX_AGENT_SLOTS = 20;
+
 /** Settings for the whole app. */
 export const AppSettingsSchema = z.object({
   paused: z.boolean().default(false),
   pausedReason: z.string().nullable().default(null),
+  /** The Team member who paused (signed); null while running. */
+  pausedBy: z.string().nullable().default(null),
+  /** When the pause started (ISO time); null while running. */
+  pausedAt: z.string().nullable().default(null),
   /** Daily budget in USD; null means no budget, which never holds a review. */
   dailyBudgetUsd: z.number().positive().nullable().default(null),
-  agentSlots: z.number().int().min(1).max(20).default(2),
+  agentSlots: z.number().int().min(1).max(MAX_AGENT_SLOTS).default(2),
+  /** The day (and so today's spend) starts at midnight in this zone (OQ9). */
+  timeZone: z
+    .string()
+    .refine(isValidTimeZone, { message: 'invalid_time_zone' })
+    .default(DEFAULT_TIME_ZONE),
   models: modelsByRole.default({}),
   /** "Ready for team member review (round N)" on GitHub after each completed round. */
   afterRoundGithubComment: z.boolean().default(true),
