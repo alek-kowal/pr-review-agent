@@ -1,6 +1,7 @@
 // Response types of the api's read endpoints. The api's Zod schemas are the source of truth
 // (apps/api/src/routes/api, apps/api/src/pr-view); the web may not import server packages.
 import type {
+  AgentRole,
   ChecklistItemKey,
   Decision,
   Lane,
@@ -540,7 +541,14 @@ export type RunDetail = {
     finishedAt: string | null;
     currentStage: string | null;
     notChecked: string[];
-    instructionVersions: { id: number; scope: string; fileKey: string; version: number }[];
+    instructionVersions: {
+      id: number;
+      scope: string;
+      fileKey: string;
+      version: number;
+      level?: number | null;
+      fileId?: number | null;
+    }[];
     error: { stage: string; code: string } | null;
   };
   pullRequest: { repository: { slug: string }; number: number; title: string };
@@ -580,3 +588,116 @@ export type TimelineEntryView = {
   /** A finished run's final cost. */
   costUsd: number | null;
 };
+
+// Instructions (apps/api/src/routes/api/instructions).
+export type InstructionScope = 'global' | 'repository' | 'level';
+export type InstructionVersionStatus = 'active' | 'draft' | 'archived';
+
+export type InstructionFileView = {
+  id: number;
+  scope: InstructionScope;
+  repository: { id: number; slug: string } | null;
+  level: LevelNumber | null;
+  fileKey: string;
+};
+
+export type InstructionVersionRef = {
+  id: number;
+  version: number;
+  note: string | null;
+  createdAt: string;
+  activatedAt: string | null;
+};
+
+export type InstructionsListResponse = {
+  files: (InstructionFileView & {
+    active: InstructionVersionRef | null;
+    draft: InstructionVersionRef | null;
+  })[];
+};
+
+export type InstructionVersionView = InstructionVersionRef & {
+  status: InstructionVersionStatus;
+  content: string;
+  author: 'member' | 'bot' | 'hand';
+  authorName: string | null;
+  signerName: string | null;
+  runCount: number;
+  runs: {
+    runId: number;
+    kind: string;
+    repositorySlug: string;
+    prNumber: number;
+    createdAt: string;
+  }[];
+};
+
+// Trials (apps/api/src/routes/api/trials).
+export type TrialStatus = 'running' | 'completed' | 'failed' | 'cancelled';
+
+export type TrialSummaryView = {
+  id: number;
+  pr: { repo: string; number: number; title: string };
+  draft: { id: number; fileId: number; fileKey: string; version: number; status: string };
+  status: TrialStatus;
+  startedBy: 'member' | 'bot' | 'hand';
+  headSha: string;
+  createdAt: string;
+};
+
+export type TrialFindingView = {
+  id: number;
+  severity: Severity;
+  title: string;
+  file: string;
+  line: number | null;
+  verdict: Verdict;
+};
+
+export type TrialRunSide = { id: number; status: string; costUsd: number };
+
+export type TrialsListResponse = { trials: TrialSummaryView[] };
+
+export type TrialDetailResponse = {
+  trial: TrialSummaryView & {
+    runs: { a: TrialRunSide | null; b: TrialRunSide | null };
+    compare: {
+      onlyA: TrialFindingView[];
+      onlyB: TrialFindingView[];
+      both: { a: TrialFindingView; b: TrialFindingView }[];
+    };
+    diff: {
+      fileKey: string;
+      before: { version: number; content: string } | null;
+      after: { version: number; content: string };
+    };
+  };
+};
+
+export type InstructionDetailResponse = {
+  file: InstructionFileView;
+  /** Newest first. */
+  versions: InstructionVersionView[];
+};
+
+// The read-only pipeline (apps/api/src/routes/api/pipeline).
+export type PipelineStageKey =
+  'checks' | 'task' | 'change_type' | 'review' | 'verify' | 'implement' | 'fix_check' | 'analyst';
+
+export type PipelineStageView = {
+  key: PipelineStageKey;
+  role: AgentRole | null;
+  /** Null for a stage of plain code. */
+  model: { model: string; source: 'level' | 'settings' | 'default'; level: number | null } | null;
+  tools: string[];
+  integrations: string[];
+  /** Global files; `version` is the active one, null when the file or its active version is missing. */
+  instructions: { fileKey: string; fileId: number | null; version: number | null }[];
+  output: { schema: string; fields: string[] };
+  timeoutMinutes: number;
+  attempts: number;
+  repairs: number;
+  onFrom: LevelNumber;
+};
+
+export type PipelineResponse = { stages: PipelineStageView[] };

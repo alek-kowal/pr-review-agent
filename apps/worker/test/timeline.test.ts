@@ -146,7 +146,14 @@ test('a ready event and a completed round leave entries and state changes in ord
 
   // Run detail shows the instruction files the run read.
   expect(run.instructionVersions).toEqual([
-    { id: expect.any(Number), scope: 'repository', fileKey: 'review-rules.md', version: 1 },
+    {
+      id: expect.any(Number),
+      fileId: expect.any(Number),
+      scope: 'repository',
+      level: null,
+      fileKey: 'review-rules.md',
+      version: 1,
+    },
   ]);
 });
 

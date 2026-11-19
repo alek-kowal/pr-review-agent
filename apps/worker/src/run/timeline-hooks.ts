@@ -76,6 +76,8 @@ export async function recordRunStarted(
 
 function runEnded(kind: 'run_finished' | 'run_failed' | 'run_cancelled'): RunHook {
   return async ({ deps, run }) => {
+    // A trial leaves the PR untouched; its cost is reported with the trial (S-22-T6).
+    if (run.kind === 'trial') return;
     const at = run.finishedAt ?? new Date();
     let failure = {};
     if (kind === 'run_failed') {

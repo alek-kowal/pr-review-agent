@@ -144,7 +144,7 @@ export const QualityResponse = z.object({
       instruction: z
         .object({
           id: z.number().int(),
-          scope: z.enum(['global', 'repository']),
+          scope: z.enum(['global', 'repository', 'level']),
           repository: z.string().nullable(),
           fileKey: z.string(),
           version: z.number().int(),

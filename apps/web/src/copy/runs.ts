@@ -114,8 +114,12 @@ export const runs = {
     instructionVersions: 'Instruction versions',
     instructionVersionsHint: 'Frozen when the round starts.',
     noInstructionVersions: 'No instruction files were recorded for this run.',
-    instructionVersion: (scope: string, version: number) =>
-      scope === 'global' ? `v${version}` : `${scope} · v${version}`,
+    instructionVersion: (scope: string, version: number, level?: number | null) =>
+      scope === 'global'
+        ? `v${version}`
+        : scope === 'level'
+          ? `level ${level} copy · v${version}`
+          : `${scope} · v${version}`,
     notChecked: 'Not checked',
     transcript: {
       loading: 'Loading the transcript…',
