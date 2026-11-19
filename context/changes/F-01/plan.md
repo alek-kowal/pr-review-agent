@@ -274,15 +274,15 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Automated
 
-- [x] 6.1 `pnpm lint` exits 0
-- [x] 6.2 `node:fs` import in `packages/core` fails with `no-restricted-imports`
-- [x] 6.3 `pnpm verify` exits 0, and non-zero when one script fails
+- [x] 6.1 `pnpm lint` exits 0 — 82f6739
+- [x] 6.2 `node:fs` import in `packages/core` fails with `no-restricted-imports` — 82f6739
+- [x] 6.3 `pnpm verify` exits 0, and non-zero when one script fails — 82f6739
 
 ### Phase 7: Playwright skeleton with one smoke spec
 
 #### Automated
 
-- [ ] 7.1 `pnpm test:e2e smoke.spec.ts` passes locally
+- [x] 7.1 `pnpm test:e2e smoke.spec.ts` passes locally
 
 ### Phase 8: CI workflow
 

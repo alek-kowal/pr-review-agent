@@ -46,6 +46,7 @@ export default defineConfig([
     '**/coverage/',
     'test-results/',
     'playwright-report/',
+    'blob-report/',
     'prototype/',
     'docs/',
     'context/',

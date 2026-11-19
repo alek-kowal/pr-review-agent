@@ -10,13 +10,14 @@
   "scripts": {
     "lint": "eslint --max-warnings 0 . && prettier --check .",
     "format": "prettier --write .",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
     "test": "vitest run",
-    "test:e2e": "echo 'test:e2e: Playwright arrives in F-01-T7' && exit 1",
+    "test:e2e": "playwright test",
     "verify": "pnpm run \"/^(lint|typecheck|test)$/\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
     "@types/node": "catalog:",
     "eslint": "^10.15.0",
     "eslint-plugin-react-hooks": "^7.1.1",
