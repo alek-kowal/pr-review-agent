@@ -2,16 +2,12 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test } from 'vitest';
 import type { DecisionView, FollowUpView } from '@/lib/api-types.ts';
-import { aFinding, aFindingsResponse, aPrView } from '@/test/fixtures.ts';
+import { aDecision, aFinding, aFindingsResponse, aPrView } from '@/test/fixtures.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
 import { renderApp } from '@/test/renderApp.tsx';
 
 const deferred = (followUp: FollowUpView | null): DecisionView => ({
-  batchId: 9,
-  decision: 'defer',
-  reason: 'Later',
-  signedBy: { id: 'm-kasia', name: 'Kasia' },
-  decidedAt: '2026-11-19T12:00:00.000Z',
+  ...aDecision({ batchId: 9, decision: 'defer', reason: 'Later' }),
   followUp,
 });
 

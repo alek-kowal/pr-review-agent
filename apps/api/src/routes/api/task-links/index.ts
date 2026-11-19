@@ -7,9 +7,9 @@ import {
   recordTimelineEntry,
   upsertTaskLink,
 } from '@pra/db';
-import { CLICKUP_AUTH_FAILED, CLICKUP_NOT_CONFIGURED } from '@pra/integrations';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
+import { integrationFailure, sendClickUpFailure } from '../../../integration-failure.ts';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
 import { TaskSectionSchema, taskLinkView } from '../../../pr-view/sections/task.ts';
 import { PrParams } from '../prs/index.ts';
@@ -59,14 +59,7 @@ const taskLinks: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
         const failure = integrationFailure(error);
         if (!failure) throw error;
         request.log.info({ err: error }, 'ClickUp task lookup failed');
-        if (failure.code === CLICKUP_NOT_CONFIGURED) {
-          return sendError(reply, 422, ApiErrorCode.ClickupNotConfigured, failure.params);
-        }
-        const code =
-          failure.code === CLICKUP_AUTH_FAILED
-            ? ApiErrorCode.ClickupAuthFailed
-            : ApiErrorCode.ClickupError;
-        return sendError(reply, 502, code, failure.params);
+        return sendClickUpFailure(reply, failure);
       }
       if (!task) return sendError(reply, 422, ApiErrorCode.TaskNotFound, { taskId });
 
@@ -94,22 +87,5 @@ const taskLinks: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
     },
   );
 };
-
-/**
- * An `IntegrationError`'s code and params, by shape: autoload imports routes through their own
- * module graph, so `instanceof` can miss the gateway's class.
- */
-function integrationFailure(
-  error: unknown,
-): { code: string; params: Record<string, unknown> } | null {
-  const failure = error as { name?: unknown; code?: unknown; params?: unknown } | null;
-  if (!(error instanceof Error) || !String(failure?.name).startsWith('Integration')) return null;
-  if (typeof failure?.code !== 'string') return null;
-  const params =
-    failure.params && typeof failure.params === 'object' && !Array.isArray(failure.params)
-      ? (failure.params as Record<string, unknown>)
-      : {};
-  return { code: failure.code, params };
-}
 
 export default taskLinks;

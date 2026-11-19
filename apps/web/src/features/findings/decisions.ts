@@ -29,9 +29,9 @@ const prPath = (repo: string, number: string) =>
 
 /**
  * Shows the refreshed findings, banner and checklist at once, then refetches the PR view and the
- * board so the lane follows.
+ * board so the lane follows. Answers and reviews answer with the same shape.
  */
-function applyResult(
+export function applyResult(
   queryClient: QueryClient,
   repo: string,
   number: string,

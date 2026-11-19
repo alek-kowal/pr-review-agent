@@ -3,7 +3,8 @@ import { copy } from '@/copy/index.ts';
 import type { PrView } from '@/lib/api-types.ts';
 import { FindingsTab } from '@/features/findings/FindingsTab.tsx';
 import { TimelineTab } from '@/features/timeline/TimelineTab.tsx';
-import { PatchTab, QuestionsTab } from './tab-panels.tsx';
+import { QuestionsTab } from '@/features/questions/QuestionsTab.tsx';
+import { PatchTab } from './tab-panels.tsx';
 
 export type PrTabProps = { repo: string; number: string; view: PrView };
 

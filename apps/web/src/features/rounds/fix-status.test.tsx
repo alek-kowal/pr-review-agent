@@ -4,20 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test } from 'vitest';
 import { copy } from '@/copy/index.ts';
 import type { DecisionView, FindingView } from '@/lib/api-types.ts';
-import { aFinding, aFindingsResponse, aPrView } from '@/test/fixtures.ts';
+import { aDecision, aFinding, aFindingsResponse, aPrView } from '@/test/fixtures.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
 import { renderApp } from '@/test/renderApp.tsx';
 
 afterEach(restoreFetch);
 
-const implement: DecisionView = {
-  batchId: 7,
-  decision: 'implement',
-  reason: null,
-  signedBy: { id: 'm-kasia', name: 'Kasia' },
-  decidedAt: '2026-11-19T12:00:00.000Z',
-  followUp: null,
-};
+const implement: DecisionView = aDecision();
 const decided = { needed: false, reason: { code: 'decided', params: {} } };
 
 const fixed = (id: number, title: string, resolved: boolean, reason: string): FindingView =>

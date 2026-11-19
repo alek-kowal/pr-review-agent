@@ -250,6 +250,7 @@ describe('GET /api/prs/:repo/:number/findings', () => {
 
     expect(empty.json()).toEqual({
       round: null,
+      resultsRound: null,
       findings: [],
       questions: [],
       notChecked: [],
