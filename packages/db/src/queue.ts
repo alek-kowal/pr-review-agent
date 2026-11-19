@@ -21,6 +21,8 @@ export const JOBS = {
   githubComment: 'github.comment',
   /** ClickUp follow-up tasks of one Defer to ClickUp decision batch; keyed `<batchId>`. */
   clickupFollowUp: 'clickup.follow-up',
+  /** Starts queued runs that may start now, oldest first, and refreshes why the others wait. */
+  runDrain: 'run.drain',
 } as const;
 
 export type JobName = (typeof JOBS)[keyof typeof JOBS];
@@ -32,6 +34,7 @@ export interface JobPayloads {
   'run.stage': { runId: number; stage: string };
   'github.comment': { runId: number };
   'clickup.follow-up': { batchId: number };
+  'run.drain': Record<string, never>;
 }
 
 type QueueSettings = Omit<QueueDefinition, 'name'>;
@@ -50,7 +53,14 @@ export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   'run.stage': { policy: 'exclusive', expireInSeconds: STAGE_JOB_EXPIRY_SECONDS },
   'github.comment': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
   'clickup.follow-up': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
+  // One drain runs at a time and one more waits: wakes during a drain are merged into the next.
+  'run.drain': { policy: 'stately', retryLimit: 1 },
 };
+
+/** Wakes the queue drainer (after a status change, a freed slot, and every minute). */
+export function sendDrainJob(queue: Queue): Promise<string | null> {
+  return sendJob(queue, JOBS.runDrain, {});
+}
 
 /** A follow-up job waits this long, so the decision's Undo (offered for 10 s) creates no task. */
 export const FOLLOW_UP_DELAY_SECONDS = 15;
