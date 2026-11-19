@@ -106,6 +106,22 @@ export const ApiErrorCode = {
   MergeRefused: 'merge_refused',
   /** GitHub did not answer as expected (`params.status` when it answered). */
   GithubError: 'github_error',
+  /** Implement with agent below level 4 (`params.level`, `params.need`). */
+  ImplementBelowLevel: 'implement_below_level',
+  /** A fork PR stays read-only: no implementer, no push. */
+  ForkReadOnly: 'fork_read_only',
+  /** Implement with agent with no open finding decided Implement. */
+  NoImplementDecisions: 'no_implement_decisions',
+  /** `withAgent` on a decision other than Implement. */
+  WithAgentNeedsImplement: 'with_agent_needs_implement',
+  /** No patch with this id. */
+  PatchNotFound: 'patch_not_found',
+  /** The file is not part of this patch. */
+  PatchFileNotFound: 'patch_file_not_found',
+  /** The patch changed since the page loaded (`params.revision`: the current one). */
+  PatchStale: 'patch_stale',
+  /** Revise needs a note. */
+  NoteRequired: 'note_required',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

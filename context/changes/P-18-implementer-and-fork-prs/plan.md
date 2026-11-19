@@ -71,7 +71,7 @@ Every task's "Done when" test passes, `pnpm test:e2e implement-patch.spec.ts` an
 
 - [x] 1 S-13-T2 patch record and gate
 - [x] 2 S-13-T3 implementer, revise and patch-check jobs
-- [ ] 3 S-13-T4 implement and patch API
+- [x] 3 S-13-T4 implement and patch API
 - [ ] 4 S-13-T5 Implement with agent in the form and banner
 - [ ] 5 S-13-T6 Patch tab
 - [ ] 6 S-13-T7 e2e implementer flow
