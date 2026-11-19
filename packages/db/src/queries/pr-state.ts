@@ -145,16 +145,19 @@ function commitsSinceReview(
 /**
  * Commits on the PR's head since a round's head (FR-045 "N commits behind"): 0 on the same head,
  * else GitHub's compare when it was measured against this head, else the commit-count difference.
+ * A head other than the round's is never 0: a force push (same count) or a reset (compare ahead 0)
+ * is code nobody reviewed, so it must not read as Ready to merge.
  */
 export function commitsSinceRun(
   pullRequest: Pick<PullRequest, 'headSha' | 'commitsCount'>,
   run: Pick<Run, 'headSha' | 'commitsSince' | 'commitsSinceHead' | 'commitsCountAtStart'>,
 ): number {
   if (run.headSha === pullRequest.headSha) return 0;
-  if (run.commitsSince !== null && run.commitsSinceHead === pullRequest.headSha) {
-    return run.commitsSince;
-  }
-  return Math.max(0, pullRequest.commitsCount - run.commitsCountAtStart);
+  const since =
+    run.commitsSince !== null && run.commitsSinceHead === pullRequest.headSha
+      ? run.commitsSince
+      : pullRequest.commitsCount - run.commitsCountAtStart;
+  return Math.max(1, since);
 }
 
 /**

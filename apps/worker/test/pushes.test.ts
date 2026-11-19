@@ -33,12 +33,16 @@ afterAll(() => deps.close());
 const sha = (c: string) => c.repeat(40);
 
 /** Each delivery is newer than the last, so none is stale. */
-async function deliver(name: GitHubFixtureName, headSha?: string): Promise<string> {
+async function deliver(
+  name: GitHubFixtureName,
+  headSha?: string,
+  fields: Record<string, unknown> = {},
+): Promise<string> {
   clock += 60_000;
   const event = await storeGithubEvent(deps, name, {
     fullName: repository.githubFullName,
     ...(headSha ? { headSha } : {}),
-    pullRequest: { updated_at: new Date(clock).toISOString() },
+    pullRequest: { updated_at: new Date(clock).toISOString(), ...fields },
   });
   return processGithubEvent(deps, event.id);
 }
@@ -147,6 +151,16 @@ describe('pushes', () => {
     const done = await complete(running!);
     await chainsOnRunCompleted({ deps, run: done, pullRequest: await pr(), repository });
     expect((await runsOfPr())[0]).toMatchObject({ commitsSince: 2, commitsSinceHead: sha('b') });
+  });
+
+  test('a moved head is never 0 new commits, whatever the count says (force push)', async () => {
+    const round = await reviewedRound();
+    // An amended commit force-pushed: same commit count, and the compare fails (no comparison set).
+    await deliver('pull_request.synchronize', sha('b'), { commits: round.commitsCountAtStart });
+    expect((await runsOfPr())[0]).toMatchObject({ id: round.id, commitsSinceHead: sha('b') });
+    const load = await loadPrStateInput(deps.db, (await pr()).id);
+    expect(load!.input.commitsSinceReview).toBe(1);
+    expect(nextStep(load!.input).state).toBe('new_commits');
   });
 
   test('a fix push while a run holds the PR starts nothing new', async () => {
