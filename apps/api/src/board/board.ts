@@ -57,13 +57,39 @@ export const BoardResponse = z.object({
 });
 export type Board = z.output<typeof BoardResponse>;
 
+const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
+
+/**
+ * The board filters (S-17-T3), the same names as the web's page address. `person` is a Team
+ * member's GitHub login: the PRs they authored or signed anything on.
+ */
+export const BoardQuery = z.object({
+  person: z.string().regex(GITHUB_LOGIN).optional(),
+  repo: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*$/)
+    .optional(),
+  forks: z.enum(['hide', 'only']).optional(),
+  level: z
+    .enum(LEVEL_NUMBERS.map(String) as [string, ...string[]])
+    .transform((n) => Number(n) as LevelNumber)
+    .optional(),
+  drafts: z.literal('hide').optional(),
+});
+export type BoardQuery = z.output<typeof BoardQuery>;
+
 /**
  * Builds the board. Cards come most recently opened first; Action needed is sorted by urgency
  * (core `byUrgency`: FR-008 order, then the longest waiting first).
  */
-export async function buildBoard(db: Executor, now: Date = new Date()): Promise<Board> {
+export async function buildBoard(
+  db: Executor,
+  now: Date = new Date(),
+  query: BoardQuery = {},
+): Promise<Board> {
+  const { level, ...filter } = query;
   const [ids, repositories] = await Promise.all([
-    boardPullRequestIds(db, now),
+    boardPullRequestIds(db, now, filter),
     listRepositories(db),
   ]);
   const loads = await loadPrStateInputs(db, ids);
@@ -78,6 +104,8 @@ export async function buildBoard(db: Executor, now: Date = new Date()): Promise<
   for (const id of ids) {
     const load = loads.get(id);
     if (!load) continue;
+    // The level a PR shows is the one its next round starts at, so the filter reads the same.
+    if (level !== undefined && load.input.level !== level) continue;
     const step = nextStep(load.input);
     const card: BoardCard = {
       repository: { slug: load.repository.slug },

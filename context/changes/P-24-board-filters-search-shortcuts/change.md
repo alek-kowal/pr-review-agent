@@ -25,3 +25,13 @@ when" checks are the plan. One commit per task, in the listed order.
   inside each group (its api test now expects oldest first). Core gets `actionNeededRank` and the
   comparator `byUrgency` in `urgency.ts` (not in the hot `pr-state.ts`); the api and the web lane
   both sort with it, so the lane is right whatever order the api sends.
+- **T3 `person` is the member's GitHub login** (`?person=kasia`): readable in a shared link and
+  unique among active members. Authored = the PR's author login matches (case-insensitive);
+  signed = `prsSignedBy(memberId)` for every member, removed ones included, with that login.
+- **T3 `prsSignedBy` unions** decision batches, opinions, reviews, answers, sensitive file
+  approvals, signed review starts (`runs.started_by_member_id`), task links and every signed
+  timeline entry. Merges from the app are timeline entries (`pr_merged`, actor member), and so
+  will pushes be, so S-14 needs no change here.
+- **T3 level filter** compares the level the next round starts at (`input.level`, the level the
+  card shows), applied after loading because it needs the repository default. The other filters
+  are SQL conditions in `boardPullRequestIds`. Filters also narrow the merged/closed list.
