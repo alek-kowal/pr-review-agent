@@ -55,3 +55,22 @@ tasks' "Done when" checks are the plan. One commit per task, in the listed order
   existing `copy.nextStep.bot`; member names come from `/api/team` (`useMemberNames`).
 - `ROUND_LINE_LINKS` in `features/round/slots.ts` takes links after the round line (Run details
   in T10).
+
+### S-03-T10 (Run detail)
+
+- Route `/runs/$runId?tab=stages|transcript` (`features/runs/RunPage.tsx`). Header: link to the
+  PR, "Round 1 of 3 on #12" (the run kind for runs that are not rounds), status, who started it,
+  level, duration and the total cost ("so far" while running, "up to the failure" when failed),
+  plus the failure line. Side cards: cost per session, instruction versions, not checked.
+- Stages expand to their readable output; failed, running and Review stages start open. Each
+  stage lists its agent sessions with model, turns, cost, files read and actions (files and
+  actions fold in `<details>`).
+- Stage output renderers are an extension point, `STAGE_OUTPUTS` in
+  `features/runs/stage-outputs.ts` (P-15 adds Checks and Change type). P-12 adds Task (the linked
+  ClickUp task with its text, or why there is none) and Review (summary, risk, what it reported);
+  other stages show their output as keys and values.
+- The Transcript tab fetches each session's stored log only when the tab opens (`staleTime:
+  Infinity`) and lists what the agent said, each tool call with its main target (same fields as
+  the api's summary) and each tool result, errors in red. Long texts are cut at 600 characters.
+- "Run details" links: after the round line (`ROUND_LINE_LINKS`); Activity and the Timeline use
+  the same `RunDetailsLink`.

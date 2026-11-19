@@ -42,6 +42,7 @@ describe('round line', () => {
       /^Round 1 of 3 · started by hand · finished \d\d:\d\d · \$1\.84$/,
     );
     expect(screen.queryByRole('list', { name: 'Stages of this round' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Run details' })).toHaveAttribute('href', '/runs/31');
     const toggle = screen.getByRole('button', { name: 'Stages' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(toggle);

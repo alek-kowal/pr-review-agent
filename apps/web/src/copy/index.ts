@@ -1,6 +1,7 @@
 // UI copy (English). Components read strings from here, never inline them.
 import { board } from './board.ts';
 import { checklist } from './checklist.ts';
+import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { integrations } from './integrations.ts';
 import { nextStep } from './nextStep.ts';
@@ -27,6 +28,7 @@ export const copy = {
   integrations,
   status,
   runs,
+  clickup,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',

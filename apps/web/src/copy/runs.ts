@@ -39,6 +39,13 @@ export const runs = {
     completed: (at: string, usd: number) => `finished ${at} · ${money(usd)}`,
   },
   roundLabelFallback: (number: number | null) => (number === null ? 'Round' : `Round ${number}`),
+  outputs: {
+    risk: 'Risk',
+    reported: 'Reported',
+    reportedValue: (findings: number, questions: number) =>
+      `${plural(findings, 'finding')}, ${plural(questions, 'question')}`,
+    dropped: 'Dropped by the limits',
+  },
   stagesToggle: 'Stages',
   runDetails: 'Run details',
   stepperLabel: 'Stages of this round',
