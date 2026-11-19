@@ -255,7 +255,9 @@ describe('run.stage', () => {
   test('the level’s stage timeout aborts the session and fails with stage_timeout', async () => {
     const waitForAbort: FakeAgentStep = (input) =>
       new Promise((resolve) => {
-        input.signal!.addEventListener('abort', () =>
+        // Under load the worktree setup can outlast the 180 ms timeout: the signal is then
+        // already aborted when the session starts.
+        const onAbort = () =>
           resolve({
             status: 'cancelled',
             output: null,
@@ -266,8 +268,9 @@ describe('run.stage', () => {
             turns: 2,
             durationMs: 180,
             transcript: [],
-          }),
-        );
+          });
+        if (input.signal!.aborted) onAbort();
+        else input.signal!.addEventListener('abort', onAbort);
       });
     deps.agentRunner.enqueue(waitForAbort);
     const run = await queueRunWith({ 1: { stageTimeoutMinutes: 0.003 } });
