@@ -1,14 +1,8 @@
 # P-15 handoff
 
 - Plan and decisions: `context/changes/P-15-retry-cancel-stage-outputs/` (plan.md, change.md). Read change.md first.
-- Done: `git merge main` (e6a32cd); S-09-T1 ceb14cb, T2 b32f4e0, T3 771b3b5, T4 1812bdc, T5 a3217fb (each passed `pnpm verify`).
-- Partial S-09-T6 (3a346f7): core `STAGE_ERROR.interruptedByRestart` and `recoverAfterRestart(run, code)`; `recoverRuns` uses `interrupted_by_restart`; `apps/worker/test/durability.test.ts` and `durability-worker.ts` (child process) pass.
-- To finish T6: the last `pnpm verify` had 2 worker failures from this work.
-  1. `apps/worker/test/run-round.test.ts:432` still expects `errorCode: 'interrupted'` after `recoverRuns`; change it to `'interrupted_by_restart'`.
-  2. `apps/worker/test/cancel.test.ts` "jobs are gone": wrap `expect(await queuedJobs(run.id)).toHaveLength(0)` in `vi.waitFor` (jobs are deleted after the status commit).
-  The 2 web failures in that run (insights-overview, FindingDecisions) pass when run alone; they are load timeouts.
-  Then tick 6.1 in plan.md, add the T6 decision (worker start = `interrupted_by_restart`, in-process left-running = `interrupted`) to change.md, and commit `feat(S-09): nothing stuck after a restart (T6)`.
-- Left: S-09-T7 (e2e `retry-cancel.spec.ts`), S-03-T14 (reconcile poll), S-04-T6, S-04-T7, as planned in plan.md.
-- Not yet run: `pnpm test:e2e`. T2 changed the Stage failed banner text (it now ends ". This round is not counted"); `e2e/first-round.spec.ts:113` matches by substring, so it should still pass.
-- Know: cancel = `requestRunCancel` (db) plus the worker's `finishCancel` and `listenForCancels` (`apps/worker/src/run/cancel.ts`); `WorkerDeps.cancellation` is set by `withDefaults`. Edit files only with Edit/Write.
-- At the end: `git merge main`; if main has a 0014/0015 migration, delete ours (0014_retry_cancel, 0015_retry_from plus snapshots and journal entries) and run `pnpm db:generate --name retry_cancel` once. In the last commit, delete this file.
+- Done (each passed `pnpm verify`): merge main fc2d5f2; S-09-T6 587f9ce, T7 e1000d1 (full `pnpm test:e2e` 21/21 passed then); S-03-T14 3f79c10; S-04-T6 e4c97ae.
+- Partial S-04-T7 (114e260): stack only. `e2e/support/env.ts` has `LARGE_PR_REPOSITORY` (level 2, `largePrLines: 1`) and `FIXTURE_CI` (2 passed, 1 failed on the fixture head); `stack.ts` seeds it, gives the level-two repo `fetchCommand`/`installCommand`, and its FakeSandbox answers `sh -c` install runs with exit 0. Not yet run.
+- To finish T7: write `e2e/checks-change-type.spec.ts`. Test 1: held PR `HELD_PRS.from + 40 + retry` on level-two-repo; PR page stepper `[data-step]` order checks, task, change_type, review while review is `running`; write `releaseFile(number)`; round line finished; panel (region "Change type") `change-type` text matches `/· set by the rules$/`, no `large-pr-warning`; Run detail `[data-stage]` order, expand rows (only review opens by default: click the row's first button) → `checks-output` has "2 passed · 1 failed · 0 pending" and "Install passed". Test 2: PR 220+retry on large-pr-repo → panel `large-pr-warning` "over the 1-line limit … Consider splitting it into smaller PRs.", and in Run detail's `change-type-output`. Use `onPrPage(page, n, check, slug)`. Then tick 10.1, add a T7 decision to change.md, commit `test(S-04): end-to-end Checks and change type (T7)`.
+- Then 10.2: `git merge main`; if main has a 0014/0015 migration, delete ours (0014_retry_cancel, 0015_retry_from plus snapshots and journal entries) and run `pnpm db:generate --name retry_cancel` once. Run `pnpm verify` and full `pnpm test:e2e`. In the last commit delete this file and set change.md `status`.
+- Know: the reconcile cron (`*/10`) also runs in the e2e stack; its fake lists no WB PRs, so a poll there only logs 404 warnings. Edit files only with Edit/Write.
