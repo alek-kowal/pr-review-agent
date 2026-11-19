@@ -317,7 +317,7 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 3.1 push.routes.test.ts passes
+- [x] 3.1 push.routes.test.ts passes
 
 ### Phase 4: S-14-T4
 

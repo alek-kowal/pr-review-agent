@@ -43,3 +43,15 @@ questions (orchestrator rule: decide and record).
   `expectOwnFix` on the PR's latest chain, called after the git push and the patch row update.
 - A rejected git push (the head moved between the check and the push) re-reads the head and is
   stored as `head_moved` like the check's own refusal.
+
+### S-14-T3 (push endpoint)
+
+- `POST /api/patches/:id/push { typedNumber, signedBy }` → 202 `{ queued: true }`. Checks in
+  order: 400 `signature_required`, 404 `patch_not_found`, 400 `signer_unknown`, then `canPush`
+  on GitHub's fresh head; every rule refusal is 409 with its own code and params (`head_moved`
+  carries `headSha`). The task's upper-case names are the codebase's lower snake_case codes.
+- A wrong typed number is 409 `pr_number_mismatch` here (the task says so), while merge keeps
+  its 400 `merge_number_mismatch`.
+- The endpoint stores nothing on a refusal; only the job records `pushRefusal` and the timeline
+  entry. The signer is checked without a lock: the job reads it again when it runs.
+- A second click while the job waits is still 202 and adds no job (pg-boss singleton key).
