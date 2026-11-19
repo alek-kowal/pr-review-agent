@@ -2,6 +2,7 @@ import './reasons/run.ts';
 import { stagesFor, type FixCheckStageKey } from './levels.ts';
 import type { RoundKind, RunStatus } from './model.ts';
 import { reason, type Reason } from './reason.ts';
+import { TRIAL_OFF_STAGES } from './trial.ts';
 import type { LevelNumber, RunKind, StageKey } from './vocabulary.ts';
 
 export const IMPLEMENTER_STAGE_KEYS = ['worktree', 'implement', 'reproductions'] as const;
@@ -61,7 +62,12 @@ export interface PlanRunInput {
 export function planRun({ kind, level, roundKind, roundNumber = null }: PlanRunInput): RunState {
   const isRound = kind === 'round' || kind === 'trial';
   const stages = isRound
-    ? stagesFor(level, roundKind ?? 'full').map((s) => stage(s.key, s.off, s.reason))
+    ? stagesFor(level, roundKind ?? 'full').map((s) =>
+        // A trial skips the stages that call GitHub or ClickUp (S-22-T6).
+        kind === 'trial' && !s.off && (TRIAL_OFF_STAGES as readonly string[]).includes(s.key)
+          ? stage(s.key, true, reason('off_in_trial', { stage: s.key }))
+          : stage(s.key, s.off, s.reason),
+      )
     : (kind === 'implementer' ? IMPLEMENTER_STAGE_KEYS : ANALYST_STAGE_KEYS).map((k) => stage(k));
   return {
     kind,

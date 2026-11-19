@@ -161,8 +161,9 @@ const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
           return sendError(reply, 404, ApiErrorCode.InstructionVersionNotFound, { versionId });
         }
         // Activate takes the draft; rollback re-activates a version that was active before.
+        // A draft a trial set aside is archived but was never active: no rollback to it.
         const wanted = action === 'activate' ? 'draft' : 'archived';
-        if (target.status !== wanted) {
+        if (target.status !== wanted || (action === 'rollback' && !target.activatedAt)) {
           return sendError(reply, 409, ApiErrorCode.InstructionVersionStatus, {
             status: target.status,
           });

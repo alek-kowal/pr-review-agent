@@ -15,6 +15,7 @@ import {
   runInstructionVersions,
 } from '../schema/instructions.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
+import { trials } from '../schema/trials.ts';
 import { runs, type RunInstructionVersion } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 
@@ -441,12 +442,32 @@ export async function saveInstructionDraft(
     .where(eq(instructionFiles.id, fileId))
     .for('update');
   if (!file) return null;
-  const [updated] = await db
-    .update(instructionVersions)
-    .set({ content: draft.content, note: draft.note, createdBy: 'hand', createdAt: new Date() })
-    .where(and(eq(instructionVersions.fileId, fileId), eq(instructionVersions.status, 'draft')))
-    .returning();
-  if (updated) return updated;
+  const [current] = await db
+    .select({ id: instructionVersions.id })
+    .from(instructionVersions)
+    .where(and(eq(instructionVersions.fileId, fileId), eq(instructionVersions.status, 'draft')));
+  if (current) {
+    // A draft a trial read stays as the trial saw it: it is set aside (archived, never active)
+    // and the save becomes the next version.
+    const [tried] = await db
+      .select({ id: trials.id })
+      .from(trials)
+      .where(eq(trials.draftVersionId, current.id))
+      .limit(1);
+    if (tried) {
+      await db
+        .update(instructionVersions)
+        .set({ status: 'archived' })
+        .where(eq(instructionVersions.id, current.id));
+    } else {
+      const [updated] = await db
+        .update(instructionVersions)
+        .set({ content: draft.content, note: draft.note, createdBy: 'hand', createdAt: new Date() })
+        .where(eq(instructionVersions.id, current.id))
+        .returning();
+      return updated!;
+    }
+  }
   const [{ last }] = (await db
     .select({ last: max(instructionVersions.version) })
     .from(instructionVersions)

@@ -311,7 +311,7 @@ function VersionHistory({
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  {v.status === 'archived' && (
+                  {v.status === 'archived' && v.activatedAt && (
                     <Button type="button" variant="outline" size="sm" onClick={() => onRollback(v)}>
                       {h.rollback(v.version)}
                     </Button>
