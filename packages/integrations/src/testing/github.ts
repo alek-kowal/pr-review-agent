@@ -1,7 +1,8 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { IntegrationError } from '../errors.ts';
 import {
+  changesRequestedBy,
   ciStatusOf,
   GITHUB_APP_NOT_INSTALLED,
   toPullRequest,
@@ -13,7 +14,11 @@ import {
   type GitHubCommit,
   type GitHubPullRequest,
   type InstallationToken,
+  type MergeResult,
+  type PullRequestFreshState,
+  type PullRequestReview,
   type RawPullRequest,
+  type SquashMerge,
 } from '../github/index.ts';
 
 /** The `X-Hub-Signature-256` value GitHub sends for `body` signed with `secret`. */
@@ -30,12 +35,17 @@ export const GITHUB_FIXTURES = [
   'pull_request.synchronize',
   'pull_request.closed',
   'pull_request.reopened',
+  'check_suite.completed',
+  'status',
+  'pull_request_review.submitted',
 ] as const;
 export type GitHubFixtureName = (typeof GITHUB_FIXTURES)[number];
+/** The fixtures of `pull_request` deliveries, which carry a PR snapshot. */
+export type PullRequestFixtureName = Extract<GitHubFixtureName, `pull_request.${string}`>;
 
 export type GitHubFixture = {
-  /** The `X-GitHub-Event` header value. */
-  event: 'ping' | 'pull_request';
+  /** The `X-GitHub-Event` header value: the fixture name up to the first dot. */
+  event: string;
   /** The raw body, as GitHub sends it (sign this, not a re-serialised payload). */
   body: string;
   payload: Record<string, unknown>;
@@ -47,12 +57,12 @@ export type GitHubFixture = {
  */
 export function githubFixture(name: GitHubFixtureName): GitHubFixture {
   const body = readFileSync(new URL(`./fixtures/github/${name}.json`, import.meta.url), 'utf8');
-  const event = name === 'ping' ? 'ping' : 'pull_request';
+  const event = name.split('.')[0]!;
   return { event, body, payload: JSON.parse(body) as Record<string, unknown> };
 }
 
 /** The PR snapshot inside a `pull_request` fixture. */
-export function fixturePullRequest(name: Exclude<GitHubFixtureName, 'ping'>): GitHubPullRequest {
+export function fixturePullRequest(name: PullRequestFixtureName): GitHubPullRequest {
   return toPullRequest(githubFixture(name).payload.pull_request as RawPullRequest);
 }
 
@@ -79,6 +89,12 @@ export class FakeGitHubGateway implements GitHubGateway {
   readonly ci = new Map<string, CiCheck[]>();
   /** Compares by `owner/name:base...head`; a pair without an entry is a 404 unless equal. */
   readonly comparisons = new Map<string, CommitComparison>();
+  /** Reviews by `owner/name#number`, oldest first. */
+  readonly reviews = new Map<string, PullRequestReview[]>();
+  /** Merges GitHub refuses, by `owner/name#number`. */
+  readonly mergeRefusals = new Map<string, { status: number; message: string }>();
+  /** Every squash merge that went through. */
+  readonly merges: Array<SquashMerge & { mergeSha: string }> = [];
   readonly #failures = new Map<Method, Error[]>();
   #nextId = 1;
 
@@ -109,6 +125,19 @@ export class FakeGitHubGateway implements GitHubGateway {
     const status =
       aheadBy && behindBy ? 'diverged' : aheadBy ? 'ahead' : behindBy ? 'behind' : 'identical';
     this.comparisons.set(`${fullName}:${base}...${head}`, { status, aheadBy, behindBy });
+    return this;
+  }
+
+  /** A review by `login` (`APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `DISMISSED`). */
+  addReview(fullName: string, number: number, login: string, state: string): this {
+    const key = `${fullName}#${number}`;
+    this.reviews.set(key, [...(this.reviews.get(key) ?? []), { login, state }]);
+    return this;
+  }
+
+  /** GitHub refuses every merge of this PR with `status` and `message`. */
+  refuseMerge(fullName: string, number: number, refusal: { status: number; message: string }) {
+    this.mergeRefusals.set(`${fullName}#${number}`, refusal);
     return this;
   }
 
@@ -175,6 +204,55 @@ export class FakeGitHubGateway implements GitHubGateway {
     return (
       this.commits.get(`${fullName}@${sha}`) ?? { sha, parents: ['0'.repeat(40)], message: '' }
     );
+  }
+
+  /** The PR it was given (404 otherwise), mergeable `clean` while open. */
+  async getPullRequestState(fullName: string, number: number): Promise<PullRequestFreshState> {
+    this.#record('getPullRequestState', [fullName, number]);
+    const pr = this.pullRequests.get(`${fullName}#${number}`);
+    if (!pr) throw Object.assign(new Error(`Not Found: ${fullName}#${number}`), { status: 404 });
+    return {
+      headSha: pr.headSha,
+      state: pr.state,
+      mergeableState: pr.state === 'open' ? 'clean' : 'unknown',
+    };
+  }
+
+  async listChangesRequested(fullName: string, number: number): Promise<string[]> {
+    this.#record('listChangesRequested', [fullName, number]);
+    return changesRequestedBy(this.reviews.get(`${fullName}#${number}`) ?? []);
+  }
+
+  /**
+   * Refuses as told by `refuseMerge`, or with GitHub's 409 when a known PR's head is not `sha`;
+   * otherwise records the merge and marks a known PR merged.
+   */
+  async squashMerge(merge: SquashMerge): Promise<MergeResult> {
+    this.#record('squashMerge', [merge]);
+    const key = `${merge.fullName}#${merge.number}`;
+    const refusal = this.mergeRefusals.get(key);
+    if (refusal) return { merged: false, ...refusal };
+    const pr = this.pullRequests.get(key);
+    if (pr && pr.headSha !== merge.sha) {
+      return {
+        merged: false,
+        status: 409,
+        message: 'Head branch was modified. Review and try the merge again.',
+      };
+    }
+    const mergeSha = createHash('sha1').update(`merge:${key}:${merge.sha}`).digest('hex');
+    this.merges.push({ ...merge, mergeSha });
+    if (pr) {
+      const now = new Date().toISOString();
+      this.pullRequests.set(key, {
+        ...pr,
+        state: 'merged',
+        closedAt: now,
+        mergedAt: now,
+        mergeSha,
+      });
+    }
+    return { merged: true, sha: mergeSha };
   }
 
   /** Every repository in `installations`, with `repositoryDetails` over the defaults. */

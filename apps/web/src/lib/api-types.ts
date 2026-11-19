@@ -154,6 +154,12 @@ export type PrView = {
 /** `POST .../sensitive/approve` and `.../sensitive/send-back`: what changed on the PR page. */
 export type SensitiveResult = Pick<PrView, 'nextStep' | 'checklist' | 'sensitive'>;
 
+/** `POST /api/prs/:repo/:number/merge`: the reviewed SHA, GitHub's squash commit and the signer. */
+export type MergeResponse = { sha: string; mergeSha: string; by: { id: string; name: string } };
+
+/** A failing checklist row in 409 `merge_not_ready` (`params.items`). */
+export type MergeFailingRow = Pick<ChecklistView['items'][number], 'item' | 'reason'>;
+
 /** `POST /api/prs/:repo/:number/start-review`. */
 export type StartReviewResponse = {
   runId: number;
@@ -370,12 +376,25 @@ export type IntegrationSettings = { afterRoundGithubComment: boolean };
 export type ClickUpTestResponse =
   { ok: true; user: { id: string; username: string } } | { ok: false; error: ReasonView };
 
-/** `GET /api/status`: the status chip. Paused and budget states arrive with S-10. */
+/**
+ * `GET /api/status`, and the answer of every status change (`POST /api/status/pause`,
+ * `/resume`, `PUT /api/status/budget`, `/slots`): the status chip and Budget & status.
+ */
 export type StatusResponse = {
-  state: 'running' | (string & {});
+  /** Paused wins over a reached budget. */
+  state: 'running' | 'paused' | 'budget_reached';
+  pausedBy: { id: string; name: string } | null;
+  pausedReason: string | null;
+  pausedAt: string | null;
+  /** Null: no budget. */
+  dailyBudgetUsd: number | null;
+  agentSlots: number;
+  timeZone: string;
   todaySpendUsd: number;
-  /** Start of the day the spend counts from. */
+  /** Start of the day the spend counts from (local midnight in `timeZone`). */
   since: string;
+  /** Rounds that wait for their start. */
+  queuedCount: number;
 };
 
 /** `GET /api/activity/in-progress`: queued and running runs, oldest first. */
@@ -389,6 +408,8 @@ export type InProgressRun = {
   currentStage: string | null;
   /** Grows per agent turn while a session runs. */
   costUsd: number;
+  /** Why the run waits: `paused`, `budget_reached` or `slots_busy`; null when it does not. */
+  wait: ReasonView | null;
   createdAt: string;
   startedAt: string | null;
   pullRequest: { repository: { slug: string }; number: number; title: string };

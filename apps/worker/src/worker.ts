@@ -1,9 +1,10 @@
-import { JOBS, type JobPayloads } from '@pra/db';
+import { JOBS, sendDrainJob, type JobPayloads } from '@pra/db';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
 import { handleGithubComments } from './handlers/github-comment.ts';
 import { handleFollowUps } from './handlers/clickup-follow-up.ts';
 import { handleGithubEvents } from './handlers/github-event.ts';
 import { handleSmoke } from './handlers/smoke.ts';
+import { drainQueue } from './run/drain.ts';
 import { handleRunStages } from './run/execute-stage.ts';
 import { recoverRuns, resendLostJobs } from './run/recover.ts';
 
@@ -52,6 +53,13 @@ export async function startWorker(
   await queue.work<JobPayloads['clickup.follow-up']>(JOBS.clickupFollowUp, work, (jobs) =>
     handleFollowUps(deps, jobs),
   );
+  await queue.work<JobPayloads['run.drain']>(JOBS.runDrain, work, async () => {
+    const result = await drainQueue(deps);
+    if (result.started.length || result.resumed.length) logger.info(result, 'queued runs started');
+  });
+  // Every minute: a budget that resets at local midnight and a lost wake-up start runs anyway.
+  await queue.schedule(JOBS.runDrain, '* * * * *', {});
+  await sendDrainJob(queue);
   logger.info({ jobs: Object.values(JOBS) }, 'worker started');
 
   // A send that failed after its row was committed (the api's event job, a next stage job) is

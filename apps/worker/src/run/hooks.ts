@@ -6,6 +6,7 @@ import type { WorkerDeps } from '../deps.ts';
 import { enqueueAfterRoundComment } from '../handlers/github-comment.ts';
 import type { SessionRecord } from '../stages/stage.ts';
 import { chainsOnRunCompleted } from './chains.ts';
+import { wakeQueueOnRunEnd } from './queue-hooks.ts';
 import {
   timelineOnRunCancelled,
   timelineOnRunCompleted,
@@ -40,9 +41,14 @@ export type RunHooks = {
 
 /** Register a hook by adding it to its list. */
 export const RUN_HOOKS: RunHooks = {
-  runCompleted: [chainsOnRunCompleted, timelineOnRunCompleted, enqueueAfterRoundComment],
-  runFailed: [timelineOnRunFailed],
-  runCancelled: [timelineOnRunCancelled],
+  runCompleted: [
+    chainsOnRunCompleted,
+    timelineOnRunCompleted,
+    enqueueAfterRoundComment,
+    wakeQueueOnRunEnd,
+  ],
+  runFailed: [timelineOnRunFailed, wakeQueueOnRunEnd],
+  runCancelled: [timelineOnRunCancelled, wakeQueueOnRunEnd],
   sessionCostRecorded: [],
 };
 

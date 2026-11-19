@@ -1,0 +1,18 @@
+{
+  "id": 41000001,
+  "sha": "2222222222222222222222222222222222222222",
+  "name": "synergycodes/workflowbuilder",
+  "context": "ci/lint",
+  "state": "failure",
+  "description": "Lint failed",
+  "target_url": "https://ci.example.test/builds/1",
+  "branches": [{ "name": "feature/edge-labels" }],
+  "repository": {
+    "id": 700000001,
+    "name": "workflowbuilder",
+    "full_name": "synergycodes/workflowbuilder",
+    "private": false
+  },
+  "sender": { "login": "ci-bot", "type": "Bot" },
+  "installation": { "id": 55500001 }
+}

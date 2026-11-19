@@ -1,5 +1,5 @@
 {
-  "id": "a49c3c87-9293-4ed2-b692-831e274528a0",
+  "id": "479ad126-310d-48f1-8ae3-a6f1d81c8c90",
   "prevId": "6be5f6fc-d6ba-4de0-b7b1-50ddbead479d",
   "version": "7",
   "dialect": "postgresql",
@@ -178,6 +178,146 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.instruction_versions": {
+      "name": "instruction_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "instruction_versions_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "repository_id": {
+          "name": "repository_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_key": {
+          "name": "file_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "instruction_versions_one_active": {
+          "name": "instruction_versions_one_active",
+          "columns": [
+            {
+              "expression": "scope",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "coalesce(\"repository_id\", 0)",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "file_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"instruction_versions\".\"status\" = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "instruction_versions_repository_id_repositories_id_fk": {
+          "name": "instruction_versions_repository_id_repositories_id_fk",
+          "tableFrom": "instruction_versions",
+          "tableTo": "repositories",
+          "columnsFrom": [
+            "repository_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "instruction_versions_file_version": {
+          "name": "instruction_versions_file_version",
+          "nullsNotDistinct": true,
+          "columns": [
+            "scope",
+            "repository_id",
+            "file_key",
+            "version"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "instruction_versions_scope_repository": {
+          "name": "instruction_versions_scope_repository",
+          "value": "(\"instruction_versions\".\"scope\" = 'global') = (\"instruction_versions\".\"repository_id\" is null)"
+        },
+        "instruction_versions_scope": {
+          "name": "instruction_versions_scope",
+          "value": "\"instruction_versions\".\"scope\" in ('global', 'repository')"
+        },
+        "instruction_versions_status": {
+          "name": "instruction_versions_status",
+          "value": "\"instruction_versions\".\"status\" in ('active', 'draft', 'archived')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.pull_requests": {
       "name": "pull_requests",
       "schema": "",
@@ -330,6 +470,32 @@
         "merge_sha": {
           "name": "merge_sha",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_sha": {
+          "name": "ci_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_checks": {
+          "name": "ci_checks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "changes_requested_by": {
+          "name": "changes_requested_by",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "checks_refreshed_at": {
+          "name": "checks_refreshed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
@@ -2855,375 +3021,6 @@
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.instruction_files": {
-      "name": "instruction_files",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "instruction_files_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "repository_id": {
-          "name": "repository_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "level": {
-          "name": "level",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "file_key": {
-          "name": "file_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "instruction_files_repository_id_repositories_id_fk": {
-          "name": "instruction_files_repository_id_repositories_id_fk",
-          "tableFrom": "instruction_files",
-          "tableTo": "repositories",
-          "columnsFrom": [
-            "repository_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "instruction_files_scope_key": {
-          "name": "instruction_files_scope_key",
-          "nullsNotDistinct": true,
-          "columns": [
-            "scope",
-            "repository_id",
-            "level",
-            "file_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "instruction_files_scope": {
-          "name": "instruction_files_scope",
-          "value": "\"instruction_files\".\"scope\" in ('global', 'repository', 'level')"
-        },
-        "instruction_files_scope_target": {
-          "name": "instruction_files_scope_target",
-          "value": "(\"instruction_files\".\"scope\" = 'repository') = (\"instruction_files\".\"repository_id\" is not null) and (\"instruction_files\".\"scope\" = 'level') = (\"instruction_files\".\"level\" is not null)"
-        },
-        "instruction_files_level": {
-          "name": "instruction_files_level",
-          "value": "\"instruction_files\".\"level\" is null or \"instruction_files\".\"level\" between 1 and 6"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.instruction_versions": {
-      "name": "instruction_versions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "instruction_versions_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "file_id": {
-          "name": "file_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'bot'"
-        },
-        "created_by_member_id": {
-          "name": "created_by_member_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "activated_by_member_id": {
-          "name": "activated_by_member_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "activated_at": {
-          "name": "activated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "repository_id": {
-          "name": "repository_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "file_key": {
-          "name": "file_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "instruction_versions_one_active": {
-          "name": "instruction_versions_one_active",
-          "columns": [
-            {
-              "expression": "file_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"instruction_versions\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "instruction_versions_file_id_instruction_files_id_fk": {
-          "name": "instruction_versions_file_id_instruction_files_id_fk",
-          "tableFrom": "instruction_versions",
-          "tableTo": "instruction_files",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "instruction_versions_created_by_member_id_team_members_id_fk": {
-          "name": "instruction_versions_created_by_member_id_team_members_id_fk",
-          "tableFrom": "instruction_versions",
-          "tableTo": "team_members",
-          "columnsFrom": [
-            "created_by_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "instruction_versions_activated_by_member_id_team_members_id_fk": {
-          "name": "instruction_versions_activated_by_member_id_team_members_id_fk",
-          "tableFrom": "instruction_versions",
-          "tableTo": "team_members",
-          "columnsFrom": [
-            "activated_by_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "instruction_versions_repository_id_repositories_id_fk": {
-          "name": "instruction_versions_repository_id_repositories_id_fk",
-          "tableFrom": "instruction_versions",
-          "tableTo": "repositories",
-          "columnsFrom": [
-            "repository_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "instruction_versions_file_version": {
-          "name": "instruction_versions_file_version",
-          "nullsNotDistinct": false,
-          "columns": [
-            "file_id",
-            "version"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "instruction_versions_status": {
-          "name": "instruction_versions_status",
-          "value": "\"instruction_versions\".\"status\" in ('active', 'draft', 'archived')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.run_instruction_versions": {
-      "name": "run_instruction_versions",
-      "schema": "",
-      "columns": {
-        "run_id": {
-          "name": "run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version_id": {
-          "name": "version_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "run_instruction_versions_version": {
-          "name": "run_instruction_versions_version",
-          "columns": [
-            {
-              "expression": "version_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "run_instruction_versions_run_id_runs_id_fk": {
-          "name": "run_instruction_versions_run_id_runs_id_fk",
-          "tableFrom": "run_instruction_versions",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "run_instruction_versions_version_id_instruction_versions_id_fk": {
-          "name": "run_instruction_versions_version_id_instruction_versions_id_fk",
-          "tableFrom": "run_instruction_versions",
-          "tableTo": "instruction_versions",
-          "columnsFrom": [
-            "version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "run_instruction_versions_run_id_version_id_pk": {
-          "name": "run_instruction_versions_run_id_version_id_pk",
-          "columns": [
-            "run_id",
-            "version_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

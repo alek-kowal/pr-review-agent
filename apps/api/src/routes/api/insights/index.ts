@@ -19,7 +19,7 @@ import {
   qualityInputs,
   repositoryLevels,
   spendRows,
-  spendSince,
+  spentToday,
   type Db,
   type QualityRun,
 } from '@pra/db';
@@ -293,11 +293,12 @@ const insights: FastifyPluginAsyncZod = async (fastify) => {
       // Whole UTC days: the range's first day starts at midnight.
       const since = startOfUtcDay(sinceOf(range - 1, now));
       const scope = { since, repositoryId: repository?.id };
-      const [rows, averageRoundUsd, spentToday, settings] = await Promise.all([
+      const settings = await getAppSettings(db);
+      const [rows, averageRoundUsd, today] = await Promise.all([
         spendRows(db, scope),
         averageRoundCost(db, scope),
-        spendSince(db, startOfUtcDay(now)),
-        getAppSettings(db),
+        // The status chip's number: since local midnight in the configured time zone.
+        spentToday(db, { timeZone: settings.value.timeZone, now }),
       ]);
 
       const work = rows.filter((row) => row.runKind === 'round' || row.runKind === 'implementer');
@@ -329,7 +330,7 @@ const insights: FastifyPluginAsyncZod = async (fastify) => {
           .sort((a, b) => a[0] - b[0])
           .map(([level, costUsd]) => ({ level, costUsd })),
         separate: { trial: separate('trial'), analyst: separate('analyst') },
-        today: { spentUsd: spentToday, budgetUsd: settings.value.dailyBudgetUsd },
+        today: { spentUsd: today.spentUsd, budgetUsd: settings.value.dailyBudgetUsd },
         averageRoundUsd,
       };
     },

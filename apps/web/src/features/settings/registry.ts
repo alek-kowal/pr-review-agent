@@ -5,6 +5,7 @@ import {
   FileText,
   FlaskConical,
   FolderGit2,
+  Gauge,
   Plug,
   Users,
   Workflow,
@@ -34,6 +35,7 @@ export type SettingsPageEntry = {
 
 /** Built Settings pages; the label comes from `copy.settings.pages[id]`. */
 export const settingsPages: readonly SettingsPageEntry[] = [
+  { id: 'budget', to: '/settings/budget', icon: Gauge },
   { id: 'team', to: '/settings/team', icon: Users },
   { id: 'integrations', to: '/settings/integrations', icon: Plug },
   { id: 'repositories', to: '/settings/repositories', icon: FolderGit2 },

@@ -1,4 +1,4 @@
-import { CHANGE_TYPES, type AppSettings, type RepositoryConfig } from '@pra/core';
+import { CHANGE_TYPES, type AppSettings, type CiCheck, type RepositoryConfig } from '@pra/core';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -67,6 +67,16 @@ export const pullRequests = pgTable(
     closedAt: timestamp('closed_at', { withTimezone: true }),
     mergedAt: timestamp('merged_at', { withTimezone: true }),
     mergeSha: text('merge_sha'),
+    /**
+     * CI on `ci_sha` as GitHub last reported it (S-12), refreshed by `check_suite`, `check_run` and
+     * `status` webhooks and by the merge's fresh read. The checklist uses it only while `ci_sha` is
+     * the head, so a push empties the CI row at once.
+     */
+    ciSha: text('ci_sha'),
+    ciChecks: jsonb('ci_checks').$type<CiCheck[]>().notNull().default([]),
+    /** GitHub logins whose latest review requests changes, refreshed by `pull_request_review`. */
+    changesRequestedBy: jsonb('changes_requested_by').$type<string[]>().notNull().default([]),
+    checksRefreshedAt: timestamp('checks_refreshed_at', { withTimezone: true }),
   },
   (t) => [
     uniqueIndex('pull_requests_repository_number').on(t.repositoryId, t.number),

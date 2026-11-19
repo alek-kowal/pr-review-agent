@@ -12,6 +12,7 @@ export * from './rounds.ts';
 export * from './run.ts';
 export * from './autofix.ts';
 export * from './config.ts';
+export * from './start-gate.ts';
 export * from './learning.ts';
 export * from './pr-state.ts';
 export * from './checklist.ts';

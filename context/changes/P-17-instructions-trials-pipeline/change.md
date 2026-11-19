@@ -78,9 +78,21 @@ decide and record).
   bubbles a portal's submit to that form; its save would set the tried draft aside.
 - **`e2e/a11y-routes.ts` started here** with the Instructions, Experiments and Pipeline routes;
   S-17-T9 (P-24) adds the check and the other routes.
+- **Merge of main (P-16 pause/budget/queue, P-19 merge from the app).** Main's `0014_pr_checks`
+  and `0015_pause_budget_queue` stay untouched. This branch's migrations were deleted and
+  regenerated on top as `0016_instruction_files`, `0017_instruction_versions_by_file` and
+  `0018_trials`. For 0016 the schema was set for one generate to its in-between state (the old
+  scope, repository and key columns kept, trials left out), then the hand-written data move and
+  the `activated_at` backfill were added back. All three SQL files match the old ones byte for
+  byte, and a further `db:generate` reports no change. `routeTree.gen.ts` was regenerated with
+  `vite build` (same as the auto-merge). Error codes, copy, Settings registry (Budget page next to
+  Instructions, Pipeline, Experiments) and the schema and query barrels keep both sides.
 
 ## Verify
 
 `pnpm lint`, `pnpm typecheck` and `pnpm test:e2e` (18 specs) pass. `pnpm test` fails only on api
 tests whose first `build()` passes the 5 s limit when the machine load is above 40; the api
 suite passes in full with `--maxWorkers=3`.
+
+After the merge of main: `pnpm verify` passes (154 files, 1067 tests) and `pnpm test:e2e` passes
+(25 specs).

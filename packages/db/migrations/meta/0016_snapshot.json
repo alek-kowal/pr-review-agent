@@ -1,6 +1,6 @@
 {
-  "id": "48c30b30-6941-4664-9546-47bb387be453",
-  "prevId": "0449c407-b128-478f-8aa5-99a546b40d38",
+  "id": "2b6950df-6119-48ff-9d65-92f40d66e925",
+  "prevId": "7d65c340-3c57-47f7-a6c2-a3b71fa34ae1",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -330,6 +330,32 @@
         "merge_sha": {
           "name": "merge_sha",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_sha": {
+          "name": "ci_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_checks": {
+          "name": "ci_checks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "changes_requested_by": {
+          "name": "changes_requested_by",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "checks_refreshed_at": {
+          "name": "checks_refreshed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
@@ -2979,6 +3005,24 @@
             "cycle": false
           }
         },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "repository_id": {
+          "name": "repository_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_key": {
+          "name": "file_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "file_id": {
           "name": "file_id",
           "type": "integer",
@@ -3061,6 +3105,19 @@
         }
       },
       "foreignKeys": {
+        "instruction_versions_repository_id_repositories_id_fk": {
+          "name": "instruction_versions_repository_id_repositories_id_fk",
+          "tableFrom": "instruction_versions",
+          "tableTo": "repositories",
+          "columnsFrom": [
+            "repository_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "instruction_versions_file_id_instruction_files_id_fk": {
           "name": "instruction_versions_file_id_instruction_files_id_fk",
           "tableFrom": "instruction_versions",
@@ -3197,201 +3254,62 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.trials": {
-      "name": "trials",
+    "public.run_waits": {
+      "name": "run_waits",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
+        "run_id": {
+          "name": "run_id",
           "type": "integer",
           "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "trials_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "pull_request_id": {
-          "name": "pull_request_id",
-          "type": "integer",
-          "primaryKey": false,
           "notNull": true
         },
-        "draft_version_id": {
-          "name": "draft_version_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "head_sha": {
-          "name": "head_sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "run_a_id": {
-          "name": "run_a_id",
-          "type": "integer",
+        "admitted_at": {
+          "name": "admitted_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "run_b_id": {
-          "name": "run_b_id",
-          "type": "integer",
+        "reason": {
+          "name": "reason",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "started_by": {
-          "name": "started_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'hand'"
-        },
-        "started_by_member_id": {
-          "name": "started_by_member_id",
-          "type": "uuid",
+        "waiting_since": {
+          "name": "waiting_since",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         }
       },
-      "indexes": {
-        "trials_pull_request": {
-          "name": "trials_pull_request",
-          "columns": [
-            {
-              "expression": "pull_request_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "trials_run_a": {
-          "name": "trials_run_a",
-          "columns": [
-            {
-              "expression": "run_a_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "trials_run_b": {
-          "name": "trials_run_b",
-          "columns": [
-            {
-              "expression": "run_b_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
-        "trials_pull_request_id_pull_requests_id_fk": {
-          "name": "trials_pull_request_id_pull_requests_id_fk",
-          "tableFrom": "trials",
-          "tableTo": "pull_requests",
+        "run_waits_run_id_runs_id_fk": {
+          "name": "run_waits_run_id_runs_id_fk",
+          "tableFrom": "run_waits",
+          "tableTo": "runs",
           "columnsFrom": [
-            "pull_request_id"
+            "run_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "trials_draft_version_id_instruction_versions_id_fk": {
-          "name": "trials_draft_version_id_instruction_versions_id_fk",
-          "tableFrom": "trials",
-          "tableTo": "instruction_versions",
-          "columnsFrom": [
-            "draft_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "trials_run_a_id_runs_id_fk": {
-          "name": "trials_run_a_id_runs_id_fk",
-          "tableFrom": "trials",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "run_a_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "trials_run_b_id_runs_id_fk": {
-          "name": "trials_run_b_id_runs_id_fk",
-          "tableFrom": "trials",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "run_b_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "trials_started_by_member_id_team_members_id_fk": {
-          "name": "trials_started_by_member_id_team_members_id_fk",
-          "tableFrom": "trials",
-          "tableTo": "team_members",
-          "columnsFrom": [
-            "started_by_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "trials_started_by": {
-          "name": "trials_started_by",
-          "value": "\"trials\".\"started_by\" in ('member', 'bot', 'hand')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

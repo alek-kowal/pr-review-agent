@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, CircleAlert, Pause } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx';
 import { copy } from '@/copy/index.ts';
-import { money } from '@/copy/format.ts';
+import { SpendBar } from '@/features/budget/SpendBar.tsx';
+import { useOpenStatusChip } from './open-status-chip.ts';
 import { CHIP_SECTIONS, CHIP_SEGMENTS, CHIP_TONES, type ChipTone } from './status-chip-slots.ts';
 import { statusQuery } from './status-query.ts';
 
@@ -21,12 +22,12 @@ const TONE_CLASS: Record<ChipTone, string> = {
 export function StatusChip() {
   const status = useQuery(statusQuery());
   const [open, setOpen] = useState(false);
+  useOpenStatusChip(useCallback(() => setOpen(true), []));
   if (!status.data) return null;
 
-  const { state, todaySpendUsd } = status.data;
+  const { state, queuedCount } = status.data;
   const tone = CHIP_TONES[state] ?? 'running';
-  const text =
-    copy.status.states[state]?.(todaySpendUsd) ?? copy.status.unknownState(state, todaySpendUsd);
+  const text = copy.status.states[state](status.data);
   const close = () => setOpen(false);
 
   return (
@@ -41,6 +42,10 @@ export function StatusChip() {
           {tone === 'running' && (
             <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-ok-solid" />
           )}
+          {state === 'paused' && <Pause aria-hidden="true" className="size-[13px] shrink-0" />}
+          {state === 'budget_reached' && (
+            <CircleAlert aria-hidden="true" className="size-[13px] shrink-0" />
+          )}
           <span className="truncate tabular-nums">{text}</span>
           {CHIP_SEGMENTS.map(({ key, Component }) => (
             <Component key={key} status={status.data} />
@@ -53,9 +58,15 @@ export function StatusChip() {
           <div>
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-text-2">{copy.status.spentToday}</span>
-              <span className="font-medium tabular-nums">{money(todaySpendUsd)}</span>
+              <span className="font-medium tabular-nums">{copy.status.spentOf(status.data)}</span>
             </div>
+            <SpendBar status={status.data} className="mt-1.5" />
             <p className="mt-1 text-xs text-text-3">{copy.status.spentHint}</p>
+            {queuedCount > 0 && (
+              <Link to="/activity" onClick={close} className="mt-1 block text-xs text-brand-text">
+                {copy.status.queued(queuedCount)}
+              </Link>
+            )}
           </div>
           {CHIP_SECTIONS.map(({ key, Component }) => (
             <Component key={key} status={status.data} close={close} />

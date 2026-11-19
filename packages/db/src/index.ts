@@ -26,6 +26,7 @@ export {
   JOBS,
   QUEUE_SCHEMA,
   QUEUE_SETTINGS,
+  sendDrainJob,
   sendJob,
   stableJobId,
   type JobName,

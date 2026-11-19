@@ -1,6 +1,7 @@
 import { cn } from 'cn';
 import { Alert } from '@/components/ui/alert.tsx';
 import { copy } from '@/copy/index.ts';
+import { usePauseNames } from '@/features/budget/wait-text.ts';
 import { bannerText, stepContext, whoText } from '@/lib/next-step.ts';
 import { BANNER_LINES, MAIN_ACTIONS, type PrSlotProps } from './slots.ts';
 import { BANNER_ICON, BANNER_ICON_TONE, BANNER_TONE } from './tone.ts';
@@ -12,11 +13,13 @@ import { BANNER_ICON, BANNER_ICON_TONE, BANNER_TONE } from './tone.ts';
 export function NextStepBanner(props: PrSlotProps) {
   const { view } = props;
   const step = view.nextStep;
-  // The banner names people from the view: who sent the sensitive files back.
+  // The banner names people from the view (who sent the sensitive files back) and the status
+  // (who paused).
   const sentBack = view.sensitive?.sentBack;
+  const pauseNames = usePauseNames();
   const context = stepContext(
     view.author,
-    new Map(sentBack ? [[sentBack.by.id, sentBack.by.name]] : []),
+    new Map([...pauseNames, ...(sentBack ? [[sentBack.by.id, sentBack.by.name] as const] : [])]),
   );
   const done = step.lane === null;
   const who = whoText(step, context);

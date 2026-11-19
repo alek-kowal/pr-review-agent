@@ -1,12 +1,14 @@
 // UI copy (English). Components read strings from here, never inline them.
 import { activity } from './activity.ts';
 import { board } from './board.ts';
+import { budget } from './budget.ts';
 import { checklist } from './checklist.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
 import { instructions } from './instructions.ts';
 import { integrations } from './integrations.ts';
+import { merge } from './merge.ts';
 import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
@@ -27,6 +29,7 @@ export const copy = {
     settings: 'Settings',
   },
   board,
+  budget,
   nextStep,
   checklist,
   decisions,
@@ -209,6 +212,8 @@ export const copy = {
     repository_not_found: 'This repository is not connected.',
     pr_not_found: 'This pull request is not in PR Review Agent.',
     signature_required: 'Pick your name to sign.',
+    already_paused: 'Someone paused the factory in the meantime.',
+    not_paused: 'Someone resumed the factory in the meantime.',
     signer_unknown: 'The signer is no longer in Team. Pick another name.',
     settings_stale:
       'Someone saved these settings in the meantime. Reload the page to see their change, then try again.',
@@ -235,6 +240,10 @@ export const copy = {
     clickup_auth_failed: 'ClickUp refused the API key.',
     clickup_error: 'ClickUp did not answer as expected.',
     github_error: 'GitHub did not answer as expected.',
+    merge_number_mismatch: 'The typed number is not this PR’s number.',
+    head_moved: 'New commits arrived after the review. Review them first.',
+    merge_not_ready: 'The merge checklist is not green.',
+    merge_refused: 'GitHub refused the merge.',
     task_not_found: 'ClickUp has no task with this ID.',
     task_ref_invalid: 'Enter a ClickUp task ID, such as WB-123, or a task link.',
     run_not_found: 'This run does not exist.',
@@ -255,6 +264,7 @@ export const copy = {
   instructions,
   trials,
   pipeline,
+  merge,
   settings: {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',
