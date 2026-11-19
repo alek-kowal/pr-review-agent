@@ -16,6 +16,24 @@ jobs:
     name: Lint, typecheck and test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pra
+          POSTGRES_PASSWORD: pra
+          POSTGRES_DB: pra_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pra -d pra_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      # CI-only throwaway credentials. Tests create and drop their own `pra_test_<run>` databases
+      # through `pra_test`.
+      DATABASE_URL: postgres://pra:pra@localhost:5432/pra_test
     steps:
       - uses: actions/checkout@v7
 
@@ -30,4 +48,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm db:migrate
       - run: pnpm test

@@ -23,3 +23,24 @@ Plan: no. The tasks' "Done when" checks are the plan; one commit per task.
   "names only" rule from `AGENTS.md` still holds.
 - `psql` is not installed on this Mac, so the T1 check ran through
   `docker compose exec -T db psql "<url>" -c 'select 1'` with the same URLs.
+- Drizzle `drizzle-orm` 0.45 + `drizzle-kit` 0.31 on `pg` (node-postgres), the driver pg-boss also
+  uses. `createDb(url)` returns the Drizzle client over a lazy `pg.Pool` (5 s connection timeout,
+  an idle-error listener so a Postgres restart cannot crash the process); `closeDb` ends the pool.
+- Migrations live in `packages/db/migrations` (`0000_smoke.sql`, named with `--name`). Root
+  `db:generate` runs drizzle-kit in `@pra/db`; root `db:migrate` runs
+  `node --env-file-if-exists=.env packages/db/src/cli/migrate.ts` (Node 24 runs the TS source) and
+  prints how many migrations it applied, so a second run visibly changes nothing.
+- pnpm 12 asked about esbuild's build script (pulled in by drizzle-kit): set to `false` in
+  `allowBuilds`. esbuild ships its binary as an optional dependency, and drizzle-kit works without
+  the script.
+- **Test databases (orchestrator rule overrides "migrates `pra_test`")**: every Vitest project that
+  touches Postgres has the global setup `@pra/db/testing/global-setup`. It connects to `pra_test`
+  (DATABASE_URL with the name changed; the local compose URL when DATABASE_URL is unset), creates
+  `pra_test_<base36 ms>_<8 hex>`, migrates it, hands its URL to tests through Vitest
+  `provide`/`inject` (`testDatabaseUrl()` from `@pra/db/testing`) and drops it `with (force)` at
+  the end. It also drops run databases older than 12 h left by crashed runs. So parallel runs from
+  several worktrees share one Postgres and nothing else; `pra_test` itself holds no test data.
+- CI: a `postgres:17` service with `POSTGRES_DB: pra_test`, job-level
+  `DATABASE_URL=postgres://pra:pra@localhost:5432/pra_test` (throwaway CI credentials), and
+  `pnpm db:migrate` before `pnpm test`, as the task asks. The CI steps were rehearsed locally with
+  that URL (migrate, then `pnpm test` green); the GitHub run waits for the orchestrator's push.
