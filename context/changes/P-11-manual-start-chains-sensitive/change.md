@@ -132,3 +132,33 @@ decide and record).
 - The PR view gets a `sensitive` section: version, status (null without files), each file with
   pattern, reason and status, and `sentBack { by { id, name }, comment, at }` while any file is
   sent back. The checklist row and its reason come from core as before.
+
+### Merge of main (wave 5 siblings P-12, P-13)
+
+- Main's migrations `0011_decision_follow_ups` and `0012_metric_logs` stay. The branch's four
+  (`0011_chains`, `0012_commits_since`, `0013_finding_fix_checks`, `0014_sensitive_files`) are one
+  regenerated `0013_chains_sensitive_files`, with the hand-written `round_chains` backfill appended.
+- The Findings tab keeps P-11's findings round (round 1 of the chain) and takes main's verification
+  rows from that same round (`loadFindingsView`), so a fix check does not hide the verdicts.
+- PR view sections, banner lines, side panels and finding slots keep both sides, P-11's first:
+  `head`, `sensitive`, then `roundProgress`, `task`; the sensitive panel sits above the ClickUp
+  task panel; the fix note shows above the follow-up line.
+- `GitHubGateway` has both `compareCommits` (P-11) and `getCommit` (P-13). The `headChanged` hooks
+  run chains, sensitive files, timeline, then metrics.
+- The e2e stack has one `ScriptedAgents`: main's held PRs (`HELD_PRS`, release file) and per-title
+  verifier answers, plus P-11's `hold-<number>` flags and fix-check answers.
+
+### S-11-T3 (sensitive files on the PR page)
+
+- The banner's `approve_sensitive` action is two buttons: Approve changes (unsigned, recorded "by
+  hand", toast "Sensitive files approved") and Send back… (Dialog listing the files not approved
+  yet, a required comment and the `SignatureField`). Both send the `version` the page shows.
+- A sent-back banner reads "Sent back by Tomek: Kasia changes 2 sensitive files": the signer's name
+  comes from the `sensitive.sentBack` section, the author from the PR's author.
+- The checklist reason for approved files is "N sensitive files approved by hand." (pending: "need a
+  person's OK", sent back: "sent back").
+- The side panel "Sensitive files" (shown while the PR has any) lists each path with "Matches
+  <pattern>. <reason>" and a status word: need approval / approved by hand / sent back; sent back
+  adds the quoted comment. The banner's second line shows the pending hint or the quoted comment.
+- A success merges the answer's `nextStep`, `checklist` and `sensitive` into the cached PR view,
+  then refetches the view and the board.

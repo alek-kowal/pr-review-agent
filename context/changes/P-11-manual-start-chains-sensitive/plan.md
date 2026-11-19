@@ -195,7 +195,7 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 10: Sensitive files on the PR page
 
-- [ ] 10.1 `pnpm --filter @pra/web test sensitive-banner.test.tsx`
+- [x] 10.1 `pnpm --filter @pra/web test sensitive-banner.test.tsx`
 
 ### Phase 11: e2e sensitive files
 
