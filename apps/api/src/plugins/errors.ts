@@ -43,6 +43,10 @@ export const ApiErrorCode = {
   /** Undo after one of the batch's findings changed (`params.findingIds`). */
   DecisionChangedSince: 'decision_changed_since',
   DecisionAlreadyUndone: 'decision_already_undone',
+  /** A start while a run of the PR is queued or running (`params.kind`, `params.status`). */
+  RunActive: 'run_active',
+  /** A start on a merged or closed PR. */
+  PrClosed: 'pr_closed',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

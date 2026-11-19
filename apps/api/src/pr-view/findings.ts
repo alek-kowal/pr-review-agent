@@ -1,7 +1,7 @@
 // The Findings tab: the newest completed round's findings with their current decisions, its
 // questions and what it did not check.
 import { DECISIONS, needsDecision, SEVERITIES, VERDICTS } from '@pra/core';
-import { coreFinding, type CurrentDecision, type PrStateLoad } from '@pra/db';
+import { commitsSinceRun, coreFinding, type CurrentDecision, type PrStateLoad } from '@pra/db';
 import { z } from 'zod/v4';
 import { iso, ReasonSchema, roundLevel, RoundLevelSchema } from './round.ts';
 
@@ -35,6 +35,12 @@ export const FindingSchema = z.object({
   decision: DecisionSchema.nullable(),
   /** Whether it waits for a decision, and why (core `needsDecision`). */
   needsDecision: z.object({ needed: z.boolean(), reason: ReasonSchema }),
+  /** The head SHA of the round that found it (FR-045). */
+  sourceSha: z.string(),
+  /** Commits on the PR's head since that SHA; 0 while the head has not moved. */
+  commitsBehind: z.number().int().nonnegative(),
+  /** The newest fix check of a finding decided Implement; null before one ran. */
+  fix: z.object({ resolved: z.boolean(), reason: z.string(), runId: z.number().int() }).nullable(),
 });
 
 export const QuestionSchema = z.object({
@@ -75,6 +81,7 @@ export function decisionView(decision: CurrentDecision): z.output<typeof Decisio
 export function findingsView(load: PrStateLoad): FindingsView {
   const run = load.findingsRound;
   if (!run) return { round: null, findings: [], questions: [], notChecked: [] };
+  const commitsBehind = commitsSinceRun(load.pullRequest, run);
   return {
     round: {
       id: run.id,
@@ -84,6 +91,7 @@ export function findingsView(load: PrStateLoad): FindingsView {
     },
     findings: load.findings.map((f) => {
       const decision = load.decisions.get(f.id);
+      const fix = load.fixChecks.get(f.id);
       return {
         id: f.id,
         ordinal: f.ordinal,
@@ -97,7 +105,10 @@ export function findingsView(load: PrStateLoad): FindingsView {
         evidence: f.evidence,
         version: f.version,
         decision: decision ? decisionView(decision) : null,
-        needsDecision: needsDecision(coreFinding(f, decision)),
+        needsDecision: needsDecision(coreFinding(f, decision, fix)),
+        sourceSha: run.headSha,
+        commitsBehind,
+        fix: fix ? { resolved: fix.resolved, reason: fix.reason, runId: fix.runId } : null,
       };
     }),
     questions: load.questions.map((q) => ({

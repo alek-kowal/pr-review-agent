@@ -1,4 +1,5 @@
 import { buildSections, sectionsSchema, type PrViewContext } from './section.ts';
+import { headSection } from './sections/head.ts';
 import { latestRoundSection } from './sections/latest-round.ts';
 import { authorSection, checklistSection, nextStepSection } from './sections/next-step.ts';
 import { pullRequestSection } from './sections/pull-request.ts';
@@ -10,6 +11,7 @@ export const PR_VIEW_SECTIONS = [
   nextStepSection,
   checklistSection,
   authorSection,
+  headSection,
 ] as const;
 
 export const PrViewSchema = sectionsSchema(PR_VIEW_SECTIONS);

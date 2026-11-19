@@ -171,7 +171,7 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 4: Manual start, PR level, head-aware summary
 
-- [ ] 4.1 `pnpm --filter @pra/api test start-review.test.ts`
+- [x] 4.1 `pnpm --filter @pra/api test start-review.test.ts`
 
 ### Phase 5: Start review control and banners
 

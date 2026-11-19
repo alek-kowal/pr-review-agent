@@ -329,6 +329,6 @@ test('the endpoints and their schemas appear in /docs/json', async () => {
   };
   expect(
     Object.keys(view.responses['200']!.content['application/json']!.schema.properties),
-  ).toEqual(['pullRequest', 'latestRound', 'nextStep', 'checklist', 'author']);
+  ).toEqual(['pullRequest', 'latestRound', 'nextStep', 'checklist', 'author', 'head']);
   expect(view.responses['404']).toBeDefined();
 });

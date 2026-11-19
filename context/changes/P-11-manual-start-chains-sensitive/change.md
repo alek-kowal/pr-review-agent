@@ -61,3 +61,15 @@ decide and record).
   missing answer stores nothing (the field is optional in a full review).
 - `finding_fix_checks` keeps one row per finding and round; a later stage of the same round
   replaces it. The loader's `resolved` is the newest row.
+
+### S-07-T4 (manual start, PR level, summary)
+
+- The write routes live in `apps/api/src/routes/api/rounds/` (`autoPrefix = '/api'`), so the
+  `prs` folder stays read-only. `POST .../start-review` answers 201 with the run, chain, round
+  number and level; 409 `run_active` (params `kind`, `status`) or `pr_closed`.
+- "Review started by hand" is the worker's `run_started` entry (trigger `manual`, actor hand); the
+  API adds no second entry. `PUT .../level { level | null }` writes `pr_level_changed`
+  (`{ from, to }`, by hand) only when the level changes; null returns to the repository default.
+- The PR view gets a `head` section (reviewed SHA, head, commits since, completed rounds of 3,
+  PR / default / next level, fixes `{ resolved, total }` over the Implement findings once any has
+  a fix check). Each finding gets `sourceSha`, `commitsBehind` and its newest `fix`.
