@@ -32,3 +32,5 @@ export * from './status.ts';
 export * from './merge.ts';
 export * from './patches.ts';
 export * from './implementer.ts';
+export * from './board.ts';
+export * from './search.ts';

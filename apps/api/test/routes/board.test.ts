@@ -121,7 +121,7 @@ describe('GET /api/board', () => {
     expect(placesOf(board, old.number)).toEqual([]);
   });
 
-  test('Action needed puts failures first, then the newest first inside each group', async () => {
+  test('Action needed puts failures first, then the longest waiting first inside each group (S-17-T2)', async () => {
     const day = (d: number) => new Date(`2026-10-${String(d).padStart(2, '0')}T10:00:00Z`);
     const olderDecide = await seedPr(db, repository.id, { openedAt: day(1) });
     await seedRound(db, olderDecide, { findings: blocking(1) });
@@ -137,7 +137,7 @@ describe('GET /api/board', () => {
     const mine = board.lanes.action_needed.cards
       .filter((card) => card.repository.slug === repository.slug)
       .map((card) => card.number);
-    const order = [failed.number, newerDecide.number, olderDecide.number];
+    const order = [failed.number, olderDecide.number, newerDecide.number];
     expect(mine.filter((n) => order.includes(n))).toEqual(order);
     expect(cardOf(board.lanes.action_needed.cards, failed.number)!.nextStep.banner).toMatchObject({
       code: 'state_stage_failed',

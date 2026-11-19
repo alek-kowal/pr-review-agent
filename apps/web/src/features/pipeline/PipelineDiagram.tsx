@@ -121,6 +121,9 @@ export function PipelineDiagram({
         zoomOnScroll={false}
         zoomOnDoubleClick={false}
         fitView
+        // The attribution link's own grey (#999) is below AA in both themes; `!` beats React
+        // Flow's unlayered stylesheet.
+        className="[&_.react-flow\_\_attribution_a]:text-text-3!"
       />
     </div>
   );

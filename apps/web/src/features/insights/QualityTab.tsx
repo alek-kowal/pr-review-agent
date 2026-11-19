@@ -17,18 +17,20 @@ export function QualityTab({ search }: { search: InsightsSearch }) {
   return (
     <div className="flex flex-col gap-4">
       <InsightsFilters search={search} show={['range', 'repo']} />
-      {query.isPending ? (
-        <p className="text-text-3">{t.loading}</p>
-      ) : query.isError ? (
-        <p role="alert" className="text-bad">
-          {t.failed}
-        </p>
-      ) : (
-        <>
-          <PerLevel levels={query.data.levels} />
-          <PerVersion versions={query.data.versions} />
-        </>
-      )}
+      <div data-work-start className="flex flex-col gap-4">
+        {query.isPending ? (
+          <p className="text-text-3">{t.loading}</p>
+        ) : query.isError ? (
+          <p role="alert" className="text-bad">
+            {t.failed}
+          </p>
+        ) : (
+          <>
+            <PerLevel levels={query.data.levels} />
+            <PerVersion versions={query.data.versions} />
+          </>
+        )}
+      </div>
     </div>
   );
 }

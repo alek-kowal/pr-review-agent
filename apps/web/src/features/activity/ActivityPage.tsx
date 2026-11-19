@@ -38,7 +38,7 @@ function InProgressSection() {
   const runs = query.data?.runs ?? [];
 
   return (
-    <section aria-labelledby="activity-in-progress" className="flex flex-col gap-2">
+    <section aria-labelledby="activity-in-progress" data-work-start className="flex flex-col gap-2">
       <h2 id="activity-in-progress" className="m-0 flex items-center gap-2 text-sm font-semibold">
         {t.title}
         {runs.length > 0 && (

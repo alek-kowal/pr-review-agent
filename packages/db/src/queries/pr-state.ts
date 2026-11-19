@@ -24,6 +24,7 @@ import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 import { getAppSettings } from './app-settings.ts';
 import { currentAnswers, type CurrentAnswer } from './answers.ts';
+import { boardFilterConditions, type BoardFilter } from './board.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
 import { opinionsOf, type OpinionRow } from './reviews.ts';
 import { newestFixChecks, type FixCheck } from './fix-checks.ts';
@@ -448,16 +449,20 @@ export const MERGED_OR_CLOSED_DAYS = 7;
 
 /**
  * The PRs the board shows: every open PR of a connected repository, and those merged or closed in
- * the last 7 days (by GitHub's last update). Most recently opened first.
+ * the last 7 days (by GitHub's last update), narrowed by the board filter (S-17-T3). Most
+ * recently opened first.
  */
-export async function boardPullRequestIds(db: Executor, now: Date = new Date()): Promise<number[]> {
+export async function boardPullRequestIds(
+  db: Executor,
+  now: Date = new Date(),
+  filter: BoardFilter = {},
+): Promise<number[]> {
   const since = new Date(now.getTime() - MERGED_OR_CLOSED_DAYS * 24 * 60 * 60 * 1000);
+  const onBoard = sql`(${pullRequests.state} = 'open' or ${pullRequests.updatedAt} >= ${since.toISOString()})`;
   const rows = await db
     .select({ id: pullRequests.id })
     .from(pullRequests)
-    .where(
-      sql`${pullRequests.state} = 'open' or ${pullRequests.updatedAt} >= ${since.toISOString()}`,
-    )
+    .where(and(onBoard, ...(await boardFilterConditions(db, filter))))
     .orderBy(desc(pullRequests.openedAt), desc(pullRequests.id));
   return rows.map((row) => row.id);
 }

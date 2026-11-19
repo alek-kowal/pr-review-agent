@@ -24,6 +24,34 @@ export const board = {
     return `${Math.floor(hours / 24)}d`;
   },
   opened: (date: string) => `Opened ${date}`,
+  /** Shown only when they differ from the default (FR-006). */
+  level: (n: number) => `L${n}`,
+  levelTitle: (n: number, repositoryDefault: number) =>
+    `Review level ${n} (repository default: ${repositoryDefault})`,
+  round: (n: number, max: number) => `round ${n} of ${max}`,
+  fork: 'Fork',
+  forkTitle: 'Fork: read-only review, started by hand',
+  /** The filters above the board (S-17-T4). */
+  filters: {
+    person: 'Person',
+    everyone: 'Everyone',
+    searchPeople: 'Search people',
+    noPerson: 'No one matches.',
+    /** A login in the address that is not in Team (a removed member). */
+    login: (login: string) => `@${login}`,
+    button: 'Filters',
+    buttonCount: (n: number) => `Filters · ${n}`,
+    panelLabel: 'Board filters',
+    repository: 'Repository',
+    allRepositories: 'All',
+    forks: 'Forks',
+    forkOptions: { show: 'Show', hide: 'Hide', only: 'Only forks' },
+    level: 'Review level',
+    anyLevel: 'Any',
+    hideDrafts: 'Hide drafts',
+    clear: 'Clear filters',
+    laneEmpty: 'Nothing matches the filters.',
+  },
   /** Copy for card badges, by reason code (`CARD_BADGES` in the api). */
   badges: {} as Record<string, (params: Record<string, unknown>) => string>,
 };

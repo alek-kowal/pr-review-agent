@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 
-// shadcn's Sonner without next-themes: the app follows the system colour scheme.
+// shadcn's Sonner without next-themes: the root layout passes the app's theme (S-17-T7).
 function Toaster(props: ToasterProps) {
   return (
     <Sonner

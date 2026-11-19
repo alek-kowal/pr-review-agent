@@ -9,5 +9,8 @@ export const DECISION_ICONS: Record<Decision, LucideIcon> = {
   defer: ClipboardList,
 };
 
+/** The triage key that opens each decision's form on the focused finding (S-17-T6). */
+export const DECISION_KEYS: Record<Decision, string> = { implement: 'i', reject: 'r', defer: 'd' };
+
 /** Findings can be decided while the PR is open (it is on the board). */
 export const canDecide = (view: PrView): boolean => view.nextStep.lane !== null;

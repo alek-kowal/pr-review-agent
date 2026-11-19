@@ -35,17 +35,24 @@ export function InstructionsPage() {
     <SettingsPage title={t.title} affects={t.affects}>
       {!data ? (
         query.isError ? (
-          <p role="alert" className="text-bad">
+          <p role="alert" data-work-start className="text-bad">
             {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
           </p>
         ) : (
           <p className="text-text-3">{t.loading}</p>
         )
       ) : groups.length === 0 ? (
-        <p className="text-text-3">{t.empty}</p>
+        <p data-work-start className="text-text-3">
+          {t.empty}
+        </p>
       ) : (
-        groups.map((group) => (
-          <section key={group.name} aria-label={group.name} className="flex flex-col gap-2">
+        groups.map((group, index) => (
+          <section
+            key={group.name}
+            aria-label={group.name}
+            data-work-start={index === 0 ? '' : undefined}
+            className="flex flex-col gap-2"
+          >
             <h2 className="text-sm font-semibold text-text-2">{group.name}</h2>
             <div className="overflow-x-auto rounded-lg border border-border bg-surface">
               <table className="w-full text-left text-sm">

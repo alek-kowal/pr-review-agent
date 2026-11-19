@@ -1,5 +1,5 @@
 import { ChevronDown, Play } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
 import { LEVEL_NUMBERS, type LevelNumber } from '@pra/core';
 import { Button } from '@/components/ui/button.tsx';
 import { Label } from '@/components/ui/label.tsx';
@@ -15,6 +15,7 @@ import { copy } from '@/copy/index.ts';
 import { shortSha } from '@/copy/nextStep.ts';
 import { levelNames } from '@/copy/repositories.ts';
 import type { MainActionProps, PrSlotProps } from '@/features/pr/slots.ts';
+import { useOpenStartReview } from './open-start-review.ts';
 import { startBlockedReason, useStartReview } from './start-review.ts';
 
 const t = copy.startReview;
@@ -29,9 +30,19 @@ export function StartReview({
   number,
   view,
   primary = false,
-}: PrSlotProps & { primary?: boolean }) {
+  fromPalette = false,
+}: PrSlotProps & {
+  primary?: boolean;
+  /** The command palette's "Start review on this PR" opens this one (S-17-T5). */
+  fromPalette?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<LevelNumber>(view.head.level.next);
+  const openFromPalette = useCallback(() => {
+    setLevel(view.head.level.next);
+    setOpen(true);
+  }, [view.head.level.next]);
+  useOpenStartReview(openFromPalette, fromPalette);
   const start = useStartReview(repo, number);
   const blocked = startBlockedReason(view);
   const selectId = useId();
@@ -96,7 +107,7 @@ export function StartReview({
 
 /** In the header of every open PR. */
 export function StartReviewHeaderAction(props: PrSlotProps) {
-  return props.view.pullRequest.state === 'open' ? <StartReview {...props} /> : null;
+  return props.view.pullRequest.state === 'open' ? <StartReview {...props} fromPalette /> : null;
 }
 
 /** The banner's main action for `start_review` (new commits, rounds used, not reviewed). */

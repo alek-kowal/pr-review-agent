@@ -36,7 +36,7 @@ export function IntegrationsPage() {
     <SettingsPage title={t.title} affects={t.affects}>
       {!data ? (
         query.isError ? (
-          <p role="alert" className="text-bad">
+          <p role="alert" data-work-start className="text-bad">
             {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
           </p>
         ) : (
@@ -59,6 +59,7 @@ function GitHubCard({ github }: { github: IntegrationsResponse['github'] }) {
   return (
     <Card
       title={g.title}
+      workStart
       status={!github.configured ? 'notConfigured' : github.listError ? 'unreachable' : 'connected'}
     >
       {!github.configured && <Missing names={github.missing} />}
@@ -223,10 +224,20 @@ const STATUS_LABEL: Record<Status, string> = {
   unreachable: t.unreachable,
 };
 
-function Card(props: { title: string; status?: Status; children: ReactNode }) {
+function Card(props: {
+  title: string;
+  status?: Status;
+  /** The page's first card: where its work starts (`data-work-start`). */
+  workStart?: boolean;
+  children: ReactNode;
+}) {
   const label = props.status ? STATUS_LABEL[props.status] : null;
   return (
-    <section aria-label={props.title} className="rounded-lg border border-border bg-surface">
+    <section
+      aria-label={props.title}
+      data-work-start={props.workStart ? '' : undefined}
+      className="rounded-lg border border-border bg-surface"
+    >
       <header className="flex items-center justify-between gap-3 border-b border-divider px-4 py-2.5">
         <h2 className="text-sm font-semibold">{props.title}</h2>
         {label && (

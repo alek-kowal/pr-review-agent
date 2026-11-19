@@ -48,7 +48,7 @@ export function BudgetPage() {
     <SettingsPage title={t.title} affects={t.affects}>
       {!status ? (
         query.isError ? (
-          <p role="alert" className="text-bad">
+          <p role="alert" data-work-start className="text-bad">
             {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
           </p>
         ) : (
@@ -81,6 +81,7 @@ function StatusCard({ status }: { status: StatusResponse }) {
   return (
     <Card
       title={s.title}
+      workStart
       right={
         <span className={pill} data-status-state={status.state}>
           <Icon aria-hidden="true" className="size-3" />
@@ -279,15 +280,19 @@ function LimitsForm({ status }: { status: StatusResponse }) {
 function Card({
   title,
   right,
+  workStart,
   children,
 }: {
   title: string;
   right?: ReactNode;
+  /** The page's first card: where its work starts (`data-work-start`). */
+  workStart?: boolean;
   children: ReactNode;
 }) {
   return (
     <section
       aria-label={title}
+      data-work-start={workStart ? '' : undefined}
       className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4"
     >
       <header className="flex items-center justify-between gap-2">
