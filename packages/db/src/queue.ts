@@ -40,10 +40,12 @@ const STAGE_JOB_EXPIRY_SECONDS = 5 * 60 * 60;
  * Per-queue settings `migrateQueue` creates (and updates) the queues with. `exclusive` allows one
  * queued or active job per `singletonKey`, so a second send for the same run and stage is
  * dropped. pg-boss's default expiry (15 minutes) would retry a stage that is still running.
+ * pg-boss retries twice at once by default; the comment waits instead (1, 2, 4, 8, 16 minutes),
+ * so a GitHub outage or a secondary rate limit does not drop it.
  */
 export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   'run.stage': { policy: 'exclusive', expireInSeconds: STAGE_JOB_EXPIRY_SECONDS },
-  'github.comment': { policy: 'exclusive' },
+  'github.comment': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
 };
 
 /**

@@ -43,7 +43,7 @@ describe('on a database nobody migrated', () => {
     try {
       await db.execute(sql`update pgboss.queue
         set retry_limit = 2, retry_delay = 0, retry_backoff = false, expire_seconds = 900
-        where name = 'run.stage'`);
+        where name in ('github.comment', 'run.stage')`);
 
       await migrateDatabase(database.url);
 
@@ -54,8 +54,14 @@ describe('on a database nobody migrated', () => {
         retry_backoff: boolean;
         expire_seconds: number;
       }>(sql`select name, retry_limit, retry_delay, retry_backoff, expire_seconds
-        from pgboss.queue where name = 'run.stage'`);
+        from pgboss.queue where name in ('github.comment', 'run.stage') order by name`);
       expect(queues.rows).toEqual([
+        expect.objectContaining({
+          name: 'github.comment',
+          retry_limit: 5,
+          retry_delay: 60,
+          retry_backoff: true,
+        }),
         expect.objectContaining({ name: 'run.stage', expire_seconds: 5 * 60 * 60 }),
       ]);
     } finally {
