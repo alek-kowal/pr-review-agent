@@ -1,8 +1,9 @@
-import { JOBS, type JobPayloads } from '@pra/db';
+import { JOBS, RECONCILE_CRON, type JobPayloads } from '@pra/db';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
 import { handleGithubComments } from './handlers/github-comment.ts';
 import { handleFollowUps } from './handlers/clickup-follow-up.ts';
 import { handleGithubEvents } from './handlers/github-event.ts';
+import { handleReconcile } from './handlers/reconcile.ts';
 import { handleSmoke } from './handlers/smoke.ts';
 import { listenForCancels } from './run/cancel.ts';
 import { handleRunStages } from './run/execute-stage.ts';
@@ -57,6 +58,9 @@ export async function startWorker(
   await queue.work<JobPayloads['clickup.follow-up']>(JOBS.clickupFollowUp, work, (jobs) =>
     handleFollowUps(deps, jobs),
   );
+  await queue.work<JobPayloads['reconcile']>(JOBS.reconcile, work, () => handleReconcile(deps));
+  // pg-boss keeps one schedule per queue; a restart only rewrites it.
+  await queue.schedule(JOBS.reconcile, RECONCILE_CRON);
   logger.info({ jobs: Object.values(JOBS) }, 'worker started');
 
   // A send that failed after its row was committed (the api's event job, a next stage job) is

@@ -36,6 +36,23 @@ const DECISIONS: Record<string, string> = {
   defer: 'defer to ClickUp',
 };
 
+/** What the reconcile poll corrected (S-03-T14), as the sentence names it. */
+const CORRECTIONS: Record<string, (p: Params) => string> = {
+  head: (p) => (p.headSha ? `head ${shortSha(p.headSha)}` : 'head'),
+  draft: () => 'draft',
+  ready: () => 'ready for review',
+  closed: () => 'closed',
+  merged: () => 'merged',
+  reopened: () => 'reopened',
+};
+
+function reconciled(p: Params): string {
+  const corrections = Array.isArray(p.corrections) ? p.corrections.map(String) : [];
+  if (corrections.includes('imported')) return 'Imported from GitHub';
+  const parts = corrections.map((c) => CORRECTIONS[c]?.(p) ?? c.replaceAll('_', ' '));
+  return parts.length ? `Corrected from GitHub: ${parts.join(', ')}` : 'Corrected from GitHub';
+}
+
 /** Helpers an entry sentence may need: stage and failure names. */
 export interface TimelineContext {
   stage: (key: string) => string;
@@ -67,6 +84,7 @@ export const timeline = {
   entries: {
     pr_ready: () => 'PR marked ready for review',
     pr_pushed: (p) => (p.headSha ? `Pushed ${shortSha(p.headSha)}` : 'Pushed new commits'),
+    pr_reconciled: reconciled,
     pr_closed: () => 'PR closed',
     pr_merged: () => 'PR merged',
     run_started: (p) => `${runName(p)} started`,

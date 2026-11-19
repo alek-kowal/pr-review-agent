@@ -16,6 +16,7 @@ export {
   type GitHubGateway,
   type GitHubPullRequest,
   type InstallationToken,
+  type OpenPullRequestSummary,
   type PullRequestState,
   type RawPullRequest,
 } from './github-gateway.ts';

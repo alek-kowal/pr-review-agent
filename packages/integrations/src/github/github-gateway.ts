@@ -9,6 +9,11 @@ export interface GitHubGateway {
   /** An installation token, reused until shortly before it expires. */
   getInstallationToken(installationId: number): Promise<InstallationToken>;
   getPullRequest(fullName: string, number: number): Promise<GitHubPullRequest>;
+  /**
+   * Every open PR of the repository, as GitHub's list returns it (no commit counts): the
+   * reconcile poll fetches `getPullRequest` only for the ones that differ from the stored PR.
+   */
+  listOpenPullRequests(fullName: string): Promise<OpenPullRequestSummary[]>;
   /** Posts `body` unchanged as a comment on the PR's conversation. */
   postIssueComment(fullName: string, number: number, body: string): Promise<{ id: number }>;
   /** CI on one commit: its check runs plus its combined commit status, counted. */
@@ -119,6 +124,14 @@ export type GitHubPullRequest = {
   closedAt: string | null;
   mergedAt: string | null;
   mergeSha: string | null;
+};
+
+/** One open PR from `GET /repos/{owner}/{repo}/pulls?state=open`. */
+export type OpenPullRequestSummary = {
+  number: number;
+  headSha: string;
+  isDraft: boolean;
+  updatedAt: string;
 };
 
 export const GITHUB_NOT_CONFIGURED = 'github_not_configured';

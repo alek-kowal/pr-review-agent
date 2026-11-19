@@ -13,6 +13,7 @@ import {
   type GitHubCommit,
   type GitHubPullRequest,
   type InstallationToken,
+  type OpenPullRequestSummary,
   type RawPullRequest,
 } from '../github/index.ts';
 
@@ -145,6 +146,14 @@ export class FakeGitHubGateway implements GitHubGateway {
     const pr = this.pullRequests.get(`${fullName}#${number}`);
     if (!pr) throw Object.assign(new Error(`Not Found: ${fullName}#${number}`), { status: 404 });
     return pr;
+  }
+
+  async listOpenPullRequests(fullName: string): Promise<OpenPullRequestSummary[]> {
+    this.#record('listOpenPullRequests', [fullName]);
+    return [...this.pullRequests.values()]
+      .filter((pr) => pr.fullName === fullName && pr.state === 'open')
+      .sort((a, b) => a.number - b.number)
+      .map(({ number, headSha, isDraft, updatedAt }) => ({ number, headSha, isDraft, updatedAt }));
   }
 
   async compareCommits(fullName: string, base: string, head: string): Promise<CommitComparison> {

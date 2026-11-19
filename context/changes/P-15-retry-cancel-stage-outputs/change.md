@@ -78,8 +78,19 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
 - **`listOpenPullRequests` returns summaries** (`number`, `headSha`, `isDraft`, `updatedAt`): the
   list endpoint has no commit counts, so the poll fetches `getPullRequest` only for PRs that are
   new or differ.
-- **Reconcile is a pg-boss cron** (`reconcile` job, `*/10 * * * *`) scheduled by the worker at
-  start.
+- **Reconcile is a pg-boss cron** (`reconcile` job, `*/10 * * * *`, `retryLimit: 0`) scheduled
+  by the worker at start; it polls every stored repository. A repository GitHub cannot list, or a
+  PR it cannot fetch, is logged and skipped; the next poll tries again.
+- **What a poll corrects (T8).** A listed PR is fetched in full when it is not stored, stored as
+  not open, or differs in head or draft; a stored open PR missing from the list is fetched to
+  learn whether it closed or merged. In one transaction it re-reads the PR (a newer webhook
+  snapshot wins), upserts it, writes `pr_reconciled` (actor bot, `params.corrections`: `imported`,
+  `head`, `draft`, `ready`, `closed`, `merged`, `reopened`; source key per PR and GitHub
+  `updated_at`) and a `reconciled` state change; a close then goes through `cancelForClosedPr`,
+  shared with the webhook hook. A snapshot change outside those fields (title, body) is stored
+  without a timeline entry.
+- **Load timeouts in `pnpm verify`.** Testing Library's `asyncUtilTimeout` is 4 s in the web test
+  setup, and `reads-never-write` gets 30 s: they failed only under verify's parallel load.
 - **Retry is keyed by run id** (`POST /api/runs/:id/retry`, 201 `{run: {id, fromStage}}`); the
   banner retries `view.latestRound.id`, which is the failed round while the state is Stage failed.
   The stage a retry starts from is stored (`runs.retry_from`) rather than re-derived, so the PR

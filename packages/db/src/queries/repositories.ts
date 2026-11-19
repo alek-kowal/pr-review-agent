@@ -4,7 +4,7 @@ import {
   type Parsed,
   type RepositoryConfig,
 } from '@pra/core';
-import { asc, eq, getTableColumns, sql } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, inArray, or, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 
@@ -203,6 +203,25 @@ export async function upsertPullRequest(
       sql`${pullRequests.repositoryId} = ${snapshot.repositoryId} and ${pullRequests.number} = ${snapshot.number}`,
     );
   return { pullRequest: existing!, created: false, changed: false };
+}
+
+/**
+ * The stored PRs the reconcile poll compares with GitHub's open list: every one stored as open,
+ * plus the `openNumbers` GitHub lists (a PR reopened while webhooks were down).
+ */
+export async function pullRequestsToReconcile(
+  db: Executor,
+  repositoryId: number,
+  openNumbers: readonly number[],
+): Promise<PullRequest[]> {
+  const listed = openNumbers.length
+    ? or(eq(pullRequests.state, 'open'), inArray(pullRequests.number, [...openNumbers]))
+    : eq(pullRequests.state, 'open');
+  return db
+    .select()
+    .from(pullRequests)
+    .where(and(eq(pullRequests.repositoryId, repositoryId), listed))
+    .orderBy(asc(pullRequests.number));
 }
 
 export async function getPullRequest(

@@ -185,7 +185,7 @@ the durability test uses a child process. API tests use `apps/api/test/helper.ts
 
 ### Phase 8: Reconcile poll
 
-- [ ] 8.1 `pnpm --filter @pra/worker test reconcile.test.ts` passes
+- [x] 8.1 `pnpm --filter @pra/worker test reconcile.test.ts` passes
 
 ### Phase 9: Checks, change type and large PR
 
