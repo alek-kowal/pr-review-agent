@@ -1,0 +1,11 @@
+# Restarts pra-<instance>.service after a failed health check (P-27). Runs as root but executes
+# only systemctl, never a file from the checkout.
+[Unit]
+Description=Restart PR Review Agent %i after a failed health check
+# At most 3 restarts in 30 minutes; after that the service stays as it is for a person to look.
+StartLimitIntervalSec=30min
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart pra-%i.service

@@ -1,0 +1,19 @@
+# Nightly disk cleanup (P-27): files of ended runs and old package caches (`pnpm data:cleanup`),
+# stopped sandbox containers and dangling images. The disk is 27 GB.
+[Unit]
+Description=PR Review Agent disk cleanup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=pra
+Group=pra
+SupplementaryGroups=docker
+WorkingDirectory=/srv/pra/app
+EnvironmentFile=/etc/pra/pra.env
+Environment=NODE_ENV=production
+# A package cache unused this many days is removed (the next install fills it again).
+Environment=PRA_CACHE_MAX_AGE_DAYS=7
+ExecStart=/bin/bash /srv/pra/app/deploy/mikrus/bin/cleanup.sh
+Nice=10

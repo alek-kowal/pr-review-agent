@@ -19,7 +19,9 @@
     "db:migrate": "node --env-file-if-exists=.env packages/db/src/cli/migrate.ts",
     "db:seed-repo": "node --env-file-if-exists=.env packages/db/src/cli/seed-repo.ts",
     "instructions:import": "node --env-file-if-exists=.env packages/db/src/cli/instructions-import.ts",
-    "judge:compare": "node --env-file-if-exists=.env apps/worker/src/cli/judge-compare.ts"
+    "judge:compare": "node --env-file-if-exists=.env apps/worker/src/cli/judge-compare.ts",
+    "data:cleanup": "node --env-file-if-exists=.env apps/worker/src/cli/data-cleanup.ts",
+    "sandbox:bench": "node --env-file-if-exists=.env apps/worker/src/cli/sandbox-bench.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

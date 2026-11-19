@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { execa } from 'execa';
 import { IntegrationError, IntegrationNotConfiguredError } from '../errors.ts';
 import { isSecretName } from '../logging.ts';
+import { ConfigValueError } from './profile.ts';
 import {
   SANDBOX_CANCELLED,
   SANDBOX_FAILED,
@@ -21,8 +22,19 @@ export type DockerSandboxOptions = {
   docker?: string;
   /** The container user; default the worker's own uid:gid (never root). */
   user?: string;
+  /**
+   * `auto` (default): gVisor (`runsc`) when the daemon has it, else the daemon's default.
+   * `runsc` fails `sandbox_not_configured` without it; `runc` never uses gVisor.
+   */
+  runtime?: SandboxRuntime;
   now?: () => number;
 };
+
+export type SandboxRuntime = 'auto' | 'runc' | 'runsc';
+export const SANDBOX_RUNTIMES: readonly SandboxRuntime[] = ['auto', 'runc', 'runsc'];
+
+/** What the daemon offers, read once (`docker info`). */
+type DaemonInfo = { runtime: string | null; cpus: number | null };
 
 const PROBE_TIMEOUT_MS = 15_000;
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -37,23 +49,34 @@ export class DockerSandbox implements Sandbox {
   readonly #dockerHost: string | undefined;
   readonly #docker: string;
   readonly #user: string;
+  readonly #runtime: SandboxRuntime;
   readonly #now: () => number;
-  #runtime: Promise<string | null> | undefined;
+  #info: Promise<DaemonInfo> | undefined;
 
   constructor(options: DockerSandboxOptions = {}) {
     this.#dockerHost = options.dockerHost || undefined;
     this.#docker = options.docker ?? 'docker';
     this.#user = options.user ?? defaultUser();
+    this.#runtime = options.runtime ?? 'auto';
     this.#now = options.now ?? Date.now;
+  }
+
+  /** The runtime runs use (`runsc`, `runc`, or null for the daemon's default). */
+  async runtime(): Promise<string | null> {
+    return (await this.#probe()).runtime;
   }
 
   async run(spec: SandboxRunSpec): Promise<SandboxResult> {
     if (spec.signal?.aborted) throw new IntegrationError(SANDBOX_CANCELLED);
-    const runtime = await this.#probe();
+    const { runtime, cpus } = await this.#probe();
     const name = `pra-sbx-${randomUUID()}`;
     const startedAt = this.#now();
+    // Docker refuses `--cpus` above the host's CPUs; a 1-CPU VPS gets at most 1.
+    const limits = cpus ? { ...spec.limits, cpus: Math.min(spec.limits.cpus, cpus) } : spec.limits;
 
-    const created = await this.#cli(dockerCreateArgs(spec, { name, runtime, user: this.#user }));
+    const created = await this.#cli(
+      dockerCreateArgs({ ...spec, limits }, { name, runtime, user: this.#user }),
+    );
     if (created.exitCode !== 0) {
       await this.#remove(name);
       throw new IntegrationError(SANDBOX_FAILED, {
@@ -109,19 +132,34 @@ export class DockerSandbox implements Sandbox {
     }
   }
 
-  /** Checks the daemon once and finds out whether it has gVisor. A failed probe is retried. */
-  #probe(): Promise<string | null> {
-    this.#runtime ??= (async () => {
-      const info = await this.#cli(['info', '--format', '{{json .Runtimes}}'], PROBE_TIMEOUT_MS);
+  /**
+   * Checks the daemon once: its CPUs and whether it has gVisor. A failed probe is retried. With
+   * `runtime: 'runsc'` and no gVisor the sandbox is not configured.
+   */
+  #probe(): Promise<DaemonInfo> {
+    this.#info ??= (async () => {
+      const info = await this.#cli(
+        ['info', '--format', '{{json .Runtimes}}\n{{.NCPU}}'],
+        PROBE_TIMEOUT_MS,
+      );
       if (info.exitCode !== 0) {
         throw new IntegrationNotConfiguredError(SANDBOX_NOT_CONFIGURED, ['SANDBOX_DOCKER_HOST']);
       }
-      return hasRuntime(info.stdout, 'runsc') ? 'runsc' : null;
+      const [runtimes = '', ncpu = ''] = String(info.stdout).split('\n');
+      const gVisor = hasRuntime(runtimes, 'runsc');
+      if (this.#runtime === 'runsc' && !gVisor) {
+        throw new IntegrationNotConfiguredError(SANDBOX_NOT_CONFIGURED, ['SANDBOX_RUNTIME']);
+      }
+      const cpus = Number(ncpu);
+      return {
+        runtime: this.#runtime === 'runc' ? 'runc' : gVisor ? 'runsc' : null,
+        cpus: Number.isFinite(cpus) && cpus > 0 ? cpus : null,
+      };
     })().catch((error: unknown) => {
-      this.#runtime = undefined;
+      this.#info = undefined;
       throw error;
     });
-    return this.#runtime;
+    return this.#info;
   }
 
   async #cli(args: string[], timeout?: number) {
@@ -171,9 +209,24 @@ export function dockerCliEnv(
   return dockerHost ? { ...kept, DOCKER_HOST: dockerHost } : kept;
 }
 
-/** `DockerSandbox` on the daemon at `SANDBOX_DOCKER_HOST` (unset = local Docker). */
+/**
+ * `DockerSandbox` on the daemon at `SANDBOX_DOCKER_HOST` (unset = local Docker) with the runtime
+ * `SANDBOX_RUNTIME` (`auto`, the default; `runc`; `runsc`).
+ */
 export function createSandbox(env: NodeJS.ProcessEnv = process.env): DockerSandbox {
-  return new DockerSandbox({ dockerHost: env.SANDBOX_DOCKER_HOST });
+  return new DockerSandbox({
+    dockerHost: env.SANDBOX_DOCKER_HOST,
+    runtime: sandboxRuntimeFrom(env.SANDBOX_RUNTIME),
+  });
+}
+
+/** `SANDBOX_RUNTIME`: unset or empty is `auto`; any other value than the three throws. */
+export function sandboxRuntimeFrom(value: string | undefined): SandboxRuntime {
+  const runtime = value?.trim() || 'auto';
+  if (!SANDBOX_RUNTIMES.includes(runtime as SandboxRuntime)) {
+    throw new ConfigValueError('SANDBOX_RUNTIME', 'auto, runc or runsc');
+  }
+  return runtime as SandboxRuntime;
 }
 
 /** The `docker create` arguments for one run. Exported for tests. */

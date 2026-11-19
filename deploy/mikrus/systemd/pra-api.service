@@ -1,0 +1,33 @@
+# PR Review Agent api (P-27). Installed to /etc/systemd/system by deploy/mikrus/bootstrap.md.
+# Runs the build `deploy.sh` leaves in the checkout; nginx in front proxies /api, /webhooks and
+# /health to 127.0.0.1:3000.
+[Unit]
+Description=PR Review Agent api
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pra
+Group=pra
+WorkingDirectory=/srv/pra/app/apps/api
+# App settings and secrets (DATABASE_URL, GitHub App, BLOB_DIR, ...): see pra.env.example.
+EnvironmentFile=/etc/pra/pra.env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+# Only nginx on this host sets X-Forwarded-*; the CSRF check reads X-Forwarded-Host from it.
+Environment=TRUST_PROXY=loopback
+ExecStart=/usr/bin/node --import ./dist/instrument.js dist/main.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+# The kernel picks the worker's agent processes first when memory runs out, then the api,
+# before Postgres.
+OOMScoreAdjust=100
+
+[Install]
+WantedBy=multi-user.target

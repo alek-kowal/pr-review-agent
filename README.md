@@ -142,8 +142,9 @@ GitHub theme. Click one for full size.
 | **Settings, audit**     | Repositories, Team, models per role, review levels, budget, integrations, alerts and learning; every signed change in the Audit log.              |
 
 **Also shipped:** Implement with agent and patch review (level 4), signed push and level 5
-autofix with a shadow log, and read-only review of fork PRs. **On the roadmap:** a hosted
-deploy. See
+autofix with a shadow log, and read-only review of fork PRs. **Deploy:** one small VPS
+(1 vCPU, 4 GB) with systemd, an nginx gate and `deploy/mikrus/deploy.sh`, see
+[docs/deploy-mikrus.md](docs/deploy-mikrus.md); the Compose deploy fits a bigger VM. See
 [the roadmap](context/foundation/roadmap.md) and the
 [work packages](context/foundation/work-packages.md).
 
@@ -214,6 +215,7 @@ each round as pg-boss jobs, one per stage, and calls the agents.
 | `packages/agents`       | `@pra/agents`       | `AgentRunner` (Claude Agent SDK) and the reviewer, verifier, implementer, judge and analyst adapters |
 | `e2e`                   | Playwright          | End-to-end specs on a test stack with doubles (`e2e/support/`)                                       |
 | `deploy`                | Docker Compose      | One-VM deploy: Caddy with the SPA, api, worker; see [deploy/README.md](deploy/README.md)             |
+| `deploy/mikrus`         | systemd, nginx      | Small-VPS deploy: Postgres in Compose, api and worker as services; see `docs/deploy-mikrus.md`       |
 
 The rules that keep it this way are lint errors: `packages/core` imports no Node APIs and no other
 `@pra/*` package with I/O, `apps/web` imports only `@pra/core`, and every integration sits behind
@@ -245,7 +247,10 @@ secret store). The api and the worker read the root `.env`.
 | `TRUST_PROXY`                                                                          | Api: proxies whose `X-Forwarded-*` headers count               |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`                                   | Error reporting                                                |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`                                                          | Traces                                                         |
-| `WORKER_HEARTBEAT_FILE`                                                                | Worker container healthcheck, set by `deploy/compose.yaml`     |
+| `WORKER_AGENT_CONCURRENCY`, `WORKER_SANDBOX_CONCURRENCY`                               | Worker: stages and sandbox containers at once (3, 1)           |
+| `SANDBOX_CPUS`, `SANDBOX_MEMORY_MB`, `SANDBOX_PIDS`, `SANDBOX_*_TIMEOUT_MINUTES`       | Worker: caps and time limits per sandbox container             |
+| `SANDBOX_RUNTIME`, `SANDBOX_SHARED_STORE`                                              | Worker: runc or gVisor; hardlinked pnpm store for installs     |
+| `WORKER_HEARTBEAT_FILE`                                                                | Worker healthcheck file, set by the deploy (Compose, systemd)  |
 | `S3_TEST_ENDPOINT`                                                                     | Tests only: MinIO for the S3 blob store tests                  |
 
 </details>
@@ -262,6 +267,8 @@ secret store). The api and the worker read the root `.env`.
 | `pnpm db:generate`              | Writes a migration after a schema change                                 |
 | `pnpm db:seed-repo <seed.json>` | Bootstraps a repository from a seed file (connect real ones in Settings) |
 | `pnpm instructions:import`      | Imports instruction files as version 1; safe to run again                |
+| `pnpm sandbox:bench --repo <r>` | Times a repository's fetch and install in the sandbox, with peak memory  |
+| `pnpm data:cleanup`             | Removes files of ended runs and package caches unused for 7 days         |
 
 > [!TIP]
 > `pnpm test` and `pnpm test:e2e` need the database: `docker compose up -d db`.
@@ -284,3 +291,4 @@ test doubles only in tests.
 | [Review triggers](docs/05-review-triggers.md)                                             | Reviews start when a PR is ready or on demand; only our own fix commits re-trigger |
 | [Metrics](docs/06-metrics.md)                                                             | The pilot metrics and alerts                                                       |
 | [Deploy](deploy/README.md)                                                                | The one-VM Compose deploy                                                          |
+| [Deploy on Mikrus](docs/deploy-mikrus.md)                                                 | The 1 vCPU VPS: systemd, nginx gate, limits, deploy.sh, backups                    |

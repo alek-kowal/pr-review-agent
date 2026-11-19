@@ -22,6 +22,11 @@ export type WorkerOptions = {
   pollingIntervalSeconds?: number;
   /** How often jobs lost by a failed send are sent again (default 5 minutes). */
   resendIntervalMs?: number;
+  /**
+   * Stage jobs run at once (`WORKER_AGENT_CONCURRENCY` in `src/main.ts`; default here 1). Stages
+   * of different runs then overlap; each run's own stages still go one after another.
+   */
+  stageConcurrency?: number;
 };
 
 const RESEND_INTERVAL_MS = 5 * 60_000;
@@ -55,8 +60,10 @@ export async function startWorker(
   await queue.work<JobPayloads['github.event']>(JOBS.githubEvent, work, (jobs) =>
     handleGithubEvents(deps, jobs),
   );
-  await queue.work<JobPayloads['run.stage']>(JOBS.runStage, work, (jobs) =>
-    handleRunStages(deps, jobs),
+  await queue.work<JobPayloads['run.stage']>(
+    JOBS.runStage,
+    { ...work, localConcurrency: options.stageConcurrency ?? 1 },
+    (jobs) => handleRunStages(deps, jobs),
   );
   await queue.work<JobPayloads['github.comment']>(JOBS.githubComment, work, (jobs) =>
     handleGithubComments(deps, jobs),

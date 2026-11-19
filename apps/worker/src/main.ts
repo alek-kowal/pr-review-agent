@@ -14,11 +14,14 @@ import {
   createClickUpGateway,
   createGitHubGateway,
   createSandbox,
+  LimitedSandbox,
+  type Sandbox,
 } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startHeartbeat, type Heartbeat } from './health/heartbeat.ts';
+import { workerLimitsFromEnv, type WorkerLimits } from './limits.ts';
 import { startWorker } from './worker.ts';
 
 const logger = createLogger('worker');
@@ -27,6 +30,25 @@ if (!url) {
   logger.fatal('DATABASE_URL is not set (see .env.example)');
   process.exit(1);
 }
+
+let limits: WorkerLimits;
+let sandbox: Sandbox;
+try {
+  limits = workerLimitsFromEnv(process.env);
+  sandbox = new LimitedSandbox(createSandbox(), limits.sandboxConcurrency);
+} catch (error) {
+  logger.fatal({ err: error }, 'worker limits are not valid (see .env.example)');
+  process.exit(1);
+}
+logger.info(
+  {
+    agentConcurrency: limits.agentConcurrency,
+    sandboxConcurrency: limits.sandboxConcurrency,
+    sandbox: limits.sandbox.install,
+    sharedStore: limits.sandbox.sharedStore,
+  },
+  'worker limits',
+);
 
 const db = createDb(url, {
   onPoolError: (error) => logger.warn({ err: error }, 'idle database connection failed'),
@@ -45,24 +67,28 @@ logger.info(
 
 let worker: Awaited<ReturnType<typeof startWorker>>;
 try {
-  worker = await startWorker({
-    db,
-    queue,
-    logger,
-    dataDir,
-    blobStore: createBlobStore(),
-    github: createGitHubGateway(),
-    gitMirror: new CliGitMirror({ rootDir: path.join(dataDir, 'git') }),
-    agentRunner: createClaudeAgentRunner(),
-    judge: createAnthropicJudge(),
-    // An `openrouter/...` judge model; without OPENROUTER_API_KEY it falls back to `judge`.
-    openRouterJudge: createOpenRouterJudge(),
-    analyst: createAnthropicAnalyst(),
-    sandbox: createSandbox(),
-    clickup: createClickUpGateway(),
-    appBaseUrl: process.env.APP_BASE_URL || null,
-    modelAuth: authMode,
-  });
+  worker = await startWorker(
+    {
+      db,
+      queue,
+      logger,
+      dataDir,
+      blobStore: createBlobStore(),
+      github: createGitHubGateway(),
+      gitMirror: new CliGitMirror({ rootDir: path.join(dataDir, 'git') }),
+      agentRunner: createClaudeAgentRunner(),
+      judge: createAnthropicJudge(),
+      // An `openrouter/...` judge model; without OPENROUTER_API_KEY it falls back to `judge`.
+      openRouterJudge: createOpenRouterJudge(),
+      analyst: createAnthropicAnalyst(),
+      sandbox,
+      sandboxProfile: limits.sandbox,
+      clickup: createClickUpGateway(),
+      appBaseUrl: process.env.APP_BASE_URL || null,
+      modelAuth: authMode,
+    },
+    { stageConcurrency: limits.agentConcurrency },
+  );
 } catch (error) {
   logger.fatal({ err: error }, 'worker failed to start (has `pnpm db:migrate` run?)');
   await closeDb(db);

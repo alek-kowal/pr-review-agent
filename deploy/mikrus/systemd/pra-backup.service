@@ -1,0 +1,16 @@
+# Nightly database dump (P-27): gzipped pg_dump to /var/backups/pra, older dumps removed.
+[Unit]
+Description=PR Review Agent database backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=pra
+Group=pra
+SupplementaryGroups=docker
+Environment=PRA_BACKUP_DIR=/var/backups/pra
+# Days to keep a dump.
+Environment=PRA_BACKUP_KEEP_DAYS=14
+ExecStart=/bin/bash /srv/pra/app/deploy/mikrus/bin/backup.sh
+Nice=10

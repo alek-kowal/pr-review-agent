@@ -16,3 +16,6 @@ blob-report/
 
 # Deploy env file written by the secret store (deploy/compose.yaml)
 deploy/app.env
+
+# P-27: deploy settings of the machine you deploy from
+deploy/mikrus/deploy.env

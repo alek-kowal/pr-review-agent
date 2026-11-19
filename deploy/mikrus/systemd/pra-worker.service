@@ -1,0 +1,37 @@
+# PR Review Agent worker (P-27). Installed to /etc/systemd/system by deploy/mikrus/bootstrap.md.
+# Drives Docker for the sandbox with host paths of worktrees under DATA_DIR, so it runs on the
+# host (not in a container) and in the docker group.
+[Unit]
+Description=PR Review Agent worker
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=pra
+Group=pra
+# Sandbox containers. Note: the docker group can do anything on the host Docker can.
+SupplementaryGroups=docker
+WorkingDirectory=/srv/pra/app/apps/worker
+# App settings and secrets (DATABASE_URL, model access, DATA_DIR, SANDBOX_*, ...): pra.env.example.
+EnvironmentFile=/etc/pra/pra.env
+Environment=NODE_ENV=production
+# /run/pra-worker, removed when the service stops; pra-health@worker reads the heartbeat.
+RuntimeDirectory=pra-worker
+Environment=WORKER_HEARTBEAT_FILE=/run/pra-worker/heartbeat
+# One worker per host: a sandbox container that exists at start belongs to a stopped worker.
+ExecStartPre=-/bin/sh -c 'docker ps -aq --filter label=pra.sandbox | xargs -r docker rm -f'
+ExecStart=/usr/bin/node --import ./dist/instrument.js dist/main.js
+Restart=on-failure
+RestartSec=10
+# pg-boss waits up to 30 s for running stages; the rest are sent again after the restart.
+TimeoutStopSec=60
+KillMode=mixed
+NoNewPrivileges=yes
+ProtectSystem=full
+# No PrivateTmp: paths the worker hands to the Docker daemon must be the host's paths.
+OOMScoreAdjust=300
+
+[Install]
+WantedBy=multi-user.target
