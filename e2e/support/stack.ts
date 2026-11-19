@@ -17,7 +17,16 @@ import {
   isolatedGitExec,
 } from '@pra/integrations/testing';
 import { randomBytes } from 'node:crypto';
-import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  access,
+  appendFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { buildServer } from '../../apps/api/src/server.ts';
@@ -26,6 +35,7 @@ import {
   API_PORT,
   API_URL,
   FAILING_PR_FROM,
+  GLOBAL_LEVEL_REPOSITORY,
   HELD_PRS,
   HELD_TURN_COST_USD,
   LEVEL_TWO_REPOSITORY,
@@ -157,13 +167,20 @@ const FIX_NOT_RESOLVED_AT = 1;
 class ScriptedAgents implements AgentRunner {
   readonly #holdDir: string;
   readonly #fixShas: readonly string[];
+  readonly #callLog: string;
 
-  constructor(holdDir: string, fixShas: readonly string[]) {
+  constructor(holdDir: string, fixShas: readonly string[], callLog: string) {
     this.#holdDir = holdDir;
     this.#fixShas = fixShas;
+    this.#callLog = callLog;
   }
 
   async run<T>(input: AgentRunInput<T>): Promise<AgentRunResult<T>> {
+    // The model each double received (models-levels-audit.spec.ts).
+    await appendFile(
+      this.#callLog,
+      `${JSON.stringify({ role: input.role, model: input.model, dirs: [input.cwd, ...(input.readDirs ?? [])] })}\n`,
+    );
     if (input.role === 'verifier') {
       const output = await verifierAnswer(input.cwd);
       return new FakeAgentRunner([{ output, costUsd: 0.05, turns: 3 }]).run(input);
@@ -210,6 +227,7 @@ const logger = createLogger('e2e', { LOG_LEVEL: process.env.LOG_LEVEL ?? 'warn' 
 const root = await mkdtemp(path.join(tmpdir(), 'pra-e2e-'));
 const holdDir = path.join(root, 'hold');
 await mkdir(holdDir);
+const agentCalls = path.join(root, 'agent-calls.jsonl');
 // The feature branch also adds a migration: a sensitive file for a repository whose settings say
 // so (connect-repo.spec.ts), an ordinary file for the others. Three pushes follow the reviewed
 // head (chains.spec.ts).
@@ -243,6 +261,7 @@ const github = new FakeGitHubGateway({
     [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
     [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
     [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
+    [GLOBAL_LEVEL_REPOSITORY.fullName]: GLOBAL_LEVEL_REPOSITORY.installationId,
   },
 });
 // GitHub's compare on the branch's commits, as the worker measures commits since a review.
@@ -297,6 +316,12 @@ await upsertRepository(
   },
   { installationId: SENSITIVE_REPOSITORY.installationId },
 );
+// No level of its own: rounds start at the global default (models-levels-audit.spec.ts).
+await upsertRepository(
+  db,
+  { slug: GLOBAL_LEVEL_REPOSITORY.slug, githubFullName: GLOBAL_LEVEL_REPOSITORY.fullName },
+  { installationId: GLOBAL_LEVEL_REPOSITORY.installationId },
+);
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
   ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
@@ -319,7 +344,7 @@ const worker = await startWorker(
       remoteUrl: () => fixture.dir,
       exec: isolatedGitExec,
     }),
-    agentRunner: new ScriptedAgents(holdDir, fixture.fixShas),
+    agentRunner: new ScriptedAgents(holdDir, fixture.fixShas, agentCalls),
     judge: new FakeJudge(),
     sandbox,
     clickup,
@@ -339,6 +364,7 @@ const state: StackState = {
   headSha: fixture.headSha,
   fixShas: fixture.fixShas,
   holdDir,
+  agentCalls,
 };
 await writeFile(STATE_FILE, JSON.stringify(state, null, 2));
 logger.warn({ api: API_URL, database: database.name }, 'e2e stack ready');

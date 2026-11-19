@@ -24,6 +24,21 @@ export type StackState = {
   fixShas: string[];
   /** A file `hold-<PR number>` here holds that PR's review session until it is removed. */
   holdDir: string;
+  /**
+   * JSON lines `{ role, model, dirs }`, one per agent session the doubles answered; `dirs` holds
+   * the session's cwd and read dirs (a run's worktree path ends in `run-<id>`).
+   */
+  agentCalls: string;
+};
+
+/**
+ * Seeded without a level of its own: its rounds start at the global default level
+ * (models-levels-audit.spec.ts). No other spec uses it, so changing the default is safe.
+ */
+export const GLOBAL_LEVEL_REPOSITORY = {
+  slug: 'global-level-repo',
+  fullName: 'acme/global-level-repo',
+  installationId: 55500006,
 };
 
 /** PR numbers from this one up get a failing reviewer. */

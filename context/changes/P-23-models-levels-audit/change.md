@@ -124,3 +124,16 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
   with the top-level keys that differ (first three, then "and N more"). A row expands to the full
   before and after as formatted JSON.
 - Pages of 50 with "Load more" (an infinite query over `nextCursor`).
+
+### S-21-T8 (end-to-end models, levels and audit)
+
+- The e2e stack seeds `GLOBAL_LEVEL_REPOSITORY` without a level of its own (no other spec uses
+  it), so the spec's default level 2 changes nothing for specs running beside it. The level 3
+  timeout it sets (45 min) is longer than the default 30, so it cannot time out another spec.
+- The agent double appends every session's role, model and dirs to `StackState.agentCalls`
+  (JSON lines). The spec matches the verifier sessions of its run by the run's worktree dir
+  (`run-<id>`), so it checks the model the double received, not only the snapshot.
+- Settings are global and a retry would start from the last attempt, so the spec first puts the
+  models, level 3 and the default level back through the API when they differ.
+- `e2e/a11y-routes.ts` is created with the four new Settings routes only; S-17-T9 (P-24) owns the
+  a11y spec and the rest of the list. If P-24 also creates the file, keep both lists.
