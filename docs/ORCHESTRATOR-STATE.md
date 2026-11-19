@@ -102,6 +102,9 @@ All of them are in `/private/tmp/claude-501/-Users-alek-Projects/bac86def-abc6-4
 | Task | State | Agent | Branch | Notes |
 | --- | --- | --- | --- | --- |
 
+## Lessons
+Read `docs/orchestrator-lessons.md` before coordinating new work; add a lesson when a problem repeats.
+
 ## 14:25 status
 Merged since 08:40: P-11r, P-19, P-16, P-14, P-17, P-15 (main bc351f1). Running: P-18, P-20, P-21, P-24 (implementing) and P-23 (merge-fix, done implementing). Next: P-22 once P-18 merges; impl-review planned for P-18 and P-22.
 Merge loop: `merge-or-fix.sh <id>` (exits the agent, merges when calm; on conflict aborts main and starts a merge-fix agent, prints MERGED/FIXING/FAIL). Run merges one at a time; pause a merge-fix while another package is about to land, to avoid migration-number races.
