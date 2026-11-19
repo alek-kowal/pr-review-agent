@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { execa } from 'execa';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
-import { CliGitMirror, gitAuthEnv, type GitExec } from './git-mirror.ts';
+import { CliGitMirror, gitAuthEnv, parseChangedFiles, type GitExec } from './git-mirror.ts';
 
 const REPO = 'synergycodes/workflowbuilder';
 const TOKEN = 'ghs_never_in_argv_0123456789';
@@ -57,7 +57,7 @@ beforeAll(async () => {
 afterAll(() => rm(root, { recursive: true, force: true }));
 
 /** A mirror cloning from the local source repository, with every command recorded. */
-function mirrorWithSpy(dir: string) {
+function mirrorWithSpy(dir: string, timeoutMs?: number) {
   const exec = vi.fn<GitExec>(async (file, args, options) => {
     const { stdout } = await execa(file, args, {
       ...options,
@@ -66,7 +66,12 @@ function mirrorWithSpy(dir: string) {
     });
     return { stdout };
   });
-  const mirror = new CliGitMirror({ rootDir: path.join(root, dir), remoteUrl: () => source, exec });
+  const mirror = new CliGitMirror({
+    rootDir: path.join(root, dir),
+    remoteUrl: () => source,
+    exec,
+    timeoutMs,
+  });
   return { mirror, exec };
 }
 
@@ -180,9 +185,32 @@ describe('CliGitMirror', () => {
     await expect(mirror.addWorktree(REPO, 'run-6', '--upload-pack=x')).rejects.toThrow(
       'Not a commit sha',
     );
+    // A short id could name a branch or tag in the mirror instead of the commit.
+    await expect(mirror.addWorktree(REPO, 'run-7', headSha.slice(0, 9))).rejects.toThrow(
+      'Not a commit sha',
+    );
+  });
+
+  test('a git command past the timeout is killed and frees the repository for the next one', async () => {
+    const { mirror, exec } = mirrorWithSpy('timeout', 1);
+    await expect(mirror.ensureMirror(REPO)).rejects.toMatchObject({ timedOut: true });
+    expect(exec.mock.calls[0]![2]).toMatchObject({ timeout: 1 });
+
+    const { mirror: patient } = mirrorWithSpy('timeout');
+    await expect(patient.ensureMirror(REPO)).resolves.toBeUndefined();
   });
 });
 
 test('without a token only the prompt is switched off', () => {
   expect(gitAuthEnv()).toEqual({ GIT_TERMINAL_PROMPT: '0' });
+});
+
+test('a path starting with a tab keeps every file on its own line counts', () => {
+  const nameStatus = ['M', '\tlead', 'R100', 'old.txt', 'new.txt', 'M', 'z.txt', ''].join('\0');
+  const numstat = ['2\t1\t\tlead', '0\t0\t', 'old.txt', 'new.txt', '1\t0\tz.txt', ''].join('\0');
+  expect(parseChangedFiles(nameStatus, numstat)).toEqual([
+    { path: '\tlead', status: 'modified', additions: 2, deletions: 1 },
+    { path: 'new.txt', previousPath: 'old.txt', status: 'renamed', additions: 0, deletions: 0 },
+    { path: 'z.txt', status: 'modified', additions: 1, deletions: 0 },
+  ]);
 });

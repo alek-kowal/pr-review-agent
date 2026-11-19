@@ -61,6 +61,12 @@ tech stack); design notes in `docs/`; the static UI prototype in `prototype/`.
 - State-changing API calls send the header `X-PRA-Request: 1` and pass an `Origin` check.
 - Signed actions take a Team member picked in the action's own form. Unsigned actions are recorded
   as "by hand".
+- Every signed settings write goes through `applySignedSettingsChange`
+  (`apps/api/src/settings/signed-change.ts`) with a `SettingsStore` for its area. It checks the
+  signer (400 `signature_required` / `signer_unknown`), returns 409 `settings_stale` when the
+  client's `before` is no longer stored, and writes the change and one `settings_changes` row in
+  one transaction. The bot logs its own changes with `insertSettingsChange` (actor `bot`).
+  `settings_changes` is the only audit log; add no other audit table.
 
 ## Environment
 

@@ -1,5 +1,5 @@
 {
-  "id": "1c778cbf-eb96-4eb0-8dd6-58ace3364ecf",
+  "id": "e6ffd9ca-bb1a-4256-96d5-d7fc0535ab50",
   "prevId": "f6e584b2-c844-404f-97a7-2aac55c52d54",
   "version": "7",
   "dialect": "postgresql",
@@ -1428,8 +1428,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.pr_task_links": {
-      "name": "pr_task_links",
+    "public.decision_batches": {
+      "name": "decision_batches",
       "schema": "",
       "columns": {
         "id": {
@@ -1439,7 +1439,7 @@
           "notNull": true,
           "identity": {
             "type": "always",
-            "name": "pr_task_links_id_seq",
+            "name": "decision_batches_id_seq",
             "schema": "public",
             "increment": "1",
             "startWith": "1",
@@ -1455,17 +1455,192 @@
           "primaryKey": false,
           "notNull": true
         },
-        "task_id": {
-          "name": "task_id",
+        "decision": {
+          "name": "decision",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "url": {
-          "name": "url",
+        "reason": {
+          "name": "reason",
           "type": "text",
           "primaryKey": false,
+          "notNull": false
+        },
+        "signed_by": {
+          "name": "signed_by",
+          "type": "uuid",
+          "primaryKey": false,
           "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "undone_at": {
+          "name": "undone_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "decision_batches_pull_request": {
+          "name": "decision_batches_pull_request",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "decision_batches_pull_request_id_pull_requests_id_fk": {
+          "name": "decision_batches_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "decision_batches",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "decision_batches_signed_by_team_members_id_fk": {
+          "name": "decision_batches_signed_by_team_members_id_fk",
+          "tableFrom": "decision_batches",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "decision_batches_decision": {
+          "name": "decision_batches_decision",
+          "value": "decision in ('implement', 'reject', 'defer')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.finding_decisions": {
+      "name": "finding_decisions",
+      "schema": "",
+      "columns": {
+        "finding_id": {
+          "name": "finding_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "finding_decisions_batch": {
+          "name": "finding_decisions_batch",
+          "columns": [
+            {
+              "expression": "batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "finding_decisions_finding_id_findings_id_fk": {
+          "name": "finding_decisions_finding_id_findings_id_fk",
+          "tableFrom": "finding_decisions",
+          "tableTo": "findings",
+          "columnsFrom": [
+            "finding_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "finding_decisions_batch_id_decision_batches_id_fk": {
+          "name": "finding_decisions_batch_id_decision_batches_id_fk",
+          "tableFrom": "finding_decisions",
+          "tableTo": "decision_batches",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "finding_decisions_finding_id_batch_id_pk": {
+          "name": "finding_decisions_finding_id_batch_id_pk",
+          "columns": [
+            "finding_id",
+            "batch_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.team_members": {
+      "name": "team_members",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "name": {
           "name": "name",
@@ -1473,20 +1648,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "how": {
-          "name": "how",
+        "github_login": {
+          "name": "github_login",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "linked_by": {
-          "name": "linked_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "linked_by_member_id": {
-          "name": "linked_by_member_id",
+        "clickup_user_id": {
+          "name": "clickup_user_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1497,49 +1666,37 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "removed_at": {
+          "name": "removed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {
-        "pr_task_links_pull_request_id_pull_requests_id_fk": {
-          "name": "pr_task_links_pull_request_id_pull_requests_id_fk",
-          "tableFrom": "pr_task_links",
-          "tableTo": "pull_requests",
-          "columnsFrom": [
-            "pull_request_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "pr_task_links_pull_request_id_unique": {
-          "name": "pr_task_links_pull_request_id_unique",
-          "nullsNotDistinct": false,
+      "indexes": {
+        "team_members_github_login_active": {
+          "name": "team_members_github_login_active",
           "columns": [
-            "pull_request_id"
-          ]
+            {
+              "expression": "lower(\"github_login\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"team_members\".\"removed_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "pr_task_links_how": {
-          "name": "pr_task_links_how",
-          "value": "\"pr_task_links\".\"how\" in ('branch', 'title', 'search', 'hand')"
-        },
-        "pr_task_links_linked_by": {
-          "name": "pr_task_links_linked_by",
-          "value": "\"pr_task_links\".\"linked_by\" in ('member', 'bot', 'hand')"
-        },
-        "pr_task_links_linked_by_member": {
-          "name": "pr_task_links_linked_by_member",
-          "value": "(\"pr_task_links\".\"linked_by\" = 'member') = (\"pr_task_links\".\"linked_by_member_id\" is not null)"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

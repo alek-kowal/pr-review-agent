@@ -20,6 +20,7 @@ function input(overrides: Partial<AgentRunInput<Answer>> = {}): AgentRunInput<An
     outputSchema: Answer,
     maxTurns: 20,
     maxCostUsd: 5,
+    timeoutMs: 60_000,
     ...overrides,
   };
 }
@@ -168,6 +169,20 @@ describe('ClaudeAgentRunner', () => {
     expect(progress).toHaveBeenCalledTimes(3);
   });
 
+  it('prices each message on its own, so two short Haiku 5.5 prompts stay at the short rate', async () => {
+    const usage = { input_tokens: 60_000, output_tokens: 1_000, cache_read_input_tokens: 0 };
+    const { query } = fakeQuery([assistant('m1', usage), assistant('m2', usage)], {
+      waitForAbort: true,
+    });
+    const result = await new ClaudeAgentRunner({ apiKey: 'sk-test', query }).run(
+      input({ model: 'claude-haiku-5-5', maxCostUsd: 0.01 }),
+    );
+
+    // 120K prompt tokens in total, but each request is under the 100K long-prompt threshold.
+    expect(result.usage.inputTokens).toBe(120_000);
+    expect(result.costUsd).toBeCloseTo((2 * (60_000 * 0.1 + 1_000 * 0.5)) / 1_000_000);
+  });
+
   it('fails with model_access_not_configured without starting a session when the key is missing', async () => {
     const query = vi.fn<QueryFn>();
     const result = await new ClaudeAgentRunner({ apiKey: '', query }).run(input());
@@ -219,6 +234,60 @@ describe('ClaudeAgentRunner', () => {
     );
     expect(query).not.toHaveBeenCalled();
     expect(result.status).toBe('cancelled');
+  });
+
+  it('is cancelled without a session when the signal aborts while the session is being set up', async () => {
+    const controller = new AbortController();
+    const { query, calls } = fakeQuery([success(VALID)]);
+    const pending = new ClaudeAgentRunner({ apiKey: 'sk-test', query }).run(
+      input({ signal: controller.signal }),
+    );
+    controller.abort();
+    const result = await pending;
+
+    expect(calls).toHaveLength(0);
+    expect(result).toMatchObject({ status: 'cancelled', error: { code: 'cancelled' } });
+  });
+
+  it('stops the session with timeout once timeoutMs passes', async () => {
+    const { query, calls } = fakeQuery(
+      [assistant('m1', { input_tokens: 1_000, output_tokens: 100 })],
+      { waitForAbort: true },
+    );
+    const result = await new ClaudeAgentRunner({ apiKey: 'sk-test', query }).run(
+      input({ timeoutMs: 20 }),
+    );
+
+    expect(calls[0]!.abortController!.signal.aborted).toBe(true);
+    expect(result).toMatchObject({
+      status: 'failed',
+      error: { code: 'timeout', params: { timeoutMs: 20 } },
+      costSource: 'computed',
+      turns: 1,
+    });
+  });
+
+  it('reports a cancel, with the reported cost, when the SDK answers the abort with an error result', async () => {
+    const controller = new AbortController();
+    const query: QueryFn = (params) =>
+      (async function* () {
+        yield assistant('m1', { input_tokens: 10, output_tokens: 10 });
+        const signal = params.options.abortController!.signal;
+        if (!signal.aborted) {
+          await new Promise((resolve) => signal.addEventListener('abort', resolve));
+        }
+        yield failure('error_during_execution');
+      })();
+    const result = await new ClaudeAgentRunner({ apiKey: 'sk-test', query }).run(
+      input({ signal: controller.signal, onProgress: () => controller.abort() }),
+    );
+
+    expect(result).toMatchObject({
+      status: 'cancelled',
+      error: { code: 'cancelled' },
+      costUsd: 0.42,
+      costSource: 'reported',
+    });
   });
 
   it('fails with output_invalid when the structured answer does not match the schema', async () => {

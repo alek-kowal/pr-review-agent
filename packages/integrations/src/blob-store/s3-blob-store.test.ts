@@ -24,6 +24,11 @@ describe.skipIf(!endpoint)('S3BlobStore against MinIO', () => {
   });
 
   blobStoreContract(() => new S3BlobStore({ bucket: S3_TEST_BUCKET, client }));
+
+  test('a missing bucket is an error, not a missing blob', async () => {
+    const store = new S3BlobStore({ bucket: 'pra-test-no-such-bucket', client });
+    await expect(store.get('contract/any.json')).rejects.toMatchObject({ name: 'NoSuchBucket' });
+  });
 });
 
 describe('createBlobStore', () => {

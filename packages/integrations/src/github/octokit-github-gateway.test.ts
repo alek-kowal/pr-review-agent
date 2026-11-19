@@ -143,6 +143,63 @@ describe('repository calls', () => {
     });
   });
 
+  test('after the App is reinstalled, a stale cached installation is looked up again once', async () => {
+    let installation = INSTALLATION;
+    const tokens = new Map<string, number>();
+    const posted: Array<string | null> = [];
+    server.use(
+      http.get(`${API}/repos/:owner/:repo/installation`, () =>
+        HttpResponse.json({ id: installation }),
+      ),
+      http.post(`${API}/app/installations/:id/access_tokens`, ({ params }) => {
+        if (Number(params.id) !== installation) {
+          return HttpResponse.json({ message: 'Not Found' }, { status: 404 });
+        }
+        const token = `ghs_installation_${installation}`;
+        tokens.set(token, installation);
+        const expires_at = new Date(Date.now() + 3_600_000).toISOString();
+        return HttpResponse.json({ token, expires_at }, { status: 201 });
+      }),
+      http.post(`${API}/repos/:owner/:repo/issues/:number/comments`, ({ request }) => {
+        const auth = request.headers.get('authorization');
+        posted.push(auth);
+        // Tokens of a removed installation are revoked.
+        const revoked = tokens.get(auth?.replace(/^token /, '') ?? '') !== installation;
+        return revoked
+          ? HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+          : HttpResponse.json({ id: posted.length }, { status: 201 });
+      }),
+    );
+    const github = gateway();
+    await github.postIssueComment(REPO, 1, 'before');
+
+    installation = INSTALLATION + 1;
+    const result = await github.postIssueComment(REPO, 1, 'after');
+
+    expect(result).toEqual({ id: 3 });
+    expect(posted).toEqual([
+      `token ghs_installation_${INSTALLATION}`,
+      `token ghs_installation_${INSTALLATION}`,
+      `token ghs_installation_${INSTALLATION + 1}`,
+    ]);
+  });
+
+  test('a lasting 404 is not retried twice', async () => {
+    serveApp({ now: Date.now() });
+    let requests = 0;
+    server.use(
+      http.get(`${API}/repos/:owner/:repo/pulls/:number`, () => {
+        requests += 1;
+        return HttpResponse.json({ message: 'Not Found' }, { status: 404 });
+      }),
+    );
+    const github = gateway();
+    await github.getRepoInstallationId(REPO);
+
+    await expect(github.getPullRequest(REPO, 404)).rejects.toMatchObject({ status: 404 });
+    expect(requests).toBe(2);
+  });
+
   test('a repository without the App has no installation id, and its calls say so', async () => {
     serveApp({ now: Date.now() });
     const github = gateway();
