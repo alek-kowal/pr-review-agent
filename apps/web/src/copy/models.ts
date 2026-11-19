@@ -11,4 +11,32 @@ export const roleNames: Record<string, string> = {
 
 export const models = {
   roles: roleNames,
+  title: 'Models',
+  affects:
+    'which model each agent role uses in every new round, unless a review level sets its own.',
+  loading: 'Loading models…',
+  /** What each role does, under its name. */
+  does: {
+    reviewer: 'Reads the PR and writes findings and questions.',
+    verifier: 'Checks each finding and runs its reproduction.',
+    implementer: 'Fixes findings marked Implement.',
+    judge: 'Sets the change type when rules are not enough.',
+    analyst: 'Proposes lessons after a PR closes.',
+  } as Record<string, string>,
+  columns: { role: 'Role', model: 'Model', overrides: 'Per-level overrides' },
+  overridesHint:
+    'A review level can set its own model for a role. It wins at that level and above, until a higher level sets another.',
+  modelLabel: (role: string) => `${roleNames[role] ?? role} model`,
+  customLabel: (role: string) => `${roleNames[role] ?? role} model name`,
+  defaultOption: (model: string) => `${model} (default)`,
+  other: 'Other model…',
+  customPlaceholder: 'claude-…',
+  invalid:
+    'Not a valid model name. Start with a letter or digit, then use letters, digits and . _ : @ [ ] - only (no spaces).',
+  invalidSummary: 'Fix the model names marked below before saving.',
+  overrideNote: (level: number, model: string) => `Level ${level} uses ${model}`,
+  noOverrides: 'None',
+  saveTitle: 'Save models',
+  saveDescription:
+    'New rounds use the new model. Rounds that are running keep the model they started with.',
 };

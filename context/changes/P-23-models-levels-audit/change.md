@@ -64,3 +64,20 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
   resolved settings, origins and models, plus the global default level.
 - `reads-never-write.test.ts` got a 30 s timeout: it calls every GET route and checksums every
   table twice, which passed 5 s under parallel load.
+
+### Merge of main (before S-21-T4)
+
+- `git merge main` (P-11r) merged cleanly: no new migration on main, P-22 not landed yet, so the
+  level 5 patch cap wiring stays with P-22.
+
+### S-21-T4 (Models page)
+
+- Each role's model is a Select of the distinct default models (the role's own default marked
+  "(default)") plus "Other model…", which shows a text Input for any name. The name is checked
+  with core `validModelName` as it is typed; Save with an invalid name shows a summary alert and
+  never opens the signed dialog.
+- The override note is plain text ("Level 6 uses claude-opus-5-5") until the level pages exist;
+  S-21-T5 turns each note into a link to its level.
+- Settings now opens on Models: the index redirects to the first page of the sidebar, and Models
+  comes before Team in the approved order. `TeamPage.test.tsx` and `settings-team.spec.ts` open
+  `/settings/team` directly.

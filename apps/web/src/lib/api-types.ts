@@ -486,6 +486,39 @@ export type TimelineEntryView = {
   costUsd: number | null;
 };
 
+/** `GET /api/settings/models` (S-21-T3): every role's model, the defaults and level overrides. */
+export type ModelsResponse = {
+  models: Record<AgentRole, string>;
+  defaults: Record<AgentRole, string>;
+  /** Levels that set their own model for a role ("Level 6 uses claude-opus-5-5"). */
+  overrides: { level: LevelNumber; role: AgentRole; model: string }[];
+};
+
+/** The settings a review level resolves to (core `LevelSettings`). */
+export type LevelSettingsView = {
+  brief: string | null;
+  maxFindings: number;
+  maxQuestions: number;
+  stageTimeoutMinutes: number;
+  autofixMaxPatches: number | null;
+};
+export type LevelSettingKey = keyof LevelSettingsView;
+
+/** One review level: what it adds, its own values, what it resolves to and where from. */
+export type LevelView = {
+  number: LevelNumber;
+  key: string;
+  adds: string[];
+  /** The level's own values (`models` holds its own model per role); the rest is inherited. */
+  own: Partial<LevelSettingsView> & { models?: Partial<Record<AgentRole, string>> };
+  settings: LevelSettingsView;
+  origins: Record<string, { level: LevelNumber; source: 'built_in' | 'override' }>;
+  models: ModelChoiceView[];
+};
+
+/** `GET /api/settings/levels`. */
+export type LevelsResponse = { defaultLevel: LevelNumber; levels: LevelView[] };
+
 /** A role's model and where it comes from (core `ModelChoice`). */
 export type ModelChoiceView = {
   role: AgentRole;

@@ -21,6 +21,7 @@ import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
+import { Route as SettingsModelsRouteImport } from './routes/settings.models.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
 import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
 import { Route as SettingsRepositoriesIndexRouteImport } from './routes/settings.repositories.index.tsx'
@@ -87,6 +88,11 @@ const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
   path: '/integrations',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsModelsRoute = SettingsModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsTeamRoute = SettingsTeamRouteImport.update({
   id: '/team',
   path: '/team',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByTo {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights': typeof InsightsIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
+    | '/settings/models'
     | '/settings/team'
     | '/insights/'
     | '/settings/'
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
+    | '/settings/models'
     | '/settings/team'
     | '/insights'
     | '/settings'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
+    | '/settings/models'
     | '/settings/team'
     | '/insights/'
     | '/settings/'
@@ -325,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIntegrationsRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/models': {
+      id: '/settings/models'
+      path: '/models'
+      fullPath: '/settings/models'
+      preLoaderRoute: typeof SettingsModelsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/team': {
       id: '/settings/team'
       path: '/team'
@@ -383,6 +402,7 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
 
 interface SettingsRouteChildren {
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
+  SettingsModelsRoute: typeof SettingsModelsRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsRepositoriesIdRoute: typeof SettingsRepositoriesIdRoute
@@ -392,6 +412,7 @@ interface SettingsRouteChildren {
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
+  SettingsModelsRoute: SettingsModelsRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   SettingsRepositoriesIdRoute: SettingsRepositoriesIdRoute,
