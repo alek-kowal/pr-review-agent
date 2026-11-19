@@ -5,7 +5,7 @@ import {
   type AppSettings,
   type Parsed,
 } from '@pra/core';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { appSettings } from '../schema/repositories.ts';
 
@@ -27,4 +27,22 @@ export async function getAppSettings(db: Executor): Promise<Parsed<AppSettings>>
   const [row] = await db.select().from(appSettings).where(eq(appSettings.id, ROW_ID));
   if (!row) return { value: DEFAULT_APP_SETTINGS, warnings: [] };
   return parseWithFallback(AppSettingsSchema, DEFAULT_APP_SETTINGS, row.settings);
+}
+
+/** The app settings, locked until the transaction ends (the row is created first if missing). */
+export async function lockAppSettings(db: Executor): Promise<AppSettings> {
+  await ensureAppSettings(db);
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.id, ROW_ID)).for('update');
+  return parseWithFallback(AppSettingsSchema, DEFAULT_APP_SETTINGS, row!.settings).value;
+}
+
+/** Replaces the app settings (parsed: every field must be valid). */
+export async function writeAppSettings(db: Executor, settings: AppSettings): Promise<AppSettings> {
+  const value = AppSettingsSchema.parse(settings);
+  await ensureAppSettings(db);
+  await db
+    .update(appSettings)
+    .set({ settings: value, updatedAt: sql`now()` })
+    .where(eq(appSettings.id, ROW_ID));
+  return value;
 }

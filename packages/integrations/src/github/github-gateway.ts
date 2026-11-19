@@ -1,5 +1,7 @@
 /** Everything the app asks of GitHub, as the GitHub App `pr-review-agent`. */
 export interface GitHubGateway {
+  /** The App's env vars that are missing (`GITHUB_ENV`); empty when it is configured. */
+  readonly missingEnv: readonly string[];
   /** Checks `X-Hub-Signature-256` against the raw request body. A missing signature is `false`. */
   verifyWebhook(rawBody: string | Uint8Array, signature: string | undefined): Promise<boolean>;
   /** The App's installation on a repository, or `null` when the App is not installed there. */

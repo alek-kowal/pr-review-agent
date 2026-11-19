@@ -4,9 +4,11 @@ import {
   type ClickUpGateway,
   type ClickUpSettings,
   type ClickUpTask,
+  type ClickUpUser,
 } from '../clickup/clickup-gateway.ts';
 
 export type ClickUpCall =
+  | { method: 'whoAmI' }
   | { method: 'getTask'; id: string }
   | { method: 'findTaskMentioningPr'; prUrl: string }
   | { method: 'createComment'; taskId: string; text: string; mentionUserId: string | null }
@@ -44,6 +46,20 @@ export class FakeClickUpGateway implements ClickUpGateway {
     return this.calls.filter(
       (call): call is Extract<ClickUpCall, { method: M }> => call.method === method,
     );
+  }
+
+  /** `CLICKUP_API_KEY` when built `unconfigured`. */
+  get missingEnv(): readonly string[] {
+    return this.#unconfigured ? ['CLICKUP_API_KEY'] : [];
+  }
+
+  async whoAmI(): Promise<ClickUpUser> {
+    if (this.#unconfigured) {
+      throw new IntegrationNotConfiguredError(CLICKUP_NOT_CONFIGURED, ['CLICKUP_API_KEY']);
+    }
+    this.calls.push({ method: 'whoAmI' });
+    this.#fail('whoAmI');
+    return { id: '1', username: 'pr-review-agent' };
   }
 
   async getTask(settings: ClickUpSettings | null, id: string): Promise<ClickUpTask | null> {

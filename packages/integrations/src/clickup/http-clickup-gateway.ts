@@ -8,6 +8,7 @@ import {
   type ClickUpGateway,
   type ClickUpSettings,
   type ClickUpTask,
+  type ClickUpUser,
 } from './clickup-gateway.ts';
 
 export const CLICKUP_API = 'https://api.clickup.com/api/v2';
@@ -45,6 +46,17 @@ export class HttpClickUpGateway implements ClickUpGateway {
     this.#baseUrl = options.baseUrl ?? CLICKUP_API;
     this.#fetch = options.fetch ?? fetch;
     this.#now = options.now ?? Date.now;
+  }
+
+  readonly missingEnv: readonly string[] = [];
+
+  async whoAmI(): Promise<ClickUpUser> {
+    const body = await this.#request<{ user?: { id?: unknown; username?: unknown } }>(
+      'GET',
+      '/user',
+      new URLSearchParams(),
+    );
+    return { id: String(body?.user?.id ?? ''), username: String(body?.user?.username ?? '') };
   }
 
   async getTask(settings: ClickUpSettings | null, id: string): Promise<ClickUpTask | null> {
@@ -165,6 +177,13 @@ export class UnconfiguredClickUpGateway implements ClickUpGateway {
 
   constructor(missing: string[] = [...CLICKUP_ENV]) {
     this.missing = missing;
+  }
+
+  get missingEnv(): readonly string[] {
+    return this.missing;
+  }
+  whoAmI(): Promise<ClickUpUser> {
+    return this.#fail();
   }
 
   getTask(): Promise<ClickUpTask | null> {

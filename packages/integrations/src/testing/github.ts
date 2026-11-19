@@ -67,6 +67,7 @@ export class FakeGitHubGateway implements GitHubGateway {
   readonly calls: GitHubCall[] = [];
   readonly comments: Array<{ fullName: string; number: number; body: string; id: number }> = [];
   readonly installations = new Map<string, number>();
+  readonly missingEnv: readonly string[] = [];
   /** Default branch and visibility per repository, for `listAccessibleRepositories`. */
   readonly repositoryDetails = new Map<string, Partial<AccessibleRepository>>();
   readonly pullRequests = new Map<string, GitHubPullRequest>();

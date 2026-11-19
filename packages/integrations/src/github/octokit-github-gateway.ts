@@ -43,6 +43,7 @@ export class OctokitGitHubGateway implements GitHubGateway {
   readonly #now: () => number;
   readonly #tokens = new Map<number, Promise<InstallationToken>>();
   readonly #installations = new Map<string, number>();
+  readonly missingEnv: readonly string[] = [];
 
   constructor(options: OctokitGitHubGatewayOptions) {
     this.#app = new App({ appId: options.appId, privateKey: options.privateKey, Octokit });
@@ -231,6 +232,9 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     this.missing = missing;
   }
 
+  get missingEnv(): readonly string[] {
+    return this.missing;
+  }
   verifyWebhook(): Promise<boolean> {
     return this.#fail();
   }
