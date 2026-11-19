@@ -11,6 +11,7 @@ import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
 import { status } from './status.ts';
+import { pipeline } from './pipeline.ts';
 import { timeline } from './timeline.ts';
 import { trials } from './trials.ts';
 
@@ -253,6 +254,7 @@ export const copy = {
   insights,
   instructions,
   trials,
+  pipeline,
   settings: {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',

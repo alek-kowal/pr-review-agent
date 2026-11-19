@@ -21,6 +21,7 @@ import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
+import { Route as SettingsPipelineRouteImport } from './routes/settings.pipeline.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
 import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
 import { Route as SettingsExperimentsIndexRouteImport } from './routes/settings.experiments.index.tsx'
@@ -91,6 +92,11 @@ const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
   path: '/integrations',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsPipelineRoute = SettingsPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsTeamRoute = SettingsTeamRouteImport.update({
   id: '/team',
   path: '/team',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights': typeof InsightsIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
+    | '/settings/pipeline'
     | '/settings/team'
     | '/insights/'
     | '/settings/'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
+    | '/settings/pipeline'
     | '/settings/team'
     | '/insights'
     | '/settings'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/integrations'
+    | '/settings/pipeline'
     | '/settings/team'
     | '/insights/'
     | '/settings/'
@@ -375,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIntegrationsRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/pipeline': {
+      id: '/settings/pipeline'
+      path: '/pipeline'
+      fullPath: '/settings/pipeline'
+      preLoaderRoute: typeof SettingsPipelineRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/team': {
       id: '/settings/team'
       path: '/team'
@@ -461,6 +480,7 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
 
 interface SettingsRouteChildren {
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
+  SettingsPipelineRoute: typeof SettingsPipelineRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsExperimentsIdRoute: typeof SettingsExperimentsIdRoute
@@ -474,6 +494,7 @@ interface SettingsRouteChildren {
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
+  SettingsPipelineRoute: SettingsPipelineRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   SettingsExperimentsIdRoute: SettingsExperimentsIdRoute,

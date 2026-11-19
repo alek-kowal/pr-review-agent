@@ -62,5 +62,11 @@ decide and record).
 - **Attempts are 1.** A failed stage stops the run and Retry is a button (S-15); a job retry
   marks a stage left running as interrupted. Verify adds one repair of a broken reproduction.
   Fix check uses its built-in prompt (no instruction file); the Analyst lists none until P-21.
+- **Pipeline diagram nodes are buttons.** `@xyflow/react` (v13) with dragging, connecting,
+  selecting, deleting, panning and scroll zoom off and `nodesFocusable` off; each custom node is
+  one `<button>` (re-enabling the pointer events React Flow turns off), so Tab, click and Enter
+  open the Sheet. Nodes carry a fixed size so they show before React Flow measures them. A table
+  of the stages sits under the diagram, as in the prototype. shadcn `Sheet` added to
+  `components/ui`.
 - **Tests and global files.** Test files share one database, so a test that reads global
   instruction files filters to its own rows or uses its own `createTestDatabase()`.

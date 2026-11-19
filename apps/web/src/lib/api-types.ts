@@ -1,6 +1,7 @@
 // Response types of the api's read endpoints. The api's Zod schemas are the source of truth
 // (apps/api/src/routes/api, apps/api/src/pr-view); the web may not import server packages.
 import type {
+  AgentRole,
   ChecklistItemKey,
   Decision,
   Lane,
@@ -580,3 +581,25 @@ export type InstructionDetailResponse = {
   /** Newest first. */
   versions: InstructionVersionView[];
 };
+
+// The read-only pipeline (apps/api/src/routes/api/pipeline).
+export type PipelineStageKey =
+  'checks' | 'task' | 'change_type' | 'review' | 'verify' | 'implement' | 'fix_check' | 'analyst';
+
+export type PipelineStageView = {
+  key: PipelineStageKey;
+  role: AgentRole | null;
+  /** Null for a stage of plain code. */
+  model: { model: string; source: 'level' | 'settings' | 'default'; level: number | null } | null;
+  tools: string[];
+  integrations: string[];
+  /** Global files; `version` is the active one, null when the file or its active version is missing. */
+  instructions: { fileKey: string; fileId: number | null; version: number | null }[];
+  output: { schema: string; fields: string[] };
+  timeoutMinutes: number;
+  attempts: number;
+  repairs: number;
+  onFrom: LevelNumber;
+};
+
+export type PipelineResponse = { stages: PipelineStageView[] };
