@@ -172,9 +172,9 @@ describe('push job', () => {
     const before = pushCalls();
     vi.spyOn(deps.db, 'transaction').mockRejectedValueOnce(new Error('connection lost'));
 
-    await expect(
-      handlePatchPush(deps, { patchId: patch.id, signedBy: signer.id }),
-    ).rejects.toThrow('connection lost');
+    await expect(handlePatchPush(deps, { patchId: patch.id, signedBy: signer.id })).rejects.toThrow(
+      'connection lost',
+    );
     const landed = await git(bare, 'rev-parse', `refs/heads/${BRANCH}`);
     expect(landed).not.toBe(fixture.headSha);
     deps.github.addPullRequest({
