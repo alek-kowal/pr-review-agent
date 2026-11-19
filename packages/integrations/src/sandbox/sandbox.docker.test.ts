@@ -1,11 +1,16 @@
-import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { execa } from 'execa';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { dockerSkipReason, ensureDockerImage, labelledContainers } from '../testing/sandbox.ts';
+import { labelledContainers, removeLabelledContainers } from '../testing/sandbox-containers.ts';
+import {
+  dockerSkipReason,
+  ensureDockerImage,
+  fileLabel,
+  sandboxTestLabels,
+  StoppableSandbox,
+} from '../testing/sandbox.ts';
 import { DockerSandbox } from './docker-sandbox.ts';
 import { DEFAULT_SANDBOX_IMAGE, type SandboxRunSpec } from './sandbox.ts';
 
@@ -24,13 +29,12 @@ const RUN_LIMIT_MS = 30_000;
  */
 const ONE_RUN_PER_TEST = { timeout: RUN_LIMIT_MS + 15_000 };
 
-/** Every container of this test run carries this label, so cleanup is checked by it. */
-const labels = { 'pra.sandbox.test': randomUUID() };
-const leftoverContainers = () =>
-  labelledContainers(`pra.sandbox.test=${labels['pra.sandbox.test']}`);
+/** Every container of this file carries its own label, so cleanup is checked by it. */
+const labels = sandboxTestLabels();
+const leftoverContainers = () => labelledContainers(fileLabel(labels));
 
 describe.skipIf(skipReason)('DockerSandbox on the local daemon', ONE_RUN_PER_TEST, () => {
-  const sandbox = new DockerSandbox();
+  const sandbox = new StoppableSandbox(new DockerSandbox());
   let dir: string;
 
   const run = (command: string, extra: Partial<SandboxRunSpec> = {}) =>
@@ -49,11 +53,13 @@ describe.skipIf(skipReason)('DockerSandbox on the local daemon', ONE_RUN_PER_TES
     await ensureDockerImage(DEFAULT_SANDBOX_IMAGE);
   }, 300_000);
 
+  // A failed or timed-out test's container goes here; an interrupted run's, in the global
+  // setup's teardown.
   afterAll(async () => {
-    const left = await leftoverContainers();
-    if (left.length) await execa('docker', ['rm', '--force', ...left], { reject: false });
+    await sandbox.stop();
+    await removeLabelledContainers(fileLabel(labels));
     await rm(dir, { recursive: true, force: true });
-  });
+  }, 60_000);
 
   test('returns the exit code and the combined output', async () => {
     const result = await run('echo out; echo err >&2; exit 7');

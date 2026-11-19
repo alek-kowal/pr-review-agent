@@ -27,6 +27,9 @@ export {
   dockerSkipReason,
   ensureDockerImage,
   FakeSandbox,
-  labelledContainers,
+  fileLabel,
+  sandboxTestLabels,
+  StoppableSandbox,
   type FakeSandboxHandler,
 } from './sandbox.ts';
+export { labelledContainers, removeLabelledContainers } from './sandbox-containers.ts';

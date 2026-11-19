@@ -1,16 +1,17 @@
-import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execa } from 'execa';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { labelledContainers, removeLabelledContainers } from '../testing/sandbox-containers.ts';
 import {
   dockerSkipReason,
   ensureDockerImage,
   FakeSandbox,
-  labelledContainers,
+  fileLabel,
+  sandboxTestLabels,
+  StoppableSandbox,
 } from '../testing/sandbox.ts';
 import { DockerSandbox } from './docker-sandbox.ts';
 import { installDependencies, type InstallCommands } from './install.ts';
@@ -110,19 +111,23 @@ const skipReason = await dockerSkipReason();
 if (skipReason) console.warn(`install.test.ts Docker part skipped: ${skipReason}`);
 
 describe.skipIf(skipReason)('installDependencies in Docker', () => {
-  const labels = { 'pra.sandbox.test': randomUUID() };
+  const labels = sandboxTestLabels();
 
   beforeAll(() => ensureDockerImage(DEFAULT_SANDBOX_IMAGE), 300_000);
+  const sandbox = new StoppableSandbox(new DockerSandbox());
+
+  // A failed or timed-out test's container goes here; an interrupted run's, in the global
+  // setup's teardown.
   afterAll(async () => {
-    const left = await labelledContainers(`pra.sandbox.test=${labels['pra.sandbox.test']}`);
-    if (left.length) await execa('docker', ['rm', '--force', ...left], { reject: false });
-  });
+    await sandbox.stop();
+    await removeLabelledContainers(fileLabel(labels));
+  }, 60_000);
 
   test('installs the fixture offline; its postinstall cannot reach the network', async () => {
     const worktree = path.join(root, 'fixture');
     await cp(FIXTURE, worktree, { recursive: true });
 
-    const result = await installDependencies(new DockerSandbox(), {
+    const result = await installDependencies(sandbox, {
       worktree,
       cacheDir: path.join(root, 'cache'),
       config: PNPM,
@@ -134,6 +139,6 @@ describe.skipIf(skipReason)('installDependencies in Docker', () => {
     expect(result.status).toBe('ok');
     expect(existsSync(path.join(worktree, 'node_modules', 'is-number', 'package.json'))).toBe(true);
     expect(await readFile(path.join(worktree, 'postinstall-network.txt'), 'utf8')).toBe('failed');
-    expect(await labelledContainers(`pra.sandbox.test=${labels['pra.sandbox.test']}`)).toEqual([]);
+    expect(await labelledContainers(fileLabel(labels))).toEqual([]);
   }, 300_000);
 });
