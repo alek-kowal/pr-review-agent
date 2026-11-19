@@ -135,6 +135,17 @@ test('a failed round shows its line with the copy for its error code', async () 
   );
 });
 
+test('an unexpected stage error has its own copy, not the raw code', async () => {
+  openFindings([], {
+    round: aRound({ status: 'failed', error: { stage: 'review', code: 'stage_error' } }),
+    findingsRound: null,
+  });
+
+  expect(await screen.findByTestId('round-failed')).toHaveTextContent(
+    'Round 1 failed at Review: an unexpected error stopped it',
+  );
+});
+
 test('a PR with no round yet says so', async () => {
   openFindings([], { round: null, findingsRound: null });
 

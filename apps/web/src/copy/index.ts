@@ -129,6 +129,7 @@ export const copy = {
     stage_not_available: 'this stage is not available yet',
     stage_timeout: 'the stage ran out of time',
     interrupted: 'the app restarted while it ran',
+    stage_error: 'an unexpected error stopped it',
     cancelled: 'it was cancelled',
     review_output_invalid: "the reviewer's answer was not valid",
     github_not_configured: 'GitHub is not configured',
