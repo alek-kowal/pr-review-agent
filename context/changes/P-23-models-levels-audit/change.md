@@ -45,3 +45,22 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
   "Models" side card. Runs from before the snapshot show their level override or the default.
 - The level 5 patch cap is in the snapshot (`level.settings.autofixMaxPatches`); `autofixDecision`
   has no caller on this branch, so P-22 (or the merge, if P-22 lands first) wires it.
+
+### S-21-T3 (models and levels API)
+
+- Audit areas and entities: `models` / `roles` (all five roles in one change, so before/after
+  hold the whole map and a search for a role name finds it); `levels` / `"1"`…`"6"` (the level's
+  own values); `levels` / `default` (`{ defaultLevel }`).
+- `PUT /api/settings/levels/:n` takes `{ values, before?, signedBy? }`. `values` is the level's
+  complete set of own values: a field left out or sent as `"inherit"` is inherited. Models per
+  role sit in `values.models` the same way.
+- `autofixMaxPatches` may be set only from level 5 (400 `invalid_request`, issue code
+  `not_at_this_level`); lower levels have no autofix.
+- Validation errors are the API's usual 400 `invalid_request` with `issues[].path` naming the
+  field (`/models/verifier`, `/values/maxFindings`); a bad model name in Settings → Models has
+  issue code `invalid_model_name`.
+- `GET /api/settings/models` also returns the defaults (for the Select) and the levels that
+  override a role (for the note). `GET /api/settings/levels[/:n]` returns each level's own values,
+  resolved settings, origins and models, plus the global default level.
+- `reads-never-write.test.ts` got a 30 s timeout: it calls every GET route and checksums every
+  table twice, which passed 5 s under parallel load.

@@ -138,6 +138,9 @@ test('no GET route changes any table', async () => {
       '/api/insights/cost',
       '/api/insights/quality',
       '/api/insights/trust',
+      '/api/settings/models/',
+      '/api/settings/levels/',
+      '/api/settings/levels/:n',
     ]),
   );
 
@@ -163,5 +166,7 @@ test('no GET route changes any table', async () => {
   // ...and the data routes found the seeded rows.
   expect(answered['/api/runs/:id']).toBe(200);
   expect(answered['/api/prs/:repo/:number/timeline']).toBe(200);
+  expect(answered['/api/settings/levels/:n']).toBe(200);
   expect(await checksums()).toEqual(before);
-});
+  // Every GET route of the app and two checksums of every table: well over the default 5 s.
+}, 30_000);
