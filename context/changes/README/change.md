@@ -1,7 +1,7 @@
 ---
 change_id: README
 title: A README for PR Review Agent
-status: in progress
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -70,3 +70,9 @@ A throwaway script (not committed) read every `](…)`, `src`, `srcset` and `hre
 and checked each relative path exists and each `#anchor` matches a heading: 9 anchors, 15
 documents and folders, 10 images, all resolve. External: the CI badge and its workflow link, and
 four static shields.io badges.
+
+## Verify
+
+After merging main: `pnpm verify` passed (214 test files, 1369 tests); `pnpm test:e2e` passed (71
+passed, 1 skipped by the a11y spec's own condition) and did not run `shots.readme.ts`;
+`pnpm readme:shots` passed.
