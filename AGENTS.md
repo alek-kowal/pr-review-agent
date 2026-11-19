@@ -24,7 +24,11 @@ tech stack); design notes in `docs/`; the static UI prototype in `prototype/`.
 - `pnpm typecheck`, `pnpm test` (Vitest over all packages), `pnpm test:e2e` (Playwright, Chromium).
 - `pnpm verify`: lint, typecheck and test in parallel. Run it before you commit.
 - `pnpm --filter @pra/web dev` (http://localhost:5173), `pnpm --filter @pra/api dev` (port 3000).
-- `docker compose up -d db` and `pnpm db:migrate` (from F-02).
+- `docker compose up -d db`: one Postgres 17 shared by every worktree. `pnpm test` needs it up;
+  each run creates and drops its own database (`@pra/db/testing` global setup).
+- `pnpm db:migrate` applies Drizzle migrations and installs pg-boss and its queues (`JOBS`);
+  `pnpm db:generate` writes a migration after a schema change.
+- `pnpm --filter @pra/worker dev`; api and worker read the root `.env`.
 
 ## Code rules
 
@@ -37,6 +41,7 @@ tech stack); design notes in `docs/`; the static UI prototype in `prototype/`.
 - Every integration sits behind its interface in `@pra/integrations`. Other code depends on the
   interface, never on an SDK or HTTP client directly.
 - Migrations run only through `pnpm db:migrate`, never on app or worker start.
+- Logs go through `@pra/integrations/logging` (pino, secrets redacted); no `console.log` in apps.
 - No per-repository code paths. A new repository needs settings only, no code change.
 
 ## Web

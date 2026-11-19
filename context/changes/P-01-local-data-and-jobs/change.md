@@ -1,0 +1,123 @@
+---
+change_id: P-01
+title: Local data and jobs (F-02-T1 to F-02-T6)
+status: implemented
+created: 2026-11-19
+updated: 2026-11-19
+archived_at: null
+---
+
+## Notes
+
+Work package P-01 from `context/foundation/work-packages.md`: roadmap item F-02 (`local-data-and-jobs`),
+tasks F-02-T1 to F-02-T6 in `context/foundation/roadmap-tasks.md#f-02-local-data-and-jobs`.
+Plan: no. The tasks' "Done when" checks are the plan; one commit per task.
+
+## Decisions
+
+- Compose has a fixed project name (`name: pra`), so every worktree's `docker compose up -d db`
+  reuses one `pra-db-1` container and one `pra_db-data` volume. Postgres runs with
+  `max_connections=300` to leave room for parallel test runs.
+- `.env.example` keeps names only; the local, non-secret compose URL
+  (`postgres://pra:pra@localhost:5432/pra`) is documented in a comment above `DATABASE_URL`, so the
+  "names only" rule from `AGENTS.md` still holds.
+- `psql` is not installed on this Mac, so the T1 check ran through
+  `docker compose exec -T db psql "<url>" -c 'select 1'` with the same URLs.
+- Drizzle `drizzle-orm` 0.45 + `drizzle-kit` 0.31 on `pg` (node-postgres), the driver pg-boss also
+  uses. `createDb(url)` returns the Drizzle client over a lazy `pg.Pool` (5 s connection timeout,
+  an idle-error listener so a Postgres restart cannot crash the process); `closeDb` ends the pool.
+- Migrations live in `packages/db/migrations` (`0000_smoke.sql`, named with `--name`). Root
+  `db:generate` runs drizzle-kit in `@pra/db`; root `db:migrate` runs
+  `node --env-file-if-exists=.env packages/db/src/cli/migrate.ts` (Node 24 runs the TS source) and
+  prints how many migrations it applied, so a second run visibly changes nothing.
+- pnpm 12 asked about esbuild's build script (pulled in by drizzle-kit): set to `false` in
+  `allowBuilds`. esbuild ships its binary as an optional dependency, and drizzle-kit works without
+  the script.
+- **Test databases (orchestrator rule overrides "migrates `pra_test`")**: every Vitest project that
+  touches Postgres has the global setup `@pra/db/testing/global-setup`. It connects to `pra_test`
+  (DATABASE_URL with the name changed; the local compose URL when DATABASE_URL is unset), creates
+  `pra_test_<base36 ms>_<8 hex>`, migrates it, hands its URL to tests through Vitest
+  `provide`/`inject` (`testDatabaseUrl()` from `@pra/db/testing`) and drops it `with (force)` at
+  the end. It also drops run databases older than 12 h left by crashed runs. So parallel runs from
+  several worktrees share one Postgres and nothing else; `pra_test` itself holds no test data.
+- CI: a `postgres:17` service with `POSTGRES_DB: pra_test`, job-level
+  `DATABASE_URL=postgres://pra:pra@localhost:5432/pra_test` (throwaway CI credentials), and
+  `pnpm db:migrate` before `pnpm test`, as the task asks. The CI steps were rehearsed locally with
+  that URL (migrate, then `pnpm test` green); the GitHub run waits for the orchestrator's push.
+- Logging (T3): `@pra/integrations/logging` exports `loggerOptions(service, env)`, `createLogger`
+  and `redactSecrets`. JSON when `NODE_ENV` is `production` or `test`, pretty (pino-pretty,
+  resolved to an absolute path because pnpm hides it from pino) otherwise, so `pnpm dev` needs no
+  `NODE_ENV`. `LOG_LEVEL` sets the level (default `info`).
+- Redaction: pino `redact` paths for authorization headers, plus a `formatters.log` walk over plain
+  objects and arrays that replaces values of keys ending in `authorization`, `api_key`/`apiKey`,
+  `secret`, `password`, `token` or `private_key`/`privateKey`, and any string holding a PEM private
+  key. Class instances (errors, requests) are left to pino's serializers. Empty secret values stay
+  visible, so a missing key shows in logs. Pino skips formatters for `logger.child()` bindings, so
+  child bindings carry ids only.
+- The api no longer starts through `fastify start`: `src/server.ts` has `serverOptions(env)` and
+  `buildServer()`, and `src/main.ts` is the entry (`dev` = `node --watch --env-file-if-exists`,
+  `start` = `node dist/main.js`), because the composition root (T5) builds dependencies from env
+  before Fastify starts. Request ids: a caller's `X-Request-Id` is kept, otherwise a UUID.
+- The worker's entry is `apps/worker/src/main.ts` (the empty `src/index.ts` is gone).
+- pg-boss 12 (`PgBoss` named export) in `@pra/db/src/queue.ts`: `createQueue(url)` forces
+  `schema: 'pgboss'` and `migrate: false`, so `start()` throws "pg-boss is not installed" on a
+  database `pnpm db:migrate` has not touched (tested). `JOBS` holds the names, `JobPayloads` the
+  data per name, `sendJob` sends with that type, `QueueJob<N>` is what a handler gets.
+- `migrateDatabase` = Drizzle migrations, then `migrateQueue`: a short-lived pg-boss with
+  `migrate: true` (no supervision, schedule or instance row) installs or upgrades the schema and
+  **creates every queue in `JOBS`** (pg-boss 12 needs a queue before `send`/`work`). So a new job
+  name needs `pnpm db:migrate`, like a new table; nothing creates queues on start.
+- `@pra/db` re-exports the common Drizzle operators (`eq`, `and`, `sql`, ...) so apps use the same
+  drizzle-orm instance as the schema and need no own drizzle-orm or pg-boss dependency.
+- Worker: `startWorker(deps, options)` in `apps/worker/src/worker.ts` (deps: db, queue, logger)
+  starts the queue, subscribes handlers from `src/handlers/` and returns `stop()` (graceful
+  `queue.stop`, then logs `worker stopped`). `main.ts` builds deps from env, exits with a fatal log
+  when DATABASE_URL is missing or the queue is not installed, and on SIGINT/SIGTERM stops the
+  worker and closes the pool. The test passes `pollingIntervalSeconds: 0.5`; production keeps
+  pg-boss's 2 s.
+- Ctrl-C was checked in a real pseudo-terminal (`pnpm --filter @pra/worker dev`, then `^C`): it
+  logs `worker stopping` and `worker stopped` and leaves no process. A plain `kill -INT` on the pnpm
+  process does not reach Node, because pnpm 12 runs scripts in their own process group.
+- Composition root (T5): the app plugin takes `AppDeps` (`db`, `queue`) as its options and
+  decorates `fastify.deps` before autoload, so every plugin and route sees them.
+  `buildServer(deps, options)` builds the instance; `src/main.ts` builds deps from env and owns
+  their shutdown (server, then queue, then pool). Tests use `test/helper.ts` `build(deps?)`: the run's
+  test database (lazy pool) and a queue that is never started, either replaceable. `fastify-cli`
+  is no longer a dependency.
+- The api's queue only sends (`supervise: false`, `schedule: false`; the worker supervises) and
+  starts in the background with pg-boss's own retry (`attempts: Number.MAX_SAFE_INTEGER`, backoff
+  up to 30 s), so the api listens and answers `/health` while Postgres is down.
+- `GET /health` runs `select 1`: 200 `{ status: "ok", db: "ok" }` or 503
+  `{ status: "degraded", db: "down" }`, both described with Zod for the OpenAPI document. The 503
+  test points a pool at `127.0.0.1:1` (refused at once, nothing listens).
+- Manual checks ran on a free random port, not 3000, because other worktrees may be using it:
+  with the compose db up `/health` returned 200 and `queue started` was logged; with
+  `DATABASE_URL` on port 1 the api still listened, `/health` returned 503, and SIGTERM stopped it.
+- `pnpm test:e2e` was not run: P-01 does not touch the UI, and Playwright's web server uses the
+  fixed port 5173.
+- BlobStore (T6): `BlobStore` with `put(key, body, { contentType })`, `get` (returns
+  `{ body: Uint8Array, contentType }` or `null`), `exists` and `delete` (missing key is fine).
+  Key rules live in the interface module (`assertBlobKey`, `InvalidBlobKeyError` with code
+  `invalid_blob_key`): `/`-separated segments of `[A-Za-z0-9._-]` not starting with a dot, at most
+  1024 characters. So `..`, absolute paths, empty segments, backslashes and spaces are rejected by
+  every adapter, and the contract checks it for each operation.
+- `LocalBlobStore` keeps bytes in `objects/<key>` and the content type in `meta/<key>.json`, writes
+  through `tmp/` and renames (no half-written blobs), and re-checks the resolved path stays inside
+  its directory. A key that is also a "folder" of another key (`a` and `a/b`) cannot coexist
+  locally; our key shapes never do that.
+- `BLOB_DIR` (default `.data/blobs`): relative values resolve from the repo root, found from the
+  module's location, not from the process cwd, because `pnpm --filter` runs api and worker in
+  different directories and both must see the same blobs. `localBlobStoreFromEnv(env)` is the
+  env entry; P-03's `createBlobStore(env)` picks between it and S3.
+- `blobStoreContract(make)` (from `@pra/integrations/testing`) uses fresh keys under
+  `contract/<uuid>/` per test, so P-03 can run it against a shared MinIO bucket.
+- `AGENTS.md` (hot file H14): the db commands, the shared Postgres and per-run test databases, the
+  worker dev command, and "logs go through `@pra/integrations/logging`". 61 → 66 lines,
+  3,227 → 3,666 characters: about 110 more tokens loaded into every agent session.
+- Parallel safety was checked by running `pnpm test` three times at once against the one compose
+  Postgres: all three green, no `pra_test_*` database left behind.
+
+## Status
+
+All six tasks are done and committed one by one. Open: the green CI run on GitHub (needs the
+orchestrator's push).
