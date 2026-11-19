@@ -48,7 +48,14 @@ Execution runs by **work packages** (`context/foundation/work-packages.md`: 24 p
 
 A package that stops at its context budget leaves `context/changes/<id>-handoff.md`, and a continuation session (`prompts/continue.txt`, adapted) picks up from it.
 
-Done: F-01 (monorepo, CI green), the roadmap, the work packages. Running: P-01 and P-02 (wave 1).
+Done and merged: F-01, P-01, P-02, P-02b (parity with P's tests), P-04, P-03 (main bfaa4ea). Running (05:05): P-05, P-06, P-07 (wave 3) and P-03r (impl-review of P-03).
+
+Agents cannot see their own context meter. The watcher fires at 26%. Then:
+1. `handoff.sh <agent> <id> [note]` interrupts the agent and asks for `context/changes/<id>-handoff.md`.
+2. A `watch-many.sh 40 <agent>` waits for that.
+3. `continue-task.sh <id>` starts a fresh session in the same pane (prompt `prompts/package-continue.txt`).
+
+When `merge-task.sh` hits a conflict, the main checkout is left mid-merge. Resolve it, reinstall, run `pnpm verify` (plus e2e), commit "merge: task/<id>", push, remove the worktree and the branch.
 
 ## How to start a task session
 
