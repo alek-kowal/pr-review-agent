@@ -17,7 +17,7 @@ const matches = (entry: TimelineEntryView, filter: Filter) =>
   filter === 'all' || (filter === 'bot' ? entry.actor.kind === 'bot' : entry.actor.kind !== 'bot');
 
 /** Who acted: the signer's name, PR Review Agent, or "By hand". */
-export function actorText(entry: Pick<TimelineEntryView, 'actor' | 'memberName'>): string {
+function actorText(entry: Pick<TimelineEntryView, 'actor' | 'memberName'>): string {
   const t = copy.timeline.actor;
   if (entry.actor.kind === 'bot') return t.bot;
   if (entry.actor.kind === 'hand') return t.hand;

@@ -74,3 +74,16 @@ tasks' "Done when" checks are the plan. One commit per task, in the listed order
   the api's summary) and each tool result, errors in red. Long texts are cut at 600 characters.
 - "Run details" links: after the round line (`ROUND_LINE_LINKS`); Activity and the Timeline use
   the same `RunDetailsLink`.
+
+### S-03-T11 (Timeline tab)
+
+- `features/timeline/TimelineTab.tsx` reads `GET /api/prs/:repo/:number/timeline` (P-10's
+  route, unchanged). The summary shows ready for review, "Open for" / "Ready → merged" /
+  "Ready → closed", agents worked, waiting for people and merge, and cost; before the PR was
+  ever ready it says "Not ready for review yet."
+- Entries are newest first, with a filter: Everything, People (members and "by hand") and PR
+  Review Agent. Who acted: the API's `memberName` (kept after a member leaves), "PR Review
+  Agent" or "By hand"; entries made in GitHub add "in GitHub" (`params.via === 'github'`).
+- One sentence per entry kind in `copy/timeline.ts` `entries` (extension point: a package that
+  adds a kind adds one line); an unknown kind shows its name with spaces. Finished runs show their
+  final cost and the shared `RunDetailsLink`.
