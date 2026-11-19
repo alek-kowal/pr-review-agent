@@ -20,3 +20,17 @@ export const runWaits = pgTable('run_waits', {
   waitingSince: timestamp('waiting_since', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * The Claude usage limit (P-25), at most one row (`id` 1). A session that hit the subscription's
+ * limit stores when runs may go on; until then the queue gates hold every run. Kept after it
+ * passes (the gates compare `until` with now); the next limit overwrites it.
+ */
+export const usageLimitHolds = pgTable('usage_limit_holds', {
+  id: integer().primaryKey().default(1),
+  /** Just after the reset (or after the fallback when the reset is unknown). */
+  until: timestamp('until', { withTimezone: true }).notNull(),
+  /** The reset the SDK reported; null when it named none. */
+  resetsAt: timestamp('resets_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

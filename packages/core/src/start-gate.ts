@@ -24,9 +24,15 @@ export type StartGateInput = {
   kind: GateKind;
   /** Queued runs older than the one asking that wait for a slot; they take free slots first. */
   queuedAhead?: number;
+  /** The stored Claude usage limit hold (P-25), if any; it holds every run until `until`. */
+  usageLimit?: UsageLimitHold | null;
+  /** Now, in ms; compared with the usage limit's `until`. */
+  now?: number;
 };
 
-export type GateWaitReason = Reason<'paused' | 'budget_reached' | 'slots_busy'>;
+export type GateWaitReason = Reason<
+  'paused' | 'budget_reached' | 'slots_busy' | 'usage_limit_reached'
+>;
 export type StartGateDecision = { start: true } | { start: false; reason: GateWaitReason };
 
 /**
@@ -38,6 +44,9 @@ export function startGate(input: StartGateInput): StartGateDecision {
   const { status, spentToday, activeRuns, kind, queuedAhead = 0 } = input;
   const hold = holdReason(kind === 'round' ? status : { ...status, paused: false }, spentToday);
   if (hold) return { start: false, reason: hold };
+  // The subscription's limit holds new rounds and every session: a session now would fail.
+  const limit = activeUsageLimit(input.usageLimit, input.now ?? Date.now());
+  if (limit) return { start: false, reason: limit };
   if (kind === 'session') return { start: true };
 
   const free = status.agentSlots - activeRuns.length;
@@ -58,5 +67,37 @@ export function queueCauseOf(wait: Reason | null | undefined): QueueCause {
     const { spentUsd, budgetUsd } = wait.params;
     return { cause: 'budget', spentUsd, budgetUsd };
   }
+  if (wait?.code === 'usage_limit_reached') {
+    return { cause: 'usage_limit', until: wait.params.until };
+  }
   return { cause: 'slot' };
+}
+
+/** The stored hold after a session hit the Claude usage limit (P-25). */
+export type UsageLimitHold = { until: string; resetsAt: string | null };
+
+/** After the reported reset, runs wait this much longer, so the limit has surely reset. */
+export const USAGE_LIMIT_MARGIN_MS = 60_000;
+/** Without a reported reset, runs try again after this long (a 5-hour window resets in parts). */
+export const USAGE_LIMIT_FALLBACK_MS = 30 * 60_000;
+
+/**
+ * When runs go on after a usage limit: just after the reported reset, or after the fallback when
+ * the SDK named none. A reset already past (clock skew) waits the margin only.
+ */
+export function usageLimitHold(resetsAt: string | null, now: number): UsageLimitHold {
+  const reset = resetsAt ? Date.parse(resetsAt) : Number.NaN;
+  const until = Number.isNaN(reset)
+    ? now + USAGE_LIMIT_FALLBACK_MS
+    : Math.max(reset, now) + USAGE_LIMIT_MARGIN_MS;
+  return { until: new Date(until).toISOString(), resetsAt: Number.isNaN(reset) ? null : resetsAt };
+}
+
+/** The hold's wait reason while it lasts, else null. */
+export function activeUsageLimit(
+  hold: UsageLimitHold | null | undefined,
+  now: number,
+): Reason<'usage_limit_reached'> | null {
+  if (!hold || Date.parse(hold.until) <= now) return null;
+  return reason('usage_limit_reached', { until: hold.until, resetsAt: hold.resetsAt });
 }

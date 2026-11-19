@@ -190,6 +190,13 @@
       "when": 1795112645092,
       "tag": "0026_autofix",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795122990273,
+      "tag": "0027_usage_limit_holds",
+      "breakpoints": true
     }
   ]
 }

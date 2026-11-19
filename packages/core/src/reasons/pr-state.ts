@@ -9,6 +9,8 @@ declare module '../reason.ts' {
     state_queued_paused: { by: Actor | null; note: string };
     state_queued_budget: { spentUsd: number; budgetUsd: number };
     state_queued_slot: NoParams;
+    /** "Paused until <time>: Claude usage limit" (P-25). */
+    state_queued_usage_limit: { until: string };
     state_round_starting: { roundNumber: number; max: number };
     state_round_running_by_hand: { roundNumber: number; max: number };
     state_round_retrying: { stage: string; roundNumber: number; max: number };
