@@ -259,16 +259,16 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Automated
 
-- [x] 4.1 `pnpm --filter @pra/web test` and `build` pass
-- [x] 4.2 `/` redirects to `/prs` in the dev server
+- [x] 4.1 `pnpm --filter @pra/web test` and `build` pass — 8929544
+- [x] 4.2 `/` redirects to `/prs` in the dev server — 8929544
 
 ### Phase 5: Tailwind, shadcn/ui, WB tokens and the top bar
 
 #### Automated
 
-- [ ] 5.1 `TopBar.test.tsx` passes
-- [ ] 5.2 `pnpm --filter @pra/web build` passes
-- [ ] 5.3 Both themes' tokens are defined in the global stylesheet
+- [x] 5.1 `TopBar.test.tsx` passes
+- [x] 5.2 `pnpm --filter @pra/web build` passes
+- [x] 5.3 Both themes' tokens are defined in the global stylesheet
 
 ### Phase 6: ESLint and Prettier with package boundary rules
 

@@ -10,9 +10,13 @@
     "moduleDetection": "force",
     "allowArbitraryExtensions": true,
     "noEmit": true,
+    "rewriteRelativeImportExtensions": false,
     "sourceMap": false,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }
