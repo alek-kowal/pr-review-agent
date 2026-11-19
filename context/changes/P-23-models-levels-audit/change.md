@@ -81,3 +81,18 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
 - Settings now opens on Models: the index redirects to the first page of the sidebar, and Models
   comes before Team in the approved order. `TeamPage.test.tsx` and `settings-team.spec.ts` open
   `/settings/team` directly.
+
+### S-21-T5 (Review levels pages)
+
+- Routes `/settings/review-levels` (ladder and default level) and `/settings/review-levels/$level`.
+  The Models page's override notes now link to their level.
+- The level page computes what a value would be without the level's own value in the browser,
+  with core `resolveLevelSettings` over the other levels' own values and the role models (from
+  `GET /api/settings/models`). So Override starts from the inherited value and Inherited shows it
+  again without a round trip, and the source reads "from level 3" or "built in at level 2".
+- Every setting and every role's model has the ToggleGroup Inherited / Own value; a reviewer brief
+  left empty as an own value saves as `null` (no brief at this level). Numbers are checked with
+  core `LevelSettingsPatchSchema` before Save; an invalid value blocks the signed dialog.
+- The save sends the level's complete own values (`inherit` for the rest) and the stored own
+  values as `before`. N goes in only from level 5 (lower levels have no autofix).
+- The autofix rules show on level 5 (N editable) and level 6 (N as text, inherited from 5).

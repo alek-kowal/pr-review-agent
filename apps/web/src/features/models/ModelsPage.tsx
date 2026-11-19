@@ -1,5 +1,6 @@
 import { AGENT_ROLES, validModelName, type AgentRole } from '@pra/core';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { Info } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input.tsx';
@@ -168,7 +169,15 @@ function ModelsForm({ data }: { data: ModelsResponse }) {
                     ) : (
                       <ul className="grid gap-1" aria-label={t.columns.overrides}>
                         {overrides.map((o) => (
-                          <li key={o.level}>{t.overrideNote(o.level, o.model)}</li>
+                          <li key={o.level}>
+                            <Link
+                              to="/settings/review-levels/$level"
+                              params={{ level: String(o.level) }}
+                              className="text-brand-text hover:underline"
+                            >
+                              {t.overrideNote(o.level, o.model)}
+                            </Link>
+                          </li>
                         ))}
                       </ul>
                     )}

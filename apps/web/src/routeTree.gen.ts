@@ -27,6 +27,8 @@ import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
 import { Route as SettingsRepositoriesIndexRouteImport } from './routes/settings.repositories.index.tsx'
 import { Route as SettingsRepositoriesIdRouteImport } from './routes/settings.repositories.$id.tsx'
 import { Route as SettingsRepositoriesConnectRouteImport } from './routes/settings.repositories.connect.tsx'
+import { Route as SettingsReviewLevelsIndexRouteImport } from './routes/settings.review-levels.index.tsx'
+import { Route as SettingsReviewLevelsLevelRouteImport } from './routes/settings.review-levels.$level.tsx'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -120,6 +122,18 @@ const SettingsRepositoriesConnectRoute =
     path: '/repositories/connect',
     getParentRoute: () => SettingsRoute,
   } as any)
+const SettingsReviewLevelsIndexRoute =
+  SettingsReviewLevelsIndexRouteImport.update({
+    id: '/review-levels/',
+    path: '/review-levels/',
+    getParentRoute: () => SettingsRoute,
+  } as any)
+const SettingsReviewLevelsLevelRoute =
+  SettingsReviewLevelsLevelRouteImport.update({
+    id: '/review-levels/$level',
+    path: '/review-levels/$level',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -139,7 +153,9 @@ export interface FileRoutesByFullPath {
   '/pr/$repo/$number': typeof PrRepoNumberRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
   '/settings/repositories/': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels/': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -157,7 +173,9 @@ export interface FileRoutesByTo {
   '/pr/$repo/$number': typeof PrRepoNumberRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
   '/settings/repositories': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,7 +196,9 @@ export interface FileRoutesById {
   '/pr/$repo/$number': typeof PrRepoNumberRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
   '/settings/repositories/': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels/': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,7 +220,9 @@ export interface FileRouteTypes {
     | '/pr/$repo/$number'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/review-levels/$level'
     | '/settings/repositories/'
+    | '/settings/review-levels/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -218,7 +240,9 @@ export interface FileRouteTypes {
     | '/pr/$repo/$number'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/review-levels/$level'
     | '/settings/repositories'
+    | '/settings/review-levels'
   id:
     | '__root__'
     | '/'
@@ -238,7 +262,9 @@ export interface FileRouteTypes {
     | '/pr/$repo/$number'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/review-levels/$level'
     | '/settings/repositories/'
+    | '/settings/review-levels/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -379,6 +405,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRepositoriesConnectRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/review-levels/': {
+      id: '/settings/review-levels/'
+      path: '/review-levels'
+      fullPath: '/settings/review-levels/'
+      preLoaderRoute: typeof SettingsReviewLevelsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/review-levels/$level': {
+      id: '/settings/review-levels/$level'
+      path: '/review-levels/$level'
+      fullPath: '/settings/review-levels/$level'
+      preLoaderRoute: typeof SettingsReviewLevelsLevelRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
@@ -407,7 +447,9 @@ interface SettingsRouteChildren {
   SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsRepositoriesIdRoute: typeof SettingsRepositoriesIdRoute
   SettingsRepositoriesConnectRoute: typeof SettingsRepositoriesConnectRoute
+  SettingsReviewLevelsLevelRoute: typeof SettingsReviewLevelsLevelRoute
   SettingsRepositoriesIndexRoute: typeof SettingsRepositoriesIndexRoute
+  SettingsReviewLevelsIndexRoute: typeof SettingsReviewLevelsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
@@ -417,7 +459,9 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsIndexRoute: SettingsIndexRoute,
   SettingsRepositoriesIdRoute: SettingsRepositoriesIdRoute,
   SettingsRepositoriesConnectRoute: SettingsRepositoriesConnectRoute,
+  SettingsReviewLevelsLevelRoute: SettingsReviewLevelsLevelRoute,
   SettingsRepositoriesIndexRoute: SettingsRepositoriesIndexRoute,
+  SettingsReviewLevelsIndexRoute: SettingsReviewLevelsIndexRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
