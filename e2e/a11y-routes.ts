@@ -45,4 +45,6 @@ export const A11Y_ROUTES: readonly A11yRoute[] = [
   { name: 'Settings → Review levels', path: '/settings/review-levels' },
   { name: 'Settings → Review levels → Level 5', path: '/settings/review-levels/5' },
   { name: 'Settings → Audit log', path: '/settings/audit' },
+  // S-21-T9: Settings → Alerts.
+  { name: 'Settings → Alerts', path: '/settings/alerts' },
 ];

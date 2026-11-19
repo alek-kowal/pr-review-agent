@@ -122,6 +122,9 @@ export const ApiErrorCode = {
   PatchStale: 'patch_stale',
   /** Revise needs a note. */
   NoteRequired: 'note_required',
+  AlertNotFound: 'alert_not_found',
+  /** Dismissing an alert that was already cleared or dismissed. */
+  AlertNotActive: 'alert_not_active',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

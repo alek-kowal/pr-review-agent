@@ -14,3 +14,4 @@ export * from './trials.ts';
 export * from './reviews.ts';
 export * from './status.ts';
 export * from './patches.ts';
+export * from './alerts.ts';

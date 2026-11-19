@@ -20,6 +20,7 @@ export {
 export { migrateDatabase, type MigrationResult } from './migrate.ts';
 export * as schema from './schema/index.ts';
 export {
+  ALERTS_CRON,
   createQueue,
   FOLLOW_UP_DELAY_SECONDS,
   githubEventJobId,
@@ -53,3 +54,9 @@ export { TASK_LINK_HOWS, type TaskLinkHow } from './schema/clickup.ts';
 export { FOLLOW_UP_STATUSES, type FollowUpStatus } from './schema/team.ts';
 export { OPINIONS, type OpinionValue } from './schema/reviews.ts';
 export { PATCH_FILE_STATUSES, PATCH_STATUSES, type PatchFileStatus } from './schema/patches.ts';
+export {
+  ALERT_DELIVERY_STATUSES,
+  ALERT_ENDERS,
+  type AlertDeliveryStatus,
+  type AlertEnder,
+} from './schema/alerts.ts';

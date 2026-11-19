@@ -117,7 +117,12 @@ function Filters(props: {
   const signers = facets?.signers ?? [];
 
   return (
-    <div role="search" aria-label={f.label} className="flex flex-wrap items-end gap-3">
+    <div
+      role="search"
+      aria-label={f.label}
+      data-work-start
+      className="flex flex-wrap items-end gap-3"
+    >
       <label className="grid min-w-[200px] flex-1 gap-1 text-sm font-medium sm:max-w-sm">
         {f.search}
         <Input

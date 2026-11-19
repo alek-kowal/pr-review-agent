@@ -3,6 +3,7 @@
 // `settings_changes` row (area `budget`) and then wakes the queue drainer.
 import { holdReason, MAX_AGENT_SLOTS, type AppSettings } from '@pra/core';
 import {
+  countActiveAlerts,
   getAppSettings,
   getTeamMember,
   runsWaitingToStart,
@@ -50,6 +51,8 @@ export const StatusResponse = z.object({
   since: z.iso.datetime({ offset: true }),
   /** Rounds that wait for their start. */
   queuedCount: z.number().int(),
+  /** Active alerts (S-18); the chip shows the count when it is above 0. */
+  activeAlertCount: z.number().int(),
 });
 export type StatusResponse = z.infer<typeof StatusResponse>;
 
@@ -75,10 +78,11 @@ const errors = { 400: ApiErrorSchema, 409: ApiErrorSchema } as const;
 /** The chip's view of the stored status. */
 export async function statusView(db: Db): Promise<StatusResponse> {
   const settings = (await getAppSettings(db)).value;
-  const [spent, waiting, pausedBy] = await Promise.all([
+  const [spent, waiting, pausedBy, activeAlertCount] = await Promise.all([
     spentToday(db, { timeZone: settings.timeZone }),
     runsWaitingToStart(db),
     settings.paused && settings.pausedBy ? getTeamMember(db, settings.pausedBy) : undefined,
+    countActiveAlerts(db),
   ]);
   return {
     state: stateOf(settings, spent.spentUsd),
@@ -91,6 +95,7 @@ export async function statusView(db: Db): Promise<StatusResponse> {
     todaySpendUsd: spent.spentUsd,
     since: spent.since.toISOString(),
     queuedCount: waiting.length,
+    activeAlertCount,
   };
 }
 

@@ -10,7 +10,8 @@ Recurring problems seen while running parallel agent sessions on this repo, and 
    - Merge-fix rule: keep main's migrations untouched, regenerate ours with `pnpm db:generate --name <same name>`, compare the SQL, carry over hand-written parts.
 2. **Generated files.** `routeTree.gen.ts` is regenerated, never hand-merged. Barrel and index files, copy and `e2e/support`: keep both sides.
 3. **Hotspot files** (`apps/api/src/plugins/errors.ts`, `apps/web/src/features/pr/slots.ts`, `e2e/support/stack.ts`, `packages/db/src/queries/index.ts`, `schema/index.ts`) conflict in almost every merge. They are additive, so keeping both sides is the default.
-4. **CI on docs pushes.** A docs push right after a merge cancels that merge's CI run. Check CI on HEAD, not on the merge commit. `gh run list -c` needs the full SHA.
+4. **Clean merges can still break main.** P-23 and P-24 merged without a conflict, but together they broke typecheck in `board.ts` (main went red). The verify used to run on the branch, not on the merge result. `merge-task.sh` now merges main into the worktree first, verifies that tree, and only then merges into main; on a conflict main stays untouched.
+5. **CI on docs pushes.** A docs push right after a merge cancels that merge's CI run. Check CI on HEAD, not on the merge commit. `gh run list -c` needs the full SHA.
 
 ## Agent sessions
 

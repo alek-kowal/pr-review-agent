@@ -1,5 +1,5 @@
 {
-  "id": "3ac1f141-e735-45e0-8350-28df726f83f1",
+  "id": "a8f08597-0c73-4144-a668-e7c57e245146",
   "prevId": "a289afb5-5445-4abb-944c-3cc8c48f443e",
   "version": "7",
   "dialect": "postgresql",
@@ -4124,72 +4124,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.implementer_requests": {
-      "name": "implementer_requests",
-      "schema": "",
-      "columns": {
-        "run_id": {
-          "name": "run_id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "finding_ids": {
-          "name": "finding_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revises_patch_id": {
-          "name": "revises_patch_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "implementer_requests_run_id_runs_id_fk": {
-          "name": "implementer_requests_run_id_runs_id_fk",
-          "tableFrom": "implementer_requests",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "implementer_requests_revises_patch_id_patches_id_fk": {
-          "name": "implementer_requests_revises_patch_id_patches_id_fk",
-          "tableFrom": "implementer_requests",
-          "tableTo": "patches",
-          "columnsFrom": [
-            "revises_patch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.patch_files": {
-      "name": "patch_files",
+    "public.alert_config": {
+      "name": "alert_config",
       "schema": "",
       "columns": {
         "id": {
@@ -4197,201 +4133,55 @@
           "type": "integer",
           "primaryKey": true,
           "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "patch_files_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
+          "default": 1
         },
-        "patch_id": {
-          "name": "patch_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "base_blob_key": {
-          "name": "base_blob_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "blob_key": {
-          "name": "blob_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'changed'"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "patch_files_patch_id_patches_id_fk": {
-          "name": "patch_files_patch_id_patches_id_fk",
-          "tableFrom": "patch_files",
-          "tableTo": "patches",
-          "columnsFrom": [
-            "patch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "patch_files_path": {
-          "name": "patch_files_path",
-          "nullsNotDistinct": false,
-          "columns": [
-            "patch_id",
-            "path"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "patch_files_status": {
-          "name": "patch_files_status",
-          "value": "\"patch_files\".\"status\" in ('changed', 'edited', 'reverted')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.patches": {
-      "name": "patches",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "patches_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "pull_request_id": {
-          "name": "pull_request_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "run_id": {
-          "name": "run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "base_sha": {
-          "name": "base_sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "finding_ids": {
-          "name": "finding_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fixed_finding_ids": {
-          "name": "fixed_finding_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reproductions": {
-          "name": "reproductions",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "summary": {
-          "name": "summary",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "revise_note": {
-          "name": "revise_note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ready'"
-        },
-        "checking": {
-          "name": "checking",
+        "failed_on": {
+          "name": "failed_on",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": false
+          "default": true
         },
-        "check_version": {
-          "name": "check_version",
+        "rounds_on": {
+          "name": "rounds_on",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "cost_on": {
+          "name": "cost_on",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "cost_max_usd": {
+          "name": "cost_max_usd",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 5
+        },
+        "budget_on": {
+          "name": "budget_on",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "budget_percent": {
+          "name": "budget_percent",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": 80
         },
-        "started_by": {
-          "name": "started_by",
+        "general_task_id": {
+          "name": "general_task_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
-        },
-        "started_by_member_id": {
-          "name": "started_by_member_id",
-          "type": "uuid",
-          "primaryKey": false,
           "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
@@ -4401,9 +4191,173 @@
           "default": "now()"
         }
       },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "alert_config_single_row": {
+          "name": "alert_config_single_row",
+          "value": "\"alert_config\".\"id\" = 1"
+        },
+        "alert_config_cost_positive": {
+          "name": "alert_config_cost_positive",
+          "value": "\"alert_config\".\"cost_max_usd\" > 0"
+        },
+        "alert_config_budget_percent": {
+          "name": "alert_config_budget_percent",
+          "value": "\"alert_config\".\"budget_percent\" in (50, 70, 80, 90)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.alerts": {
+      "name": "alerts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "alerts_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "next_step": {
+          "name": "next_step",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clickup_task_id": {
+          "name": "clickup_task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_general_task": {
+          "name": "to_general_task",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "comment_id": {
+          "name": "comment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_status": {
+          "name": "delivery_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "posted_at": {
+          "name": "posted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_by": {
+          "name": "ended_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_note": {
+          "name": "end_note",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
       "indexes": {
-        "patches_pull_request": {
-          "name": "patches_pull_request",
+        "alerts_status": {
+          "name": "alerts_status",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "alerts_pull_request": {
+          "name": "alerts_pull_request",
           "columns": [
             {
               "expression": "pull_request_id",
@@ -4412,7 +4366,7 @@
               "nulls": "last"
             },
             {
-              "expression": "revision",
+              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4425,9 +4379,9 @@
         }
       },
       "foreignKeys": {
-        "patches_pull_request_id_pull_requests_id_fk": {
-          "name": "patches_pull_request_id_pull_requests_id_fk",
-          "tableFrom": "patches",
+        "alerts_pull_request_id_pull_requests_id_fk": {
+          "name": "alerts_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "alerts",
           "tableTo": "pull_requests",
           "columnsFrom": [
             "pull_request_id"
@@ -4438,9 +4392,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "patches_run_id_runs_id_fk": {
-          "name": "patches_run_id_runs_id_fk",
-          "tableFrom": "patches",
+        "alerts_run_id_runs_id_fk": {
+          "name": "alerts_run_id_runs_id_fk",
+          "tableFrom": "alerts",
           "tableTo": "runs",
           "columnsFrom": [
             "run_id"
@@ -4448,48 +4402,22 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "patches_started_by_member_id_team_members_id_fk": {
-          "name": "patches_started_by_member_id_team_members_id_fk",
-          "tableFrom": "patches",
-          "tableTo": "team_members",
-          "columnsFrom": [
-            "started_by_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "patches_run": {
-          "name": "patches_run",
+        "alerts_key_unique": {
+          "name": "alerts_key_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "run_id"
-          ]
-        },
-        "patches_revision": {
-          "name": "patches_revision",
-          "nullsNotDistinct": false,
-          "columns": [
-            "pull_request_id",
-            "revision"
+            "key"
           ]
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "patches_status": {
-          "name": "patches_status",
-          "value": "\"patches\".\"status\" in ('ready', 'superseded', 'pushed', 'discarded')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

@@ -48,6 +48,7 @@ try {
     judge: createAnthropicJudge(),
     sandbox: createSandbox(),
     clickup: createClickUpGateway(),
+    appBaseUrl: process.env.APP_BASE_URL || null,
   });
 } catch (error) {
   logger.fatal({ err: error }, 'worker failed to start (has `pnpm db:migrate` run?)');

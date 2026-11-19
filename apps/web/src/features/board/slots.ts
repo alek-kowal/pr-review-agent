@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { CardAlertBell } from '@/features/alerts/BoardAlerts.tsx';
 import type { BoardCard } from '@/lib/api-types.ts';
 
 export type CardBadgeSlotProps = { card: BoardCard };
@@ -9,4 +10,6 @@ export type CardBadgeSlotProps = { card: BoardCard };
  * `ReasonBadges` with `copy.board.badges`; a package that needs more than a reason adds a
  * component here. A slot renders nothing when it has nothing to show.
  */
-export const CARD_BADGE_SLOTS: { key: string; Component: ComponentType<CardBadgeSlotProps> }[] = [];
+export const CARD_BADGE_SLOTS: { key: string; Component: ComponentType<CardBadgeSlotProps> }[] = [
+  { key: 'alert-bell', Component: CardAlertBell },
+];

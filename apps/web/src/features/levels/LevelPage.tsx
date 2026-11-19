@@ -207,7 +207,7 @@ function LevelForm({
           {t.page.invalidSummary}
         </p>
       )}
-      <Section title={t.page.adds}>
+      <Section title={t.page.adds} workStart>
         <p className="px-4 py-3 text-sm">
           {view.adds.length === 0 ? (
             <span className="text-text-3">{t.page.addsNothing}</span>
