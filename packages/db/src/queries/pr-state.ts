@@ -22,6 +22,7 @@ import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 import { currentAnswers, type CurrentAnswer } from './answers.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
+import { opinionsOf, type OpinionRow } from './reviews.ts';
 import { newestFixChecks, type FixCheck } from './fix-checks.ts';
 import { sensitiveFilesOf, sensitiveState, type SensitiveFile } from './sensitive-files.ts';
 import { readRepositoryConfig, type PullRequest, type Repository } from './repositories.ts';
@@ -52,6 +53,8 @@ export type PrStateLoad = {
   questions: QuestionRow[];
   /** The current answer of each answered question (S-08-T1). */
   answers: Map<number, CurrentAnswer>;
+  /** The signed opinions of each finding that has any, oldest first (S-08-T4). */
+  opinions: Map<number, OpinionRow[]>;
   decisions: Map<number, CurrentDecision>;
   /** The newest fix status of each finding that has one. */
   fixChecks: Map<number, FixCheck>;
@@ -248,7 +251,7 @@ export async function loadPrStateInputs(
           .orderBy(desc(stageExecutions.id))
       : [],
   ]);
-  const [decisions, fixChecks, sensitiveByPr, answers] = await Promise.all([
+  const [decisions, fixChecks, sensitiveByPr, answers, opinions] = await Promise.all([
     currentDecisions(
       db,
       findingRows.map((row) => row.id),
@@ -264,6 +267,10 @@ export async function loadPrStateInputs(
     currentAnswers(
       db,
       questionRows.map((row) => row.id),
+    ),
+    opinionsOf(
+      db,
+      findingRows.map((row) => row.id),
     ),
   ]);
   const chainIds = [...perPr.values()].flatMap((p) =>
@@ -329,8 +336,10 @@ export async function loadPrStateInputs(
       questions: prQuestions.map((row) => ({ id: String(row.id), answered: answers.has(row.id) })),
       sensitive: sensitiveState(sensitiveByPr.get(pullRequest.id) ?? []),
       patch: null,
-      // Opinions arrive in S-08, CI checks and reviews with the merge checklist (S-12).
-      reviewers: 0,
+      reviewers: new Set(
+        prFindings.flatMap((row) => (opinions.get(row.id) ?? []).map((o) => o.signedBy)),
+      ).size,
+      // CI checks and reviews arrive with the merge checklist (S-12).
       ci: [],
       changesRequestedBy: [],
     };
@@ -349,6 +358,12 @@ export async function loadPrStateInputs(
         prQuestions.flatMap((row) => {
           const answer = answers.get(row.id);
           return answer ? [[row.id, answer] as const] : [];
+        }),
+      ),
+      opinions: new Map(
+        prFindings.flatMap((row) => {
+          const list = opinions.get(row.id);
+          return list ? [[row.id, list] as const] : [];
         }),
       ),
       decisions: new Map(
