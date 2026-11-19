@@ -1,4 +1,3 @@
-
 declare module '../reason.ts' {
   interface ReasonParams {
     /** A stored setting failed validation; its default is used instead. */

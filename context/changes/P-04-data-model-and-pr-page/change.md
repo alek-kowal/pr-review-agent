@@ -91,3 +91,26 @@ checks are the plan. One commit per task.
   before and after every GET (whole-table counts would race with other test files).
 - T12: the web cannot import `@pra/api`, so it keeps its own TypeScript types for these responses
   (`apps/web/src/lib/api-types.ts`, T13); the Zod schemas in the api stay the source of truth.
+- T13: `apps/web/src/lib/api.ts` sends `X-PRA-Request: 1` on every request, GET included (the
+  guard ignores reads; one rule is simpler). An answer `{ error: { code, params } }` becomes an
+  `ApiError` with that code; an error without one becomes `http_error`, no answer `network_error`.
+  `lib/reasons.ts` maps codes to copy (`reasonText` for "failed at" reasons, `errorText` for
+  whole-sentence api errors); an unknown code still shows the code.
+- T13 (extension point): the PR tab registry is `PR_TABS` in `apps/web/src/features/pr/tabs.ts`.
+  An entry is `{ key, label, Panel }`; the key is the `?tab=` value, the first entry is the default
+  and every panel gets `{ repo, number, view }` (the PR view). A package adds a tab with one line.
+- T13: TanStack Router hands the raw URL search to child routes, so `validateSearch` returns
+  `{ tab: undefined }` / `{ repo: undefined }` for an invalid value instead of `{}`; otherwise
+  `?tab=nope` reached the page and no tab was selected.
+- T13: polling (until S-03's SSE): the list refetches every 5 s while any listed PR has a queued
+  or running round, the PR view while its latest round is, and the findings tab while the round is
+  active and once more when it ends (findings come from the latest *completed* round).
+- T13: web test helpers live in `apps/web/src/test/`: `fetchStub.ts` (a path table; a path left
+  out answers 404 `not_stubbed`, so a test sees what it forgot) and `fixtures.ts` (response
+  builders). `setup.ts` adds the jsdom polyfills Radix Select and Tabs need. `tabsListVariants` is
+  no longer exported from the shadcn `tabs.tsx` (react-refresh lint; nothing used it).
+- T13: `e2e/smoke.spec.ts` answers `/api/repositories` and `/api/prs` with `page.route`, so it
+  never reaches an api on :3000 that another worktree may be running. `playwright.config.ts` (hot
+  file H13, P-03's in this wave) still uses the fixed port 5173 with `reuseExistingServer`, which
+  is not safe when two worktrees run e2e at once; left for H13's owners. P-04 checked the port was
+  free before each e2e run.

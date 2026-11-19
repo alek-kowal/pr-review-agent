@@ -1,4 +1,3 @@
-
 declare module '../reason.ts' {
   interface ReasonParams {
     candidate_created: { id: string };
