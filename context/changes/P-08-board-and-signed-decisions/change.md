@@ -1,0 +1,51 @@
+---
+change_id: P-08
+title: Board and signed decisions (S-02-T2, S-02-T4, S-02-T6, S-02-T7, S-02-T9, S-02-T10)
+status: in_progress
+created: 2026-11-19
+updated: 2026-11-19
+archived_at: null
+---
+
+## Notes
+
+Work package P-08 from `context/foundation/work-packages.md`: board lanes from the core state table
+and signed decisions on findings (north star code). Tasks in order: S-02-T2, S-02-T4, S-02-T6,
+S-02-T7, S-02-T9, S-02-T10 in `context/foundation/roadmap-tasks.md`. Plan: no; the tasks' "Done
+when" checks are the plan. One commit per task.
+
+## Decisions
+
+- **Codes and lanes are core's, not the task's examples.** The task writes lanes `action`, `not`,
+  `work`, `ready` and banners `decide_findings` / `findings_to_implement`; the API returns core's
+  names instead: lanes `not_reviewed`, `agents_working`, `action_needed`, `ready_to_merge`, and
+  banners `state_findings_to_decide { count, reviewers }` / `state_waiting_for_fix { count }`.
+  Core's state table (F-03) is the single source; a second vocabulary would need a mapping.
+- T2: `loadPrStateInputs(db, ids)` (`packages/db/src/queries/pr-state.ts`) loads many PRs in a
+  fixed number of queries (PRs, state runs, active members; then findings, questions and failed
+  stages of the right runs; then current decisions), so the board makes no query per PR.
+  `loadPrStateInput(db, id)` is the one-PR form. It returns the core `PrStateInput` plus what the
+  views need (repository, PR, author member, reviewed round, finding rows, decisions).
+- T2: it reads runs of kind `round` and `implementer` only (trials and the analyst never change a
+  PR's state). Findings and questions come from the newest completed round, with their verdicts
+  and current decisions. The reviewed sha is that round's head sha; commits since the review are
+  `commits_count − commits_count_at_start` (never below 0). The failed round is the newest round
+  when it failed, with its newest failed stage. A queued run's cause is `slot` until S-10 adds the
+  others; `retryFrom`, `closedBy`, `changeType`, sensitive files, patch, reviewers, CI and
+  "changes requested" stay empty until their slices. The PR's level is its newest round's frozen
+  level, else the repository's `defaultLevel`.
+- T2: the PR author maps to an active Team member by GitHub login, case-insensitively. Core's
+  `who` reason keeps the login; the API adds `author: { login, memberId, name }` to the board card
+  and as a PR view section, so the web can say "Kasia (author)".
+- T2: `GET /api/board` returns `lanes.{not_reviewed: {cards, drafts}, agents_working,
+  action_needed, ready_to_merge}`, `mergedOrClosed` and `repositoryCount`. A card is repository
+  slug, number, title, author, `isDraft`, `openedAt` (the web shows the age), the whole
+  `nextStep` and `badges`. Cards are most recently opened first; Action needed is then sorted
+  stably by `actionNeededOrder`. Drafts are cards whose state is `draft` (a draft with a running
+  round is in Agents working). Merged or closed PRs show when GitHub updated them in the last 7
+  days (`pull_requests.updated_at`; there is no closed-at column).
+- T2: `GET /api/prs/:repo/:number` gains three sections, `nextStep`, `checklist` and `author`,
+  which share one state load per request (`prStateOf(context)`, a WeakMap on the view context).
+- T2 (extension point): board card badges are reason codes from `CARD_BADGES`
+  (`apps/api/src/board/card-badges.ts`, empty for now); a later package adds a function there and
+  copy for its code.
