@@ -9,7 +9,10 @@
   `app.env.example`. Only `api`, `worker` and `migrate` read it; `web` gets no env.
 - `GITHUB_APP_PRIVATE_KEY_FILE` (shell or `deploy/.env`): host path of the GitHub App key. It is
   mounted read-only at `/run/secrets/github_app_key`, and `GITHUB_APP_PRIVATE_KEY_PATH` points
-  there. Without it the GitHub integration reports itself not configured.
+  there. Without it the GitHub integration reports itself not configured. Compose mounts the file
+  with its host owner and mode, and api and worker run as uid 1000 (`node`), so the key must be
+  readable by that uid (for example `chown 1000 key.pem && chmod 400 key.pem`); an unreadable key
+  also reads as not configured.
 - `local.env`: non-secret values for the `local` rehearsal below.
 
 Other variables: `PRA_ENV_FILE` (default `app.env`), `PRA_WEB_PORT` (default `8080`, bound to
