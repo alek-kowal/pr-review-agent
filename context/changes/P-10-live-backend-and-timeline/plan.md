@@ -170,5 +170,5 @@ run is required; the existing e2e spec is rerun once at the end because the stag
 
 ### Phase 7: Timeline, in-progress, status, reads never write
 
-- [ ] 7.1 api `timeline.test.ts activity.test.ts reads-never-write.test.ts` pass; `pnpm verify`
+- [x] 7.1 api `timeline.test.ts activity.test.ts reads-never-write.test.ts` pass; `pnpm verify`
   green

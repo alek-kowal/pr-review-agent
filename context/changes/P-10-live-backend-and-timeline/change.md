@@ -1,7 +1,7 @@
 ---
 change_id: P-10
 title: Live backend and timeline (S-03-T1–T7)
-status: planned
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -130,3 +130,29 @@ are added per task below.
 - `GET /api/runs/:id/sessions/:sessionId/transcript` sends the stored blob as is (JSON, content
   type from BlobStore). New error codes: `run_not_found`, `session_not_found` (also for a
   session of another run), `transcript_not_found`.
+
+### S-03-T7 (timeline, in progress, status, reads never write)
+
+- `GET /api/prs/:repo/:number/timeline` (PR routes are keyed by repo and number, not id) lives
+  in `src/pr-view/timeline.ts` and is registered from the prs plugin with one line, to keep
+  conflicts with P-08's edits of `prs/index.ts` small. Summary = core `timeSummary` over the
+  state log and the PR's `round` and `implementer` runs (trials and the analyst are not the
+  PR's spend); entries carry the actor, the member's name and run-end costs.
+- `GET /api/activity/in-progress`: queued and running runs of every kind, oldest first, with
+  `currentStage` and `costUsd` (live per turn since T3) and the PR.
+- `GET /api/status`: `{ state: 'running', todaySpendUsd, since }`; today = since 00:00 UTC, the
+  sum of agent sessions created since then (pause and budget states arrive with P-16).
+- `reads-never-write.test.ts` builds the app on its own database with an `onRoute` hook, calls
+  every GET (route params filled from seeded rows, `*` empty; `/api/live` skipped because the
+  stream never ends), and compares an md5 of every table in every schema before and after.
+- E2E (`pnpm test:e2e`) rerun once at the end because the stage runner changed: 4 passed.
+
+## Follow-ups for later packages
+
+- After P-08 merges: replace the private `loadStateInput` in `packages/db/src/queries/timeline.ts`
+  with P-08's `loadPrStateInput`, and call `recordStateChange` from P-08's decision route path
+  only through `decideFindings` (already wired).
+- P-12: copy for the new entry kinds and error codes (`run_not_found`, `session_not_found`,
+  `transcript_not_found`).
+- P-15 (cancel/retry) and P-11 (chains) write their entries with `recordTimelineEntry` and a
+  source key, then `recordStateChange`.
