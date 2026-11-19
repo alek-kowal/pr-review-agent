@@ -173,6 +173,27 @@ describe('review stage', () => {
     expect(result.sessions[0]!.result.costUsd).toBe(0.1);
   });
 
+  test('a stage aborted before the session starts runs no agent', async () => {
+    const run = await insertRun(deps.db, aRun(pullRequest.id, { headSha: fixture.headSha }));
+    const controller = new AbortController();
+    controller.abort(new Error('stage_timeout'));
+    const calls = deps.agentRunner.calls.length;
+
+    await expect(
+      reviewStage.run({
+        deps,
+        run,
+        pullRequest,
+        repository,
+        level: run.level,
+        attempt: 1,
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow('stage_timeout');
+
+    expect(deps.agentRunner.calls).toHaveLength(calls);
+  });
+
   test('a runner error keeps its code', async () => {
     const { result } = await review({ fail: 'model_access_not_configured' });
     expect(result).toMatchObject({
