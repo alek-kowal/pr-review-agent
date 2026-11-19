@@ -191,7 +191,7 @@ describe('other outcomes', () => {
     const event = await storeGithubEvent(deps, 'ping', { fullName: repository.githubFullName });
     await deps.db
       .update(schema.githubEvents)
-      .set({ event: 'check_suite' })
+      .set({ event: 'issues' })
       .where(eq(schema.githubEvents.id, event.id));
 
     expect(await processGithubEvent(deps, event.id)).toBe('event_ignored');

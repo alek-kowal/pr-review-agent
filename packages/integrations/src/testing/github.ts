@@ -35,12 +35,17 @@ export const GITHUB_FIXTURES = [
   'pull_request.synchronize',
   'pull_request.closed',
   'pull_request.reopened',
+  'check_suite.completed',
+  'status',
+  'pull_request_review.submitted',
 ] as const;
 export type GitHubFixtureName = (typeof GITHUB_FIXTURES)[number];
+/** The fixtures of `pull_request` deliveries, which carry a PR snapshot. */
+export type PullRequestFixtureName = Extract<GitHubFixtureName, `pull_request.${string}`>;
 
 export type GitHubFixture = {
-  /** The `X-GitHub-Event` header value. */
-  event: 'ping' | 'pull_request';
+  /** The `X-GitHub-Event` header value: the fixture name up to the first dot. */
+  event: string;
   /** The raw body, as GitHub sends it (sign this, not a re-serialised payload). */
   body: string;
   payload: Record<string, unknown>;
@@ -52,12 +57,12 @@ export type GitHubFixture = {
  */
 export function githubFixture(name: GitHubFixtureName): GitHubFixture {
   const body = readFileSync(new URL(`./fixtures/github/${name}.json`, import.meta.url), 'utf8');
-  const event = name === 'ping' ? 'ping' : 'pull_request';
+  const event = name.split('.')[0]!;
   return { event, body, payload: JSON.parse(body) as Record<string, unknown> };
 }
 
 /** The PR snapshot inside a `pull_request` fixture. */
-export function fixturePullRequest(name: Exclude<GitHubFixtureName, 'ping'>): GitHubPullRequest {
+export function fixturePullRequest(name: PullRequestFixtureName): GitHubPullRequest {
   return toPullRequest(githubFixture(name).payload.pull_request as RawPullRequest);
 }
 

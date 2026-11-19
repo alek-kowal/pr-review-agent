@@ -46,3 +46,18 @@ questions (orchestrator rule: decide and record).
   `pr_merged` `{ via: 'app', sha, mergeSha }` signed by the member and the state change. The
   webhook's own `pr_merged` entry is skipped when the PR was already merged in the app.
 
+### S-12-T3 (fresh checklist)
+
+- Ingest lives in the worker (the api only stores and queues events), so the ingest test is
+  `apps/worker/test/checklist-fresh.test.ts`; `apps/api/test/routes/checklist-fresh.test.ts`
+  covers the page rows from stored fields and `head_moved` after a push.
+- `check_suite`, `check_run` and `status` name a commit: the worker refreshes CI for every open PR
+  of the repository at that head (fork PRs included, which GitHub leaves out of
+  `check_suite.pull_requests`) by reading `getCiStatus` again; `pull_request_review` reads the
+  PR's reviews again. Reading GitHub's current state makes late or repeated deliveries harmless.
+- A head that differs from the reviewed round's head is at least 1 commit since, even when the
+  commit count did not grow (force push) or the compare measured 0, so a push always leaves Ready
+  to merge at once.
+- New webhook fixtures: `check_suite.completed`, `status`, `pull_request_review.submitted`; a
+  fixture's event is its name up to the first dot.
+

@@ -2,7 +2,7 @@
 // app. The merge route holds the PR row for the whole check and GitHub call, so a second merge of
 // the same PR waits and then finds it merged.
 import { member, type CheckConclusion, type CiCheck } from '@pra/core';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests } from '../schema/repositories.ts';
 import type { Transactor } from './decisions.ts';
@@ -46,6 +46,24 @@ export async function storeChangesRequested(
     .update(pullRequests)
     .set({ changesRequestedBy: [...logins], checksRefreshedAt: at })
     .where(eq(pullRequests.id, pullRequestId));
+}
+
+/** The repository's open PRs whose head is `sha` (CI events name a commit, not a PR). */
+export async function openPullRequestsAtHead(
+  db: Executor,
+  repositoryId: number,
+  sha: string,
+): Promise<PullRequest[]> {
+  return db
+    .select()
+    .from(pullRequests)
+    .where(
+      and(
+        eq(pullRequests.repositoryId, repositoryId),
+        eq(pullRequests.headSha, sha),
+        eq(pullRequests.state, 'open'),
+      ),
+    );
 }
 
 /** The PR row, locked until the transaction ends; null when it does not exist. */
