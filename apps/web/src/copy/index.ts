@@ -8,12 +8,16 @@ import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
 import { learning } from './learning.ts';
+import { audit } from './audit.ts';
 import { instructions } from './instructions.ts';
 import { integrations } from './integrations.ts';
+import { levels } from './levels.ts';
 import { merge } from './merge.ts';
+import { models } from './models.ts';
 import { nextStep } from './nextStep.ts';
 import { notify } from './notify.ts';
 import { opinions } from './opinions.ts';
+import { palette, shortcuts, theme } from './palette.ts';
 import { questions } from './questions.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
@@ -45,6 +49,9 @@ export const copy = {
   clickup,
   checks,
   timeline,
+  models,
+  levels,
+  audit,
   questions,
   opinions,
   notify,
@@ -214,6 +221,7 @@ export const copy = {
     stage_timeout: 'the stage ran out of time',
     analyst_instructions_missing: 'the analyst prompt or rules file is missing',
     analyst_output_invalid: 'the analyst answered in a shape it may not use',
+    model_invalid: 'a model name in Settings → Models or Review levels is not valid',
     interrupted: 'the app restarted while it ran',
     interrupted_by_restart: 'the app restarted while it ran',
     stage_error: 'an unexpected error stopped it',
@@ -296,6 +304,9 @@ export const copy = {
   learning,
   pipeline,
   merge,
+  palette,
+  shortcuts,
+  theme,
   settings: {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',

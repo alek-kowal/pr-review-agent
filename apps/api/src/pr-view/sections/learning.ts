@@ -1,7 +1,7 @@
 // S-23-T6: the PR's latest analysis, for the learning line in the banner of a closed PR ("Analyst
 // is running", "Analyst finished: N candidates", "Analyst failed").
 import { resolveLevel } from '@pra/core';
-import { latestAnalysisOf, prLevel } from '@pra/db';
+import { getAppSettings, latestAnalysisOf, prLevel } from '@pra/db';
 import { z } from 'zod/v4';
 import { defineSection } from '../section.ts';
 
@@ -26,8 +26,9 @@ export const learningSection = defineSection({
   schema: LearningSchema,
   async build({ db, repository, pullRequest }) {
     const analysis = await latestAnalysisOf(db, pullRequest.id);
+    const globalLevel = (await getAppSettings(db)).value.defaultLevel;
     return {
-      levelLearns: resolveLevel(prLevel(repository, pullRequest)).features.learning,
+      levelLearns: resolveLevel(prLevel(repository, pullRequest, globalLevel)).features.learning,
       analysis: analysis && {
         id: analysis.id,
         status: analysis.status as 'running' | 'finished' | 'failed',

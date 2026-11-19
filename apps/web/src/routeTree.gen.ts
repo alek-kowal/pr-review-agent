@@ -20,9 +20,11 @@ import { Route as InsightsQualityRouteImport } from './routes/insights.quality.t
 import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
+import { Route as SettingsAuditRouteImport } from './routes/settings.audit.tsx'
 import { Route as SettingsBudgetRouteImport } from './routes/settings.budget.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
 import { Route as SettingsLearningRouteImport } from './routes/settings.learning.tsx'
+import { Route as SettingsModelsRouteImport } from './routes/settings.models.tsx'
 import { Route as SettingsPipelineRouteImport } from './routes/settings.pipeline.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
 import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
@@ -33,6 +35,8 @@ import { Route as SettingsInstructionsIdRouteImport } from './routes/settings.in
 import { Route as SettingsRepositoriesIndexRouteImport } from './routes/settings.repositories.index.tsx'
 import { Route as SettingsRepositoriesIdRouteImport } from './routes/settings.repositories.$id.tsx'
 import { Route as SettingsRepositoriesConnectRouteImport } from './routes/settings.repositories.connect.tsx'
+import { Route as SettingsReviewLevelsIndexRouteImport } from './routes/settings.review-levels.index.tsx'
+import { Route as SettingsReviewLevelsLevelRouteImport } from './routes/settings.review-levels.$level.tsx'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -89,6 +93,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsAuditRoute = SettingsAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsBudgetRoute = SettingsBudgetRouteImport.update({
   id: '/budget',
   path: '/budget',
@@ -102,6 +111,11 @@ const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
 const SettingsLearningRoute = SettingsLearningRouteImport.update({
   id: '/learning',
   path: '/learning',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsModelsRoute = SettingsModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsPipelineRoute = SettingsPipelineRouteImport.update({
@@ -158,6 +172,18 @@ const SettingsRepositoriesConnectRoute =
     path: '/repositories/connect',
     getParentRoute: () => SettingsRoute,
   } as any)
+const SettingsReviewLevelsIndexRoute =
+  SettingsReviewLevelsIndexRouteImport.update({
+    id: '/review-levels/',
+    path: '/review-levels/',
+    getParentRoute: () => SettingsRoute,
+  } as any)
+const SettingsReviewLevelsLevelRoute =
+  SettingsReviewLevelsLevelRouteImport.update({
+    id: '/review-levels/$level',
+    path: '/review-levels/$level',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -169,9 +195,11 @@ export interface FileRoutesByFullPath {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/learning': typeof SettingsLearningRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
@@ -181,9 +209,11 @@ export interface FileRoutesByFullPath {
   '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
   '/settings/experiments/': typeof SettingsExperimentsIndexRoute
   '/settings/instructions/': typeof SettingsInstructionsIndexRoute
   '/settings/repositories/': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels/': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -193,9 +223,11 @@ export interface FileRoutesByTo {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/learning': typeof SettingsLearningRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights': typeof InsightsIndexRoute
@@ -205,9 +237,11 @@ export interface FileRoutesByTo {
   '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
   '/settings/experiments': typeof SettingsExperimentsIndexRoute
   '/settings/instructions': typeof SettingsInstructionsIndexRoute
   '/settings/repositories': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -220,9 +254,11 @@ export interface FileRoutesById {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/learning': typeof SettingsLearningRoute
+  '/settings/models': typeof SettingsModelsRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
@@ -232,9 +268,11 @@ export interface FileRoutesById {
   '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
   '/settings/experiments/': typeof SettingsExperimentsIndexRoute
   '/settings/instructions/': typeof SettingsInstructionsIndexRoute
   '/settings/repositories/': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels/': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -248,9 +286,11 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
     | '/settings/learning'
+    | '/settings/models'
     | '/settings/pipeline'
     | '/settings/team'
     | '/insights/'
@@ -260,9 +300,11 @@ export interface FileRouteTypes {
     | '/settings/instructions/$id'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/review-levels/$level'
     | '/settings/experiments/'
     | '/settings/instructions/'
     | '/settings/repositories/'
+    | '/settings/review-levels/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -272,9 +314,11 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
     | '/settings/learning'
+    | '/settings/models'
     | '/settings/pipeline'
     | '/settings/team'
     | '/insights'
@@ -284,9 +328,11 @@ export interface FileRouteTypes {
     | '/settings/instructions/$id'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/review-levels/$level'
     | '/settings/experiments'
     | '/settings/instructions'
     | '/settings/repositories'
+    | '/settings/review-levels'
   id:
     | '__root__'
     | '/'
@@ -298,9 +344,11 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
     | '/settings/learning'
+    | '/settings/models'
     | '/settings/pipeline'
     | '/settings/team'
     | '/insights/'
@@ -310,9 +358,11 @@ export interface FileRouteTypes {
     | '/settings/instructions/$id'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/review-levels/$level'
     | '/settings/experiments/'
     | '/settings/instructions/'
     | '/settings/repositories/'
+    | '/settings/review-levels/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -404,6 +454,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/audit': {
+      id: '/settings/audit'
+      path: '/audit'
+      fullPath: '/settings/audit'
+      preLoaderRoute: typeof SettingsAuditRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/budget': {
       id: '/settings/budget'
       path: '/budget'
@@ -423,6 +480,13 @@ declare module '@tanstack/react-router' {
       path: '/learning'
       fullPath: '/settings/learning'
       preLoaderRoute: typeof SettingsLearningRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/models': {
+      id: '/settings/models'
+      path: '/models'
+      fullPath: '/settings/models'
+      preLoaderRoute: typeof SettingsModelsRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/pipeline': {
@@ -495,6 +559,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRepositoriesConnectRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/review-levels/': {
+      id: '/settings/review-levels/'
+      path: '/review-levels'
+      fullPath: '/settings/review-levels/'
+      preLoaderRoute: typeof SettingsReviewLevelsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/review-levels/$level': {
+      id: '/settings/review-levels/$level'
+      path: '/review-levels/$level'
+      fullPath: '/settings/review-levels/$level'
+      preLoaderRoute: typeof SettingsReviewLevelsLevelRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
@@ -517,9 +595,11 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
 )
 
 interface SettingsRouteChildren {
+  SettingsAuditRoute: typeof SettingsAuditRoute
   SettingsBudgetRoute: typeof SettingsBudgetRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsLearningRoute: typeof SettingsLearningRoute
+  SettingsModelsRoute: typeof SettingsModelsRoute
   SettingsPipelineRoute: typeof SettingsPipelineRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -527,15 +607,19 @@ interface SettingsRouteChildren {
   SettingsInstructionsIdRoute: typeof SettingsInstructionsIdRoute
   SettingsRepositoriesIdRoute: typeof SettingsRepositoriesIdRoute
   SettingsRepositoriesConnectRoute: typeof SettingsRepositoriesConnectRoute
+  SettingsReviewLevelsLevelRoute: typeof SettingsReviewLevelsLevelRoute
   SettingsExperimentsIndexRoute: typeof SettingsExperimentsIndexRoute
   SettingsInstructionsIndexRoute: typeof SettingsInstructionsIndexRoute
   SettingsRepositoriesIndexRoute: typeof SettingsRepositoriesIndexRoute
+  SettingsReviewLevelsIndexRoute: typeof SettingsReviewLevelsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAuditRoute: SettingsAuditRoute,
   SettingsBudgetRoute: SettingsBudgetRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
   SettingsLearningRoute: SettingsLearningRoute,
+  SettingsModelsRoute: SettingsModelsRoute,
   SettingsPipelineRoute: SettingsPipelineRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,
@@ -543,9 +627,11 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsInstructionsIdRoute: SettingsInstructionsIdRoute,
   SettingsRepositoriesIdRoute: SettingsRepositoriesIdRoute,
   SettingsRepositoriesConnectRoute: SettingsRepositoriesConnectRoute,
+  SettingsReviewLevelsLevelRoute: SettingsReviewLevelsLevelRoute,
   SettingsExperimentsIndexRoute: SettingsExperimentsIndexRoute,
   SettingsInstructionsIndexRoute: SettingsInstructionsIndexRoute,
   SettingsRepositoriesIndexRoute: SettingsRepositoriesIndexRoute,
+  SettingsReviewLevelsIndexRoute: SettingsReviewLevelsIndexRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(

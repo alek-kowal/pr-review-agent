@@ -5,6 +5,7 @@ import {
   analysisOfRun,
   endAnalysis,
   finishAnalysis,
+  getAppSettings,
   prLevel,
   startAnalysis,
   succeededStageOutput,
@@ -15,7 +16,8 @@ import type { RunHook } from './hooks.ts';
 
 /** `closed` and `merged`: one analysis by the bot per PR, at a level with learning. */
 export const learningOnClosed: PrEventHook = async ({ deps, repository, pullRequest }) => {
-  if (!resolveLevel(prLevel(repository, pullRequest)).features.learning) return;
+  const globalLevel = (await getAppSettings(deps.db)).value.defaultLevel;
+  if (!resolveLevel(prLevel(repository, pullRequest, globalLevel)).features.learning) return;
   const started = await startAnalysis(deps, { pullRequestId: pullRequest.id, startedBy: 'bot' });
   if (started.started) {
     deps.logger.info(

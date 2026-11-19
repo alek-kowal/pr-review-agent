@@ -4,12 +4,11 @@
 // and asks the analyst for at most 5 lesson candidates. The run hook (`run/learning-hooks.ts`)
 // merges them into the candidates when the run completes.
 import { analystRequest, type AnalystCandidate, type AnalystInput } from '@pra/agents';
-import { buildCases, modelFor } from '@pra/core';
+import { buildCases, runModel } from '@pra/core';
 import {
   answersOfPullRequest,
   currentDecisions,
   findingsOf,
-  getAppSettings,
   openCandidatesOf,
   opinionsOf,
   roundsOf,
@@ -37,7 +36,7 @@ export const analyseStage: StageExecutor = {
 };
 
 async function runAnalyse(context: StageContext): Promise<StageResult> {
-  const { deps, run, pullRequest, repository, level, signal } = context;
+  const { deps, run, pullRequest, repository, signal } = context;
   const instructions = await stageInstructions({ deps, run, repository });
   const prompt = instructions.get(ANALYST_PROMPT_FILE)?.trim();
   const rules = instructions.get(ANALYST_RULES_FILE)?.trim();
@@ -59,7 +58,8 @@ async function runAnalyse(context: StageContext): Promise<StageResult> {
   const cases = buildCases(comments, pullRequest.authorLogin);
   const findings = await findingsOfPullRequest(deps.db, pullRequest.id);
   const answers = await answersOfPullRequest(deps.db, pullRequest.id);
-  const model = modelFor((await getAppSettings(deps.db)).value, level, 'analyst').model;
+  // S-21: the model frozen on the run when it was created (Settings → Models, level override).
+  const model = runModel(run, 'analyst');
   const input: AnalystInput = {
     model,
     instructions: { prompt, rules },

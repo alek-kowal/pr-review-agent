@@ -2,12 +2,15 @@
 // palette's Settings group) never shows a page that does not exist yet. A new Settings page adds
 // its route file `routes/settings.<id>.tsx` and one entry to `settingsPages`.
 import {
+  Cpu,
   FileText,
   FlaskConical,
   FolderGit2,
   Gauge,
+  Layers,
   Lightbulb,
   Plug,
+  ScrollText,
   Users,
   Workflow,
   type LucideIcon,
@@ -37,13 +40,16 @@ export type SettingsPageEntry = {
 /** Built Settings pages; the label comes from `copy.settings.pages[id]`. */
 export const settingsPages: readonly SettingsPageEntry[] = [
   { id: 'budget', to: '/settings/budget', icon: Gauge },
+  { id: 'models', to: '/settings/models', icon: Cpu },
   { id: 'team', to: '/settings/team', icon: Users },
   { id: 'integrations', to: '/settings/integrations', icon: Plug },
   { id: 'repositories', to: '/settings/repositories', icon: FolderGit2 },
+  { id: 'review-levels', to: '/settings/review-levels', icon: Layers },
   { id: 'instructions', to: '/settings/instructions', icon: FileText },
   { id: 'pipeline', to: '/settings/pipeline', icon: Workflow },
   { id: 'experiments', to: '/settings/experiments', icon: FlaskConical },
   { id: 'learning', to: '/settings/learning', icon: Lightbulb },
+  { id: 'audit', to: '/settings/audit', icon: ScrollText },
 ];
 
 export const groupOf = (id: SettingsPageId): SettingsGroup =>

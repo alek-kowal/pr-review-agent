@@ -29,6 +29,7 @@ import {
   saveInstructionDraft,
   type InstructionVersionRow,
 } from './instructions.ts';
+import { getAppSettings } from './app-settings.ts';
 import type { Transactor } from './decisions.ts';
 import { prLevel } from './pr-state.ts';
 import { isUniqueViolation, type Run } from './runs.ts';
@@ -66,7 +67,11 @@ export async function startAnalysis(
   if (!row) return { started: false, reason: 'pr_not_found' };
   const { repository, pullRequest } = row;
   if (pullRequest.state === 'open') return { started: false, reason: 'pr_open' };
-  const level = prLevel(repository, pullRequest);
+  const level = prLevel(
+    repository,
+    pullRequest,
+    (await getAppSettings(deps.db)).value.defaultLevel,
+  );
   let analysis: Analysis | undefined;
   try {
     const created = await createRun(deps, {

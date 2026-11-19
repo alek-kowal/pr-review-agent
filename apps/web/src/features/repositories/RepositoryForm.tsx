@@ -22,6 +22,8 @@ type Props = {
 };
 
 const t = copy.repositories;
+/** The Select value for "no own level": the global default applies. */
+const GLOBAL = 'global';
 
 /** Every RepositoryConfig field a person sets, in sections (FR-077). */
 export function RepositoryForm({ draft, set, errors }: Props) {
@@ -38,18 +40,21 @@ export function RepositoryForm({ draft, set, errors }: Props) {
   );
 
   return (
-    <div className="flex flex-col gap-5">
+    <div data-work-start className="flex flex-col gap-5">
       <Section title={t.sections.general}>
         <Row label={t.fields.defaultLevel} help={t.help.defaultLevel}>
           {(id) => (
             <Select
-              value={String(draft.defaultLevel)}
-              onValueChange={(value) => set('defaultLevel', Number(value) as LevelNumber)}
+              value={draft.defaultLevel === null ? GLOBAL : String(draft.defaultLevel)}
+              onValueChange={(value) =>
+                set('defaultLevel', value === GLOBAL ? null : (Number(value) as LevelNumber))
+              }
             >
               <SelectTrigger id={id} className="w-full sm:w-80">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={GLOBAL}>{t.levelGlobal}</SelectItem>
                 {LEVEL_NUMBERS.map((n) => (
                   <SelectItem key={n} value={String(n)}>
                     {t.level(n)}

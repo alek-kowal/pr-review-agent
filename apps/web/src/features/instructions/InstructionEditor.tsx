@@ -39,7 +39,7 @@ export function InstructionEditor({ id, tryOnPr }: Props) {
     return (
       <SettingsPage title={t.title} affects={t.affects}>
         {query.isError ? (
-          <p role="alert" className="text-bad">
+          <p role="alert" data-work-start className="text-bad">
             {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
           </p>
         ) : (
@@ -111,7 +111,7 @@ function EditorForm({
         </span>
       </p>
 
-      <form onSubmit={saveDraft} className="grid gap-4 lg:grid-cols-2">
+      <form onSubmit={saveDraft} data-work-start className="grid gap-4 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor={ids.content}>{e.contentLabel}</Label>

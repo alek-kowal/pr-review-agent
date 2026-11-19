@@ -39,7 +39,7 @@ export type AnalystFinding = {
 export type AnalystAnswer = { question: string; answer: string; by: string };
 
 export type AnalystInput = {
-  /** From the analyst role setting (core `DEFAULT_MODELS.analyst` until P-23). */
+  /** The run's analyst model (Settings → Models or the level override, frozen on the run). */
   model: string;
   /** `prompt-analyst.md` and `analyst-rules.md` as the run froze them. */
   instructions: { prompt: string; rules: string };

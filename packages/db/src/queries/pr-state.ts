@@ -22,7 +22,9 @@ import { roundChains } from '../schema/chains.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
+import { getAppSettings } from './app-settings.ts';
 import { currentAnswers, type CurrentAnswer } from './answers.ts';
+import { boardFilterConditions, type BoardFilter } from './board.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
 import { opinionsOf, type OpinionRow } from './reviews.ts';
 import { newestFixChecks, type FixCheck } from './fix-checks.ts';
@@ -41,6 +43,8 @@ export type PrStateLoad = {
   repository: Repository;
   pullRequest: PullRequest;
   input: PrStateInput;
+  /** The level of a PR without its own: the repository's default, else the global default. */
+  defaultLevel: LevelNumber;
   /** The Team member whose GitHub login is the PR author's; null when none is. */
   authorMember: TeamMember | null;
   /** The latest completed round: its head is the reviewed SHA; null before one completed. */
@@ -126,13 +130,19 @@ function activeRun(run: Run | undefined, wait?: RunWait): ActiveRun | null {
   };
 }
 
-/** The level of a PR's next round: its own level (FR-059), else the repository's default. */
+/**
+ * The level of a PR's next round: its own level (FR-059), else the repository's default level,
+ * else the global default level (app settings, S-21).
+ */
 export function prLevel(
   repository: Repository,
   pullRequest: Pick<PullRequest, 'level'>,
+  globalDefault: LevelNumber,
 ): LevelNumber {
   return (
-    (pullRequest.level as LevelNumber | null) ?? readRepositoryConfig(repository).value.defaultLevel
+    (pullRequest.level as LevelNumber | null) ??
+    readRepositoryConfig(repository).value.defaultLevel ??
+    globalDefault
   );
 }
 
@@ -194,7 +204,7 @@ export async function loadPrStateInputs(
   const loads = new Map<number, PrStateLoad>();
   if (ids.length === 0) return loads;
 
-  const [prRows, runRows, members] = await Promise.all([
+  const [prRows, runRows, members, app] = await Promise.all([
     db
       .select({ repository: repositories, pullRequest: pullRequests })
       .from(pullRequests)
@@ -206,7 +216,9 @@ export async function loadPrStateInputs(
       .where(and(inArray(runs.pullRequestId, ids), inArray(runs.kind, [...STATE_RUN_KINDS])))
       .orderBy(asc(runs.createdAt), asc(runs.id)),
     db.select().from(teamMembers).where(isNull(teamMembers.removedAt)),
+    getAppSettings(db),
   ]);
+  const globalLevel = app.value.defaultLevel;
 
   const runsByPr = new Map<number, Run[]>();
   for (const run of runRows) {
@@ -342,7 +354,7 @@ export async function loadPrStateInputs(
       draft: pullRequest.isDraft,
       fork: pullRequest.isFork,
       author: pullRequest.authorLogin,
-      level: prLevel(repository, pullRequest),
+      level: prLevel(repository, pullRequest, globalLevel),
       headSha: pullRequest.headSha,
       reviewedSha: reviewed?.headSha ?? null,
       commitsSinceReview: commitsSinceReview(
@@ -378,6 +390,7 @@ export async function loadPrStateInputs(
       repository,
       pullRequest,
       input,
+      defaultLevel: readRepositoryConfig(repository).value.defaultLevel ?? globalLevel,
       authorMember,
       reviewedRound: reviewed,
       findingsRound,
@@ -426,16 +439,20 @@ export const MERGED_OR_CLOSED_DAYS = 7;
 
 /**
  * The PRs the board shows: every open PR of a connected repository, and those merged or closed in
- * the last 7 days (by GitHub's last update). Most recently opened first.
+ * the last 7 days (by GitHub's last update), narrowed by the board filter (S-17-T3). Most
+ * recently opened first.
  */
-export async function boardPullRequestIds(db: Executor, now: Date = new Date()): Promise<number[]> {
+export async function boardPullRequestIds(
+  db: Executor,
+  now: Date = new Date(),
+  filter: BoardFilter = {},
+): Promise<number[]> {
   const since = new Date(now.getTime() - MERGED_OR_CLOSED_DAYS * 24 * 60 * 60 * 1000);
+  const onBoard = sql`(${pullRequests.state} = 'open' or ${pullRequests.updatedAt} >= ${since.toISOString()})`;
   const rows = await db
     .select({ id: pullRequests.id })
     .from(pullRequests)
-    .where(
-      sql`${pullRequests.state} = 'open' or ${pullRequests.updatedAt} >= ${since.toISOString()}`,
-    )
+    .where(and(onBoard, ...(await boardFilterConditions(db, filter))))
     .orderBy(desc(pullRequests.openedAt), desc(pullRequests.id));
   return rows.map((row) => row.id);
 }

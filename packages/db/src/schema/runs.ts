@@ -7,6 +7,7 @@ import {
   type Evidence,
   type Remedy,
   type FrozenLevel,
+  type RunModels,
   type RunStatus,
   type StageStatus,
 } from '@pra/core';
@@ -91,6 +92,11 @@ export const runs = pgTable(
     chainId: uuid('chain_id'),
     /** Core `FrozenLevel`: the level as it was when the run was created. */
     level: jsonb().$type<FrozenLevel>().notNull(),
+    /**
+     * Core `RunModels`: the model of every role, frozen with the level when the run was created
+     * (S-21-T2). Empty for runs from before the snapshot; those use the level and the defaults.
+     */
+    models: jsonb().$type<Partial<RunModels>>().notNull().default({}),
     headSha: text('head_sha').notNull(),
     commitsCountAtStart: integer('commits_count_at_start').notNull(),
     status: text({ enum: RUN_STATUSES }).notNull().default('queued'),

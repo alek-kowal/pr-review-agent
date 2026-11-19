@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { DECISIONS, type Decision } from '@pra/core';
+import { DECISIONS } from '@pra/core';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
+import { Kbd } from '@/components/ui/kbd.tsx';
 import { copy } from '@/copy/index.ts';
 import type { DecisionView } from '@/lib/api-types.ts';
 import { authorName } from '@/lib/next-step.ts';
-import { canDecide, DECISION_ICONS } from './decision-ui.ts';
+import { canDecide, DECISION_ICONS, DECISION_KEYS } from './decision-ui.ts';
+import { useDecisionForm } from './decision-forms.ts';
 import { DecisionForm } from './DecisionForm.tsx';
 import type { FindingSlotProps } from './slots.ts';
 
@@ -39,7 +40,7 @@ export function DecisionBadge({ finding }: FindingSlotProps) {
  * the small signed form under them.
  */
 export function DecideRow({ finding, view, repo, number }: FindingSlotProps) {
-  const [form, setForm] = useState<Decision | null>(null);
+  const [form, setForm] = useDecisionForm(finding.id);
   const decision = finding.decision;
   const open = canDecide(view);
   if (!decision && !open) return null;
@@ -71,10 +72,12 @@ export function DecideRow({ finding, view, repo, number }: FindingSlotProps) {
                 variant="outline"
                 size="sm"
                 aria-pressed={form === d}
+                aria-keyshortcuts={DECISION_KEYS[d]}
                 onClick={() => setForm(form === d ? null : d)}
               >
                 <DIcon aria-hidden="true" />
                 {copy.decisions.actions[d]}
+                <Kbd aria-hidden="true">{DECISION_KEYS[d]}</Kbd>
               </Button>
             );
           })}

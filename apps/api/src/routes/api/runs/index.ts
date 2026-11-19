@@ -1,7 +1,7 @@
 // S-03-T6: Run detail and a session's full transcript. S-09: Retry (T2) and Cancel (T4), both
 // unsigned ("by hand").
 import { summarizeTranscript } from '@pra/agents/transcript';
-import { chainState, HAND, roundLabel } from '@pra/core';
+import { AGENT_ROLES, chainState, HAND, modelFor, roundLabel } from '@pra/core';
 import {
   getRunContext,
   getRunDetail,
@@ -112,6 +112,16 @@ export const RunDetailResponse = z.object({
     ),
     /** The stage and error code a failed run stopped at. */
     error: z.object({ stage: z.string(), code: z.string() }).nullable(),
+    /** The model of every role, frozen when the run was created (S-21-T2). */
+    models: z.array(
+      z.object({
+        role: z.enum(AGENT_ROLES),
+        model: z.string(),
+        /** `level`: a level override (`level` names it); `settings`: Settings → Models. */
+        source: z.enum(['level', 'settings', 'default']),
+        level: z.number().int().nullable(),
+      }),
+    ),
     /** The failed run this run retries, with its cost up to the failure. */
     retryOf: LinkedRunSchema.nullable(),
     /** The stage this retry started from. */
@@ -237,6 +247,10 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
           notChecked: run.notChecked,
           instructionVersions: run.instructionVersions,
           error: failed ? { stage: failed.key, code: failed.errorCode ?? 'stage_error' } : null,
+          models: AGENT_ROLES.map((role) => ({
+            role,
+            ...(run.models[role] ?? modelFor({}, run.level, role)),
+          })),
           retryOf: linked(prRuns.find((other) => other.id === run.retryOf)),
           retryFrom: run.retryFrom,
           retriedBy: linked(prRuns.find((other) => other.retryOf === run.id)),

@@ -34,7 +34,7 @@ export function ComparePage({ id }: { id: number }) {
     <SettingsPage title={t.title(id)} affects={copy.trials.experiments.affects} actions={back}>
       {!trial ? (
         query.isError ? (
-          <p role="alert" className="text-bad">
+          <p role="alert" data-work-start className="text-bad">
             {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
           </p>
         ) : (
@@ -62,7 +62,7 @@ function TrialCompare({ trial }: { trial: Trial }) {
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div data-work-start className="grid gap-3 sm:grid-cols-2">
         <CostCard side={t.sides.a} run={trial.runs.a} />
         <CostCard side={t.sides.b} run={trial.runs.b} />
       </div>

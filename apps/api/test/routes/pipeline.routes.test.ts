@@ -1,13 +1,14 @@
-// S-22-T9: the read-only pipeline descriptor. Its own database, since it writes the app settings
-// and reads the global instruction files.
-import { DEFAULT_APP_SETTINGS, DEFAULT_MODELS } from '@pra/core';
+// S-22-T9: the read-only pipeline descriptor. Its own database, since it writes the model and
+// level settings and reads the global instruction files.
+import { DEFAULT_MODELS } from '@pra/core';
 import {
   activateInstructionVersion,
   closeDb,
   createDb,
   importInstructionV1,
   saveInstructionDraft,
-  writeAppSettings,
+  writeLevelSettings,
+  writeRoleModels,
   type Db,
 } from '@pra/db';
 import { createTestDatabase, type TestDatabase } from '@pra/db/testing';
@@ -64,11 +65,10 @@ test('Review lists only read-only tools; Implement lists no shell', async () => 
   expect(stages.change_type!.tools).toEqual([]);
 });
 
-test('each model matches the settings, then the defaults; code stages have none', async () => {
-  await writeAppSettings(db, {
-    ...DEFAULT_APP_SETTINGS,
-    models: { reviewer: 'claude-fable-5-2', verifier: 'claude-haiku-5-5' },
-  });
+// Settings → Models starts every role at its default (migration 0021), so each model's source is
+// `settings` unless a level sets its own.
+test('each model matches Settings → Models, which start at the defaults; code stages have none', async () => {
+  await writeRoleModels(db, { reviewer: 'claude-fable-5-2', verifier: 'claude-haiku-5-5' });
   const stages = await pipeline();
 
   expect(stages.review!.model).toEqual({
@@ -80,7 +80,7 @@ test('each model matches the settings, then the defaults; code stages have none'
   expect(stages.verify!.model?.model).toBe('claude-haiku-5-5');
   expect(stages.implement!.model).toEqual({
     model: DEFAULT_MODELS.implementer,
-    source: 'default',
+    source: 'settings',
     level: null,
   });
   expect(stages.change_type!.model?.model).toBe(DEFAULT_MODELS.judge);
@@ -119,4 +119,15 @@ test('timeout, attempts and output come from the level and the stage', async () 
   expect(review!.output.fields).toContain('findings');
   expect(verify!.repairs).toBe(1);
   expect(verify!.output.fields).toEqual(expect.arrayContaining(['verdict', 'reason', 'evidence']));
+});
+
+// Last: it changes level 1, which every stage inherits.
+test('a level that sets its own model or timeout wins, as in a new run (S-21)', async () => {
+  await writeLevelSettings(db, 1, {
+    stageTimeoutMinutes: 45,
+    models: { judge: 'claude-opus-5-5' },
+  });
+  const { change_type, review } = await pipeline();
+  expect(change_type!.model).toEqual({ model: 'claude-opus-5-5', source: 'level', level: 1 });
+  expect(review!.timeoutMinutes).toBe(45);
 });

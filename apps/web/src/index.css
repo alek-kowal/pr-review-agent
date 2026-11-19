@@ -3,14 +3,15 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/inter';
 
-/* Dark mode mirrors the prototype: the OS preference unless the page forces
-   data-theme="light", or data-theme="dark" on <html>. The theme toggle is S-17. */
+/* Dark mode (S-17-T7): the `dark` class on <html>, set by the theme toggle (features/theme).
+   Before the script runs, and when <html> has no class, the OS preference applies; the `light`
+   class forces light. */
 @custom-variant dark {
-  &:where([data-theme='dark'], [data-theme='dark'] *) {
+  &:where(.dark, .dark *) {
     @slot;
   }
   @media (prefers-color-scheme: dark) {
-    &:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+    &:where(:root:not(.light), :root:not(.light) *) {
       @slot;
     }
   }
@@ -42,7 +43,8 @@
   --brand-line: #99b3ff;
   --coral: #ed4c46;
   /* semantic */
-  --ok: #15803d;
+  /* #15803d in the prototype; darker for AA (4.5:1) on --ok-bg over --bg and --surface (S-17-T9) */
+  --ok: #14773a;
   --ok-bg: rgba(22, 163, 74, 0.1);
   --ok-line: #86d9a5;
   --ok-solid: #16a34a;
@@ -87,7 +89,7 @@
   --viz-merge: #15803d;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root:not(.light) {
     --bg: #151516;
     --surface: #212225;
     --surface-2: #1b1c1e;
@@ -150,7 +152,7 @@
     color-scheme: dark;
   }
 }
-:root[data-theme='dark'] {
+:root.dark {
   --bg: #151516;
   --surface: #212225;
   --surface-2: #1b1c1e;

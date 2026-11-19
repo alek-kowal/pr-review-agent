@@ -142,7 +142,7 @@ export function RunPage({
         <RetryLinks detail={detail} />
       </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div data-work-start className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Tabs value={tab} onValueChange={(next) => onTabChange(next as RunTab)} className="min-w-0">
           <TabsList variant="line" aria-label={copy.runs.detail.tabsLabel}>
             {RUN_TABS.map((key) => (
@@ -185,6 +185,24 @@ export function RunPage({
                 ))}
               </ul>
             )}
+          </SideCard>
+          <SideCard title={copy.runs.detail.models} hint={copy.runs.detail.modelsHint}>
+            <ul
+              className="m-0 list-none divide-y divide-divider p-0"
+              aria-label={copy.runs.detail.models}
+            >
+              {run.models.map((m) => (
+                <li key={m.role} className="flex justify-between gap-2 px-3.5 py-2 text-sm">
+                  <span>{copy.models.roles[m.role] ?? m.role}</span>
+                  <span className="text-right">
+                    <span className="font-mono text-[13px]">{m.model}</span>
+                    <span className="block text-xs text-text-3">
+                      {copy.runs.detail.modelSource(m.source, m.level)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </SideCard>
           {run.notChecked.length > 0 && (
             <SideCard title={copy.runs.detail.notChecked}>

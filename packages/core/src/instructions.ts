@@ -232,7 +232,7 @@ export function diffSummary(lines: readonly DiffLine[]): { added: number; remove
 /**
  * The reviewer prompt used since S-01 when no usable `prompt-reviewer.md` is stored. It is also
  * the global version 1 that `pnpm instructions:import` creates, so a repository without its own
- * copy gets no Workflow Builder rules.
+ * copy gets no rules written for another repository.
  */
 export const BUILT_IN_REVIEWER_PROMPT = [
   'Review the pull request. First read the rules: {{knowledgeDir}}/review-rules.md.',

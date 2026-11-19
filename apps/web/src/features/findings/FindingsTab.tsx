@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { CircleX, Sparkles } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { SEVERITIES } from '@pra/core';
 import { copy } from '@/copy/index.ts';
 import { ApiError } from '@/lib/api.ts';
@@ -10,13 +10,17 @@ import {
   type FindingsResponse,
   type RoundView,
 } from '@/lib/api-types.ts';
+import { ignoreSingleKey } from '@/lib/keyboard.ts';
 import { errorText, reasonText, stageName } from '@/lib/reasons.ts';
+import { useReviewDraft } from '@/features/opinions/draft.ts';
 import { useDecideFocus } from '@/features/pr/decide-focus.ts';
 import { findingsQuery } from '@/features/pr/queries.ts';
 import type { PrTabProps } from '@/features/pr/tabs.ts';
 import { EmptyTab } from '@/features/pr/EmptyTab.tsx';
 import { BulkBar } from './BulkBar.tsx';
 import { canDecide } from './decision-ui.ts';
+import { DecisionFormsContext, useDecisionFormsState } from './decision-forms.ts';
+import { triageCommand } from './triage-keys.ts';
 import { FindingsStrips } from '@/features/rounds/FixStatus.tsx';
 import { ReviewTray } from '@/features/opinions/ReviewTray.tsx';
 import { Finding } from './Finding.tsx';
@@ -139,8 +143,12 @@ function FindingList({ findings, slotProps }: { findings: FindingView[]; slotPro
   const [filter, setFilter] = useState<FindingFilterKey>('all');
   const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set());
   const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
+  /** The finding the triage keys act on: the last one moved to or focused. */
+  const [current, setCurrent] = useState<number | null>(null);
+  const forms = useDecisionFormsState();
+  const draft = useReviewDraft(slotProps.repo, slotProps.number);
   const decidable = canDecide(slotProps.view);
-  const focus = useFocusOnDecide(findings, (id) => {
+  const list = useFocusOnDecide(findings, (id) => {
     setFilter('all');
     setOpen((prev) => new Set(prev).add(id));
   });
@@ -162,6 +170,34 @@ function FindingList({ findings, slotProps }: { findings: FindingView[]; slotPro
     return next;
   };
   const toggle = (id: number) => setOpen(flip(id));
+
+  /** Moves the triage focus to a finding's line and scrolls it into view. */
+  const moveTo = (id: number) => {
+    setCurrent(id);
+    const article = list.current?.querySelector<HTMLElement>(`[data-finding-id="${id}"]`);
+    article?.querySelector<HTMLElement>('[aria-expanded]')?.focus({ preventScroll: true });
+    article?.scrollIntoView?.({ block: 'nearest' });
+  };
+  const onTriageKey = useEffectEvent((event: KeyboardEvent) => {
+    if (ignoreSingleKey(event)) return;
+    const command = triageCommand(event.key, ids, current, decidable);
+    if (!command) return;
+    event.preventDefault();
+    if (command.kind === 'move') moveTo(command.id);
+    else if (command.kind === 'toggle') toggle(command.id);
+    else if (command.kind === 'select') setSelected(flip(command.id));
+    else if (command.kind === 'opinion') draft.toggle(command.id, command.value);
+    else {
+      setOpen((prev) => new Set(prev).add(command.id));
+      forms.set(command.id, command.decision);
+    }
+  });
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => onTriageKey(event);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
+
   // Selected findings, in the order shown; a finding that left the list drops out.
   const selectedFindings = inShownOrder(findings).filter((f) => selected.has(f.id));
   const expandToggle = (
@@ -175,79 +211,89 @@ function FindingList({ findings, slotProps }: { findings: FindingView[]; slotPro
   );
 
   return (
-    <div ref={focus} className="flex flex-col gap-4">
-      {withFilter && (
-        <div className="flex flex-wrap items-center gap-3">
-          <div
-            role="group"
-            aria-label={copy.findings.filterLabel}
-            className="inline-flex max-w-full gap-0.5 rounded-[7px] bg-inset p-0.5"
-          >
-            {FINDING_FILTERS.map(({ key }) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={filter === key}
-                onClick={() => setFilter(key)}
-                className="h-[26px] cursor-pointer rounded-[5px] px-2.5 text-xs font-medium text-text-2 aria-pressed:bg-surface aria-pressed:text-text aria-pressed:shadow-[0_0_0_1px_var(--border)]"
-              >
-                {copy.findings.filters[key]}
-              </button>
-            ))}
-          </div>
-          <span className="flex-1" />
-          {expandToggle}
-        </div>
-      )}
-      {groups.length === 0 && <EmptyTab text={copy.findings.noMatch} />}
-      {groups.map(({ severity, items }, i) => {
-        const names = copy.findings.severities[severity];
-        return (
-          <section key={severity} aria-label={names.group} className="flex flex-col gap-2">
-            <div className="flex items-center">
-              <h3 title={names.hint} className="flex items-center gap-2 text-sm font-semibold">
-                <SeverityMark severity={severity} labelled={false} />
-                {names.group}
-                <span className="font-normal text-text-3">{items.length}</span>
-              </h3>
-              <span className="flex-1" />
-              {i === 0 && !withFilter && expandToggle}
+    <DecisionFormsContext value={forms}>
+      <div
+        ref={list}
+        className="flex flex-col gap-4"
+        onFocus={(event) => {
+          const line = (event.target as HTMLElement).closest('[data-finding-id]');
+          if (line) setCurrent(Number(line.getAttribute('data-finding-id')));
+        }}
+      >
+        {withFilter && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div
+              role="group"
+              aria-label={copy.findings.filterLabel}
+              className="inline-flex max-w-full gap-0.5 rounded-[7px] bg-inset p-0.5"
+            >
+              {FINDING_FILTERS.map(({ key }) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={filter === key}
+                  onClick={() => setFilter(key)}
+                  className="h-[26px] cursor-pointer rounded-[5px] px-2.5 text-xs font-medium text-text-2 aria-pressed:bg-surface aria-pressed:text-text aria-pressed:shadow-[0_0_0_1px_var(--border)]"
+                >
+                  {copy.findings.filters[key]}
+                </button>
+              ))}
             </div>
-            {items.map((f) => (
-              <Finding
-                key={f.id}
-                finding={f}
-                {...slotProps}
-                open={open.has(f.id)}
-                onToggle={() => toggle(f.id)}
-                selection={
-                  decidable
-                    ? { checked: selected.has(f.id), onChange: () => setSelected(flip(f.id)) }
-                    : undefined
-                }
-              />
-            ))}
-          </section>
-        );
-      })}
-      {decidable && selectedFindings.length > 0 && (
-        <BulkBar
-          repo={slotProps.repo}
-          number={slotProps.number}
-          selected={selectedFindings}
-          onClear={() => setSelected(new Set())}
-        />
-      )}
-      {/* The review tray waits while the bulk bar is up, as in the prototype. */}
-      {decidable && selectedFindings.length === 0 && (
-        <ReviewTray
-          repo={slotProps.repo}
-          number={slotProps.number}
-          view={slotProps.view}
-          findings={inShownOrder(findings)}
-        />
-      )}
-    </div>
+            <span className="flex-1" />
+            {expandToggle}
+          </div>
+        )}
+        {groups.length === 0 && <EmptyTab text={copy.findings.noMatch} />}
+        {groups.map(({ severity, items }, i) => {
+          const names = copy.findings.severities[severity];
+          return (
+            <section key={severity} aria-label={names.group} className="flex flex-col gap-2">
+              <div className="flex items-center">
+                <h3 title={names.hint} className="flex items-center gap-2 text-sm font-semibold">
+                  <SeverityMark severity={severity} labelled={false} />
+                  {names.group}
+                  <span className="font-normal text-text-3">{items.length}</span>
+                </h3>
+                <span className="flex-1" />
+                {i === 0 && !withFilter && expandToggle}
+              </div>
+              {items.map((f) => (
+                <Finding
+                  key={f.id}
+                  finding={f}
+                  {...slotProps}
+                  open={open.has(f.id)}
+                  current={current === f.id}
+                  onToggle={() => toggle(f.id)}
+                  selection={
+                    decidable
+                      ? { checked: selected.has(f.id), onChange: () => setSelected(flip(f.id)) }
+                      : undefined
+                  }
+                />
+              ))}
+            </section>
+          );
+        })}
+        {decidable && selectedFindings.length > 0 && (
+          <BulkBar
+            repo={slotProps.repo}
+            number={slotProps.number}
+            selected={selectedFindings}
+            onClear={() => setSelected(new Set())}
+          />
+        )}
+        {/* The review tray waits while the bulk bar is up, as in the prototype. */}
+        {decidable && selectedFindings.length === 0 && (
+          <ReviewTray
+            repo={slotProps.repo}
+            number={slotProps.number}
+            view={slotProps.view}
+            findings={inShownOrder(findings)}
+          />
+        )}
+      </div>
+    </DecisionFormsContext>
   );
 }
 

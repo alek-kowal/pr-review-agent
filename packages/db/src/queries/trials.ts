@@ -9,6 +9,7 @@ import { instructionFiles, instructionVersions } from '../schema/instructions.ts
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import { agentSessions, runs, stageExecutions } from '../schema/runs.ts';
 import { trials } from '../schema/trials.ts';
+import { getAppSettings } from './app-settings.ts';
 import { getInstructionVersion, type InstructionVersion } from './instructions.ts';
 import { prLevel } from './pr-state.ts';
 import type { Run } from './runs.ts';
@@ -56,7 +57,11 @@ export async function startTrial(
     };
   }
   const { repository, pullRequest } = row;
-  const level = prLevel(repository, pullRequest);
+  const level = prLevel(
+    repository,
+    pullRequest,
+    (await getAppSettings(deps.db)).value.defaultLevel,
+  );
   const [trial] = await deps.db
     .insert(trials)
     .values({

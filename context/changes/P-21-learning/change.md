@@ -102,3 +102,18 @@ tries, rejects (signed) or accepts (signed) them, and an accepted lesson becomes
 - "The next round gets the lesson" is checked on the `lessons.md` in the reviewer's knowledge
   folder: the reviewer prompt points to that folder and does not inline the lessons.
 - The candidate title follows the prototype: "Snapshot tables must be generated or tested".
+
+### Merge main (P-21 task)
+
+- Migrations: main's `0021_level_model_settings` stays untouched. This branch's `0021_learning`
+  was deleted and regenerated as `0022_learning` (`pnpm db:generate --name learning`). The
+  generated SQL is identical to the old file; the two hand-written notify triggers are re-added.
+- `routeTree.gen.ts` taken from main and regenerated with `vite build`.
+- Barrels, copy, settings registry, `a11y-routes.ts` and the e2e GitHub double keep both sides
+  (Learning next to Models, Review levels and Audit log; `closed_at`/`merged` next to `user`).
+- S-21 (main) freezes models on the run: the Analyse stage now takes `runModel(run, 'analyst')`
+  instead of `modelFor(app settings, ...)`.
+- S-21 added a global default level, so `prLevel` takes it: the learning hook, `startAnalysis`
+  and the PR page's learning section read `getAppSettings().defaultLevel`.
+- Main itself did not typecheck after P-24 (`board.ts` used the nullable repository default);
+  the board card now uses `load.defaultLevel` (repository default, else global), as the PR page.

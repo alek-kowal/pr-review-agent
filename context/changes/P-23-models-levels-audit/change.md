@@ -1,0 +1,216 @@
+---
+change_id: P-23
+title: Models, levels and audit log (S-21-T1–T8, S-20-T5)
+status: done
+created: 2026-11-19
+updated: 2026-11-19
+archived_at: null
+---
+
+## Notes
+
+Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; the tasks'
+"Done when" checks are the plan. One commit per task, in the listed order.
+
+## Decisions
+
+### S-21-T1 (level and model settings in core and db)
+
+- Core already had the ladder, inheritance (`resolveLevel`), `DEFAULT_MODELS` and the model-name
+  check from P-02. `resolveLevelSettings(n, overrides, roleModels)` (new `level-settings.ts`)
+  builds on `resolveLevel` and adds what Settings needs: what the level adds, its own values,
+  origins and every role's model (`RunModels`). `levelModelOverrides` feeds the Models page note.
+- Storage follows the task: tables `level_settings` (level 1–6, own values as jsonb) and
+  `model_settings` (role, model). The migration adds the six empty level rows and the five default
+  models (a model already in `app_settings.models` moves over), then drops `models` from
+  `app_settings`. The hand-written inserts sit at the end of `0014_level_model_settings.sql`; if
+  the migration is regenerated after a merge, copy them back.
+- The global default level lives in `app_settings.defaultLevel` (default 1). The repository's
+  `defaultLevel` is now nullable (null = global default); `prLevel` takes the global default, and
+  the PR view's `repositoryDefault` is the effective default. Settings → Repositories offers
+  "Global default" in the level Select; a newly connected repository starts with it.
+- `modelFor` no longer skips a set but invalid name: the run that would use it fails before any
+  spend (`model_invalid`, S-21-T2) instead of quietly running another model.
+- Tests that write level or model settings use their own database (the tables are global).
+
+### S-21-T2 (worker snapshots the settings per run)
+
+- The snapshot is taken in `createRun` (in `@pra/db`, where every run is created), not when the
+  first stage starts: the level was already frozen there. `runs.level` now carries the level
+  overrides; the new `runs.models` column holds every role's `ModelChoice`. Stages read
+  `runModel(run, role)` instead of the live app settings, so a running run keeps its models.
+- An invalid snapshot model fails the run's first stage with `model_invalid` (`runExecutor`,
+  before any executor or session), so nothing is spent.
+- Run detail: the API returns `run.models` (role, model, source, level) and the page shows a
+  "Models" side card. Runs from before the snapshot show their level override or the default.
+- The level 5 patch cap is in the snapshot (`level.settings.autofixMaxPatches`); `autofixDecision`
+  has no caller on this branch, so P-22 (or the merge, if P-22 lands first) wires it.
+
+### S-21-T3 (models and levels API)
+
+- Audit areas and entities: `models` / `roles` (all five roles in one change, so before/after
+  hold the whole map and a search for a role name finds it); `levels` / `"1"`…`"6"` (the level's
+  own values); `levels` / `default` (`{ defaultLevel }`).
+- `PUT /api/settings/levels/:n` takes `{ values, before?, signedBy? }`. `values` is the level's
+  complete set of own values: a field left out or sent as `"inherit"` is inherited. Models per
+  role sit in `values.models` the same way.
+- `autofixMaxPatches` may be set only from level 5 (400 `invalid_request`, issue code
+  `not_at_this_level`); lower levels have no autofix.
+- Validation errors are the API's usual 400 `invalid_request` with `issues[].path` naming the
+  field (`/models/verifier`, `/values/maxFindings`); a bad model name in Settings → Models has
+  issue code `invalid_model_name`.
+- `GET /api/settings/models` also returns the defaults (for the Select) and the levels that
+  override a role (for the note). `GET /api/settings/levels[/:n]` returns each level's own values,
+  resolved settings, origins and models, plus the global default level.
+- `reads-never-write.test.ts` got a 30 s timeout: it calls every GET route and checksums every
+  table twice, which passed 5 s under parallel load.
+
+### Merge of main (before S-21-T4)
+
+- `git merge main` (P-11r) merged cleanly: no new migration on main, P-22 not landed yet, so the
+  level 5 patch cap wiring stays with P-22.
+
+### S-21-T4 (Models page)
+
+- Each role's model is a Select of the distinct default models (the role's own default marked
+  "(default)") plus "Other model…", which shows a text Input for any name. The name is checked
+  with core `validModelName` as it is typed; Save with an invalid name shows a summary alert and
+  never opens the signed dialog.
+- The override note is plain text ("Level 6 uses claude-opus-5-5") until the level pages exist;
+  S-21-T5 turns each note into a link to its level.
+- Settings now opens on Models: the index redirects to the first page of the sidebar, and Models
+  comes before Team in the approved order. `TeamPage.test.tsx` and `settings-team.spec.ts` open
+  `/settings/team` directly.
+
+### S-21-T5 (Review levels pages)
+
+- Routes `/settings/review-levels` (ladder and default level) and `/settings/review-levels/$level`.
+  The Models page's override notes now link to their level.
+- The level page computes what a value would be without the level's own value in the browser,
+  with core `resolveLevelSettings` over the other levels' own values and the role models (from
+  `GET /api/settings/models`). So Override starts from the inherited value and Inherited shows it
+  again without a round trip, and the source reads "from level 3" or "built in at level 2".
+- Every setting and every role's model has the ToggleGroup Inherited / Own value; a reviewer brief
+  left empty as an own value saves as `null` (no brief at this level). Numbers are checked with
+  core `LevelSettingsPatchSchema` before Save; an invalid value blocks the signed dialog.
+- The save sends the level's complete own values (`inherit` for the rest) and the stored own
+  values as `before`. N goes in only from level 5 (lower levels have no autofix).
+- The autofix rules show on level 5 (N editable) and level 6 (N as text, inherited from 5).
+
+### S-21-T6 (Audit log API)
+
+- `GET /api/audit` reads `settings_changes` only (still the one audit log) through
+  `searchSettingsChanges` and `settingsChangeFacets` in `@pra/db`.
+- `q` is a case-insensitive substring search over the area, entity, actor kind, signer name, note
+  and the before/after JSON as text, so "verifier" finds a model change by its role key. LIKE
+  wildcards in `q` match themselves.
+- `actor` is `bot`, `hand` or a member id; `from` is inclusive and `to` exclusive, both ISO
+  instants (the page turns local dates into instants, so days follow the viewer's time zone).
+- Pagination is keyset on `(at, id)`, newest first. `cursor` is the last row's id; the next page
+  compares against that row's stored `at`, so microsecond timestamps and rows written while paging
+  never shift a page. `limit` defaults to 50 (max 200).
+- The response also carries every area in the log and every signer (name kept after they leave
+  Team) for the page's filters.
+
+### S-21-T7 (Audit log page)
+
+- Route `/settings/audit` with search params `q`, `area`, `who` (`bot`, `hand` or a member id)
+  and `from`/`to` (local `YYYY-MM-DD`, both days included). The page turns the days into the
+  API's instants at local midnight (`to` = the next midnight). The search text reaches the URL
+  300 ms after the last key; Select and date changes go at once (`replace`, no history spam).
+- The "Who" Select lists the signers in the log, then Bot and By hand; the "Area" Select lists the
+  areas in the log by their Settings page name (an unknown area shows as stored).
+- The summary is derived from before/after: "Added <entity>", "Removed <entity>", or "Changed"
+  with the top-level keys that differ (first three, then "and N more"). A row expands to the full
+  before and after as formatted JSON.
+- Pages of 50 with "Load more" (an infinite query over `nextCursor`).
+
+### S-21-T8 (end-to-end models, levels and audit)
+
+- The e2e stack seeds `GLOBAL_LEVEL_REPOSITORY` without a level of its own (no other spec uses
+  it), so the spec's default level 2 changes nothing for specs running beside it. The level 3
+  timeout it sets (45 min) is longer than the default 30, so it cannot time out another spec.
+- The agent double appends every session's role, model and dirs to `StackState.agentCalls`
+  (JSON lines). The spec matches the verifier sessions of its run by the run's worktree dir
+  (`run-<id>`), so it checks the model the double received, not only the snapshot.
+- Settings are global and a retry would start from the last attempt, so the spec first puts the
+  models, level 3 and the default level back through the API when they differ.
+- `e2e/a11y-routes.ts` is created with the four new Settings routes only; S-17-T9 (P-24) owns the
+  a11y spec and the rest of the list. If P-24 also creates the file, keep both lists.
+
+### Merge of main (before S-20-T5)
+
+- main (P-16, P-19) brought migrations `0014_pr_checks` and `0015_pause_budget_queue`. Main's are
+  kept; this package's migration is regenerated as `0016_level_model_settings` with the
+  hand-written default rows copied back.
+- `app_settings` keeps main's `timeZone` and `MAX_AGENT_SLOTS`, plus `defaultLevel`; `models`
+  stays out of it (they live in `model_settings` since S-21-T1). Main's Budget and Integrations
+  stores patch app settings, so they never overwrite `defaultLevel`.
+- Settings now opens on Budget & status (first in the approved order), then Models.
+
+### S-20-T5 (retire the WB seed)
+
+- The WB seed moved to `packages/db/src/testing/fixtures/workflowbuilder.json`; `packages/db/seeds/`
+  is gone. The seed command stays generic (any seed file, plus `--instructions` and the ClickUp
+  flags), because importing instruction files as version 1 has no Settings page yet. No migration
+  touches the WB row already in a database.
+- `scripts/check-repo-agnostic.ts` runs at the end of `pnpm lint`. It scans every text file under
+  `apps/` and `packages/` and fails on `workflow builder`, `synergycodes` or `wb-factory` (spaces,
+  `-` or `_` between the words, any case). Bare `WB` is allowed: `WB-123` is the ClickUp task id
+  example in copy and comments.
+- Skipped: `*.test.*`/`*.spec.*` files and the folders `test`, `tests`, `__tests__`, `testing`,
+  `fixtures`, `e2e`, `node_modules`, `dist` and `coverage`. One allowed file:
+  `packages/core/PORTING.md`, which maps the old tool's tests by their path.
+- Its test runs the script over a copy of the layout in a temporary folder (never the real tree,
+  so `pnpm lint` running beside it sees nothing), and also checks the real tree is clean. Root
+  `vitest.config.ts` has a `scripts` project and root `tsconfig.json` includes `scripts/`.
+- The worker's after-round comment no longer says "WB's PRs are public"; it says a repository's PRs
+  may be public.
+- AGENTS.md: the seed line points at the fixture, and a new "Connect a repository" section
+  describes Settings → Repositories. The two Needs Alek rows in `work-packages.md` that named
+  `packages/db/seeds/` now name the fixture and Settings.
+
+### Merge of main (P-14, final)
+
+- main brought `0016_questions_and_reviews` (P-14). Main's migration, snapshot and journal are
+  kept; this package's migration is regenerated on top as `0017_level_model_settings`. The
+  generated SQL matches the old `0016_level_model_settings` line for line, and the hand-written
+  default rows are copied back, so the file is identical to the old one.
+- Barrels (`schema/index.ts`, `queries/index.ts`), `copy/index.ts` and `pr-state.ts` imports
+  keep both sides: level and model settings plus P-14's answers, reviews, questions, opinions and
+  notify.
+- `e2e/support/stack.ts` keeps this package's agent call log and P-14's full-review count per PR,
+  and both `GLOBAL_LEVEL_REPOSITORY` and `CLICKUP_REPOSITORY` in the GitHub double.
+  `GLOBAL_LEVEL_REPOSITORY` moves to installation 55500009: it shared 55500006 with main's
+  `MERGE_REPOSITORY` since the previous merge.
+- `routeTree.gen.ts` merged without a conflict; `vite build` regenerates it unchanged.
+- No main code picks a model or level from live settings, so the per-run snapshot (S-21-T2)
+  needs no change.
+
+### Merge of main (P-15, P-17: retry and cancel, instructions, trials, pipeline)
+
+- Migrations: main brought `0017_instruction_files` to `0020_retry_cancel`. Main's files, snapshots
+  and journal are kept; this package's migration is regenerated on top as
+  `0021_level_model_settings`. The generated SQL matches the old `0017_level_model_settings` line
+  for line; with the hand-written default rows copied back, the file is identical to the old one.
+- Barrels (`schema/index.ts`, `queries/index.ts`), `copy/index.ts`, the Settings registry,
+  `api-types.ts`, the run detail schema (`models` plus `retryOf`, `retryFrom`, `retriedBy`) and
+  `e2e/a11y-routes.ts` keep both sides. `e2e/support/stack.ts` keeps the agent call log and main's
+  fail-once set. `routeTree.gen.ts` is regenerated with `vite build` (both sides' routes).
+- Stages read main's frozen instruction set (`stageInstructions`) and this package's frozen models
+  (`runModel`); neither reads `getAppSettings` any more. `runExecutor` checks a cancelled run
+  first, then an invalid snapshot model, both before any spend.
+- A retry copies the failed run's `models` snapshot as it copies its frozen `level`; without it the
+  retry would run the default models.
+- Trials (`startTrial`) use `prLevel` with the global default level, like a round.
+- `GET /api/pipeline` reads Settings → Models (`model_settings`) and the level overrides
+  (`level_settings`), the sources `createRun` snapshots, instead of `app_settings.models`. Its test
+  writes model rows; every role has a row from migration 0021, so the source is `settings`, not
+  `default`. A new test checks that a level's own model and timeout win.
+- `packages/db/seeds/instructions-import.json` (main) moved to
+  `packages/db/src/testing/fixtures/` (it names one repository; S-20-T5 retired `seeds/`). The
+  `instructions:import` default map points there; AGENTS.md lists both commands.
+- Two main comments that named the repository (`core/instructions.ts`,
+  `seed/instructions-import.ts`) now say "another repository", for the repo-agnostic lint.
+- `reads-never-write.test.ts`: both sides raised the timeout; main's `{ timeout: 30_000 }` stays.
+- Web tests from main that build a `RunDetail` get `models: []`.

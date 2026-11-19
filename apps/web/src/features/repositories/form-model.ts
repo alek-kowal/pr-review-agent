@@ -18,7 +18,8 @@ export type ChangeTypeRow = { pattern: string; rule: PathRule };
 /** What the form edits. Number fields hold their text, so a cleared input stays cleared. */
 export type RepositoryForm = {
   defaultBranch: string;
-  defaultLevel: LevelNumber;
+  /** Null: the global default level. */
+  defaultLevel: LevelNumber | null;
   fetchCommand: string;
   installCommand: string;
   largePrLines: string;
@@ -36,7 +37,7 @@ export type RepositoryForm = {
 export function newRepositorySettings(defaultBranch: string): RepositorySettings {
   return {
     defaultBranch,
-    defaultLevel: 1,
+    defaultLevel: null,
     fetchCommand: null,
     installCommand: null,
     clickup: null,
@@ -121,7 +122,9 @@ export function validate(form: RepositoryForm): Record<string, FormError> {
   };
 
   if (!text(form.defaultBranch)) errors.defaultBranch = 'required';
-  if (!LEVEL_NUMBERS.includes(form.defaultLevel)) errors.defaultLevel = 'required';
+  if (form.defaultLevel !== null && !LEVEL_NUMBERS.includes(form.defaultLevel)) {
+    errors.defaultLevel = 'required';
+  }
   positiveWhole('largePrLines', form.largePrLines);
   positiveWhole('changeTypeSizeLines', form.changeTypeSizeLines);
   if (form.clickupEnabled) {
@@ -142,7 +145,7 @@ export function validate(form: RepositoryForm): Record<string, FormError> {
 /** The save dialog's rows: one per field, in page order. */
 export function repositoryFields(t: {
   fields: Record<keyof RepositoryForm, string>;
-  level: (n: number) => string;
+  levelOrGlobal: (n: number | null) => string;
   on: string;
   off: string;
   short: Record<PathRule, string>;
@@ -152,7 +155,7 @@ export function repositoryFields(t: {
     format?: (value: RepositoryForm[keyof RepositoryForm]) => string,
   ): SettingsField<RepositoryForm> => ({ key, label: t.fields[key], ...(format && { format }) });
   return [
-    field('defaultLevel', (v) => t.level(v as number)),
+    field('defaultLevel', (v) => t.levelOrGlobal(v as number | null)),
     field('defaultBranch'),
     field('fetchCommand'),
     field('installCommand'),

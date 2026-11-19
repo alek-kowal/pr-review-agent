@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "eslint --max-warnings 0 . && prettier --check .",
+    "lint": "eslint --max-warnings 0 . && prettier --check . && node scripts/check-repo-agnostic.ts",
     "format": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
     "test": "vitest run",
@@ -20,6 +20,7 @@
     "instructions:import": "node --env-file-if-exists=.env packages/db/src/cli/instructions-import.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.65.1",
     "@pra/agents": "workspace:*",
