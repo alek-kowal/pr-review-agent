@@ -131,7 +131,7 @@ test('a stale revert loads the patch again and says why', async () => {
 
   await user.click(await screen.findByRole('button', { name: t.revertLabel('src/group.ts') }));
 
-  expect(await screen.findByText(copy.errors.patch_stale)).toBeVisible();
+  expect(await screen.findByText(copy.errors.patch_stale!)).toBeVisible();
   await waitFor(() =>
     expect(calls.filter((c) => c.path === '/api/patches/5' && c.method === 'GET')).toHaveLength(2),
   );
