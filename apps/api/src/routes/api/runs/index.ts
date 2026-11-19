@@ -85,9 +85,9 @@ export const RunDetailResponse = z.object({
         fileKey: z.string(),
         version: z.number().int(),
         /** The level of a level copy. */
-        level: z.number().int().nullable().default(null),
+        level: z.number().int().nullable().optional(),
         /** The instruction file, for a link to its editor; missing on runs before S-22. */
-        fileId: z.number().int().nullable().default(null),
+        fileId: z.number().int().nullable().optional(),
       }),
     ),
     /** The stage and error code a failed run stopped at. */

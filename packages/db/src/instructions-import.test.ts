@@ -97,7 +97,9 @@ describe('instructions:import', () => {
     const second = await importInstructions(db, source, map);
     expect(second.imported).toEqual([]);
     expect(second.kept).toHaveLength(first.imported.length + first.kept.length);
-    expect(await activeInstructions(db, wb.id)).toHaveLength(forWb.length);
+    // Only the repository's own rows: other test files may add global files in the meantime.
+    const ownAfter = (await activeInstructions(db, wb.id)).filter((v) => v.scope === 'repository');
+    expect(ownAfter).toEqual(own);
   });
 
   test('an unknown repository in the map fails without writing', async () => {
