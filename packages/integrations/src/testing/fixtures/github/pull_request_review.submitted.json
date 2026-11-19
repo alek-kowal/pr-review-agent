@@ -1,0 +1,36 @@
+{
+  "action": "submitted",
+  "review": {
+    "id": 51000001,
+    "user": { "login": "tomek", "type": "User" },
+    "state": "changes_requested",
+    "body": "Please handle empty labels.",
+    "commit_id": "2222222222222222222222222222222222222222",
+    "submitted_at": "2026-11-18T13:00:00Z"
+  },
+  "pull_request": {
+    "number": 312,
+    "state": "open",
+    "title": "Add edge label editing",
+    "html_url": "https://github.com/synergycodes/workflowbuilder/pull/312",
+    "user": { "login": "wb-dev" },
+    "head": {
+      "ref": "feature/edge-labels",
+      "sha": "2222222222222222222222222222222222222222",
+      "repo": { "full_name": "synergycodes/workflowbuilder" }
+    },
+    "base": {
+      "ref": "main",
+      "sha": "1111111111111111111111111111111111111111",
+      "repo": { "full_name": "synergycodes/workflowbuilder" }
+    }
+  },
+  "repository": {
+    "id": 700000001,
+    "name": "workflowbuilder",
+    "full_name": "synergycodes/workflowbuilder",
+    "private": false
+  },
+  "sender": { "login": "tomek", "type": "User" },
+  "installation": { "id": 55500001 }
+}

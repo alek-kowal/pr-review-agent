@@ -21,6 +21,7 @@ import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
 import { Route as SettingsAuditRouteImport } from './routes/settings.audit.tsx'
+import { Route as SettingsBudgetRouteImport } from './routes/settings.budget.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
 import { Route as SettingsModelsRouteImport } from './routes/settings.models.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
@@ -91,6 +92,11 @@ const SettingsAuditRoute = SettingsAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsBudgetRoute = SettingsBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/audit': typeof SettingsAuditRoute
+  '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/audit': typeof SettingsAuditRoute
+  '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/audit': typeof SettingsAuditRoute
+  '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/audit'
+    | '/settings/budget'
     | '/settings/integrations'
     | '/settings/models'
     | '/settings/team'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/audit'
+    | '/settings/budget'
     | '/settings/integrations'
     | '/settings/models'
     | '/settings/team'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/insights/trust'
     | '/runs/$runId'
     | '/settings/audit'
+    | '/settings/budget'
     | '/settings/integrations'
     | '/settings/models'
     | '/settings/team'
@@ -375,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAuditRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/budget': {
+      id: '/settings/budget'
+      path: '/budget'
+      fullPath: '/settings/budget'
+      preLoaderRoute: typeof SettingsBudgetRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/integrations': {
       id: '/settings/integrations'
       path: '/integrations'
@@ -461,6 +480,7 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
 
 interface SettingsRouteChildren {
   SettingsAuditRoute: typeof SettingsAuditRoute
+  SettingsBudgetRoute: typeof SettingsBudgetRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsModelsRoute: typeof SettingsModelsRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
@@ -474,6 +494,7 @@ interface SettingsRouteChildren {
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAuditRoute: SettingsAuditRoute,
+  SettingsBudgetRoute: SettingsBudgetRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
   SettingsModelsRoute: SettingsModelsRoute,
   SettingsTeamRoute: SettingsTeamRoute,

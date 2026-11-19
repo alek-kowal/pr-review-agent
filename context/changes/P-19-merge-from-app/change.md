@@ -1,0 +1,109 @@
+---
+change_id: P-19
+title: Merge from the app (S-12-T1–T5, S-06-T8)
+status: implemented
+created: 2026-11-19
+updated: 2026-11-19
+archived_at: null
+---
+
+## Notes
+
+Work package P-19 from `context/foundation/work-packages.md`, wave 7. Plan: yes, see `plan.md`
+(brief: `plan-brief.md`). One commit per task, in the listed order. Planning ran without
+questions (orchestrator rule: decide and record).
+
+## Decisions
+
+- **Routes follow the existing keying** `POST /api/prs/:repo/:number/merge`, not `/api/prs/:id/...`
+  (as P-11 did). The body is `{ typedNumber, signedBy }`: `signedBy` is the name every signed route
+  uses; the task's `signerId` means the same Team member id.
+- **CI and changes requested are stored on `pull_requests`** (`ci_sha`, `ci_checks` as core's
+  `CiCheck[]`, `changes_requested_by`, `checks_refreshed_at`). The loader uses `ci_checks` only
+  while `ci_sha` is the PR's head, so a push empties the CI row at once. The columns arrive with
+  T2, because the merge test needs "green in the DB"; T3 fills them from webhooks.
+- **Gateway CI maps to core CI** passed → `success`, failed → `failure`, pending → `null`.
+- **One merge at a time per PR:** the route holds the PR row `FOR UPDATE` for the whole check and
+  GitHub call. A second request waits, then finds the PR merged (the route writes `state = merged`
+  in the same transaction) and answers 409 `pr_closed` without calling GitHub. The signer is
+  locked before the PR row, the same order as Send back, so the two never deadlock.
+- **A GitHub failure that is not a refusal** (network, 5xx, app not installed) rolls the
+  transaction back and answers 502 `github_error` (`params.status` when GitHub answered); missing
+  App env vars answer 503 `github_not_configured`.
+- **Fresh-state order:** typed number (400 `merge_number_mismatch`), signature (400
+  `signature_required` / `signer_unknown`), PR open (409 `pr_closed`), fresh head equals the
+  reviewed SHA and the stored head (409 `head_moved` `{ reviewedSha, headSha }`), then core's
+  `checklist` on the stored state with fresh head, CI and changes requested (409
+  `merge_not_ready` `{ items }` with the failing rows). Fresh CI and reviews are stored before the
+  answer, so the page shows what the check saw.
+- **The squash merge** is `PUT .../pulls/{n}/merge` with `merge_method: squash`, `sha` = reviewed
+  SHA, title `<PR title> (#<n>)` and a message of the PR body (when any) plus
+  `Signed-off-in-app-by: <name>`. GitHub's 405/409/422 are a refusal (status and message kept
+  verbatim, 422 `merge_refused` and a `merge_refused` timeline entry signed by the member); other
+  errors answer 502 `github_error`.
+- **Success** sets `state = merged`, `merged_at`, `closed_at`, `merge_sha` (GitHub's `updated_at`
+  stays, so the later `closed` webhook is not stale and its metrics hook still runs), writes
+  `pr_merged` `{ via: 'app', sha, mergeSha }` signed by the member and the state change. The
+  webhook's own `pr_merged` entry is skipped when the PR was already merged in the app.
+
+### S-12-T3 (fresh checklist)
+
+- Ingest lives in the worker (the api only stores and queues events), so the ingest test is
+  `apps/worker/test/checklist-fresh.test.ts`; `apps/api/test/routes/checklist-fresh.test.ts`
+  covers the page rows from stored fields and `head_moved` after a push.
+- `check_suite`, `check_run` and `status` name a commit: the worker refreshes CI for every open PR
+  of the repository at that head (fork PRs included, which GitHub leaves out of
+  `check_suite.pull_requests`) by reading `getCiStatus` again; `pull_request_review` reads the
+  PR's reviews again. Reading GitHub's current state makes late or repeated deliveries harmless.
+- A head that differs from the reviewed round's head is at least 1 commit since, even when the
+  commit count did not grow (force push) or the compare measured 0, so a push always leaves Ready
+  to merge at once.
+- New webhook fixtures: `check_suite.completed`, `status`, `pull_request_review.submitted`; a
+  fixture's event is its name up to the first dot.
+
+### S-12-T4 (Merge checklist and dialog)
+
+- The all-green line reads "Checklist green at <head>" and keeps "N of N" on its right; the
+  section keeps the name "Merge checklist" for screen readers.
+- Merge is disabled only until the typed number matches and a signer is picked (the reason is the
+  button's title). A red checklist in the dialog does not disable it: the server re-checks fresh
+  GitHub state, which may have turned green since the page loaded.
+- The dialog names the reviewed SHA (the SHA the merge is pinned to), falling back to the head.
+- Every answer, success or error, refetches the PR view and the board: a refusal can still have
+  stored fresh CI and reviews or found the head moved.
+- `SignatureField` takes an optional `hint` ("Recorded as “Merged by …” in the timeline.").
+- The checklist tests moved from `NextStepBanner.test.tsx` to `features/pr/checklist.test.tsx`.
+
+### S-12-T5 (end-to-end merge)
+
+- The stack's GitHub double is `StackGitHub` (a subclass in `e2e/support/stack.ts`): for a PR it
+  only saw as webhooks, `getPullRequestState` answers the stored row, which is what those
+  webhooks told the app. `squashMerge` of such a PR succeeds unless the PR is in the refused range.
+- `merge-repo` (level 1, installation 55500006) has green CI at the fixture head, but the app sees
+  it only after `deliverCheckSuite`; PRs 110–119 there are refused with a 405 and GitHub's
+  "approving review" message. PR numbers: 100–102 green merge, 104–106 push, 110–112 refusal
+  (one per Playwright retry).
+- `deliverPullRequest`, `deliverPush` (now with an optional repository) and `deliverCheckSuite`
+  share one signed `deliver`.
+
+### S-06-T8 (end-to-end task link, context and follow-up)
+
+- `clickup-repo` (level 2, so the Task stage runs; installation 55500007) carries ClickUp settings
+  (`WB-\d+`, follow-up list `list-follow-ups`). The stack's one `FakeClickUpGateway` is seeded
+  with `CLICKUP_TASKS` (`WB-4821` for the branch, `WB-4822` for the link by hand); a spec cannot
+  add tasks at runtime, since the double lives in the stack process.
+- `deliverPullRequest` takes an optional head branch name; the fixture's own branch and the specs'
+  titles carry no task ID and no task mentions those PRs, so the no-task case is real.
+- The follow-up case checks the link shape (`task-N`), not a fixed ID: the double numbers tasks
+  and comments from one shared counter. It waits up to 60 s (the job starts after 15 s).
+- PR numbers: 120–122 branch link, 124–126 by hand, 128–130 follow-up.
+
+### Closing
+
+- `main` was merged twice (at the start and before the final checks). P-11r's
+  `commitsSinceRun` (a head other than the round's is never 0 commits since) said the same as
+  T3's change; its version was kept.
+- Final checks after the second merge: `pnpm verify` and `pnpm test:e2e` (23 specs) green.
+- Left for Alek: S-12-T6 (WB branch protection, App merge permission, a real merge) and S-06-T9
+  (real ClickUp key).
+

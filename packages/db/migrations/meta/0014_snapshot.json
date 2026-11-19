@@ -1,5 +1,5 @@
 {
-  "id": "977b70db-a2a5-46ba-8c60-71c6de1c2c60",
+  "id": "479ad126-310d-48f1-8ae3-a6f1d81c8c90",
   "prevId": "6be5f6fc-d6ba-4de0-b7b1-50ddbead479d",
   "version": "7",
   "dialect": "postgresql",
@@ -470,6 +470,32 @@
         "merge_sha": {
           "name": "merge_sha",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_sha": {
+          "name": "ci_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_checks": {
+          "name": "ci_checks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "changes_requested_by": {
+          "name": "changes_requested_by",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "checks_refreshed_at": {
+          "name": "checks_refreshed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
@@ -1399,13 +1425,6 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
-        },
-        "models": {
-          "name": "models",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
         },
         "head_sha": {
           "name": "head_sha",
@@ -3004,85 +3023,6 @@
       },
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.level_settings": {
-      "name": "level_settings",
-      "schema": "",
-      "columns": {
-        "level": {
-          "name": "level",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "settings": {
-          "name": "settings",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "level_settings_level": {
-          "name": "level_settings_level",
-          "value": "level in (1, 2, 3, 4, 5, 6)"
-        },
-        "level_settings_object": {
-          "name": "level_settings_object",
-          "value": "jsonb_typeof(\"level_settings\".\"settings\") = 'object'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.model_settings": {
-      "name": "model_settings",
-      "schema": "",
-      "columns": {
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "model": {
-          "name": "model",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "model_settings_role": {
-          "name": "model_settings_role",
-          "value": "role in ('reviewer', 'verifier', 'implementer', 'judge', 'analyst')"
-        }
-      },
       "isRLSEnabled": false
     }
   },
