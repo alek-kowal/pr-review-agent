@@ -1,6 +1,7 @@
 // Worker entry (`pnpm dev`): builds dependencies from env, starts the job handlers and stops
 // gracefully on SIGTERM or SIGINT.
 import { createAnthropicAnalyst, createAnthropicJudge, createClaudeAgentRunner } from '@pra/agents';
+import { modelAuthModeOf } from '@pra/core';
 import { closeDb, createDb, createQueue } from '@pra/db';
 import {
   CliGitMirror,
@@ -30,8 +31,10 @@ const queue = createQueue(url);
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const dataDir = path.resolve(repoRoot, process.env.DATA_DIR || '.data');
 // Names only, never the value.
+const authMode = modelAuthModeOf(process.env);
 logger.info(
-  process.env.ANTHROPIC_API_KEY ? 'model access configured' : 'model access not configured',
+  { authMode },
+  authMode === 'none' ? 'model access not configured' : 'model access configured',
 );
 
 let worker: Awaited<ReturnType<typeof startWorker>>;

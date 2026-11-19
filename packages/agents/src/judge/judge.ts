@@ -9,7 +9,9 @@ import {
   jsonSchemaOf,
   toUsage,
 } from '../agent-result.ts';
+import { credentialsFrom } from '../model-access.ts';
 import { costOf } from '../prices.ts';
+import { messagesClientFor, type MessagesClientOptions } from '../sdk-messages.ts';
 import { renderPrompt } from '../prompt.ts';
 import type { AgentRunResult } from '../runner.ts';
 
@@ -63,12 +65,11 @@ export type MessagesClient = {
   };
 };
 
-export type AnthropicJudgeOptions = {
-  /** `ANTHROPIC_API_KEY`; without it every call fails with `model_access_not_configured`. */
-  apiKey: string | undefined;
-  client?: MessagesClient;
-  now?: () => number;
-};
+/**
+ * `oauthToken` (a Claude subscription: the call runs through the Agent SDK) or `apiKey` (the
+ * Messages API); without either every call fails with `model_access_not_configured`.
+ */
+export type AnthropicJudgeOptions = MessagesClientOptions & { now?: () => number };
 
 const MAX_TOKENS = 1024;
 /** Where the v1 prompt expects its files; here they travel inline under these names. */
@@ -80,8 +81,7 @@ export class AnthropicJudge implements Judge {
   readonly #now: () => number;
 
   constructor(options: AnthropicJudgeOptions) {
-    const apiKey = options.apiKey || undefined;
-    this.#client = apiKey ? (options.client ?? new Anthropic({ apiKey })) : null;
+    this.#client = messagesClientFor(options);
     this.#now = options.now ?? Date.now;
   }
 
@@ -137,9 +137,9 @@ export class AnthropicJudge implements Judge {
   }
 }
 
-/** `AnthropicJudge` with the key from `ANTHROPIC_API_KEY`. */
+/** `AnthropicJudge` with `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` from `env`. */
 export function createAnthropicJudge(env: NodeJS.ProcessEnv = process.env): AnthropicJudge {
-  return new AnthropicJudge({ apiKey: env.ANTHROPIC_API_KEY });
+  return new AnthropicJudge(credentialsFrom(env));
 }
 
 /**

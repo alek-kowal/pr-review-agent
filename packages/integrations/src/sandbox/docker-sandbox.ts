@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { execa } from 'execa';
 import { IntegrationError, IntegrationNotConfiguredError } from '../errors.ts';
+import { isSecretName } from '../logging.ts';
 import {
   SANDBOX_CANCELLED,
   SANDBOX_FAILED,
@@ -82,6 +83,7 @@ export class DockerSandbox implements Sandbox {
     try {
       const started = execa(this.#docker, ['start', '--attach', name], {
         env: this.#cliEnv(),
+        extendEnv: false,
         all: true,
         buffer: false,
         reject: false,
@@ -126,6 +128,7 @@ export class DockerSandbox implements Sandbox {
     try {
       return await execa(this.#docker, args, {
         env: this.#cliEnv(),
+        extendEnv: false,
         all: true,
         reject: false,
         stdin: 'ignore',
@@ -141,15 +144,31 @@ export class DockerSandbox implements Sandbox {
   async #remove(name: string): Promise<void> {
     await execa(this.#docker, ['rm', '--force', name], {
       env: this.#cliEnv(),
+      extendEnv: false,
       reject: false,
       stdin: 'ignore',
     }).catch(() => undefined);
   }
 
-  /** The CLI keeps the worker's env (its config and context); the container never sees it. */
   #cliEnv(): Record<string, string> {
-    return this.#dockerHost ? { DOCKER_HOST: this.#dockerHost } : {};
+    return dockerCliEnv(process.env, this.#dockerHost);
   }
+}
+
+/**
+ * The docker CLI's whole env (it runs with `extendEnv: false`): the worker's env (the CLI's config
+ * and context) without any secret, so `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY` and the
+ * other keys never reach it. The container gets only the env its spec names.
+ */
+export function dockerCliEnv(
+  env: NodeJS.ProcessEnv,
+  dockerHost: string | undefined,
+): Record<string, string> {
+  const kept: Record<string, string> = {};
+  for (const [name, value] of Object.entries(env)) {
+    if (value !== undefined && !isSecretName(name)) kept[name] = value;
+  }
+  return dockerHost ? { ...kept, DOCKER_HOST: dockerHost } : kept;
 }
 
 /** `DockerSandbox` on the daemon at `SANDBOX_DOCKER_HOST` (unset = local Docker). */

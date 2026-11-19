@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { IntegrationError, IntegrationNotConfiguredError } from '../errors.ts';
-import { createSandbox, DockerSandbox, dockerCreateArgs } from './docker-sandbox.ts';
+import { createSandbox, DockerSandbox, dockerCliEnv, dockerCreateArgs } from './docker-sandbox.ts';
+import { INSTALL_ENV } from './install.ts';
 import type { SandboxRunSpec } from './sandbox.ts';
 
 const spec: SandboxRunSpec = {
@@ -24,6 +25,29 @@ const options = { name: 'pra-sbx-test', runtime: null, user: '501:20' };
 function values(args: string[], flag: string): string[] {
   return args.flatMap((arg, i) => (arg === flag ? [args[i + 1]!] : []));
 }
+
+describe('no model secret in the sandbox', () => {
+  test('the docker CLI env drops the subscription token, the API key and other secrets', () => {
+    const env = dockerCliEnv(
+      {
+        PATH: '/usr/bin',
+        HOME: '/Users/me',
+        CLAUDE_CODE_OAUTH_TOKEN: 'oat-secret',
+        ANTHROPIC_API_KEY: 'sk-secret',
+        GITHUB_APP_PRIVATE_KEY: 'pem',
+        DATABASE_URL: 'postgres://u:p@h/db',
+      },
+      'tcp://sandbox:2375',
+    );
+    expect(env).toEqual({ PATH: '/usr/bin', HOME: '/Users/me', DOCKER_HOST: 'tcp://sandbox:2375' });
+  });
+
+  test('the container gets only the env its spec names', () => {
+    const args = dockerCreateArgs(spec, options);
+    expect(values(args, '--env').sort()).toEqual(['CI=1', 'HOME=/tmp']);
+    expect(Object.keys(INSTALL_ENV).some((name) => /TOKEN|API_KEY/.test(name))).toBe(false);
+  });
+});
 
 describe('dockerCreateArgs', () => {
   test('locks the container down by default', () => {

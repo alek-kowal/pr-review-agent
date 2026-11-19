@@ -13,6 +13,8 @@ export const REDACTED = '[Redacted]';
 // in env-style and camelCase spellings.
 const SECRET_KEY =
   /(authorization|api_?key|secret|password|token|private_?key|secret_?access_?key|database_?url|git_config_value_\d+)$/i;
+/** Whether a key or env var name holds a secret (the names `redactSecrets` hides). */
+export const isSecretName = (name: string): boolean => SECRET_KEY.test(name);
 // A PEM private key, wherever it appears (e.g. a GitHub App key read from disk).
 const PRIVATE_KEY_PEM = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
 const MAX_DEPTH = 8;
