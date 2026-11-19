@@ -14,11 +14,13 @@ import {
 } from '@/test/fixtures.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
 import { renderApp } from '@/test/renderApp.tsx';
+import { clearPendingNotifies } from '@/features/notify/pending.ts';
 import { clearReviewDrafts } from './draft.ts';
 
 afterEach(() => {
   restoreFetch();
   clearReviewDrafts();
+  clearPendingNotifies();
   window.localStorage.clear();
 });
 

@@ -83,6 +83,19 @@ export const SENSITIVE_REPOSITORY = {
   ],
 };
 
+/**
+ * Seeded at level 1 with ClickUp settings; the ClickUp double knows `task` (notify-author.spec.ts).
+ * The double appends each `createComment` call as one JSON line to `commentsFile(holdDir)`.
+ */
+export const CLICKUP_REPOSITORY = {
+  slug: 'clickup-repo',
+  fullName: 'acme/clickup-repo',
+  installationId: 55500006,
+  task: { id: '86c1abc', customId: 'WB-123', name: 'Inline edge labels' },
+};
+export const commentsFile = (holdDir: string): string =>
+  path.join(holdDir, 'clickup-comments.jsonl');
+
 /** Insights history (insights.spec.ts): 17 merged PRs here... */
 export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };
 /** ...and 3 here. No App installation: nothing is delivered for them. */

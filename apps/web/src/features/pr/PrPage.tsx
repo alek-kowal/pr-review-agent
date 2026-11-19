@@ -10,6 +10,7 @@ import { NextStepBanner } from './NextStepBanner.tsx';
 import { PrHeader } from './PrHeader.tsx';
 import { prViewQuery } from './queries.ts';
 import { useFetchResultsWhenRoundEnds } from '@/features/findings/new-results.ts';
+import { NotifyCards } from '@/features/notify/NotifyCards.tsx';
 import { PR_PANELS } from './slots.ts';
 import { PR_TABS } from './tabs.ts';
 
@@ -67,6 +68,7 @@ export function PrPage({
       <div className="flex flex-col">
         <PrHeader {...slotProps} />
         <NextStepBanner {...slotProps} />
+        <NotifyCards {...slotProps} />
         <div
           className={`mt-4 grid items-start gap-5 ${panels.length > 0 ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}
         >

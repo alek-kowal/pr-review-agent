@@ -84,3 +84,11 @@ checks are the plan. One commit per task.
   `reviews.notified_at` first, and a failed post (502, or 422 when ClickUp is not configured)
   gives the claim back. `integrationFailure` moved to `apps/api/src/integration-failure.ts` for
   both ClickUp routes.
+- T11: the card lists the reviews saved on this page (`features/notify/pending.ts`, in memory per
+  PR, like drafted opinions); Not now or a posted comment removes it, and a reload forgets it (the
+  timeline keeps the review). The preview query is keyed by the linked task, so linking one in
+  the card's dialog (the exported S-06 `LinkTaskForm`) shows the comment at once. "Link a ClickUp
+  task" shows only when the repository has ClickUp settings; any other preview error shows its
+  copy with Not now only. e2e: a new level-1 `CLICKUP_REPOSITORY` with ClickUp settings, a
+  ClickUp double that knows WB-123, and a subclass that appends each `createComment` call to
+  `commentsFile(holdDir)` so the spec can count calls made in the stack process.

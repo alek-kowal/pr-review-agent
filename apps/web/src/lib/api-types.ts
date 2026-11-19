@@ -345,6 +345,17 @@ export type ReviewView = {
 };
 export type ReviewResponse = DecisionResult & { review: ReviewView };
 
+/** Notify author (S-08-T10): the ClickUp comment for a signed review, exactly as posted. */
+export type NotificationView = {
+  reviewId: number;
+  taskId: string;
+  author: string;
+  text: string;
+  /** When it was posted; null until then. */
+  notifiedAt: string | null;
+};
+export type NotificationResponse = { notification: NotificationView };
+
 /** One finding of a `decision_conflict` error: who decided it in the meantime. */
 export type DecisionConflict = {
   findingId: number;

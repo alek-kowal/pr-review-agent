@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api.ts';
 import type { ReviewResponse } from '@/lib/api-types.ts';
 import { applyResult } from '@/features/findings/decisions.ts';
+import { addPendingNotify } from '@/features/notify/pending.ts';
 import type { ReviewDraft } from './draft.ts';
 
 export type SaveReviewInput = { draft: ReviewDraft; signedBy: string };
@@ -25,6 +26,9 @@ export function useSaveReview(repo: string, number: string) {
           signedBy,
         },
       }),
-    onSuccess: (result) => applyResult(queryClient, repo, number, result),
+    onSuccess: (result) => {
+      applyResult(queryClient, repo, number, result);
+      addPendingNotify(repo, number, result.review);
+    },
   });
 }

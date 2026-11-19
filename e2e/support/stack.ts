@@ -23,7 +23,16 @@ import {
   isolatedGitExec,
 } from '@pra/integrations/testing';
 import { randomBytes } from 'node:crypto';
-import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  access,
+  appendFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { buildServer } from '../../apps/api/src/server.ts';
@@ -32,6 +41,8 @@ import {
   API_PORT,
   API_URL,
   briefFile,
+  CLICKUP_REPOSITORY,
+  commentsFile,
   FAILING_PR_FROM,
   HELD_PRS,
   HELD_TURN_COST_USD,
@@ -293,6 +304,7 @@ const github = new FakeGitHubGateway({
     [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
     [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
     [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
+    [CLICKUP_REPOSITORY.fullName]: CLICKUP_REPOSITORY.installationId,
   },
 });
 // GitHub's compare on the branch's commits, as the worker measures commits since a review.
@@ -347,6 +359,21 @@ await upsertRepository(
   },
   { installationId: SENSITIVE_REPOSITORY.installationId },
 );
+await upsertRepository(
+  db,
+  {
+    slug: CLICKUP_REPOSITORY.slug,
+    githubFullName: CLICKUP_REPOSITORY.fullName,
+    defaultLevel: 1,
+    clickup: {
+      workspaceId: '9012',
+      spaceId: null,
+      followUpListId: null,
+      taskIdPattern: 'WB-\\d+',
+    },
+  },
+  { installationId: CLICKUP_REPOSITORY.installationId },
+);
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
   ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
@@ -355,8 +382,33 @@ for (const [fileKey, content] of [
 }
 await seedInsightsHistory(db);
 
+/** The ClickUp double; it also writes each comment to `commentsFile` for the specs. */
+class RecordingClickUp extends FakeClickUpGateway {
+  override async createComment(
+    ...args: Parameters<FakeClickUpGateway['createComment']>
+  ): Promise<{ id: string }> {
+    const created = await super.createComment(...args);
+    await appendFile(
+      commentsFile(holdDir),
+      `${JSON.stringify(this.callsOf('createComment').at(-1))}\n`,
+    );
+    return created;
+  }
+}
+
 // One ClickUp double for the api and the worker, like one key on one server.
-const clickup = new FakeClickUpGateway();
+const { task } = CLICKUP_REPOSITORY;
+const clickup = new RecordingClickUp({
+  tasks: [
+    {
+      ...task,
+      description: 'Rename edge labels inline.',
+      url: `https://app.clickup.com/t/9012/${task.customId}`,
+      status: 'in progress',
+      listId: null,
+    },
+  ],
+});
 const worker = await startWorker(
   {
     db,
