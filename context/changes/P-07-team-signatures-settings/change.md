@@ -62,3 +62,14 @@ tasks' "Done when" checks are the plan. One commit per task.
   copy-free close labels passed by the caller.
 - With an empty Team the field shows a plain link to `/settings/team` in S-02-T5, because that
   route is built later in the package (S-02-T8 switches it to a router `Link`).
+- Settings registry (`apps/web/src/features/settings/registry.ts`): `settingsPages` lists built
+  pages only (id, route path, icon); `SETTINGS_PAGE_IDS` holds the approved groups and order, so
+  registration order does not matter and labels come from `copy.settings.pages`. Each page stays
+  its own file route `routes/settings.<id>.tsx`; the layout route `settings.tsx` renders the
+  sidebar and an `Outlet`, and `/settings` redirects to the first registered page (a placeholder
+  while none is). The group is named "General" as in the task, not the prototype's "Factory".
+- The leave guard lives in `SaveBar` (TanStack `useBlocker` with a resolver, plus `beforeunload`),
+  so every page with a SaveBar asks before leaving with unsaved changes. `useSettingsForm(saved,
+  fields)` gives the draft, `changes` (before/after rows) and `discard`. `SignedSaveDialog` mounts
+  its form per opening, refuses confirm without a signer, keeps the dialog open with the api
+  error's copy when the save fails, and remembers the signer only after success.
