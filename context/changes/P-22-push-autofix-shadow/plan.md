@@ -329,7 +329,7 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 5.1 push-recheck.spec.ts passes
+- [x] 5.1 push-recheck.spec.ts passes
 
 ### Phase 6: S-15-T1
 

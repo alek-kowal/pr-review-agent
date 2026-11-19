@@ -11,6 +11,7 @@ const patch = (overrides: Partial<PushablePatch> = {}): PushablePatch => ({
 });
 const pr = (overrides: Partial<PushTarget> = {}): PushTarget => ({
   number: 265,
+  state: 'open',
   fork: false,
   activeRun: null,
   ...overrides,
@@ -55,6 +56,15 @@ describe('canPush', () => {
       allowed: false,
       reason: { code: 'fork_read_only', params: {} },
     });
+  });
+
+  it('refuses a closed or merged PR (P-18 review O3)', () => {
+    for (const state of ['closed', 'merged'] as const) {
+      expect(canPush(patch(), pr({ state }), 265, BASE)).toEqual({
+        allowed: false,
+        reason: { code: 'pr_closed', params: {} },
+      });
+    }
   });
 
   it('refuses a patch whose files are all reverted', () => {

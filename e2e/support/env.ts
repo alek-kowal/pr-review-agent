@@ -34,6 +34,10 @@ export type StackState = {
   agentCalls: string;
   /** JSON lines `{ command, mounts }`, one per Sandbox call; mounts are host paths (`run-<id>`). */
   sandboxCalls: string;
+  /** The push repository's bare remote (`PUSH_REPOSITORY`). */
+  pushRemote: string;
+  /** JSON lines `{ args }`, one per `git push` the worker ran (its argv, never the token). */
+  gitPushes: string;
 };
 
 /**
@@ -123,6 +127,25 @@ export const IMPLEMENTER_REPOSITORY = {
 
 /** While a file of this name exists in the hold folder, every implementer session waits. */
 export const IMPLEMENTER_HOLD = 'hold-implementer';
+
+/**
+ * Seeded at level 4 (push-recheck.spec.ts). Its remote is a bare copy of the fixture that
+ * accepts pushes (`StackState.pushRemote`); each PR in `PUSH_PRS` has its own branch there
+ * (`pushBranch`), at the fixture head. GitHub compares its commits with git and reports green CI
+ * at any commit.
+ */
+export const PUSH_REPOSITORY = {
+  slug: 'push-repo',
+  fullName: 'acme/push-repo',
+  installationId: 55500012,
+};
+export const PUSH_PRS = { from: 265, to: 267 };
+export const pushBranch = (number: number): string => `edge-labels-${number}`;
+/** The GitHub account of the Team member who signs pushes (`Co-authored-by`). */
+export const PUSH_SIGNER = { login: 'wb-dev', id: 4242 };
+/** While this file exists, GitHub reports its content as PR `number`'s head (push repository). */
+export const movedHeadFile = (holdDir: string, number: number): string =>
+  path.join(holdDir, `moved-head-${number}`);
 
 /** Seeded at level 2: rounds run the checks and the change type, but no Verify. */
 export const LEVEL_TWO_REPOSITORY = {

@@ -42,6 +42,7 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
     { status: patch.status, baseSha: patch.baseSha, files: files.length },
     {
       number: pullRequest.number,
+      state: fresh.state,
       fork: pullRequest.isFork,
       activeRun: await activeRunOfPr(deps.db, pullRequest.id),
     },

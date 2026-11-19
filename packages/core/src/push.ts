@@ -15,6 +15,8 @@ export type PushablePatch = {
 /** What the push rule reads from a PR. */
 export type PushTarget = {
   number: number;
+  /** The PR's state on GitHub right now: a closed or merged PR takes no push. */
+  state: 'open' | 'closed' | 'merged';
   fork: boolean;
   activeRun: Pick<ActiveRun, 'kind' | 'status'> | null;
 };
@@ -34,6 +36,7 @@ export function canPush(
 ): PushGate {
   const refuse = (refusal: Reason): PushGate => ({ allowed: false, reason: refusal });
   if (pr.fork) return refuse(reason('fork_read_only'));
+  if (pr.state !== 'open') return refuse(reason('pr_closed'));
   if (patch.status !== 'ready') return refuse(reason('patch_not_ready', { status: patch.status }));
   if (typedNumber !== pr.number) return refuse(reason('pr_number_mismatch', { number: pr.number }));
   if (pr.activeRun) {

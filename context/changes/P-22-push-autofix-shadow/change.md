@@ -65,3 +65,28 @@ questions (orchestrator rule: decide and record).
   starts when GitHub reports the commit. A failed push in the job shows on the timeline.
 - `head_moved` and `pr_number_mismatch` have their own sentences; other refusals use the shared
   error copy (new: `pr_number_mismatch`, `patch_not_ready`, `patch_empty`).
+
+### S-14-T5 (e2e push and fix check)
+
+- Own repository `push-repo` (level 4) with PRs 265–267, each on its own branch
+  `edge-labels-<n>`: one shared branch would make the second PR's push a non-fast-forward.
+- Its remote is a bare clone of the fixture; the worker's git exec logs every `git push` argv to
+  `StackState.gitPushes`, and the spec reads the bare remote for the commit (bot author, parent =
+  reviewed head, `Co-authored-by`). The signer's GitHub account is `PUSH_SIGNER` (wb-dev, 4242).
+- For this repository only, the GitHub double compares commits with real git in the bare remote
+  and reports green CI at any commit (the pushed SHA is not known in advance). A
+  `moved-head-<n>` file in the hold folder makes it report another head (variant 1).
+- The sandbox double treats a commit carrying the implementer double's `// Fixed:` lines as
+  patched, so the fix check's reproduction on the pushed commit no longer reproduces the bug.
+- The implementer hold (`hold-implementer`) no longer holds sessions of the push repository: the
+  two specs run in parallel and a held session starved implement-patch's Cancel test.
+
+### P-18 review observations applied here
+
+- O3: `canPush` refuses a closed or merged PR (`pr_closed`, from GitHub's fresh state), after the
+  fork check; the endpoint and the job both pass the fresh state.
+- O9: a patch whose `baseSha` is not the PR head is `head_moved`, and an active implementer run
+  (a revise) is `run_active`; both were already in `canPush`.
+- O1: every code `canPush` returns is mapped in `REFUSALS`, so none falls back to `run_active`.
+- O6 (sensitive files on a patch) belongs to autofix (S-15-T2: "Autofix waiting: patch touches
+  a sensitive file"); a person's signed push does not check it.
