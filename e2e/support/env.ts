@@ -85,6 +85,13 @@ export const HELD_TURN_COST_USD = 0.12;
 export const COSTLY_RETRY_PRS = { from: 160, to: 169 };
 export const COSTLY_RETRY_USD = 5.5;
 
+/**
+ * PR numbers in this range get a reviewer whose first session hits the Claude usage limit, with
+ * a reset `USAGE_LIMIT_RESET_MS` later; the next one reviews as usual (usage-limit.spec.ts, P-25).
+ */
+export const USAGE_LIMIT_PRS = { from: 170, to: 172 };
+export const USAGE_LIMIT_RESET_MS = 1_000;
+
 /** The general alerts task the stack sets in `alert_config` (alerts.spec.ts). */
 export const GENERAL_ALERTS_TASK = 'WB-700';
 
