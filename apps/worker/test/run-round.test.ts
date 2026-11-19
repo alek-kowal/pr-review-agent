@@ -325,9 +325,10 @@ describe('run.stage', () => {
   });
 
   test('the level’s stage timeout aborts the session and fails with stage_timeout', async () => {
+    // Under load the timeout can fire before the session starts; the step then ends at once.
     const waitForAbort: FakeAgentStep = (input) =>
       new Promise((resolve) => {
-        input.signal!.addEventListener('abort', () =>
+        const end = () =>
           resolve({
             status: 'cancelled',
             output: null,
@@ -338,11 +339,13 @@ describe('run.stage', () => {
             turns: 2,
             durationMs: 180,
             transcript: [],
-          }),
-        );
+          });
+        if (input.signal!.aborted) end();
+        else input.signal!.addEventListener('abort', end);
       });
     deps.agentRunner.enqueue(waitForAbort);
-    const run = await queueRunWith({ 1: { stageTimeoutMinutes: 0.003 } });
+    // 3 s: long enough for git under load, so the session is running when the timeout fires.
+    const run = await queueRunWith({ 1: { stageTimeoutMinutes: 0.05 } });
 
     expect((await settled(run.id)).status).toBe('failed');
     const [review] = (await stagesOf(run.id)).filter((s) => s.stage === 'review');
