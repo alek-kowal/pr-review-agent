@@ -17,6 +17,7 @@ import {
   insertAgentSession,
   insertFindings,
   insertQuestions,
+  activeInstructions,
   insertStageExecution,
   lockRun,
   stageExecutionsOfRun,
@@ -24,6 +25,7 @@ import {
   updateRun,
   updateStageExecution,
   type Executor,
+  type Transactor,
   type PullRequest,
   type QueueJob,
   type Repository,
@@ -36,6 +38,7 @@ import { passGates } from './gates.ts';
 import { fireHooks, type RunHookContext } from './hooks.ts';
 import { sendStageJob } from './jobs.ts';
 import { liveSessions, type LiveSessions } from './live-sessions.ts';
+import { recordRunStarted } from './timeline-hooks.ts';
 import { latestAttempt, runStateOf } from './state.ts';
 
 /** After the timeout aborts a session, how long the executor gets to return its costs. */
@@ -94,7 +97,7 @@ export async function executeStage(
     }
   }
 
-  const started = await db.transaction((tx) => startStageInTx(tx, runId, stage));
+  const started = await db.transaction((tx) => startStageInTx(tx, runId, repository.id, stage));
   if (!started) return 'not_next';
   const { run, executionId, attempt } = started;
   // Sessions get their row when they start and their cost per turn (S-03-T3).
@@ -164,7 +167,12 @@ export async function afterTransition(
 
 type Started = { run: Run; executionId: number; attempt: number };
 
-async function startStageInTx(tx: Executor, runId: number, stage: string): Promise<Started | null> {
+async function startStageInTx(
+  tx: Executor & Transactor,
+  runId: number,
+  repositoryId: number,
+  stage: string,
+): Promise<Started | null> {
   let run = await lockRun(tx, runId);
   if (!run) return null;
   let executions = await stageExecutionsOfRun(tx, runId);
@@ -175,8 +183,22 @@ async function startStageInTx(tx: Executor, runId: number, stage: string): Promi
     if (!begun.ok) return null;
     state = begun.run;
     const now = new Date();
-    await updateRun(tx, runId, { status: 'running', startedAt: now, currentStage: stage });
-    run = { ...run, status: 'running', startedAt: now, currentStage: stage };
+    // The instruction files this run reads, for Run detail (S-03-T5).
+    const instructionVersions = (await activeInstructions(tx, repositoryId)).map((v) => ({
+      id: v.id,
+      scope: v.scope,
+      fileKey: v.fileKey,
+      version: v.version,
+    }));
+    const patch = {
+      status: 'running' as const,
+      startedAt: now,
+      currentStage: stage,
+      instructionVersions,
+    };
+    await updateRun(tx, runId, patch);
+    run = { ...run, ...patch };
+    await recordRunStarted(tx, run, now);
     // Stages this level turns off get a row, so the run's history is complete.
     for (const off of state.stages.filter((s) => s.status === 'off')) {
       if (latestAttempt(executions, off.key)) continue;

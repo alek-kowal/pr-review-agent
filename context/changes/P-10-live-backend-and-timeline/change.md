@@ -80,3 +80,35 @@ are added per task below.
   `agents_working` lane, waiting is the other three lanes (never reviewed included), time while
   closed counts toward none. The end is the last change when it is `merged`/`closed`, else
   `now`. Cost sums runs that are completed, failed or cancelled.
+
+### S-03-T5 (timeline and state log)
+
+- Tables in `schema/timeline.ts`, migration `0008_timeline` (drizzle output plus two hand-written
+  `CREATE TRIGGER` lines for `pra_notify_change`). If renumbered at merge: regenerate, then
+  append the two trigger statements again. `runs.instruction_versions` (jsonb
+  `{id, scope, fileKey, version}[]`) is in the same migration.
+- Entry kinds are generic: `pr_ready`, `pr_pushed`, `pr_closed`, `pr_merged` (actor `hand`,
+  `params.via = 'github'`, `at` = the event's `received_at`); `run_started` (actor = who started
+  the run, `params { runKind, roundNumber, trigger }`, in the run's start transaction);
+  `run_finished` / `run_failed` (+ `stage`, `errorCode`) / `run_cancelled` (actor bot,
+  `cost_usd` = the run's final cost, `at` = `finished_at`); `github_comment_posted` (bot,
+  `params.body`, written with the `posted` update); `findings_decided` (member, `params
+  { decision, count, reason }`) and `decision_undone` (hand: undo has no signer yet), both inside
+  the decision transaction. The web builds "Round 1 of 3 started" from `runKind`, `roundNumber`
+  and core `MAX_CHAIN_ROUNDS`. Source keys: `github_event:<id>:<kind>`, `run:<id>:started`,
+  `run:<id>:ended`, `github_action:<id>`, `decision_batch:<id>[:undone]`.
+- `timelineOf` joins `team_members` for the signer's name (kept after a member leaves).
+- `recordStateChange(db, prId, reason, { at })` locks the PR row, computes core `prState` with a
+  private loader (`loadStateInput` in `queries/timeline.ts`) and writes only when the state
+  differs from the last logged one. The loader leaves CI, patches, sensitive files, answers and
+  reviewers empty and treats every question of the reviewed round as open. **After P-08 merges,
+  replace `loadStateInput` with P-08's `loadPrStateInput` (one call site).**
+- Done-when deviations (as planned in `plan-brief.md`): the first logged state of a PR whose
+  ready event starts a round is `queued`, not `never_reviewed` (the run exists before the PR
+  event hooks run; queue time is Agents working time); the comment entry comes after "Round 1
+  finished" (the comment job is queued by the `runCompleted` hook). The signed-decision test is
+  `packages/db/src/timeline-writers.test.ts` (no decision route on this branch).
+- Events without a PR event hook (`reopened`, `converted_to_draft`) log no entry or state yet;
+  the next writer logs the state then.
+- `apps/api/test/routes/team.test.ts` "empty team" got a 30 s timeout: it creates its own
+  database, which took over 5 s under the full suite.

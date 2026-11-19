@@ -1,6 +1,12 @@
 import type { GitHubPullRequest } from '@pra/integrations';
 import type { PullRequest, Repository } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
+import {
+  timelineOnClosed,
+  timelineOnHeadChanged,
+  timelineOnMerged,
+  timelineOnReady,
+} from '../run/timeline-hooks.ts';
 
 export type PrEventKind = 'ready' | 'headChanged' | 'closed' | 'merged';
 
@@ -33,10 +39,10 @@ export type PrEventHooks = Record<PrEventKind, PrEventHook[]>;
  * Register a hook by adding it to its list.
  */
 export const PR_EVENT_HOOKS: PrEventHooks = {
-  ready: [],
-  headChanged: [],
-  closed: [],
-  merged: [],
+  ready: [timelineOnReady],
+  headChanged: [timelineOnHeadChanged],
+  closed: [timelineOnClosed],
+  merged: [timelineOnMerged],
 };
 
 /** Which hook lists an event fires, in this order. */

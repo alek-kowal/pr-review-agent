@@ -189,5 +189,6 @@ describe('Team api on an empty team', () => {
       await closeDb(empty);
       await database.drop();
     }
-  });
+    // Its own database: under the full suite, creating it can take longer than 5 s.
+  }, 30_000);
 });

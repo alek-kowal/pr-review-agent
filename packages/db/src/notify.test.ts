@@ -6,6 +6,8 @@ import {
   insertStageExecution,
   listenChanges,
   LISTENER_APPLICATION_NAME,
+  recordStateChange,
+  recordTimelineEntry,
   sql,
   updateStageExecution,
   type ChangeEvent,
@@ -94,6 +96,33 @@ describe('change notifications', () => {
             { table: 'runs', id: runId, prId, runId },
             { table: 'pull_requests', id: prId, prId, runId: null },
             { table: 'agent_sessions', id: sessionId, prId, runId },
+          ]),
+        ),
+      );
+    } finally {
+      await listener.close();
+    }
+  });
+
+  test('timeline entries and state changes notify with their PR and run', async () => {
+    const { prId, runId } = await seedStage();
+    const events: ChangeEvent[] = [];
+    const listener = listenChanges(db, (event) => events.push(event));
+    try {
+      await listener.ready;
+      const entry = await recordTimelineEntry(db, {
+        pullRequestId: prId,
+        actor: { kind: 'bot' },
+        kind: 'run_started',
+        runId,
+        sourceKey: `run:${runId}:started`,
+      });
+      const change = await recordStateChange(db, prId, { code: 'run_started' });
+      await vi.waitFor(() =>
+        expect(events).toEqual(
+          expect.arrayContaining([
+            { table: 'timeline_entries', id: entry!.id, prId, runId },
+            { table: 'pr_state_changes', id: change!.id, prId, runId: null },
           ]),
         ),
       );

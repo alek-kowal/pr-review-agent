@@ -162,7 +162,7 @@ run is required; the existing e2e spec is rerun once at the end because the stag
 
 ### Phase 5: Timeline and state log
 
-- [ ] 5.1 worker `timeline.test.ts` and db `timeline-writers.test.ts` pass; `pnpm verify` green
+- [x] 5.1 worker `timeline.test.ts` and db `timeline-writers.test.ts` pass; `pnpm verify` green
 
 ### Phase 6: Run detail and transcript
 

@@ -5,6 +5,11 @@ import type { PullRequest, Repository, Run } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { enqueueAfterRoundComment } from '../handlers/github-comment.ts';
 import type { SessionRecord } from '../stages/stage.ts';
+import {
+  timelineOnRunCancelled,
+  timelineOnRunCompleted,
+  timelineOnRunFailed,
+} from './timeline-hooks.ts';
 
 export type RunHookContext = {
   deps: WorkerDeps;
@@ -34,9 +39,9 @@ export type RunHooks = {
 
 /** Register a hook by adding it to its list. */
 export const RUN_HOOKS: RunHooks = {
-  runCompleted: [enqueueAfterRoundComment],
-  runFailed: [],
-  runCancelled: [],
+  runCompleted: [timelineOnRunCompleted, enqueueAfterRoundComment],
+  runFailed: [timelineOnRunFailed],
+  runCancelled: [timelineOnRunCancelled],
   sessionCostRecorded: [],
 };
 
