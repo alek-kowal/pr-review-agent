@@ -1,16 +1,17 @@
 # P-14 handoff
 
-- Done and committed: S-08-T1 (answers API), T2 (Questions tab), T3 (answers reach later rounds).
-- **Partial: S-08-T4** (commit `wip(S-08) … (T4, partial)`). Done: `queries/reviews.ts` (`saveReview`,
-  `opinionsOf`, `reviewsOf`, `getReview`, `lockPullRequestRow`), loader `opinions` + `reviewers`,
-  `FindingSchema.opinions`, `POST /api/prs/:repo/:number/reviews`, `test/routes/reviews.test.ts`.
-  Left: rerun `pnpm --filter @pra/api test reviews.test.ts` (the concurrent-save case deadlocked;
-  the PR row lock in `saveReview` should fix it, not yet verified), add `lockPullRequestRow` at
-  the start of `saveAnswers` too, add `opinions` to web `FindingView` + test fixture, commit T4.
-- Then T5–T11, as written in `roadmap-tasks.md`. Hooks: T5 the author columns already exist on
-  `decision_batches`; T7 register in `RUN_HOOKS.runCompleted`; T8 replace
-  `useRefreshFindingsWhenRoundEnds` in `PrPage.tsx`; T9 add questions to `SCRIPTED_REVIEW` in
-  `e2e/support/stack.ts`; T10/T11 `reviews.notified_at`, `FakeClickUpGateway.callsOf('createComment')`.
-- Migration `0014_questions_and_reviews` holds every S-08 table; its live-notify triggers are
-  hand-added at the end. Keep them if you regenerate it after `git merge main`.
-- Decisions: `context/changes/P-14-questions-and-signed-reviews/change.md`. Full verify and e2e not run yet.
+- Done and committed: S-08-T1–T8 (main merged at the session start, no conflicts). Decisions for
+  every task are in `context/changes/P-14-questions-and-signed-reviews/change.md`.
+- Left: T9 (`e2e/questions-reviews.spec.ts`), T10 (notify author API), T11 (card + e2e), then the
+  final commit: full `pnpm verify` + `pnpm test:e2e`, delete this file, set change.md `status`.
+- T9 not started (nothing uncommitted). Plan: add questions to the scripted reviewer only for a
+  new PR-number range in `e2e/support/env.ts` (e.g. `QUESTION_PRS = { from: 260, to: 269 }`; specs
+  use 12, 200–205, 300–349, 350–399 held, 400+ failing), so other specs keep no questions;
+  then a second full review via manual start to show carried opinions
+  ("from round 1") and the "View new results" strip (`data-testid="new-results"`).
+- T10/T11: `reviews.notified_at` exists; `FakeClickUpGateway.callsOf('createComment')`.
+- Not run yet: full `pnpm verify` and any e2e. Web unit tests can time out under load when other
+  worktrees run (passed alone). T8 now holds results of a round that ends while the page is open;
+  other e2e specs may need the reload pattern used in `chains.spec.ts` (checks inside `onPrPage`).
+- Migration `0014_questions_and_reviews` holds all S-08 tables; keep its hand-added live-notify
+  triggers if regenerated after a merge.
