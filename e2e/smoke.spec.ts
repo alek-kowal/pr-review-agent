@@ -1,9 +1,19 @@
 import { expect, test } from '@playwright/test';
 
 test('opens on the pull requests page with the top bar', async ({ page }) => {
-  // No api in this spec: answer the list's reads here, so it never reaches another worktree's api.
-  await page.route('**/api/repositories', (route) => route.fulfill({ json: { repositories: [] } }));
-  await page.route('**/api/prs', (route) => route.fulfill({ json: { pullRequests: [] } }));
+  // No api in this spec: answer the board's read here, so it never reaches another worktree's api.
+  const lane = { cards: [] };
+  const board = {
+    lanes: {
+      not_reviewed: { ...lane, drafts: [] },
+      agents_working: lane,
+      action_needed: lane,
+      ready_to_merge: lane,
+    },
+    mergedOrClosed: [],
+    repositoryCount: 0,
+  };
+  await page.route('**/api/board', (route) => route.fulfill({ json: board }));
   await page.goto('/');
 
   await expect(page).toHaveURL(/\/prs$/);
@@ -12,6 +22,6 @@ test('opens on the pull requests page with the top bar', async ({ page }) => {
     'aria-current',
     'page',
   );
-  await expect(page.getByRole('heading', { name: 'Pull requests' })).toBeVisible();
-  await expect(page.getByText('No open pull requests.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pull requests', level: 1 })).toBeVisible();
+  await expect(page.getByText('Nothing needs a person right now.')).toBeVisible();
 });

@@ -1,9 +1,10 @@
 import { ExternalLink } from 'lucide-react';
 import { copy } from '@/copy/index.ts';
-import type { PrView } from '@/lib/api-types.ts';
+import { PR_HEADER_ACTIONS, type PrSlotProps } from './slots.ts';
 
 /** The title plus one grey line (docs/03-design-decisions.md: no state pill, no breadcrumb). */
-export function PrHeader({ view }: { view: PrView }) {
+export function PrHeader(props: PrSlotProps) {
+  const { view } = props;
   const { pullRequest: pr, latestRound: round } = view;
   const meta = [
     pr.repository.name,
@@ -26,6 +27,9 @@ export function PrHeader({ view }: { view: PrView }) {
         <h1 className="min-w-[240px] flex-1 font-heading text-xl font-semibold">
           {pr.title} <span className="font-normal text-text-3">{copy.pr.number(pr.number)}</span>
         </h1>
+        {PR_HEADER_ACTIONS.map(({ key, Component }) => (
+          <Component key={key} {...props} />
+        ))}
         <a
           href={pr.githubUrl}
           target="_blank"

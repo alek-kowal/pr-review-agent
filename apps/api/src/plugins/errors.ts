@@ -24,6 +24,16 @@ export const ApiErrorCode = {
   TeamMemberNotFound: 'team_member_not_found',
   /** Another active Team member has this GitHub login. */
   GithubLoginTaken: 'github_login_taken',
+  /** Reject without a reason. */
+  ReasonRequired: 'reason_required',
+  /** A finding moved since the signer saw it; `params.conflicts` names the current decisions. */
+  DecisionConflict: 'decision_conflict',
+  /** A finding id that is not one of the PR's findings (`params.missing`). */
+  FindingNotFound: 'finding_not_found',
+  DecisionBatchNotFound: 'decision_batch_not_found',
+  /** Undo after one of the batch's findings changed (`params.findingIds`). */
+  DecisionChangedSince: 'decision_changed_since',
+  DecisionAlreadyUndone: 'decision_already_undone',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
