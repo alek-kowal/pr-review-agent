@@ -120,3 +120,18 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   counts are distinct PRs. `canAccept(candidate, signer?)` checks status, then PRs, then that the
   signer is a Team member, so the UI can call it without a signer to decide whether Accept is
   enabled. `withLesson` appends `## <title>` and the rule, and is idempotent on the heading.
+- T12: states are snake_case keys (`round_running`, `fix_check_running`, `waiting_for_fix`,
+  ...); lanes are `not_reviewed`, `agents_working`, `action_needed`, `ready_to_merge` (null when
+  merged or closed). Banner codes are `state_*` and "who usually acts" codes are `who_*`, one per
+  banner variant in the PRD table (queued paused, budget or slot; round starting, by hand or
+  retrying; patch ready or autofix waiting; sensitive pending or sent back). Tones are semantic
+  (`neutral`, `working`, `action`, `failed`, `ready`); the web picks colours.
+- `mainAction` is `{ action, signed, optional, disabled, stage }`. Queued for a slot offers
+  Cancel (the PRD row covers only paused and budget, which offer Resume). Waiting for the fix
+  offers Implement with agent, disabled with `implement_below_level` below level 4 (FR-048).
+- Only round and implementer runs set an agents-working state; trial and analyst runs never
+  change the PR state (FR-081). The input carries `failedRound` only when the last round failed
+  and was not retried or replaced; the state loader (P-04/P-08) decides that.
+- `actionNeededOrder` is a comparator over `ACTION_NEEDED_ORDER`.
+- `PrSnapshot` arrays that core only reads are `readonly` where tests needed it
+  (`SensitiveFiles.files`).

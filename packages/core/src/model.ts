@@ -46,7 +46,7 @@ export type SensitiveStatus = 'pending' | 'approved' | 'sent_back';
 /** Sensitive files a PR changes, and whether a person approved them. */
 export interface SensitiveFiles {
   status: SensitiveStatus;
-  files: string[];
+  files: readonly string[];
   /** Who sent them back (signed), when `status` is `sent_back`. */
   sentBackBy: Actor | null;
 }
