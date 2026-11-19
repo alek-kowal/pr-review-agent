@@ -2,7 +2,7 @@
 // database, `FakeGitHubGateway`, a reviewer scripted per PR number, a local blob store and a
 // `CliGitMirror` on a local fixture repository. Playwright starts it (`webServer`) and stops it
 // with SIGTERM; the specs read `STATE_FILE`.
-import type { AgentRunInput, AgentRunner, AgentRunResult } from '@pra/agents';
+import { NO_USAGE, type AgentRunInput, type AgentRunner, type AgentRunResult } from '@pra/agents';
 import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
 import { closeDb, createDb, createQueue, importInstructionV1, upsertRepository } from '@pra/db';
 import { createTestDatabase } from '@pra/db/testing';
@@ -17,7 +17,7 @@ import {
   isolatedGitExec,
 } from '@pra/integrations/testing';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { buildServer } from '../../apps/api/src/server.ts';
@@ -26,6 +26,9 @@ import {
   API_PORT,
   API_URL,
   FAILING_PR_FROM,
+  HELD_PRS,
+  HELD_TURN_COST_USD,
+  releaseFile,
   SECOND_REPOSITORY,
   STATE_FILE,
   type StackState,
@@ -76,11 +79,33 @@ export const SCRIPTED_REVIEW = {
   notChecked: ['Keyboard focus after renaming'],
 };
 
-/** Reads the PR number from the brief and answers per number: from `FAILING_PR_FROM`, invalid. */
+/** Waits until `file` exists, at most `ms` (a held reviewer never blocks the stack for good). */
+async function waitForFile(file: string, ms: number): Promise<void> {
+  const until = Date.now() + ms;
+  while (Date.now() < until) {
+    if (
+      await access(file).then(
+        () => true,
+        () => false,
+      )
+    )
+      return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
+/**
+ * Reads the PR number from the brief and answers per number: from `FAILING_PR_FROM`, invalid; in
+ * `HELD_PRS`, one reported turn, then the review once the spec releases it.
+ */
 class ScriptedReviewer implements AgentRunner {
   async run<T>(input: AgentRunInput<T>): Promise<AgentRunResult<T>> {
     const brief = await readFile(path.join(input.cwd, 'brief.md'), 'utf8');
     const number = Number(/PR #(\d+)/.exec(brief)?.[1]);
+    if (number >= HELD_PRS.from && number <= HELD_PRS.to) {
+      input.onProgress?.({ turns: 1, costUsd: HELD_TURN_COST_USD, usage: NO_USAGE });
+      await waitForFile(releaseFile(number), 120_000);
+    }
     const step =
       number >= FAILING_PR_FROM
         ? { output: { summary: 'not a review' }, costUsd: 0.04 }

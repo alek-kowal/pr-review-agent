@@ -100,3 +100,15 @@ tasks' "Done when" checks are the plan. One commit per task, in the listed order
 - Extension points in `features/activity/slots.ts`: `ACTIVITY_SECTIONS` above or below In
   progress (S-18's Alerts and Finished today) and `IN_PROGRESS_ROW_ACTIONS` at the row end
   (S-09's Cancel). Activity copy moved to `copy/activity.ts`.
+
+### S-03-T13 (live progress E2E)
+
+- The e2e stack's reviewer double holds PRs 350–399 (`HELD_PRS` in `e2e/support/env.ts`): it
+  reports one turn ($0.12, through `onProgress`, as the real adapter does), then waits until the
+  spec creates `releaseFile(number)` (at most 2 min), then answers the scripted review ($0.31).
+  The spec, not a timer, decides when the round moves on, so the running state is checked
+  without races.
+- `e2e/live-progress.spec.ts` loads the board once and then only clicks: card in Agents working
+  under 10 s after the webhook POST, Activity row at Review with $0.12, PR page stepper with
+  Review running and "running · $0.12 so far", the stepper folding into the round line after the
+  release, Run detail, the Timeline's bot and by-hand entries, and Activity without the run.
