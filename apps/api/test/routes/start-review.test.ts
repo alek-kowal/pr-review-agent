@@ -93,6 +93,11 @@ describe('start review', () => {
 
     expect(body.roundNumber).toBe(1);
     expect(body.chainId).not.toBe(reviewed.chainId);
+    expect((await runsOf(pr)).at(-1)).toMatchObject({
+      id: body.runId,
+      trigger: 'manual',
+      startedBy: 'hand',
+    });
   });
 
   test('a second start while one is queued or running returns 409 run_active', async () => {
@@ -104,6 +109,15 @@ describe('start review', () => {
     expect(second.statusCode).toBe(409);
     expect(second.json()).toEqual({
       error: { code: 'run_active', params: { kind: 'round', status: 'queued' } },
+    });
+    expect(await runsOf(pr)).toHaveLength(1);
+
+    const [first] = await runsOf(pr);
+    await db.update(schema.runs).set({ status: 'running' }).where(eq(schema.runs.id, first!.id));
+    const third = await startReview(pr, 1);
+    expect(third.statusCode).toBe(409);
+    expect(third.json()).toEqual({
+      error: { code: 'run_active', params: { kind: 'round', status: 'running' } },
     });
     expect(await runsOf(pr)).toHaveLength(1);
   });

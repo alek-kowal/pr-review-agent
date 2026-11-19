@@ -4,6 +4,7 @@
 import type { Reason } from '@pra/core';
 import type { PullRequest, Repository, Run } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
+import { sensitiveFilesGate } from './sensitive-files.ts';
 
 export type GateDecision = { start: true } | { start: false; reason: Reason };
 
@@ -27,7 +28,8 @@ export type RunGates = {
 
 /** Register a gate by adding it to its list. */
 export const RUN_GATES: RunGates = {
-  beforeRoundStart: [],
+  // Sensitive files (S-11) are scanned before a round starts; the gate always opens or throws.
+  beforeRoundStart: [sensitiveFilesGate],
   beforeSession: [],
 };
 

@@ -127,6 +127,9 @@ export type StartRoundResult =
   | { started: true; run: Run; firstStage: string; roundNumber: number }
   | { started: false; reason: Reason };
 
+/** Thrown inside the run's transaction when another start already took the chain's expected head. */
+class ExpectedHeadTaken extends Error {}
+
 /** The PR's rounds, oldest first. */
 export async function roundsOf(db: Executor, pullRequestId: number): Promise<Run[]> {
   return db
@@ -155,7 +158,10 @@ export async function latestChainOf(
   return latest?.chainId ? getRoundChain(db, latest.chainId) : null;
 }
 
-/** S-14's push records the commit it pushed: the next round starts only on that head. */
+/**
+ * The commit PR Review Agent pushed as a fix: the next round starts only on that head. S-14's push
+ * records it through the worker's `expectOwnFix`, which also covers a webhook handled before it.
+ */
 export async function setChainExpectedHead(
   db: Executor,
   chainId: string,
@@ -217,30 +223,47 @@ export async function startRound(
     chainId = randomUUID();
   }
 
-  const result = await createRun(deps, {
-    pullRequest,
-    kind: 'round',
-    level,
-    plan: planRun({
+  let result: CreateRunResult;
+  try {
+    result = await createRun(deps, {
+      pullRequest,
       kind: 'round',
       level,
-      roundKind: roundNumber > 1 ? 'fix_check' : 'full',
-      roundNumber,
-    }),
-    trigger: input.trigger,
-    startedBy: input.startedBy,
-    roundNo: roundNumber,
-    chainId,
-    beforeInsert: async (tx) => {
-      if (newChain) {
-        await tx.insert(roundChains).values({ id: chainId, pullRequestId: pullRequest.id });
-      } else {
-        // The fix is being checked: a retried event or a later push on it starts nothing.
-        await setChainExpectedHead(tx, chainId, null);
-      }
-    },
-    inTransaction: input.inTransaction,
-  });
+      plan: planRun({
+        kind: 'round',
+        level,
+        roundKind: roundNumber > 1 ? 'fix_check' : 'full',
+        roundNumber,
+      }),
+      trigger: input.trigger,
+      startedBy: input.startedBy,
+      roundNo: roundNumber,
+      chainId,
+      beforeInsert: async (tx) => {
+        if (newChain) {
+          await tx.insert(roundChains).values({ id: chainId, pullRequestId: pullRequest.id });
+          return;
+        }
+        // The fix is being checked: a retried event or a later push on it starts nothing. Taking
+        // the expected head is atomic, so two starts on one fix push make one round.
+        const [taken] = await tx
+          .update(roundChains)
+          .set({ expectedHeadSha: null })
+          .where(
+            and(eq(roundChains.id, chainId), eq(roundChains.expectedHeadSha, pullRequest.headSha)),
+          )
+          .returning({ id: roundChains.id });
+        if (!taken) throw new ExpectedHeadTaken();
+      },
+      inTransaction: input.inTransaction,
+    });
+  } catch (error) {
+    if (!(error instanceof ExpectedHeadTaken)) throw error;
+    return {
+      started: false,
+      reason: reason('head_not_own_fix', { headSha: pullRequest.headSha, fixSha: null }),
+    };
+  }
   if (!result.created) {
     const active = await activeBlockingRun(deps.db, pullRequest.id);
     return {
