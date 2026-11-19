@@ -53,3 +53,12 @@ tasks' "Done when" checks are the plan. One commit per task.
   `before`; when sent, an edit made in between gives 409 `settings_stale`. `DELETE` answers 204.
   GitHub logins drop a leading `@` and must be a valid GitHub login; an empty ClickUp user is
   stored as null. Unknown or removed member: 404 `team_member_not_found`.
+- The signature is split in three: `useLastSigner` (`pra.lastSigner`, every storage access in
+  try/catch), `useSignature()` (team query, prefill while the member is still in Team, `remember()`
+  for after a successful submit) and `SignatureField` (the Combobox, shown with
+  `signature={useSignature()}`). A form owns its signer, so it can block submit without one.
+  shadcn `button`, `input`, `label`, `popover`, `command` (new dependency `cmdk`), `dialog` and
+  `alert-dialog` were written by hand from the shadcn sources (no network registry run), with
+  copy-free close labels passed by the caller.
+- With an empty Team the field shows a plain link to `/settings/team` in S-02-T5, because that
+  route is built later in the package (S-02-T8 switches it to a router `Link`).

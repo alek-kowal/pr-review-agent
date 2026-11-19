@@ -104,3 +104,13 @@ export type FindingsResponse = {
 
 export const isActiveStatus = (status: RunStatus | null | undefined): boolean =>
   status === 'queued' || status === 'running';
+
+/** An active Team member: `GET /api/team`, `POST` and `PATCH /api/team/:id`. */
+export type TeamMember = {
+  id: string;
+  name: string;
+  githubLogin: string;
+  clickupUserId: string | null;
+};
+export type TeamResponse = { members: TeamMember[] };
+export type TeamMemberResponse = { member: TeamMember };

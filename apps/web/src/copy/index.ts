@@ -153,4 +153,16 @@ export const copy = {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',
   },
+  signature: {
+    label: 'Signed by',
+    hint: 'Nobody logs in: a signature is your name picked from Team.',
+    placeholder: 'Pick your name',
+    search: 'Search Team',
+    noMatch: 'Nobody in Team matches.',
+    loading: 'Loading Team…',
+    login: (login: string) => `@${login}`,
+    emptyTeam: 'Nobody is in Team yet.',
+    addYourself: 'Add yourself in Settings → Team',
+    required: 'Pick your name to sign.',
+  },
 } as const;
