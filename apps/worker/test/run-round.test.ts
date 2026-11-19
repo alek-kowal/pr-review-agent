@@ -19,6 +19,7 @@ import { createGitFixture, isolatedGitExec, type GitFixture } from '@pra/integra
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
+import { executeStage } from '../src/run/execute-stage.ts';
 import { sendStageJob } from '../src/run/jobs.ts';
 import { recoverRuns } from '../src/run/recover.ts';
 import { startRound } from '../src/run/start-round.ts';
@@ -281,9 +282,28 @@ describe('run.stage', () => {
   });
 
   test('a stage without an executor fails with stage_not_available', async () => {
-    const run = await queueRound(2);
+    // Inserted without a stage job, and run directly on deps without a Checks executor.
+    const repository = await connectRepository(deps.db);
+    const { pullRequest } = await upsertPullRequest(
+      deps.db,
+      aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
+    );
+    const run = await insertRun(
+      deps.db,
+      aRun(pullRequest.id, { levelNumber: 2, headSha: fixture.headSha }),
+    );
+    const withoutChecks = Object.fromEntries(
+      Object.entries(deps.extensions.stageExecutors).filter(([key]) => key !== 'checks'),
+    );
 
-    expect((await settled(run.id)).status).toBe('failed');
+    const outcome = await executeStage(
+      { ...deps, extensions: { ...deps.extensions, stageExecutors: withoutChecks } },
+      run.id,
+      'checks',
+    );
+
+    expect(outcome).toBe('failed');
+    expect((await getRun(deps.db, run.id))!.status).toBe('failed');
     const stages = await stagesOf(run.id);
     expect(stages.find((s) => s.stage === 'checks')).toMatchObject({
       status: 'failed',

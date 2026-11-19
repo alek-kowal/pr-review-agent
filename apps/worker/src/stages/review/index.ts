@@ -11,7 +11,7 @@ import {
 import { activeInstructions, getAppSettings, readRepositoryConfig } from '@pra/db';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import { sessionDirFor, worktreeKey } from '../paths.ts';
+import { sessionDirFor } from '../paths.ts';
 import type {
   SessionRecord,
   StageContext,
@@ -20,6 +20,7 @@ import type {
   StageQuestion,
   StageResult,
 } from '../stage.ts';
+import { runWorktree } from '../worktree.ts';
 import { buildBrief, documentsFor, touchedWorkspaces } from './brief.ts';
 import {
   effectiveInstructions,
@@ -44,11 +45,7 @@ async function runReview(context: StageContext): Promise<StageResult> {
   const { deps, run, pullRequest, repository, level, attempt, signal } = context;
   const fullName = repository.githubFullName;
 
-  const token = repository.installationId
-    ? (await deps.github.getInstallationToken(repository.installationId)).token
-    : undefined;
-  await deps.gitMirror.fetch(fullName, token);
-  const worktree = await deps.gitMirror.addWorktree(fullName, worktreeKey(run.id), run.headSha);
+  const worktree = await runWorktree(context);
   const diff = await deps.gitMirror.diff(fullName, pullRequest.baseSha, run.headSha);
   const changed = diff.files.map((file) => file.path);
 

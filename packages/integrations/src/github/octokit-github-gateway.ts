@@ -4,16 +4,25 @@ import { Octokit } from '@octokit/core';
 import { Webhooks } from '@octokit/webhooks';
 import { IntegrationError, IntegrationNotConfiguredError } from '../errors.ts';
 import {
+  checkRunState,
+  ciStatusOf,
+  commitStatusState,
   GITHUB_APP_NOT_INSTALLED,
   GITHUB_ENV,
   GITHUB_NOT_CONFIGURED,
   splitFullName,
   toPullRequest,
+  type CiCheck,
+  type CiStatus,
   type GitHubGateway,
   type GitHubPullRequest,
   type InstallationToken,
   type RawPullRequest,
 } from './github-gateway.ts';
+
+/** GitHub's largest page; check runs are read for at most `MAX_PAGES` pages. */
+const PER_PAGE = 100;
+const MAX_PAGES = 10;
 
 /** A token is replaced this long before GitHub's `expires_at`, so no call races the expiry. */
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
@@ -96,6 +105,41 @@ export class OctokitGitHubGateway implements GitHubGateway {
     });
   }
 
+  async getCiStatus(fullName: string, sha: string): Promise<CiStatus> {
+    return this.#withInstallation(fullName, async (octokit) => {
+      const repo = splitFullName(fullName);
+      const checks: CiCheck[] = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data } = await octokit.request(
+          'GET /repos/{owner}/{repo}/commits/{ref}/check-runs',
+          {
+            ...repo,
+            ref: sha,
+            per_page: PER_PAGE,
+            page,
+          },
+        );
+        for (const run of data.check_runs) {
+          checks.push({ name: run.name, source: 'check_run', state: checkRunState(run) });
+        }
+        if (data.check_runs.length < PER_PAGE || checks.length >= data.total_count) break;
+      }
+      // The combined status already holds the latest state per context.
+      const { data: combined } = await octokit.request(
+        'GET /repos/{owner}/{repo}/commits/{ref}/status',
+        { ...repo, ref: sha, per_page: PER_PAGE },
+      );
+      for (const status of combined.statuses) {
+        checks.push({
+          name: status.context,
+          source: 'status',
+          state: commitStatusState(status.state),
+        });
+      }
+      return ciStatusOf(checks);
+    });
+  }
+
   /**
    * Runs `call` with the repository's installation client. A cached installation goes stale when
    * the App is reinstalled (new id, old tokens revoked) or the repository leaves it; GitHub then
@@ -165,6 +209,9 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     return this.#fail();
   }
   postIssueComment(): Promise<{ id: number }> {
+    return this.#fail();
+  }
+  getCiStatus(): Promise<CiStatus> {
     return this.#fail();
   }
 

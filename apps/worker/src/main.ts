@@ -1,8 +1,14 @@
 // Worker entry (`pnpm dev`): builds dependencies from env, starts the job handlers and stops
 // gracefully on SIGTERM or SIGINT.
-import { createClaudeAgentRunner } from '@pra/agents';
+import { createAnthropicJudge, createClaudeAgentRunner } from '@pra/agents';
 import { closeDb, createDb, createQueue } from '@pra/db';
-import { CliGitMirror, createBlobStore, createGitHubGateway } from '@pra/integrations';
+import {
+  CliGitMirror,
+  createBlobStore,
+  createClickUpGateway,
+  createGitHubGateway,
+  createSandbox,
+} from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +45,9 @@ try {
     github: createGitHubGateway(),
     gitMirror: new CliGitMirror({ rootDir: path.join(dataDir, 'git') }),
     agentRunner: createClaudeAgentRunner(),
+    judge: createAnthropicJudge(),
+    sandbox: createSandbox(),
+    clickup: createClickUpGateway(),
   });
 } catch (error) {
   logger.fatal({ err: error }, 'worker failed to start (has `pnpm db:migrate` run?)');

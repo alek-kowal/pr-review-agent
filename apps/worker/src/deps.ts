@@ -1,6 +1,12 @@
-import type { AgentRunner } from '@pra/agents';
+import type { AgentRunner, Judge } from '@pra/agents';
 import type { Db, Queue } from '@pra/db';
-import type { BlobStore, GitHubGateway, GitMirror } from '@pra/integrations';
+import type {
+  BlobStore,
+  ClickUpGateway,
+  GitHubGateway,
+  GitMirror,
+  Sandbox,
+} from '@pra/integrations';
 import type { Logger } from '@pra/integrations/logging';
 import { DEFAULT_EXTENSIONS, type Extensions } from './extensions.ts';
 
@@ -13,6 +19,11 @@ export type WorkerDeps = {
   github: GitHubGateway;
   gitMirror: GitMirror;
   agentRunner: AgentRunner;
+  /** The change-type judge (one Messages API call, no tools). */
+  judge: Judge;
+  /** Throwaway containers for the Checks install and Verify's reproductions. */
+  sandbox: Sandbox;
+  clickup: ClickUpGateway;
   /** Session files (brief, diff, instruction copies) live under `<dataDir>/sessions`. */
   dataDir: string;
   /** The registries later packages extend; `DEFAULT_EXTENSIONS` unless a test replaces some. */

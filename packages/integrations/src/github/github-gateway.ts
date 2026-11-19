@@ -9,6 +9,57 @@ export interface GitHubGateway {
   getPullRequest(fullName: string, number: number): Promise<GitHubPullRequest>;
   /** Posts `body` unchanged as a comment on the PR's conversation. */
   postIssueComment(fullName: string, number: number, body: string): Promise<{ id: number }>;
+  /** CI on one commit: its check runs plus its combined commit status, counted. */
+  getCiStatus(fullName: string, sha: string): Promise<CiStatus>;
+}
+
+export type CiState = 'passed' | 'failed' | 'pending';
+
+/** One check run or one commit status context. */
+export type CiCheck = { name: string; source: 'check_run' | 'status'; state: CiState };
+
+export type CiStatus = {
+  passed: number;
+  failed: number;
+  pending: number;
+  total: number;
+  checks: CiCheck[];
+};
+
+/** A check run's state: not completed is pending; a failing conclusion is failed. */
+export function checkRunState(run: { status: string; conclusion: string | null }): CiState {
+  if (run.status !== 'completed') return 'pending';
+  switch (run.conclusion) {
+    case 'success':
+    case 'neutral':
+    case 'skipped':
+      return 'passed';
+    case 'stale':
+    case null:
+      return 'pending';
+    default:
+      // failure, timed_out, cancelled, action_required, startup_failure
+      return 'failed';
+  }
+}
+
+/** A commit status context's state (`success`, `failure`, `error`, `pending`). */
+export function commitStatusState(state: string): CiState {
+  if (state === 'success') return 'passed';
+  if (state === 'failure' || state === 'error') return 'failed';
+  return 'pending';
+}
+
+/** Counts the checks by state. */
+export function ciStatusOf(checks: CiCheck[]): CiStatus {
+  const count = (state: CiState) => checks.filter((check) => check.state === state).length;
+  return {
+    passed: count('passed'),
+    failed: count('failed'),
+    pending: count('pending'),
+    total: checks.length,
+    checks,
+  };
 }
 
 export type InstallationToken = { token: string; expiresAt: Date };

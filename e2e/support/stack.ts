@@ -3,12 +3,18 @@
 // `CliGitMirror` on a local fixture repository. Playwright starts it (`webServer`) and stops it
 // with SIGTERM; the specs read `STATE_FILE`.
 import type { AgentRunInput, AgentRunner, AgentRunResult } from '@pra/agents';
-import { FakeAgentRunner } from '@pra/agents/testing';
+import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
 import { closeDb, createDb, createQueue, importInstructionV1, upsertRepository } from '@pra/db';
 import { createTestDatabase } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
-import { createGitFixture, FakeGitHubGateway, isolatedGitExec } from '@pra/integrations/testing';
+import {
+  createGitFixture,
+  FakeClickUpGateway,
+  FakeGitHubGateway,
+  FakeSandbox,
+  isolatedGitExec,
+} from '@pra/integrations/testing';
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -103,6 +109,9 @@ const worker = await startWorker(
       exec: isolatedGitExec,
     }),
     agentRunner: new ScriptedReviewer(),
+    judge: new FakeJudge(),
+    sandbox: new FakeSandbox(),
+    clickup: new FakeClickUpGateway(),
     dataDir: path.join(root, 'data'),
   },
   { pollingIntervalSeconds: 0.5 },
