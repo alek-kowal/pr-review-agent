@@ -1,30 +1,12 @@
 // S-02-T10: signed decisions on findings, on the S-01 stack with the scripted reviewer
 // (2 Blocking, 1 Worth fixing, 1 Nit).
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { teamMember } from './support/api.ts';
+import { DECIDE_PRS_FROM } from './support/env.ts';
 import { AUTHOR_LOGIN, deliverPullRequest } from './support/github.ts';
 
 const BLOCKING = ['Empty label hides the edge', 'Renaming drops the undo history'];
 const WORTH_FIXING = 'SDK entry exports an internal type';
-
-/** Adds a Team member on the Team page, signed by Kasia; a retry finds them already there. */
-async function ensureMember(page: Page, name: string, login: string): Promise<void> {
-  await page.goto('/settings/team');
-  await expect(page.getByRole('heading', { name: 'Team', level: 1 })).toBeVisible();
-  await expect(page.getByText('Loading Team…')).toBeHidden();
-  const table = page.getByRole('table', { name: 'Team members' });
-  if ((await table.getByText(`@${login}`).count()) > 0) return;
-
-  await page.getByRole('button', { name: 'Add a person' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Add a person to Team' });
-  await dialog.getByLabel('Name').fill(name);
-  await dialog.getByLabel('GitHub login').fill(login);
-  // The first person signs as themselves; anyone after is signed by Kasia.
-  const signer = dialog.getByRole('combobox', { name: 'Signed by' });
-  if ((await signer.count()) > 0) await sign(page, signer, 'Kasia');
-  await dialog.getByRole('button', { name: 'Add person' }).click();
-  await expect(dialog).toBeHidden();
-  await expect(table).toContainText(`@${login}`);
-}
 
 async function sign(page: Page, combobox: Locator, name: string): Promise<void> {
   await combobox.click();
@@ -62,16 +44,18 @@ test('people decide findings with a signature, undo, and meet a conflict', async
   request,
 }, testInfo) => {
   test.setTimeout(180_000);
-  // A retry uses new PRs, so it never sees the first attempt's decisions.
-  const number = 330 + testInfo.retry;
-  const allRejected = 335 + testInfo.retry;
+  // Each retry (under 5) and each `--repeat-each` copy uses its own PRs, so it never sees another
+  // attempt's decisions.
+  const number = DECIDE_PRS_FROM + 10 * testInfo.repeatEachIndex + testInfo.retry;
+  const allRejected = number + 5;
   await deliverPullRequest(request, 'ready_for_review', number, `Decide: edge labels ${number}`);
   const otherTitle = `Decide: reject all ${allRejected}`;
   await deliverPullRequest(request, 'ready_for_review', allRejected, otherTitle);
 
-  // 1. Kasia is the author (her GitHub login), Tomek a teammate.
-  await ensureMember(page, 'Kasia', AUTHOR_LOGIN);
-  await ensureMember(page, 'Tomek', 'tomek');
+  // 1. Kasia is the author (her GitHub login), Tomek a teammate. Through the api, which other
+  // specs adding them at the same moment cannot break (settings-team.spec.ts covers the Team page).
+  await teamMember(request, 'Kasia', AUTHOR_LOGIN);
+  await teamMember(request, 'Tomek', 'tomek');
 
   // 2. Two Blocking findings: Implement, signed by Kasia, in one bulk decision.
   await openReviewedPr(page, number);

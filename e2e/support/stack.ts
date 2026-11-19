@@ -79,6 +79,7 @@ import {
   COSTLY_RETRY_PRS,
   COSTLY_RETRY_USD,
   FAILING_PR_FROM,
+  FAILING_PR_TO,
   FIXTURE_CI,
   GENERAL_ALERTS_TASK,
   GLOBAL_LEVEL_REPOSITORY,
@@ -350,7 +351,7 @@ const FIX_NOT_RESOLVED_AT = 1;
 
 /**
  * Answers per session kind. A full review keeps its brief (`briefFile`) and the `lessons.md` it
- * reads (`lessonsFile`), and reads the PR number from the brief: from `FAILING_PR_FROM`, invalid;
+ * reads (`lessonsFile`), and reads the PR number from the brief: `FAILING_PR_FROM` to `_TO`, invalid;
  * in `FAIL_ONCE_PRS`, invalid the first time only; in `USAGE_LIMIT_PRS`, the Claude usage limit
  * the first time only; in `HELD_PRS`, one reported turn, then the
  * review once the spec releases it or cancels the run; in `QUESTION_PRS`, questions until the
@@ -420,7 +421,7 @@ class ScriptedAgents implements AgentRunner {
         ? questionsReview(brief.includes(TEAM_ANSWERS_TITLE))
         : await scriptedReview(number, input.readDirs);
     const step =
-      number >= FAILING_PR_FROM || failOnce
+      inRange(number, { from: FAILING_PR_FROM, to: FAILING_PR_TO }) || failOnce
         ? { output: { summary: 'not a review' }, costUsd: 0.04 }
         : { output, costUsd: costly ? COSTLY_RETRY_USD : 0.31, turns: 6 };
     return new FakeAgentRunner([step]).run(input);
