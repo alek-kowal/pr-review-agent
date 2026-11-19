@@ -193,9 +193,20 @@ async function verifierAnswer(cwd: string) {
   };
 }
 
+/** Whether a reproduction's worktree carries a patch: tracked files differ from the checkout. */
+const patched = async (dir: string): Promise<boolean> =>
+  (
+    await isolatedGitExec('git', ['status', '--porcelain', '--untracked-files=no'], {
+      cwd: dir,
+      env: {},
+      timeout: 10_000,
+    })
+  ).stdout.trim() !== '';
+
 /**
  * A Checks install step (`sh -c ...`, checks-change-type.spec.ts) succeeds; a reproduction exits
- * with the code its script ends with (see `reproduction`).
+ * with the code its script ends with (see `reproduction`), except on a patched worktree (the
+ * implementer's, implement-patch.spec.ts), where the bug no longer happens (exit 3).
  */
 const sandbox = new FakeSandbox(async (spec) => {
   if (spec.command[0] === 'sh')
@@ -204,7 +215,9 @@ const sandbox = new FakeSandbox(async (spec) => {
   const script = spec.command[1];
   if (!mount || !script) return { exitCode: 1, output: 'no script' };
   const source = await readFile(path.join(mount.hostPath, path.basename(script)), 'utf8');
-  const exitCode = Number(/process\.exit\((\d+)\)/.exec(source)?.[1] ?? 1);
+  const exitCode = (await patched(mount.hostPath))
+    ? 3
+    : Number(/process\.exit\((\d+)\)/.exec(source)?.[1] ?? 1);
   const output = exitCode === 0 ? 'label: ""\nbug reproduced' : `repro exited with ${exitCode}`;
   return { exitCode, output, outputTail: output };
 });
@@ -284,6 +297,7 @@ class ScriptedAgents implements AgentRunner {
       const output = await verifierAnswer(input.cwd);
       return new FakeAgentRunner([{ output, costUsd: 0.05, turns: 3 }]).run(input);
     }
+    if (input.role === 'implementer') return this.#implement(input);
     const brief = await readFile(path.join(input.cwd, 'brief.md'), 'utf8').catch(() => null);
     if (brief === null) return this.#checkFixes(input);
 
@@ -330,8 +344,44 @@ class ScriptedAgents implements AgentRunner {
     return new FakeAgentRunner([{ output: { fixes }, costUsd: 0.12 }]).run(input);
   }
 
+  /**
+   * Appends a fix line per finding to the finding's file in the worktree and claims every finding
+   * fixed; a revise note lands in the first file. While `IMPLEMENTER_HOLD` exists in the hold
+   * folder it waits, and a cancel ends the session with no answer (implement-patch.spec.ts).
+   */
+  async #implement<T>(input: AgentRunInput<T>): Promise<AgentRunResult<T>> {
+    const dir = input.readDirs?.[0] ?? '';
+    const findings = JSON.parse(await readFile(path.join(dir, 'findings.json'), 'utf8')) as {
+      id: string | number;
+      title: string;
+      file: string;
+    }[];
+    const note = await readFile(path.join(dir, 'revise-note.md'), 'utf8').catch(() => null);
+    await this.#whileFlag(path.join(this.#holdDir, IMPLEMENTER_HOLD), input.signal);
+    if (input.signal?.aborted) {
+      return new FakeAgentRunner([{ fail: 'cancelled', turns: 0 }]).run(input);
+    }
+    for (const [i, finding] of findings.entries()) {
+      const file = path.join(input.cwd, finding.file);
+      await mkdir(path.dirname(file), { recursive: true });
+      const before = await readFile(file, 'utf8').catch(() => '');
+      const revised = i === 0 && note ? `// Revised: ${note.trim()}\n` : '';
+      await writeFile(file, `${before}// Fixed: ${finding.title}\n${revised}`);
+    }
+    const output = {
+      decisions: findings.map((f) => ({ id: String(f.id), action: 'fixed', why: 'Fixed it.' })),
+      commitMessage: 'Fix the review findings',
+      summary: `Fixed ${findings.length} findings.`,
+      notChecked: [],
+    };
+    return new FakeAgentRunner([{ output, costUsd: 0.2, turns: 4 }]).run(input);
+  }
+
   async #whileHeld(number: number, signal?: AbortSignal): Promise<void> {
-    const flag = path.join(this.#holdDir, `hold-${number}`);
+    await this.#whileFlag(path.join(this.#holdDir, `hold-${number}`), signal);
+  }
+
+  async #whileFlag(flag: string, signal?: AbortSignal): Promise<void> {
     while (!signal?.aborted && (await stat(flag).catch(() => null))) {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }

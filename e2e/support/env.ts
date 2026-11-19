@@ -95,6 +95,19 @@ export const VERIFIED_REPOSITORY = {
   installationId: 55500003,
 };
 
+/**
+ * Seeded at level 3 with no sensitive files: round 1 verifies its findings, and the PR page can
+ * raise a PR to level 4 for Implement with agent (implement-patch.spec.ts).
+ */
+export const IMPLEMENTER_REPOSITORY = {
+  slug: 'implementer-repo',
+  fullName: 'acme/implementer-repo',
+  installationId: 55500011,
+};
+
+/** While a file of this name exists in the hold folder, every implementer session waits. */
+export const IMPLEMENTER_HOLD = 'hold-implementer';
+
 /** Seeded at level 2: rounds run the checks and the change type, but no Verify. */
 export const LEVEL_TWO_REPOSITORY = {
   slug: 'level-two-repo',
