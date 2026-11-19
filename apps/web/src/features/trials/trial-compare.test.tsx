@@ -145,6 +145,8 @@ describe('Try on a PR…', () => {
       instructionDraft: 71,
     });
     expect(posts[0]!.body).not.toHaveProperty('signedBy');
+    // The dialog's submit never reaches the editor's form: a save would set the draft aside.
+    expect(calls.filter((c) => c.method === 'PUT')).toEqual([]);
   });
 });
 

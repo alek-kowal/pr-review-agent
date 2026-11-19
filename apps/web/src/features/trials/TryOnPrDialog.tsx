@@ -103,6 +103,9 @@ function TryForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    // The dialog is portalled, but React bubbles the submit to the editor's own form, whose
+    // save would set the tried draft aside.
+    event.stopPropagation();
     if (!selected) {
       setError(t.prRequired);
       return;

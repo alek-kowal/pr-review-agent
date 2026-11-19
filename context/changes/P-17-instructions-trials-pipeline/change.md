@@ -1,7 +1,7 @@
 ---
 change_id: P-17
 title: Instructions, trials and pipeline (S-22-T1–T11)
-status: in-progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -70,3 +70,17 @@ decide and record).
   `components/ui`.
 - **Tests and global files.** Test files share one database, so a test that reads global
   instruction files filters to its own rows or uses its own `createTestDatabase()`.
+- **E2e trial PRs.** `instructions.spec.ts` edits the stack's global `review-rules.md`, which
+  every spec reads. The scripted reviewer reacts only for `TRIAL_PRS` (272–279) and only when the
+  rules name that PR (`trialRule`): then the Nit gives way to one Worth fixing finding, so run B
+  differs. A retry takes the next PR number and reads the draft's version number from the page.
+- **The Try dialog stops its submit.** It is portalled inside the editor's form, and React
+  bubbles a portal's submit to that form; its save would set the tried draft aside.
+- **`e2e/a11y-routes.ts` started here** with the Instructions, Experiments and Pipeline routes;
+  S-17-T9 (P-24) adds the check and the other routes.
+
+## Verify
+
+`pnpm lint`, `pnpm typecheck` and `pnpm test:e2e` (18 specs) pass. `pnpm test` fails only on api
+tests whose first `build()` passes the 5 s limit when the machine load is above 40; the api
+suite passes in full with `--maxWorkers=3`.

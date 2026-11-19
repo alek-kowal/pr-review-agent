@@ -33,6 +33,9 @@ import {
   SECOND_REPOSITORY,
   SENSITIVE_REPOSITORY,
   STATE_FILE,
+  TRIAL_PRS,
+  TRIAL_RULE_FINDING,
+  trialRule,
   VERIFIED_REPOSITORY,
   type StackState,
 } from './env.ts';
@@ -129,6 +132,27 @@ const sandbox = new FakeSandbox(async (spec) => {
   return { exitCode, output, outputTail: output };
 });
 
+/**
+ * The scripted review of PR `number`. In `TRIAL_PRS`, when the `review-rules.md` the reviewer
+ * reads holds `trialRule(number)`, the Nit gives way to `TRIAL_RULE_FINDING` (instructions.spec.ts).
+ */
+async function scriptedReview(number: number, readDirs: readonly string[] = []) {
+  if (number < TRIAL_PRS.from || number > TRIAL_PRS.to) return SCRIPTED_REVIEW;
+  for (const dir of readDirs) {
+    const rules = await readFile(path.join(dir, 'review-rules.md'), 'utf8').catch(() => '');
+    if (rules.includes(trialRule(number))) {
+      return {
+        ...SCRIPTED_REVIEW,
+        findings: [
+          ...SCRIPTED_REVIEW.findings.filter((f) => f.severity !== 'nit'),
+          TRIAL_RULE_FINDING,
+        ],
+      };
+    }
+  }
+  return SCRIPTED_REVIEW;
+}
+
 /** Waits until `file` exists, at most `ms` (a held reviewer never blocks the stack for good). */
 async function waitForFile(file: string, ms: number): Promise<void> {
   const until = Date.now() + ms;
@@ -180,7 +204,7 @@ class ScriptedAgents implements AgentRunner {
     const step =
       number >= FAILING_PR_FROM
         ? { output: { summary: 'not a review' }, costUsd: 0.04 }
-        : { output: SCRIPTED_REVIEW, costUsd: 0.31, turns: 6 };
+        : { output: await scriptedReview(number, input.readDirs), costUsd: 0.31, turns: 6 };
     return new FakeAgentRunner([step]).run(input);
   }
 
