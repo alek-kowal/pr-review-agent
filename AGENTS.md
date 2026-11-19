@@ -95,3 +95,5 @@ A repository differs from another only by its settings, never by code.
 
 - Env var names only in `.env.example`; values only in the gitignored `.env`. Never commit a value.
 - API keys are named `*_API_KEY` (for example `ANTHROPIC_API_KEY`, `CLICKUP_API_KEY`).
+- Model access: `CLAUDE_CODE_OAUTH_TOKEN` (Claude subscription) wins over `ANTHROPIC_API_KEY`. Read
+  the mode with core `modelAuthModeOf`, the secret with `@pra/agents` `modelAccessOf`.

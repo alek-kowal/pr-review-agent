@@ -1,7 +1,7 @@
 ---
 change_id: P-25
 title: Agents on a Claude subscription (CLAUDE_CODE_OAUTH_TOKEN), usage-limit pause
-status: in_progress
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -77,3 +77,32 @@ second option. Plan: brief, below. One commit per step.
 - **A usage limit is** a session that ended in error and either saw a rejected
   `rate_limit_event` or has usage-limit text. A bare `rate_limit` error (a per-minute 429 on an
   API key, after the SDK's own retries) stays `agent_failed`.
+- **Mapping** (`@pra/agents` `usageLimitOf`): `ClaudeAgentRunner` checks it before it reads the
+  result, unless the runner itself stopped the session (cost, timeout, cancel win). It returns
+  `usage_limit_reached { resetsAt }` (ISO or null) with the spend so far. A `success` result with
+  `is_error` that is not a limit now fails `agent_failed` (it used to read as `output_invalid`).
+  `AgentSdkMessages` throws `UsageLimitError`; the judge and the analyst map it to the same code.
+  Stages already pass an agent's error code through, so no stage changed.
+- **One hold** (`usage_limit_holds`, one row, migration 0027): `until` is the reset plus 60 s, or
+  now plus 30 min when the SDK named no reset; a longer hold already stored wins (parallel
+  sessions, a weekly limit). Core `startGate` checks it after pause and budget, for new rounds and
+  for every session, so it holds every run; the drainer reads it with the rest of the queue state.
+- **Park, not fail**: on `usage_limit_reached`, `storeResultInTx` (after the cancel guard) puts the
+  attempt back to `pending` with the limit as its `errorCode`, keeps the run `running` with its
+  slot, stores the hold and the run's wait (`usage_limit_reached { until, resetsAt }`, waiting for
+  a session). No `failStage`, no `afterTransition`: no failed round, no `runFailed` hook or alert.
+  After the commit it sends a `run.drain` with `startAfter: until` under its own singleton key (a
+  plain delayed drain would take the stately queue's one waiting place); the minute cron is the
+  backstop. The drainer then clears the wait and resends the stage job.
+- **Resume as the same attempt**: `startStageInTx` reuses a `pending` latest attempt (status
+  `running`, error cleared, `startedAt` kept). Its new sessions' blob keys go on numbering after
+  the stored ones (`sessionCountOf`), so the parked session's transcript is not overwritten.
+- **Where it shows**: a run with a wait reason already reads as queued in the PR state, so the
+  banner is `state_queued_usage_limit` ("Paused until 15:01: Claude usage limit", with the date
+  when it is not today; nobody needs to act, the action is Cancel) and Activity shows the same
+  line. The status chip keeps its three states (running, paused, budget reached): the limit is
+  per run, shown where the run is.
+- **E2E**: the hold stops every run of the shared stack, so `usage-limit.spec.ts` runs in its own
+  Playwright project after `pause-budget` and before the rest, and lifts any hold when it ends.
+  PRs 170-172 get one usage-limited review with a reset 1 s later; the spec sees the banner, then
+  the same attempt finishes by itself about a minute later.

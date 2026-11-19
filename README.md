@@ -161,9 +161,19 @@ pnpm --filter @pra/worker dev
 pnpm --filter @pra/web dev         # http://localhost:5173
 ```
 
-Then open http://localhost:5173/prs. To review real PRs the worker needs `ANTHROPIC_API_KEY`
-(pay-per-token Anthropic API; without it runs fail with "model access not configured") and the
-GitHub App variables below. There is no fake or demo mode.
+Then open http://localhost:5173/prs. To review real PRs the worker needs model access and the
+GitHub App variables below. Model access is one of two (without either, runs fail with "model
+access not configured"):
+
+- `CLAUDE_CODE_OAUTH_TOKEN`: a Claude subscription (Pro or Max). Create the token with
+  `claude setup-token`. Costs in the app read "API-equivalent" (what the tokens would cost on the
+  API) and the daily budget guards that number. When the subscription's usage limit is reached,
+  reviews pause until just after the reset ("Paused until 15:01: Claude usage limit") and go on
+  by themselves; the session that hit the limit is not a failed attempt.
+- `ANTHROPIC_API_KEY`: the pay-per-token Anthropic API.
+
+With both set the subscription wins. The worker's start log says `model access configured` and
+the mode; the status chip and Settings → Budget & status show it. There is no fake or demo mode.
 
 <details>
 <summary><b>Connect a repository</b></summary>
@@ -215,6 +225,7 @@ secret store). The api and the worker read the root `.env`.
 | Name                                                                                   | What it does                                                   |
 | -------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `DATABASE_URL`                                                                         | Postgres connection                                            |
+| `CLAUDE_CODE_OAUTH_TOKEN`                                                              | Model access on a Claude subscription (wins over the key)      |
 | `ANTHROPIC_API_KEY`                                                                    | Model access for the agents (pay-per-token)                    |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_WEBHOOK_SECRET`                | The GitHub App: installation tokens and webhook signatures     |
 | `CLICKUP_API_KEY`                                                                      | Optional: tasks, follow-ups, author notices and alert comments |
