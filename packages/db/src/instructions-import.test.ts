@@ -101,13 +101,17 @@ describe('instructions:import', () => {
   });
 
   test('an unknown repository in the map fails without writing', async () => {
-    const before = (await activeInstructions(db, other.id)).length;
+    // `feature-map/sdk.md` sorts first, so its level copy is written before the lookup fails.
     await expect(
       importInstructions(db, source, {
         ...map,
         default: { scope: 'repository', repository: `missing-${uniqueId()}` },
+        files: { 'feature-map/sdk.md': { scope: 'level', level: 6 } },
       }),
     ).rejects.toMatchObject({ code: 'repository_unknown' });
-    expect(await activeInstructions(db, other.id)).toHaveLength(before);
+    const copies = (await activeInstructions(db, other.id)).filter(
+      (v) => v.scope === 'level' && v.level === 6 && v.fileKey === 'feature-map/sdk.md',
+    );
+    expect(copies).toEqual([]);
   });
 });
