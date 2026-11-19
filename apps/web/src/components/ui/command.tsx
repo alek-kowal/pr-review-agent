@@ -2,6 +2,13 @@ import * as React from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import { cn } from 'cn';
 import { SearchIcon } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog.tsx';
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
@@ -84,4 +91,50 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
   );
 }
 
-export { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem };
+function CommandDialog({
+  title,
+  description,
+  children,
+  className,
+  commandProps,
+  onCloseAutoFocus,
+  ...props
+}: React.ComponentProps<typeof Dialog> & {
+  /** Screen-reader title and description; copy comes from the caller. */
+  title: string;
+  description: string;
+  className?: string;
+  commandProps?: React.ComponentProps<typeof CommandPrimitive>;
+  onCloseAutoFocus?: React.ComponentProps<typeof DialogContent>['onCloseAutoFocus'];
+}) {
+  return (
+    <Dialog {...props}>
+      <DialogContent
+        className={cn('top-[15%] translate-y-0 overflow-hidden p-0', className)}
+        showCloseButton={false}
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <Command
+          className="**:data-[slot=command-input-wrapper]:h-12 **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group]]:px-2 **:[[cmdk-input]]:h-12 **:[[cmdk-item]]:px-2 **:[[cmdk-item]]:py-2"
+          {...commandProps}
+        >
+          {children}
+        </Command>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export {
+  Command,
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+};

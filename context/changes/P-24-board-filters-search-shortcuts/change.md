@@ -41,3 +41,17 @@ when" checks are the plan. One commit per task, in the listed order.
   response gains `repositories` (slugs) for the Repository select, so the board needs no call to
   Settings. An invalid value in the address is dropped, not shown as an error. The previous
   board stays on screen while a new filter loads (`keepPreviousData`).
+- **T5 search** (`searchPullRequests` in `@pra/db`): every word of the query must match the
+  number (`272` or `#272`), the title or the author (GitHub login or active Team name),
+  case-insensitively, with LIKE wildcards escaped. An exact number comes first, then open PRs,
+  then the newest; at most 20. Merged and closed PRs are found too.
+- **T5 palette.** The palette filters People, Settings and Actions itself (`shouldFilter: false`)
+  because PRs come from the server; the first item is selected whenever the list changes, so
+  "272" + Enter opens #272. A person opens the board filtered to them (`/prs?person=<login>`).
+  The Actions registry is `features/palette/actions.ts` (Pause opens the status chip; Start
+  review opens the PR header's popover through a window event, like `open-status-chip.ts`).
+  Actions run after the dialog has closed (`onCloseAutoFocus`), so the popover they open keeps
+  the focus; otherwise focus returns to where it was, or to the top-bar Search button.
+- **T5 `CommandDialog` and `Kbd`** were added to `components/ui` (shadcn), with the title and
+  description passed in, so the primitives hold no copy. The TopBar test now allows the Search
+  and theme buttons in the top bar (still no account menu).

@@ -212,6 +212,17 @@ export type BoardResponse = {
   repositories: string[];
 };
 
+/** `GET /api/search?q=` (S-17-T5). */
+export type SearchResponse = {
+  pullRequests: {
+    repository: { slug: string };
+    number: number;
+    title: string;
+    author: { login: string; name: string | null };
+    state: 'open' | 'closed' | 'merged';
+  }[];
+};
+
 /** A finding's current decision. */
 export type DecisionView = {
   /** The batch that decided it; Undo takes this id. */
