@@ -27,7 +27,9 @@ import {
   API_URL,
   FAIL_ONCE_PRS,
   FAILING_PR_FROM,
+  FIXTURE_CI,
   HELD_PRS,
+  LARGE_PR_REPOSITORY,
   HELD_TURN_COST_USD,
   LEVEL_TWO_REPOSITORY,
   releaseFile,
@@ -119,8 +121,12 @@ async function verifierAnswer(cwd: string) {
   };
 }
 
-/** Exits with the code the reproduction script ends with (see `reproduction`). */
+/**
+ * A Checks install step (`sh -c ...`, checks-change-type.spec.ts) succeeds; a reproduction exits
+ * with the code its script ends with (see `reproduction`).
+ */
 const sandbox = new FakeSandbox(async (spec) => {
+  if (spec.command[0] === 'sh') return { exitCode: 0, output: 'installed', outputTail: 'installed' };
   const [mount] = spec.mounts;
   const script = spec.command[1];
   if (!mount || !script) return { exitCode: 1, output: 'no script' };
@@ -257,6 +263,7 @@ const github = new FakeGitHubGateway({
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
     [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
     [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
+    [LARGE_PR_REPOSITORY.fullName]: LARGE_PR_REPOSITORY.installationId,
     [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
   },
 });
@@ -299,9 +306,24 @@ await upsertRepository(
     slug: LEVEL_TWO_REPOSITORY.slug,
     githubFullName: LEVEL_TWO_REPOSITORY.fullName,
     defaultLevel: 2,
+    fetchCommand: 'pnpm fetch',
+    installCommand: 'pnpm install --offline',
   },
   { installationId: LEVEL_TWO_REPOSITORY.installationId },
 );
+await upsertRepository(
+  db,
+  {
+    slug: LARGE_PR_REPOSITORY.slug,
+    githubFullName: LARGE_PR_REPOSITORY.fullName,
+    defaultLevel: 2,
+    largePrLines: 1,
+  },
+  { installationId: LARGE_PR_REPOSITORY.installationId },
+);
+for (const fullName of [LEVEL_TWO_REPOSITORY.fullName, LARGE_PR_REPOSITORY.fullName]) {
+  github.setCiChecks(fullName, fixture.headSha, [...FIXTURE_CI]);
+}
 await upsertRepository(
   db,
   {

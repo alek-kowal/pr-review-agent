@@ -58,6 +58,20 @@ export const LEVEL_TWO_REPOSITORY = {
   installationId: 55500004,
 };
 
+/** Seeded at level 2 with a 1-line large-PR threshold: every PR there is large. */
+export const LARGE_PR_REPOSITORY = {
+  slug: 'large-pr-repo',
+  fullName: 'acme/large-pr-repo',
+  installationId: 55500006,
+};
+
+/** CI on the fixture head in the level-two and large-PR repositories: 2 passed, 1 failed. */
+export const FIXTURE_CI = [
+  { name: 'build', source: 'check_run', state: 'passed' },
+  { name: 'lint', source: 'check_run', state: 'passed' },
+  { name: 'e2e', source: 'status', state: 'failed' },
+] as const;
+
 /**
  * Seeded at level 1 with two sensitive patterns that match two of the fixture's changed files:
  * the migration and the SDK entry (sensitive-files.spec.ts).
