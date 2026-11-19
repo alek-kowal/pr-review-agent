@@ -132,9 +132,12 @@ describe('pushPatch', () => {
     const head = await git(bare, 'rev-parse', 'refs/heads/feature');
     const patch = input({ baseSha: head, files: [{ path: 'retry.txt', content: 'same\n' }] });
 
+    const built = await m.patchCommit(patch);
+    expect(await git(bare, 'rev-parse', 'refs/heads/feature')).toBe(head);
     const first = await m.pushPatch(patch);
     const second = await m.pushPatch(patch);
 
+    expect(first).toEqual({ ok: true, sha: built });
     expect(second).toEqual(first);
     expect(await git(bare, 'rev-list', '--count', `${head}..refs/heads/feature`)).toBe('1');
   });

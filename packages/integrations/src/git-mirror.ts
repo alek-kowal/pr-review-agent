@@ -32,6 +32,11 @@ export interface GitMirror {
    * from), git refuses and the result is `head_moved` with the remote unchanged.
    */
   pushPatch(input: PushPatchInput): Promise<PushPatchResult>;
+  /**
+   * The commit `pushPatch` makes for this input, built but not pushed. The same input always
+   * gives the same SHA, so a retried push job can tell its own landed commit from a moved head.
+   */
+  patchCommit(input: PatchCommitInput): Promise<string>;
 }
 
 export type WorktreeChange = { path: string; base: string | null };
@@ -60,6 +65,9 @@ export type PushPatchInput = {
   date: Date;
   token?: string;
 };
+
+/** What builds the commit: the push input without its target branch and token. */
+export type PatchCommitInput = Omit<PushPatchInput, 'branch' | 'token'>;
 
 export type PushPatchResult = { ok: true; sha: string } | { ok: false; reason: 'head_moved' };
 
@@ -253,10 +261,39 @@ export class CliGitMirror implements GitMirror {
   }
 
   async pushPatch(input: PushPatchInput): Promise<PushPatchResult> {
-    assertSha(input.baseSha);
     if (!BRANCH.test(input.branch) || input.branch.includes('..')) {
       throw new TypeError(`Not a branch name: ${JSON.stringify(input.branch)}`);
     }
+    return this.#withPatchCommit(input, async (sha) => {
+      // To the URL, never to `origin`: the mirror's remote has `mirror = true`, which would add
+      // git's mirror and force flags. No `--force`, no `--force-with-lease`, no `+` refspec.
+      try {
+        await this.#git(
+          this.mirrorDir(input.repo),
+          [
+            'push',
+            '--porcelain',
+            '--no-verify',
+            this.#remoteUrl(input.repo),
+            `${sha}:refs/heads/${input.branch}`,
+          ],
+          input.token,
+        );
+      } catch (error) {
+        if (isRejectedPush(error)) return { ok: false, reason: 'head_moved' };
+        throw error;
+      }
+      return { ok: true, sha };
+    });
+  }
+
+  async patchCommit(input: PatchCommitInput): Promise<string> {
+    return this.#withPatchCommit(input, async (sha) => sha);
+  }
+
+  /** Builds the patch's commit in a fresh worktree at `baseSha` and hands its SHA to `then`. */
+  async #withPatchCommit<T>(input: PatchCommitInput, then: (sha: string) => Promise<T>) {
+    assertSha(input.baseSha);
     const mirror = this.mirrorDir(input.repo);
     const dir = this.worktreeDir(`push-${randomUUID()}`);
     return this.#locked(input.repo, async () => {
@@ -282,26 +319,7 @@ export class CliGitMirror implements GitMirror {
           undefined,
           identity,
         );
-        const sha = (await this.#git(dir, ['rev-parse', 'HEAD'])).trim();
-        // To the URL, never to `origin`: the mirror's remote has `mirror = true`, which would add
-        // git's mirror and force flags. No `--force`, no `--force-with-lease`, no `+` refspec.
-        try {
-          await this.#git(
-            mirror,
-            [
-              'push',
-              '--porcelain',
-              '--no-verify',
-              this.#remoteUrl(input.repo),
-              `${sha}:refs/heads/${input.branch}`,
-            ],
-            input.token,
-          );
-        } catch (error) {
-          if (isRejectedPush(error)) return { ok: false, reason: 'head_moved' };
-          throw error;
-        }
-        return { ok: true, sha };
+        return await then((await this.#git(dir, ['rev-parse', 'HEAD'])).trim());
       } finally {
         await this.#removeWorktree(input.repo, dir);
       }

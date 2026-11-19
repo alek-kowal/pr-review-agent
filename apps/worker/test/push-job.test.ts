@@ -166,6 +166,58 @@ describe('push job', () => {
     ]);
   });
 
+  test('a retry after the commit landed finishes the push instead of refusing it', async () => {
+    const { repository, pullRequest, round, patch, bare } = await readyPatch();
+    const before = pushCalls();
+    vi.spyOn(deps.db, 'transaction').mockRejectedValueOnce(new Error('connection lost'));
+
+    await expect(
+      handlePatchPush(deps, { patchId: patch.id, signedBy: signer.id }),
+    ).rejects.toThrow('connection lost');
+    const landed = await git(bare, 'rev-parse', `refs/heads/${BRANCH}`);
+    expect(landed).not.toBe(fixture.headSha);
+    deps.github.addPullRequest({
+      ...deps.github.pullRequests.get(`${repository.githubFullName}#${NUMBER}`)!,
+      headSha: landed,
+    });
+    deps.github.setComparison(repository.githubFullName, fixture.headSha, landed, 1);
+    expect(await deliver(repository, 'synchronize', landed)).toBe('push_never_starts');
+
+    const retry = await handlePatchPush(deps, { patchId: patch.id, signedBy: signer.id });
+
+    expect(retry).toEqual({ pushed: true, sha: landed });
+    expect(pushCalls() - before).toBe(1);
+    expect(await getPatch(deps.db, patch.id)).toMatchObject({
+      status: 'pushed',
+      pushedSha: landed,
+      pushRefusal: null,
+    });
+    const kinds = (await timelineOf(deps.db, pullRequest.id)).map((entry) => entry.kind);
+    expect(kinds).toContain('patch_pushed');
+    expect(kinds).not.toContain('patch_push_refused');
+    const fix = (await runsOf(pullRequest)).find((run) => run.trigger === 'own_fix');
+    expect(fix).toMatchObject({ roundNo: 2, chainId: round.chainId, headSha: landed });
+  });
+
+  test('a redelivery after the patch was marked pushed repeats the hand-off', async () => {
+    const { repository, pullRequest, round, patch } = await readyPatch();
+    const first = await handlePatchPush(deps, { patchId: patch.id, signedBy: signer.id });
+    const sha = first.pushed ? first.sha : '';
+    // The first delivery stopped before its hand-off: the chain expects nothing yet.
+    await deps.db
+      .update(schema.roundChains)
+      .set({ expectedHeadSha: null })
+      .where(eq(schema.roundChains.id, round.chainId!));
+    deps.github.setComparison(repository.githubFullName, fixture.headSha, sha, 1);
+    expect(await deliver(repository, 'synchronize', sha)).toBe('push_never_starts');
+
+    const again = await handlePatchPush(deps, { patchId: patch.id, signedBy: signer.id });
+
+    expect(again).toEqual({ pushed: false, reason: 'not_ready' });
+    const fix = (await runsOf(pullRequest)).find((run) => run.trigger === 'own_fix');
+    expect(fix).toMatchObject({ roundNo: 2, chainId: round.chainId, headSha: sha });
+  });
+
   test('a moved head records head_moved on the patch and pushes nothing', async () => {
     const { repository, patch, bare } = await readyPatch();
     const moved = 'f'.repeat(40);
