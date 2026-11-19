@@ -64,13 +64,21 @@ The first start in a new folder shows a trust dialog. Answer it with `herdr agen
 ## How tasks are executed (decided 19 Nov, 02:15)
 
 - **One roadmap task means one fresh session**, running `/10x-new`, then `/10x-plan` (the agent approves its own plan), then `/10x-implement`, then tests, then a commit. If the session nears 28%, it writes `context/changes/<id>/HANDOFF.md` and the orchestrator starts a continuation session.
-- **Parallel tasks** come from the roadmap's parallel marks. Each runs in its own git worktree at `~/Projects/pr-review-agent.worktrees/<task-id>` on branch `task/<task-id>`, in its own Herdr tab in w2, with at most 3 agents at once. The first scaffold task runs alone on `main`, because everything depends on it.
+- **Parallel tasks** come from the roadmap's parallel marks. Each runs in its own git worktree at `~/Projects/pr-review-agent.worktrees/<task-id>` on branch `task/<task-id>`, in its own Herdr tab in w2, with up to 6 agents at once. The first scaffold task runs alone on `main`, because everything depends on it.
 - **Merging is done by the orchestrator:**
   1. In the worktree: `pnpm install`, then the tests, typecheck and lint.
   2. In the main checkout: `git merge --no-ff task/<id>`. On a conflict, a fresh merge session resolves it.
   3. Push `main` and remove the worktree.
-- **Review:** one `/10x-impl-review` session per finished slice, not per task. Its findings become follow-up tasks.
+- **Review:** `/10x-impl-review` only after complex tasks (Alek, 19 Nov). Verification is the single parallel script `pnpm verify` plus CI. The orchestrator reads only PASS or FAIL.
 - **Progress:** each task's status lives in the roadmap tasks file, under "Task progress" below.
+
+## Orchestrator tools (scratchpad, one call each)
+
+All of them are in `/private/tmp/claude-501/-Users-alek-Projects/bac86def-abc6-494b-addd-7d17482934ca/scratchpad/`:
+- `agents.sh`: name, status and ctx for every agent.
+- `spawn-task.sh <id> prompts/task.txt [main]`: worktree, tab, fresh agent and prompt.
+- `watch-many.sh 28 <names…>`: run in the background. It exits when any agent stops, blocks or reaches 28%.
+- `merge-task.sh <id>`: verify, merge `--no-ff`, push, clean up.
 
 ## Task progress
 
