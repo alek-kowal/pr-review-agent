@@ -74,3 +74,15 @@ questions (orchestrator rule: decide and record).
 - `SignatureField` takes an optional `hint` ("Recorded as “Merged by …” in the timeline.").
 - The checklist tests moved from `NextStepBanner.test.tsx` to `features/pr/checklist.test.tsx`.
 
+### S-12-T5 (end-to-end merge)
+
+- The stack's GitHub double is `StackGitHub` (a subclass in `e2e/support/stack.ts`): for a PR it
+  only saw as webhooks, `getPullRequestState` answers the stored row, which is what those
+  webhooks told the app. `squashMerge` of such a PR succeeds unless the PR is in the refused range.
+- `merge-repo` (level 1, installation 55500006) has green CI at the fixture head, but the app sees
+  it only after `deliverCheckSuite`; PRs 110–119 there are refused with a 405 and GitHub's
+  "approving review" message. PR numbers: 100–102 green merge, 104–106 push, 110–112 refusal
+  (one per Playwright retry).
+- `deliverPullRequest`, `deliverPush` (now with an optional repository) and `deliverCheckSuite`
+  share one signed `deliver`.
+

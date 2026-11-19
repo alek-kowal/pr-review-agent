@@ -69,6 +69,21 @@ export const SENSITIVE_REPOSITORY = {
   ],
 };
 
+/**
+ * Seeded at level 1 (merge.spec.ts): GitHub's CI is green at the fixture head, but the app learns
+ * it only from a `check_suite` delivery; GitHub refuses every merge of a PR in `REFUSED_MERGE_PRS`.
+ */
+export const MERGE_REPOSITORY = {
+  slug: 'merge-repo',
+  fullName: 'acme/merge-repo',
+  installationId: 55500006,
+};
+export const REFUSED_MERGE_PRS = { from: 110, to: 119 };
+export const MERGE_REFUSAL = {
+  status: 405,
+  message: 'At least 1 approving review is required by reviewers with write access.',
+};
+
 /** Insights history (insights.spec.ts): 17 merged PRs here... */
 export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };
 /** ...and 3 here. No App installation: nothing is delivered for them. */

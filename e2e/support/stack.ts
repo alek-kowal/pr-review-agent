@@ -4,7 +4,17 @@
 // with SIGTERM; the specs read `STATE_FILE`.
 import { NO_USAGE, type AgentRunInput, type AgentRunner, type AgentRunResult } from '@pra/agents';
 import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
-import { closeDb, createDb, createQueue, importInstructionV1, upsertRepository } from '@pra/db';
+import {
+  closeDb,
+  createDb,
+  createQueue,
+  getPullRequest,
+  getRepositoryByFullName,
+  importInstructionV1,
+  upsertRepository,
+  type Db,
+} from '@pra/db';
+import type { PullRequestFreshState } from '@pra/integrations';
 import { createTestDatabase } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
@@ -29,6 +39,9 @@ import {
   HELD_PRS,
   HELD_TURN_COST_USD,
   LEVEL_TWO_REPOSITORY,
+  MERGE_REFUSAL,
+  MERGE_REPOSITORY,
+  REFUSED_MERGE_PRS,
   releaseFile,
   SECOND_REPOSITORY,
   SENSITIVE_REPOSITORY,
@@ -206,6 +219,36 @@ class ScriptedAgents implements AgentRunner {
   }
 }
 
+/**
+ * The GitHub double, plus fresh PR state for PRs the specs only delivered as webhooks: GitHub
+ * would answer what those webhooks said, which is the stored row (merge.spec.ts).
+ */
+class StackGitHub extends FakeGitHubGateway {
+  readonly #db: Db;
+
+  constructor(db: Db, options: ConstructorParameters<typeof FakeGitHubGateway>[0]) {
+    super(options);
+    this.#db = db;
+  }
+
+  override async getPullRequestState(
+    fullName: string,
+    number: number,
+  ): Promise<PullRequestFreshState> {
+    if (this.pullRequests.has(`${fullName}#${number}`)) {
+      return super.getPullRequestState(fullName, number);
+    }
+    const repository = await getRepositoryByFullName(this.#db, fullName);
+    const pr = repository && (await getPullRequest(this.#db, repository.id, number));
+    if (!pr) return super.getPullRequestState(fullName, number);
+    return {
+      headSha: pr.headSha,
+      state: pr.state,
+      mergeableState: pr.state === 'open' ? 'clean' : 'unknown',
+    };
+  }
+}
+
 const logger = createLogger('e2e', { LOG_LEVEL: process.env.LOG_LEVEL ?? 'warn' });
 const root = await mkdtemp(path.join(tmpdir(), 'pra-e2e-'));
 const holdDir = path.join(root, 'hold');
@@ -234,9 +277,10 @@ const [database, fixture] = await Promise.all([
 const db = createDb(database.url, { max: 5 });
 const queue = createQueue(database.url, { max: 5 });
 const webhookSecret = randomBytes(16).toString('hex');
-const github = new FakeGitHubGateway({
+const github = new StackGitHub(db, {
   webhookSecret,
   installations: {
+    [MERGE_REPOSITORY.fullName]: MERGE_REPOSITORY.installationId,
     [FULL_NAME]: INSTALLATION_ID,
     // Reachable but not connected: Settings → Repositories connects it (connect-repo.spec.ts).
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
@@ -250,10 +294,18 @@ const branch = [fixture.headSha, ...fixture.fixShas];
 for (const [i, base] of branch.entries()) {
   for (const [j, head] of branch.entries()) {
     if (j <= i) continue;
-    for (const fullName of [FULL_NAME, SENSITIVE_REPOSITORY.fullName]) {
+    for (const fullName of [FULL_NAME, SENSITIVE_REPOSITORY.fullName, MERGE_REPOSITORY.fullName]) {
       github.setComparison(fullName, base, head, j - i);
     }
   }
+}
+// merge.spec.ts: CI green at the fixture head, and GitHub refusing the PRs in its refused range.
+github.setCiChecks(MERGE_REPOSITORY.fullName, fixture.headSha, [
+  { name: 'build', source: 'check_run', state: 'passed' },
+  { name: 'e2e', source: 'check_run', state: 'passed' },
+]);
+for (let number = REFUSED_MERGE_PRS.from; number <= REFUSED_MERGE_PRS.to; number++) {
+  github.refuseMerge(MERGE_REPOSITORY.fullName, number, MERGE_REFUSAL);
 }
 const blobStore = new LocalBlobStore(path.join(root, 'blobs'));
 
@@ -296,6 +348,11 @@ await upsertRepository(
     sensitivePatterns: SENSITIVE_REPOSITORY.patterns,
   },
   { installationId: SENSITIVE_REPOSITORY.installationId },
+);
+await upsertRepository(
+  db,
+  { slug: MERGE_REPOSITORY.slug, githubFullName: MERGE_REPOSITORY.fullName, defaultLevel: 1 },
+  { installationId: MERGE_REPOSITORY.installationId },
 );
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
