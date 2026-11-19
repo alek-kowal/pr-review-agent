@@ -2,6 +2,7 @@
 import { board } from './board.ts';
 import { checklist } from './checklist.ts';
 import { decisions } from './decisions.ts';
+import { insights } from './insights.ts';
 import { integrations } from './integrations.ts';
 import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
@@ -175,10 +176,7 @@ export const copy = {
     title: 'Activity',
     placeholder: 'The activity feed arrives in a later slice.',
   },
-  insights: {
-    title: 'Insights',
-    placeholder: 'Cost, quality and trust insights arrive in a later slice.',
-  },
+  insights,
   settings: {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',

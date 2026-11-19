@@ -1,11 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { copy } from '@/copy/index.ts';
-import { PlaceholderPage } from '@/features/shell/PlaceholderPage.tsx';
+import { InsightsLayout } from '@/features/insights/InsightsLayout.tsx';
+import { validateInsightsSearch } from '@/features/insights/search.ts';
 
 export const Route = createFileRoute('/insights')({
-  component: InsightsPage,
+  validateSearch: validateInsightsSearch,
+  component: InsightsLayout,
 });
-
-function InsightsPage() {
-  return <PlaceholderPage title={copy.insights.title} text={copy.insights.placeholder} />;
-}

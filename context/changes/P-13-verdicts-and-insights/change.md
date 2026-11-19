@@ -124,3 +124,19 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
   config's `defaultLevel`; it holds since its last change in `settings_changes` (area
   `repositories`, `defaultLevel` differs or the row created it), else since the repository was
   connected. Rates use every round of the repository at that level, of any age.
+
+### S-19-T5 (Insights shell and Overview)
+
+- Tabs are child routes: `/insights` (Overview, the index), `/insights/cost`, `/insights/quality`,
+  `/insights/trust`. The layout route `/insights` validates the search params (`range` 14 or 30,
+  default 30 and dropped from the URL; `author`; `repo`); tab links keep them.
+- Each tab renders the filters it takes: Overview range, author and repository; Cost and Quality
+  range and repository; Trust ladder repository. Author options are the API's `authors` (plus a
+  filtered author with no PR in the range); repository options are `/api/repositories`.
+- The sample line reads "Based on N PRs merged"; metrics over every finished PR (1, 3, 4) say
+  "merged or closed" when the sample has a closed PR. Below 10 PRs it adds "· too few for firm
+  conclusions". Medians say "median" next to the value; each tile shows its definition.
+- Lanes use the board's names (Agents working, Action needed, Ready to merge) with share and
+  summed time. The PR table and "Not measured yet" are native `<details>`, collapsed.
+- Insights response types live in `features/insights/types.ts`, not `lib/api-types.ts`, to keep
+  parallel packages off a shared file.
