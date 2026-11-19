@@ -25,7 +25,7 @@ export const HeadSchema = z.object({
     /** The level the next round starts at. */
     next: Level,
   }),
-  /** Findings decided Implement and how many of them the newest fix checks found resolved. */
+  /** Findings decided Implement that a fix check answered, and how many it found resolved. */
   fixes: z.object({ resolved: z.number().int(), total: z.number().int() }).nullable(),
 });
 
@@ -46,8 +46,8 @@ export function headView(load: PrStateLoad): z.output<typeof HeadSchema> {
     },
     fixes: checked.length
       ? {
-          resolved: implement.filter((f) => load.fixChecks.get(f.id)?.resolved === true).length,
-          total: implement.length,
+          resolved: checked.filter((f) => load.fixChecks.get(f.id)?.resolved === true).length,
+          total: checked.length,
         }
       : null,
   };

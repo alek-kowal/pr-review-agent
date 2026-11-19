@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { FindingView, FindingsResponse, PrView } from '@/lib/api-types.ts';
+import { FixBadge, FixNote } from '@/features/rounds/FixStatus.tsx';
 import { DecideRow, DecisionBadge } from './DecisionSlots.tsx';
 
 export type FindingSlotProps = {
@@ -19,10 +20,16 @@ export type FindingSlot = { key: string; Component: ComponentType<FindingSlotPro
  * decisions and fix results carry a badge (FR-036); anything else is grey text. A package adds
  * one entry; a slot renders nothing when it has nothing to show.
  */
-export const FINDING_LINE_SLOTS: FindingSlot[] = [{ key: 'decision', Component: DecisionBadge }];
+export const FINDING_LINE_SLOTS: FindingSlot[] = [
+  { key: 'decision', Component: DecisionBadge },
+  { key: 'fix', Component: FixBadge },
+];
 
 /**
  * `Finding` action slots (extension point from P-04): rows at the bottom of an open finding, in
  * order. Opinion and decision forms (P-08) and implementer actions (P-18) go here.
  */
-export const FINDING_ACTION_SLOTS: FindingSlot[] = [{ key: 'decide', Component: DecideRow }];
+export const FINDING_ACTION_SLOTS: FindingSlot[] = [
+  { key: 'fix-note', Component: FixNote },
+  { key: 'decide', Component: DecideRow },
+];

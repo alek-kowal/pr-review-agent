@@ -103,6 +103,13 @@ export const copy = {
         `Level ${level} does not verify findings. Nobody has checked this one yet.`,
     },
     uncheckedBody: 'Not verified at this level.',
+    behind: (sha: string, n: number) =>
+      `From ${sha} · ${n === 1 ? '1 commit' : `${n} commits`} behind`,
+    behindHint:
+      'These findings stay usable until the next review: you can still give opinions and decide.',
+    fixesResolved: (resolved: number, total: number) => `${resolved} of ${total} fixes resolved`,
+    fixesHint: 'The last round checked each finding marked Implement against the new commits.',
+    fix: { resolved: 'Resolved', notResolved: 'Not resolved' },
     location: (file: string, line: number | null) => (line === null ? file : `${file}:${line}`),
     scenario: 'Scenario',
     suggestion: 'Suggestion',

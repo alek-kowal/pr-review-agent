@@ -17,6 +17,7 @@ import type { PrTabProps } from '@/features/pr/tabs.ts';
 import { EmptyTab } from '@/features/pr/EmptyTab.tsx';
 import { BulkBar } from './BulkBar.tsx';
 import { canDecide } from './decision-ui.ts';
+import { FindingsStrips } from '@/features/rounds/FixStatus.tsx';
 import { Finding } from './Finding.tsx';
 import { FILTER_FROM, FINDING_FILTERS, needsDecision, type FindingFilterKey } from './filters.ts';
 import { SeverityMark } from './SeverityMark.tsx';
@@ -52,6 +53,7 @@ export function FindingsTab({ repo, number, view }: PrTabProps) {
   return (
     <div className="flex flex-col gap-4" data-testid="findings-tab">
       {failedLine}
+      <FindingsStrips findings={query.data.findings} />
       {query.data.findings.length === 0 ? (
         <EmptyTab text={copy.findings.empty.clean(round.number)} />
       ) : (

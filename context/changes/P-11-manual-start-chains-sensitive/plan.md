@@ -179,7 +179,7 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 6: Findings from earlier commits and fix results
 
-- [ ] 6.1 `pnpm --filter @pra/web test stale-findings.test.tsx fix-status.test.tsx`
+- [x] 6.1 `pnpm --filter @pra/web test stale-findings.test.tsx fix-status.test.tsx`
 
 ### Phase 7: e2e chains
 

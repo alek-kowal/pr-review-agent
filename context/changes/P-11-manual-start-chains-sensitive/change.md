@@ -82,3 +82,12 @@ decide and record).
   not change the PR's level (`PUT .../level` has no UI in P-11, level settings arrive with P-23).
 - The disabled reason comes from the latest round's status (queued or running), shown under the
   disabled button; the api's 409 `run_active` is the backstop and shows as a toast.
+
+### S-07-T6 (findings from earlier commits, fix results)
+
+- "X of Y fixes resolved" counts the findings decided Implement that a fix check answered (as
+  the prototype does), in the web and in the api's `head.fixes`; findings not checked yet are
+  left out rather than counted as unresolved.
+- The "commits behind" strip uses the findings' own `sourceSha` / `commitsBehind`, so it also
+  shows after a fix check moved the reviewed SHA while the findings stay from round 1.
+- A finding resolved by a fix check is dimmed like a refuted one; its decision row stays.
