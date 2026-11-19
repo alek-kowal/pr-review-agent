@@ -287,8 +287,8 @@ Unit-level: brief, prompt, schema mapping. Integration: handlers on the shared t
 
 #### Automated
 
-- [ ] 5.1 github-comment.test.ts passes
-- [ ] 5.2 pnpm verify
+- [x] 5.1 github-comment.test.ts passes
+- [x] 5.2 pnpm verify
 
 ### Phase 6: End-to-end round 1 (S-01-T15)
 

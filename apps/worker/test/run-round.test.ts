@@ -67,6 +67,7 @@ const ANSWER = {
 /** A PR on a new repository with a queued round 1, through `startRound`. */
 async function queueRound(level: LevelNumber = 1): Promise<Run> {
   const repository = await connectRepository(deps.db);
+  deps.github.installations.set(repository.githubFullName, 1);
   const { pullRequest } = await upsertPullRequest(
     deps.db,
     aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
@@ -85,6 +86,7 @@ async function queueRound(level: LevelNumber = 1): Promise<Run> {
 /** A queued run with a custom frozen level, inserted directly, plus its first stage job. */
 async function queueRunWith(overrides: LevelOverrides, level: LevelNumber = 1): Promise<Run> {
   const repository = await connectRepository(deps.db);
+  deps.github.installations.set(repository.githubFullName, 1);
   const { pullRequest } = await upsertPullRequest(
     deps.db,
     aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
@@ -187,7 +189,19 @@ describe('run.stage', () => {
     const prompt = await deps.blobStore.get(session!.promptBlobKey!);
     expect(Buffer.from(prompt!.body).toString('utf8')).toContain('brief.md');
 
-    // The worktree and session files are removed after the run's transaction commits.
+    // After the commit: the one GitHub sentence, and the run's files are removed.
+    await vi.waitFor(async () => {
+      const actions = await deps.db
+        .select()
+        .from(schema.githubActions)
+        .where(eq(schema.githubActions.runId, run.id));
+      expect(actions).toEqual([
+        expect.objectContaining({
+          body: 'Ready for team member review (round 1)',
+          result: 'posted',
+        }),
+      ]);
+    });
     await vi.waitFor(() => {
       expect(existsSync(path.join(deps.dataDir, 'git', 'worktrees', `run-${run.id}`))).toBe(false);
       expect(existsSync(path.join(deps.dataDir, 'sessions', `run-${run.id}`))).toBe(false);

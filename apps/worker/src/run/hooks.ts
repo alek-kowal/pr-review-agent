@@ -3,6 +3,7 @@
 // the run's transaction commits; one that throws is logged and the others still run.
 import type { PullRequest, Repository, Run } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
+import { enqueueAfterRoundComment } from '../handlers/github-comment.ts';
 import type { SessionRecord } from '../stages/stage.ts';
 
 export type RunHookContext = {
@@ -33,7 +34,7 @@ export type RunHooks = {
 
 /** Register a hook by adding it to its list. */
 export const RUN_HOOKS: RunHooks = {
-  runCompleted: [],
+  runCompleted: [enqueueAfterRoundComment],
   runFailed: [],
   runCancelled: [],
   sessionCostRecorded: [],

@@ -1,5 +1,6 @@
 import { JOBS, type JobPayloads } from '@pra/db';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
+import { handleGithubComments } from './handlers/github-comment.ts';
 import { handleGithubEvents } from './handlers/github-event.ts';
 import { handleSmoke } from './handlers/smoke.ts';
 import { handleRunStages } from './run/execute-stage.ts';
@@ -39,6 +40,9 @@ export async function startWorker(
   );
   await queue.work<JobPayloads['run.stage']>(JOBS.runStage, work, (jobs) =>
     handleRunStages(deps, jobs),
+  );
+  await queue.work<JobPayloads['github.comment']>(JOBS.githubComment, work, (jobs) =>
+    handleGithubComments(deps, jobs),
   );
   logger.info({ jobs: Object.values(JOBS) }, 'worker started');
 

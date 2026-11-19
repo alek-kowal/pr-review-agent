@@ -83,3 +83,17 @@ are added per task below.
   no running stage its next one. It assumes one worker process, as deployed.
 - `executeStage` is exported for direct calls; `runs.not_checked` is written only when the
   reviewer listed something.
+
+### S-01-T11 (after-round comment)
+
+- The setting is checked twice: in the `runCompleted` hook (no job when off) and again in the
+  handler (switched off while the job waited). Only runs of kind `round` with status `completed`
+  post.
+- At most once per run: under the run's row lock the handler claims the run's `comment`
+  `github_actions` row (`sending`); a `sending` or `posted` row is never posted again, a `failed`
+  one is re-claimed by the pg-boss retry. A crash between claiming and posting leaves `sending`
+  and no comment, which is preferred to a double post on a public PR.
+- No `github_actions` unique index was added (other packages edit that table); the row lock
+  serialises claims.
+- `run-round.test.ts` also checks the whole chain: a completed round ends with one `posted`
+  comment row.
