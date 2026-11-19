@@ -167,6 +167,11 @@ export const FindingsResponse = z.object({
       finishedAt: timestamp.nullable(),
     })
     .nullable(),
+  /**
+   * The latest completed round, whose results (new findings or fix checks) this answer shows; the
+   * web holds a newer one behind "View new results" (S-08-T8). Null before a round completed.
+   */
+  resultsRound: z.object({ id: z.number().int(), number: z.number().int().nullable() }).nullable(),
   findings: z.array(FindingSchema),
   questions: z.array(QuestionSchema),
   notChecked: z.array(z.string()),
@@ -232,7 +237,18 @@ export function findingsView(
   verifications: readonly FindingVerification[] = [],
 ): FindingsView {
   const run = load.findingsRound;
-  if (!run) return { round: null, findings: [], questions: [], notChecked: [], unchecked: null };
+  const results = load.reviewedRound;
+  const resultsRound = results ? { id: results.id, number: results.roundNo } : null;
+  if (!run) {
+    return {
+      round: null,
+      resultsRound,
+      findings: [],
+      questions: [],
+      notChecked: [],
+      unchecked: null,
+    };
+  }
   const byFinding = new Map(verifications.map((v) => [v.findingId, v]));
   const commitsBehind = commitsSinceRun(load.pullRequest, run);
   const author = authorView(load);
@@ -243,6 +259,7 @@ export function findingsView(
       level: roundLevel(run),
       finishedAt: iso(run.finishedAt),
     },
+    resultsRound,
     findings: load.findings.map((f) => {
       const decision = load.decisions.get(f.id);
       const fix = load.fixChecks.get(f.id);

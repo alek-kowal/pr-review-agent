@@ -57,3 +57,11 @@ checks are the plan. One commit per task.
   full review; fix checks add no findings. Copies keep signer, value, comment, review, original
   `from_round` and time; `on conflict do nothing` keeps a signer's own newer opinion and makes a
   rerun add nothing. Registered as `carryOpinionsOnRunCompleted` after the chains hook.
+- T8: the findings answer gains `resultsRound` (the PR's latest completed round, so a fix check
+  counts as new results too, as in flow B step 8). The Findings tab pins the answer it shows
+  (`usePinnedResults`): a newer `resultsRound` waits behind "New results from round N · View new
+  results"; changes within the shown round, and the very first results, show at once. The PR
+  view (banner, checklist, stepper) is never held. `useRefreshFindingsWhenRoundEnds` became
+  `useFetchResultsWhenRoundEnds` (it only refetches). The pin lives in the tab, so leaving the
+  tab shows the newest results on return. `chains.spec.ts` checks fix counts inside its reload
+  loop, since a round ending while the page is open now waits behind the strip.

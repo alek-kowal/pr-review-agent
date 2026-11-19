@@ -121,6 +121,10 @@ export const copy = {
   },
   findings: {
     loading: 'Loading findings…',
+    /** S-08-T8: a newer round finished while the reader looks at the older results. */
+    newResults: (round: number | null) =>
+      round === null ? 'New results' : `New results from round ${round}`,
+    viewNewResults: 'View new results',
     severities: {
       blocking: { group: 'Blocking', one: 'Blocking', hint: 'Must be dealt with before merge.' },
       worth_fixing: {

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { CircleX } from 'lucide-react';
+import { CircleX, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { SEVERITIES } from '@pra/core';
 import { copy } from '@/copy/index.ts';
@@ -21,16 +21,18 @@ import { FindingsStrips } from '@/features/rounds/FixStatus.tsx';
 import { ReviewTray } from '@/features/opinions/ReviewTray.tsx';
 import { Finding } from './Finding.tsx';
 import { FILTER_FROM, FINDING_FILTERS, needsDecision, type FindingFilterKey } from './filters.ts';
+import { usePinnedResults } from './new-results.ts';
 import { SeverityMark } from './SeverityMark.tsx';
 
 /** The latest completed round's findings, grouped by severity, then what it did not check. */
 export function FindingsTab({ repo, number, view }: PrTabProps) {
   const latest = view.latestRound;
   const query = useQuery(findingsQuery(repo, number));
+  const { shown: data, newer, show } = usePinnedResults(query.data);
   const failedLine = latest?.status === 'failed' && latest.error && <RoundFailed round={latest} />;
 
-  if (query.isPending) return <p className="text-text-3">{copy.findings.loading}</p>;
-  if (query.isError) {
+  if (!data && query.isPending) return <p className="text-text-3">{copy.findings.loading}</p>;
+  if (!data) {
     return (
       <p role="alert" className="text-bad">
         {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
@@ -38,11 +40,15 @@ export function FindingsTab({ repo, number, view }: PrTabProps) {
     );
   }
 
-  const { round } = query.data;
+  const newResults = newer && (
+    <NewResultsStrip round={newer.resultsRound?.number ?? null} onShow={show} />
+  );
+  const { round } = data;
   if (!round) {
     const hint = !latest && view.pullRequest.isDraft ? copy.findings.empty.draft : null;
     return (
       <div className="flex flex-col gap-3">
+        {newResults}
         {failedLine}
         <EmptyTab
           text={
@@ -56,19 +62,44 @@ export function FindingsTab({ repo, number, view }: PrTabProps) {
 
   return (
     <div className="flex flex-col gap-4" data-testid="findings-tab">
+      {newResults}
       {failedLine}
-      <FindingsStrips findings={query.data.findings} />
-      {query.data.findings.length === 0 ? (
+      <FindingsStrips findings={data.findings} />
+      {data.findings.length === 0 ? (
         <EmptyTab text={copy.findings.empty.clean(round.number)} />
       ) : (
         <FindingList
           // A newer round brings new findings: start again with all of them closed.
           key={round.id}
-          findings={query.data.findings}
+          findings={data.findings}
           slotProps={{ round, repo, number, view }}
         />
       )}
-      <NotChecked items={query.data.notChecked} />
+      <NotChecked items={data.notChecked} />
+    </div>
+  );
+}
+
+/** "New results from round 2 · View new results": the findings switch only on this click. */
+function NewResultsStrip({ round, onShow }: { round: number | null; onShow: () => void }) {
+  return (
+    <div
+      role="status"
+      data-testid="new-results"
+      className="flex flex-wrap items-center gap-2 rounded-lg border border-brand-line bg-brand-bg px-3 py-2 text-sm"
+    >
+      <Sparkles aria-hidden="true" className="size-3.5 shrink-0 text-brand-text" />
+      <span className="font-medium">{copy.findings.newResults(round)}</span>
+      <span aria-hidden="true" className="text-text-3">
+        ·
+      </span>
+      <button
+        type="button"
+        onClick={onShow}
+        className="cursor-pointer font-medium text-brand-text hover:underline"
+      >
+        {copy.findings.viewNewResults}
+      </button>
     </div>
   );
 }

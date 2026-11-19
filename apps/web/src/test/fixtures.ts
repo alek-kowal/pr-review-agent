@@ -216,6 +216,9 @@ export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
 
 export const aFindingsResponse = (over: Partial<FindingsResponse> = {}): FindingsResponse => ({
   round: { id: 1, number: 1, level: { number: 1, key: 'review' }, finishedAt: null },
+  // The findings round's results unless a test says otherwise.
+  resultsRound:
+    over.round === null ? null : { id: over.round?.id ?? 1, number: over.round?.number ?? 1 },
   findings: [],
   questions: [],
   notChecked: [],

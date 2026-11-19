@@ -305,6 +305,8 @@ export type FindingsResponse = {
     level: { number: number; key: string };
     finishedAt: string | null;
   } | null;
+  /** The latest completed round, whose results this shows; a newer one waits behind a strip. */
+  resultsRound: { id: number; number: number | null } | null;
   findings: FindingView[];
   questions: QuestionView[];
   notChecked: string[];

@@ -133,8 +133,9 @@ test('a fix push on the expected head starts a fix check; a chain stops after 3 
     await expect(meta(page)).toContainText(`Round 2 completed · Reviewed ${short(fix1)}`, {
       timeout: 3_000,
     });
+    // A round that ends while the page is open waits behind "View new results" (S-08-T8).
+    await expect(page.getByText('2 of 2 fixes resolved')).toBeVisible({ timeout: 3_000 });
   });
-  await expect(page.getByText('2 of 2 fixes resolved')).toBeVisible();
   await expect(bannerTitle(page)).toHaveText(`Ready to merge at ${short(fix1)}`);
 
   // Round 3 leaves one fix unresolved: the chain has used its automatic rounds.
@@ -142,8 +143,8 @@ test('a fix push on the expected head starts a fix check; a chain stops after 3 
   await deliverPush(request, number, title, { headSha: fix2, commits: FIXTURE_COMMITS + 2 });
   await onPrPage(page, number, async () => {
     await expect(meta(page)).toContainText('Round 3 completed', { timeout: 3_000 });
+    await expect(page.getByText('1 of 2 fixes resolved')).toBeVisible({ timeout: 3_000 });
   });
-  await expect(page.getByText('1 of 2 fixes resolved')).toBeVisible();
   await expect(bannerTitle(page)).toHaveText('Automatic rounds used (3 of 3)');
 
   // A fourth fix on the expected head starts nothing.
