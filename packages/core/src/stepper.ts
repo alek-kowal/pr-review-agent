@@ -49,6 +49,9 @@ const STEP_STATUS: Readonly<Record<StageStatus, StepStatus>> = {
   off: 'off',
 };
 
+/** How the stepper shows a stored stage status. */
+export const stepStatus = (status: StageStatus): StepStatus => STEP_STATUS[status];
+
 /**
  * The stepper of a round: its stages in run order at the run's level and round kind (the level
  * lists the stages it switches off), each with the status of its latest stored attempt and the

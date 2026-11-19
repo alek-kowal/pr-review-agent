@@ -166,7 +166,7 @@ run is required; the existing e2e spec is rerun once at the end because the stag
 
 ### Phase 6: Run detail and transcript
 
-- [ ] 6.1 `pnpm --filter @pra/api test runs.test.ts` passes; `pnpm verify` green
+- [x] 6.1 `pnpm --filter @pra/api test runs.test.ts` passes; `pnpm verify` green
 
 ### Phase 7: Timeline, in-progress, status, reads never write
 

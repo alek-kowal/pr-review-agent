@@ -112,3 +112,21 @@ are added per task below.
   the next writer logs the state then.
 - `apps/api/test/routes/team.test.ts` "empty team" got a 30 s timeout: it creates its own
   database, which took over 5 s under the full suite.
+
+### S-03-T6 (Run detail and transcript)
+
+- `GET /api/runs/:id` returns the run (status, frozen level, starter, trigger, times, current
+  stage, not checked, instruction versions, error), its PR (repository slug, number, title), the
+  `round_label` reason from the PR's chain (null for non-rounds), the stages and the
+  `totalCostUsd` (sum of the run's session costs, so a failed run shows what it spent up to the
+  failure). Stages of rounds and trials come from core `stepperModel`; other run kinds list
+  their stored rows. Each stage has the latest attempt's stored `output` and the sessions of
+  every attempt.
+- Files read and actions are computed when Run detail is read: `summarizeTranscript` (in
+  `@pra/agents`, exported also as `@pra/agents/transcript` so the api does not load the agent
+  SDK) reads `tool_use` blocks of assistant messages; `Read` paths are files read (once each),
+  every other tool call is an action with its first target field (path, pattern, command, URL,
+  query). A missing or unreadable transcript gives empty lists and `hasTranscript: false`.
+- `GET /api/runs/:id/sessions/:sessionId/transcript` sends the stored blob as is (JSON, content
+  type from BlobStore). New error codes: `run_not_found`, `session_not_found` (also for a
+  session of another run), `transcript_not_found`.

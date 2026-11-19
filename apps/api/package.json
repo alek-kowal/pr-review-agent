@@ -17,6 +17,7 @@
     "@fastify/autoload": "^6.6.0",
     "@fastify/sensible": "^6.0.8",
     "@fastify/swagger": "^9.9.5",
+    "@pra/agents": "workspace:*",
     "@pra/core": "workspace:*",
     "@pra/db": "workspace:*",
     "@pra/integrations": "workspace:*",

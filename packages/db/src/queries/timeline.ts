@@ -256,7 +256,8 @@ async function loadStateInput(
   };
 }
 
-function toRunRecord(run: Run): RunRecord {
+/** A stored run as core's round and chain rules see it. */
+export function toRunRecord(run: Run): RunRecord {
   return {
     id: String(run.id),
     kind: run.kind,

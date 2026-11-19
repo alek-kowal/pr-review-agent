@@ -244,6 +244,9 @@ importers:
       '@fastify/swagger':
         specifier: ^9.9.5
         version: 9.9.5
+      '@pra/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
       '@pra/core':
         specifier: workspace:*
         version: link:../../packages/core

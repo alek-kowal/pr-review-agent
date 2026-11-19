@@ -2,9 +2,9 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
-import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
+import { agentSessions, findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import type { PullRequest, Repository } from './repositories.ts';
-import type { FindingRow, QuestionRow, Run, StageExecution } from './runs.ts';
+import type { AgentSession, FindingRow, QuestionRow, Run, StageExecution } from './runs.ts';
 
 export type PullRequestListItem = {
   repositorySlug: string;
@@ -98,4 +98,27 @@ export async function questionsOf(db: Executor, runId: number): Promise<Question
     .from(questions)
     .where(eq(questions.runId, runId))
     .orderBy(asc(questions.ordinal));
+}
+
+/** Every run of a PR, oldest first (chain labels). */
+export async function runsOfPullRequest(db: Executor, pullRequestId: number): Promise<Run[]> {
+  return db
+    .select()
+    .from(runs)
+    .where(eq(runs.pullRequestId, pullRequestId))
+    .orderBy(asc(runs.createdAt), asc(runs.id));
+}
+
+/** One agent session of a run, or null when the session belongs to another run. */
+export async function sessionOfRun(
+  db: Executor,
+  runId: number,
+  sessionId: number,
+): Promise<AgentSession | null> {
+  const [row] = await db
+    .select({ session: agentSessions })
+    .from(agentSessions)
+    .innerJoin(stageExecutions, eq(stageExecutions.id, agentSessions.stageExecutionId))
+    .where(and(eq(agentSessions.id, sessionId), eq(stageExecutions.runId, runId)));
+  return row?.session ?? null;
 }
