@@ -6,6 +6,7 @@ import {
   getRunContext,
   getRunDetail,
   recordTimelineEntry,
+  requestRunCancel,
   retryRun,
   RUN_STATUSES,
   runsOfPullRequest,
@@ -80,6 +81,9 @@ const LinkedRunSchema = z.object({
 export const RetryRunResponse = z.object({
   run: z.object({ id: z.number().int(), fromStage: z.string() }),
 });
+
+/** The worker finishes the cancel: it stops the run's work, then sets `cancelled`. */
+export const CancelRunResponse = z.object({ status: z.literal('cancelling') });
 
 export const RunDetailResponse = z.object({
   run: z.object({
@@ -284,6 +288,32 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
         );
       }
       return reply.code(201).send({ run: { id: result.run.id, fromStage: result.fromStage } });
+    },
+  );
+
+  // S-09-T4: Cancel by hand. The api only records the request; the worker hears it on
+  // `pra_change`, stops the run's work and writes "Cancelled by hand · $1.12 spent".
+  fastify.post(
+    '/:id/cancel',
+    {
+      schema: {
+        params: RunParams,
+        response: { 202: CancelRunResponse, 404: ApiErrorSchema, 409: ApiErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const result = await requestRunCancel(db, request.params.id, {
+        actor: HAND,
+        reason: 'by_hand',
+      });
+      if (!result.requested) {
+        const { code, params } = result.reason;
+        if (code === 'run_not_found') {
+          return sendError(reply, 404, ApiErrorCode.RunNotFound, request.params);
+        }
+        return sendError(reply, 409, ApiErrorCode.RunFinished, params);
+      }
+      return reply.code(202).send({ status: 'cancelling' as const });
     },
   );
 

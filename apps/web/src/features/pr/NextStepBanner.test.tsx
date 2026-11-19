@@ -68,7 +68,7 @@ const FIXTURES: {
     title: 'Review starting: PR marked ready for review (round 1 of 3)',
     meta: 'Next step · no one needs to act',
     tone: 'bg-brand-bg',
-    button: null,
+    button: 'Cancel',
   },
   {
     name: 'failed',

@@ -165,11 +165,11 @@ the durability test uses a child process. API tests use `apps/api/test/helper.ts
 
 ### Phase 3: Cancel that stops spend at once
 
-- [x] 3.1 `pnpm --filter @pra/worker test cancel.test.ts` passes
+- [x] 3.1 `pnpm --filter @pra/worker test cancel.test.ts` passes — 771b3b5
 
 ### Phase 4: Cancel controls
 
-- [ ] 4.1 `pnpm --filter @pra/api test cancel-route.test.ts` and `pnpm --filter @pra/web test cancel-button.test.tsx` pass
+- [x] 4.1 `pnpm --filter @pra/api test cancel-route.test.ts` and `pnpm --filter @pra/web test cancel-button.test.tsx` pass
 
 ### Phase 5: Cancel when the PR closes
 

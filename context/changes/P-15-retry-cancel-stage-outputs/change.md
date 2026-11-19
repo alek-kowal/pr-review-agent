@@ -47,6 +47,11 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   deletes the run's queued stage jobs on `cancelled`. The `run_cancelled` timeline entry carries
   the asker as actor and `params.reason`. The listener re-reads the run on every `runs` change
   (cost writes included); one indexed read each, accepted.
+- **Cancel controls (T4).** `POST /api/runs/:id/cancel` answers 202 `{status: 'cancelling'}`;
+  a second request is accepted and keeps the first asker. The banner cancels
+  `view.latestRound` while it is queued or running; the button stays off after the 202 until the
+  live refresh. "Cancelled by hand · $1.12 spent" is the timeline row: actor "By hand", the
+  sentence "Round 1 cancelled", the entry's cost; a close reads "Run cancelled: PR closed".
 - **Stage jobs:** `retryLimit: 0`, and each send sets `expireInSeconds` to the run's stage timeout
   plus 10 minutes (the backstop). A cancel deletes the run's queued `run.stage` jobs
   (`findJobs` + `deleteJob`).

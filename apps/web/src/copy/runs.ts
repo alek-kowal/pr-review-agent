@@ -39,6 +39,13 @@ export const runs = {
     completed: (at: string, usd: number) => `finished ${at} · ${money(usd)}`,
   },
   roundLabelFallback: (number: number | null) => (number === null ? 'Round' : `Round ${number}`),
+  /** Cancel, the banner's main action while a run is queued or running, and in Activity (S-09-T4). */
+  cancel: {
+    action: 'Cancel',
+    rowLabel: (run: string) => `Cancel ${run}`,
+    hint: 'Stops the run now. What it spent so far stays recorded, and the round is not counted.',
+    requested: 'Cancelling: the agent stops in a moment',
+  },
   /** The Stage failed banner's main action (S-09-T2). */
   retry: {
     action: (stage: string) => `Retry from ${stage}`,
