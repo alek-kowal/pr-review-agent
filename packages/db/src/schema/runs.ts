@@ -5,6 +5,7 @@ import {
   SEVERITIES,
   VERDICTS,
   type Evidence,
+  type Remedy,
   type FrozenLevel,
   type RunStatus,
   type StageStatus,
@@ -12,6 +13,7 @@ import {
 import { sql, type SQL } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   check,
   index,
   integer,
@@ -192,6 +194,47 @@ export const findings = pgTable(
     index('findings_pull_request').on(t.pullRequestId),
     check('findings_severity', inList(t.severity, SEVERITIES)),
     check('findings_verdict', inList(t.verdict, VERDICTS)),
+  ],
+);
+
+/**
+ * How the Verify stage reached a finding's verdict: one row per verified (or skipped) finding of
+ * a level-3 round. The verdict and kept quotes also sit on `findings`; this keeps the rest.
+ */
+export const findingVerifications = pgTable(
+  'finding_verifications',
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    findingId: integer('finding_id')
+      .notNull()
+      .references(() => findings.id, { onDelete: 'cascade' }),
+    runId: integer('run_id')
+      .notNull()
+      .references(() => runs.id, { onDelete: 'cascade' }),
+    verdict: text({ enum: VERDICTS }).notNull(),
+    /** Core reason code for the verdict (quotes, reproduction, or the change type's scope). */
+    reason: jsonb().$type<{ code: string; params: Record<string, unknown> }>().notNull(),
+    /** The verifier's own verdict and words; null when the finding was skipped. */
+    verifierVerdict: text('verifier_verdict', { enum: VERDICTS }),
+    verifierReason: text('verifier_reason'),
+    /** Quotes not found word for word in the file at the reviewed SHA. */
+    droppedQuotes: jsonb('dropped_quotes').$type<Evidence[]>().notNull().default([]),
+    remedy: jsonb().$type<{ kind: Remedy; why: string }>(),
+    /** The reproduction that decided (the repaired one when repaired); null when none ran. */
+    script: text(),
+    exitCode: integer('exit_code'),
+    timedOut: boolean('timed_out').notNull().default(false),
+    outputTail: text('output_tail'),
+    /** The whole output in BlobStore. */
+    outputBlobKey: text('output_blob_key'),
+    repaired: boolean().notNull().default(false),
+    sandboxRuns: integer('sandbox_runs').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('finding_verifications_finding').on(t.findingId),
+    index('finding_verifications_run').on(t.runId),
+    check('finding_verifications_verdict', inList(t.verdict, VERDICTS)),
   ],
 );
 

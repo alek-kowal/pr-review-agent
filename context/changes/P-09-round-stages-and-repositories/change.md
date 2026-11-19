@@ -89,3 +89,35 @@ listed order.
   commit instead of a squash, since squashing across the merge would need a rebase.
 - The Docker sandbox test file (P-06) gets a 30 s test timeout: one container test timed out at
   5 s under the parallel `pnpm verify` load and passes alone.
+
+### S-05-T2 (Verify stage)
+
+- Verify checks this run's findings only (`findingsOfRun`), one verifier session each; the change
+  type's scope (`skipVerification`) leaves the others `unchecked` with its reason.
+- Missing `prompt-verifier.md` or `verify-rules.md` fails the stage with
+  `verifier_instructions_missing` (`params.missing`): unlike the judge there is no floor to fall
+  back on. A verifier session that fails fails the stage with its code; `output_invalid` becomes
+  `verifier_output_invalid` (`params.findingId` added). Nothing is written then.
+- Each session: 60 turns, 3 USD; the level's stage timeout. The real prompt is captured through a
+  small recording `AgentRunner` around `deps.agentRunner`.
+- Quotes: core `checkQuotes` per quote against the worktree at the reviewed SHA (paths outside
+  the worktree or in `.git` read as missing). Missing quotes are dropped and kept in
+  `droppedQuotes`; the kept ones become the finding's evidence. No quote left → Not proven
+  (`quote_missing`, or `no_evidence` when none was given).
+- Reproduction: the script is written to the worktree root as `.pra-repro-<findingId>-<n>.mjs`
+  (the v1 rules run it with `node` from the repository root, so relative imports work), the
+  worktree is the only mount, read-only at `/work`; network `none`; 2 CPUs, 2 GB, 512 pids,
+  5 minutes; `HOME=/tmp`. The file is removed right after the run. Exit 0/3 decide; any other
+  exit or the time limit gets one `repairReproduction` (whose answer replaces the first) and a
+  rerun; still broken → Not proven (`repro_broken`, exit `-1` in params for a time-out). A
+  script's result beats the verifier's verdict and the quote check; without a script the quote
+  check decides. Fork PRs never run scripts.
+- Each run's whole output is `runs/<runId>/verify-<attempt>/finding-<id>-repro-<n>.log` in
+  BlobStore.
+- Storage: `findings.verdict`, `findings.evidence` (kept quotes) and a version bump, plus one
+  `finding_verifications` row per finding (verdict, core reason, verifier verdict and words,
+  dropped quotes, remedy, deciding script, exit code, time-out, output tail and blob key,
+  repaired, sandbox runs), upserted by finding. Written by `saveVerifications` in one transaction
+  under the run's lock, only while the run is `running`. The stage output lists every finding
+  with all its sandbox runs and `written`.
+- "Earlier rounds untouched" holds because only this run's findings are read and written.

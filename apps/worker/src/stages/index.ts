@@ -6,6 +6,7 @@ import { checksStage } from './checks.ts';
 import { reviewStage } from './review/index.ts';
 import { taskStage } from './task.ts';
 import type { StageExecutor } from './stage.ts';
+import { verifyStage } from './verify.ts';
 
 export type StageExecutors = Readonly<Record<string, StageExecutor>>;
 
@@ -14,4 +15,5 @@ export const STAGE_EXECUTORS: StageExecutors = {
   [taskStage.key]: taskStage,
   [changeTypeStage.key]: changeTypeStage,
   [reviewStage.key]: reviewStage,
+  [verifyStage.key]: verifyStage,
 };

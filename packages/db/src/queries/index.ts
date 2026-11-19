@@ -11,3 +11,4 @@ export * from './settings-changes.ts';
 export * from './task-links.ts';
 export * from './stage-outputs.ts';
 export * from './change-type.ts';
+export * from './verifications.ts';
