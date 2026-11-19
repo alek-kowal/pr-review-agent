@@ -3,6 +3,7 @@ import type { MainActionCode } from '@pra/core';
 import type { NextStepView, PrView } from '@/lib/api-types.ts';
 import { Checklist } from './Checklist.tsx';
 import { DecideAction } from './DecideAction.tsx';
+import { StartReviewHeaderAction, StartReviewMainAction } from '@/features/rounds/StartReview.tsx';
 import type { PrTabProps } from './tabs.ts';
 
 export type PrSlotProps = PrTabProps;
@@ -16,6 +17,7 @@ export type PrPanel = PrSlot & { shows: (view: PrView) => boolean };
  */
 export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActionProps>>> = {
   decide: DecideAction,
+  start_review: StartReviewMainAction,
 };
 
 /**
@@ -33,4 +35,6 @@ export const PR_PANELS: PrPanel[] = [
 ];
 
 /** Quiet buttons in the PR header, before the GitHub link (extension point from P-08). */
-export const PR_HEADER_ACTIONS: PrSlot[] = [];
+export const PR_HEADER_ACTIONS: PrSlot[] = [
+  { key: 'start-review', Component: StartReviewHeaderAction },
+];

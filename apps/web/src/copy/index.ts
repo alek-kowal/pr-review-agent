@@ -38,6 +38,8 @@ export const copy = {
     level: (n: number) => `level ${n}`,
     commits: (n: number) => (n === 1 ? '1 commit' : `${n} commits`),
     notReviewed: 'not reviewed yet',
+    reviewed: (sha: string) => `Reviewed ${sha}`,
+    newCommitsSince: (n: number) => (n === 1 ? '1 new commit since' : `${n} new commits since`),
     tabsLabel: 'PR sections',
     sideLabel: 'PR status',
     tabs: {
@@ -51,6 +53,17 @@ export const copy = {
       patch: 'No patch yet.',
       timeline: 'Nothing on the timeline yet.',
     },
+  },
+  startReview: {
+    button: 'Start review',
+    levelLabel: 'Review level',
+    level: (n: number, name: string, isDefault: boolean) =>
+      `${n} · ${name}${isDefault ? ' (repo default)' : ''}`,
+    hint: (sha: string) => `New chain, round 1 on ${sha}. Not signed.`,
+    forkHint: 'Fork: read-only review.',
+    queued: 'A round is already queued for this PR.',
+    running: 'A run is in progress. Cancel it first, or wait.',
+    started: (round: number, level: number) => `Review started: round ${round} at level ${level}.`,
   },
   round: {
     status: (n: number | null, status: string) =>
@@ -154,6 +167,8 @@ export const copy = {
     repository_not_reachable: 'The GitHub App cannot reach this repository.',
     repository_already_connected: 'This repository is already connected.',
     clickup_not_configured: 'ClickUp is not configured on this server.',
+    run_active: 'A round is already queued or running for this PR.',
+    pr_closed: 'This pull request is closed.',
     clickup_auth_failed: 'ClickUp refused the API key.',
     clickup_error: 'ClickUp did not answer as expected.',
     github_error: 'GitHub did not answer as expected.',

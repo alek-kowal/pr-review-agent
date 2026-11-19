@@ -175,7 +175,7 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 5: Start review control and banners
 
-- [ ] 5.1 `pnpm --filter @pra/web test start-review.test.tsx`
+- [x] 5.1 `pnpm --filter @pra/web test start-review.test.tsx`
 
 ### Phase 6: Findings from earlier commits and fix results
 

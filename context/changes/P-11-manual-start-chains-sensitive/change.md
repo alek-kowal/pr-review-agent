@@ -73,3 +73,12 @@ decide and record).
 - The PR view gets a `head` section (reviewed SHA, head, commits since, completed rounds of 3,
   PR / default / next level, fixes `{ resolved, total }` over the Implement findings once any has
   a fix check). Each finding gets `sourceSha`, `commitsBehind` and its newest `fix`.
+
+### S-07-T5 (Start review control)
+
+- `StartReview` lives in `apps/web/src/features/rounds/`; the header slot shows it on open PRs and
+  the `start_review` main action reuses it (primary button).
+- The level Select picks the level for this start only, starting at the PR's next level; it does
+  not change the PR's level (`PUT .../level` has no UI in P-11, level settings arrive with P-23).
+- The disabled reason comes from the latest round's status (queued or running), shown under the
+  disabled button; the api's 409 `run_active` is the backstop and shows as a toast.

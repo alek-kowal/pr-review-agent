@@ -6,6 +6,7 @@ import type {
   ChecklistView,
   FindingView,
   FindingsResponse,
+  HeadView,
   NextStepView,
   PrView,
   RepositoryRef,
@@ -102,6 +103,7 @@ export const aPrView = (
     nextStep?: NextStepView;
     checklist?: ChecklistView;
     author?: AuthorView;
+    head?: Partial<HeadView>;
   } = {},
 ): PrView => ({
   pullRequest: {
@@ -124,6 +126,18 @@ export const aPrView = (
   nextStep: over.nextStep ?? aNextStep(),
   checklist: over.checklist ?? aChecklist(),
   author: over.author ?? anAuthor(),
+  head: aHead(over.head),
+});
+
+export const aHead = (over: Partial<HeadView> = {}): HeadView => ({
+  reviewedSha: 'abc123',
+  headSha: 'abc123',
+  commitsSince: 0,
+  completedRounds: 1,
+  maxRounds: 3,
+  level: { pr: null, repositoryDefault: 1, next: 1 },
+  fixes: null,
+  ...over,
 });
 
 let nextFindingId = 1;
@@ -149,6 +163,9 @@ export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
         (over.severity ?? 'worth_fixing') !== 'nit' && !over.decision && over.verdict !== 'refuted',
       reason: { code: 'unchecked_needs_person', params: { severity: 'worth_fixing' } },
     },
+    sourceSha: 'abc123',
+    commitsBehind: 0,
+    fix: null,
     ...over,
   };
 };

@@ -4,6 +4,7 @@ import type {
   ChecklistItemKey,
   Decision,
   Lane,
+  LevelNumber,
   MainActionCode,
   PrState,
   RepositoryConfig,
@@ -88,12 +89,34 @@ export type ChecklistView = {
 export type AuthorView = { login: string; memberId: string | null; name: string | null };
 
 /** `GET /api/prs/:repo/:number`: one key per PR view section. */
+/** What the PR's results were measured on (`head` section, S-07-T4). */
+export type HeadView = {
+  /** The head SHA of the latest completed round; null before one completed. */
+  reviewedSha: string | null;
+  headSha: string;
+  commitsSince: number;
+  completedRounds: number;
+  maxRounds: number;
+  level: { pr: LevelNumber | null; repositoryDefault: LevelNumber; next: LevelNumber };
+  /** Findings decided Implement and how many the newest fix checks found resolved. */
+  fixes: { resolved: number; total: number } | null;
+};
+
 export type PrView = {
   pullRequest: PullRequestView;
   latestRound: RoundView | null;
   nextStep: NextStepView;
   checklist: ChecklistView;
   author: AuthorView;
+  head: HeadView;
+};
+
+/** `POST /api/prs/:repo/:number/start-review`. */
+export type StartReviewResponse = {
+  runId: number;
+  chainId: string;
+  roundNumber: number;
+  level: LevelNumber;
 };
 
 /** A board card: `GET /api/board`. */
@@ -144,6 +167,12 @@ export type FindingView = {
   version: number;
   decision: DecisionView | null;
   needsDecision: { needed: boolean; reason: ReasonView };
+  /** The head SHA of the round that found it. */
+  sourceSha: string;
+  /** Commits on the PR's head since `sourceSha`; 0 while the head has not moved. */
+  commitsBehind: number;
+  /** The newest fix check of a finding decided Implement; null before one ran. */
+  fix: { resolved: boolean; reason: string; runId: number } | null;
 };
 
 export type QuestionView = {

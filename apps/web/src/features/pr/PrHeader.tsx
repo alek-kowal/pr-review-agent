@@ -1,11 +1,12 @@
 import { ExternalLink } from 'lucide-react';
 import { copy } from '@/copy/index.ts';
+import { shortSha } from '@/copy/nextStep.ts';
 import { PR_HEADER_ACTIONS, type PrSlotProps } from './slots.ts';
 
 /** The title plus one grey line (docs/03-design-decisions.md: no state pill, no breadcrumb). */
 export function PrHeader(props: PrSlotProps) {
   const { view } = props;
-  const { pullRequest: pr, latestRound: round } = view;
+  const { pullRequest: pr, latestRound: round, head } = view;
   const meta = [
     pr.repository.name,
     pr.authorLogin,
@@ -19,6 +20,8 @@ export function PrHeader(props: PrSlotProps) {
     round
       ? copy.round.status(round.number, copy.round.statusWords[round.status])
       : copy.pr.notReviewed,
+    head.reviewedSha && copy.pr.reviewed(shortSha(head.reviewedSha)),
+    head.reviewedSha && head.commitsSince > 0 && copy.pr.newCommitsSince(head.commitsSince),
   ].filter((part): part is string => typeof part === 'string');
 
   return (
