@@ -16,7 +16,7 @@ Recurring problems seen while running parallel agent sessions on this repo, and 
 
 5. **Agents cannot see their own context meter.** They never stop at the budget by themselves. `supervise.sh` reads `ctx:` from the pane, asks for a handoff at 26% and continues in a fresh session.
 6. **Lost Enter under load.** With load above ~40, a prompt can stay unsent in the input box. `continue-task.sh` and `merge-or-fix.sh` re-send Enter while the agent stays idle.
-7. **API errors and network outages** stop an agent in the "done" state, which looks like a finished task. `supervise.sh` checks the last `⏺` line and re-prompts on "API Error". Always read the final summary before merging.
+7. **API errors and network outages** stop an agent in the "done" state, which looks like a finished task. `supervise.sh` checks the last `⏺` line and re-prompts on "API Error". An agent idle with "1 shell still running" is waiting for its own e2e run, not finished; `supervise.sh` keeps watching it. Always read the final summary before merging.
 8. **Usage limit.** All agents hit the 5-hour subscription limit at once (08:40), and their auto-resume failed on a DNS outage at reset time. Watch `5h:NN%` in an agent's status line; above ~80%, start no new packages. After a reset, check every agent and re-prompt.
 9. **`/exit` with background work** (a scheduled task left by the agent) opens a confirmation dialog. `merge-or-fix.sh` answers it ("Exit and stop tasks").
 10. **Shell heredocs and `sed -i`** trigger the "Dangerous rm operation" permission prompt and block an unattended agent. Prompts say: write files only with Write/Edit. `supervise.sh` declines the prompt automatically.
