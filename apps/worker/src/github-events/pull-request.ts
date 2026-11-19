@@ -69,7 +69,15 @@ export async function handlePullRequestEvent({
   if (!stale) {
     for (const kind of prEventKinds(action, snapshot, previous)) {
       for (const hook of deps.extensions.prEventHooks[kind]) {
-        await hook({ deps, repository, pullRequest, previous, snapshot, action, eventId: event.id });
+        await hook({
+          deps,
+          repository,
+          pullRequest,
+          previous,
+          snapshot,
+          action,
+          eventId: event.id,
+        });
       }
     }
   }

@@ -1,33 +1,36 @@
-import { closeDb, createDb, createQueue, eq, JOBS, schema, sendJob } from '@pra/db';
-import { testDatabaseUrl } from '@pra/db/testing';
-import { createLogger } from '@pra/integrations/logging';
+// Runs a real pg-boss worker, so it uses its own database: a worker on the shared test database
+// would take other files' jobs.
+import { eq, JOBS, schema, sendJob } from '@pra/db';
+import { createTestDatabase, type TestDatabase } from '@pra/db/testing';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
+import { createTestWorkerDeps, type TestWorkerDeps } from '../test/support.ts';
 import { startWorker, type RunningWorker } from './worker.ts';
 
-const url = testDatabaseUrl();
-const db = createDb(url, { max: 2 });
-const queue = createQueue(url, { max: 3 });
-const logger = createLogger('worker', { NODE_ENV: 'test', LOG_LEVEL: 'silent' });
+let database: TestDatabase;
+let deps: TestWorkerDeps;
 let worker: RunningWorker;
 
 beforeAll(async () => {
-  worker = await startWorker({ db, queue, logger }, { pollingIntervalSeconds: 0.5 });
-});
+  database = await createTestDatabase();
+  deps = await createTestWorkerDeps({ url: database.url });
+  worker = await startWorker(deps, { pollingIntervalSeconds: 0.5 });
+}, 30_000);
 
 afterAll(async () => {
-  await worker.stop();
-  await closeDb(db);
+  await worker?.stop();
+  await deps?.close();
+  await database?.drop();
 });
 
 test('a smoke job writes a smoke row within 5 s', async () => {
   const note = `smoke ${randomUUID()}`;
 
-  await sendJob(queue, JOBS.smoke, { note });
+  await sendJob(deps.queue, JOBS.smoke, { note });
 
   await vi.waitFor(
     async () => {
-      const rows = await db.select().from(schema.smoke).where(eq(schema.smoke.note, note));
+      const rows = await deps.db.select().from(schema.smoke).where(eq(schema.smoke.note, note));
       expect(rows).toHaveLength(1);
     },
     { timeout: 5_000, interval: 100 },

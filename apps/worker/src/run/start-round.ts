@@ -24,8 +24,7 @@ export type StartRoundInput = {
 };
 
 export type StartRoundResult =
-  | { started: true; run: Run; firstStage: string }
-  | { started: false; reason: 'run_active' };
+  { started: true; run: Run; firstStage: string } | { started: false; reason: 'run_active' };
 
 export async function startRound(
   deps: Pick<WorkerDeps, 'db' | 'queue' | 'logger'>,

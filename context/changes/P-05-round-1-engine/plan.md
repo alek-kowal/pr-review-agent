@@ -259,15 +259,15 @@ Unit-level: brief, prompt, schema mapping. Integration: handlers on the shared t
 
 #### Automated
 
-- [ ] 1.1 webhook.test.ts passes
-- [ ] 1.2 pnpm verify
+- [x] 1.1 webhook.test.ts passes — 9ce8a01
+- [x] 1.2 pnpm verify — 9ce8a01
 
 ### Phase 2: `github.event` handler and round 1 (S-01-T6)
 
 #### Automated
 
-- [ ] 2.1 github-event.test.ts passes
-- [ ] 2.2 pnpm verify
+- [x] 2.1 github-event.test.ts passes
+- [x] 2.2 pnpm verify
 
 ### Phase 3: Review stage (S-01-T9)
 
