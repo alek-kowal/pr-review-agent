@@ -109,6 +109,13 @@ describe('pushes', () => {
     await setChainExpectedHead(deps.db, round.chainId!, sha('c'));
     expect(await deliver('pull_request.synchronize', sha('d'))).toBe('push_never_starts');
     expect(await runsOfPr()).toHaveLength(1);
+
+    // The agent's commit, then the author's on top once round 2 is done.
+    await setChainExpectedHead(deps.db, round.chainId!, sha('e'));
+    expect(await deliver('pull_request.synchronize', sha('e'))).toBe('round_started');
+    await complete((await runsOfPr()).at(-1)!);
+    expect(await deliver('pull_request.synchronize', sha('f'))).toBe('push_never_starts');
+    expect(await runsOfPr()).toHaveLength(2);
   });
 
   test('after 3 completed rounds a matching push starts nothing: rounds used', async () => {
