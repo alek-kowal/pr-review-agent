@@ -46,9 +46,8 @@ PR Review Agent fixes that:
   real spend, never estimates.
 
 > [!NOTE]
-> Pilot build. Review levels 1–3 and level 6 (learning) work today; levels 4 and 5 (fixes and
-> autofix) are on the [roadmap](context/foundation/roadmap.md). Hosting is not chosen yet: run it
-> locally.
+> Pilot build. All six review levels work today, from diff-only review to autofix and learning.
+> Hosting is not chosen yet: run it locally.
 
 ## How it works
 
@@ -84,14 +83,14 @@ flowchart LR
 5. The team answers questions, gives signed opinions and **decides** (Implement, Reject, Defer to
    ClickUp). When the checklist is green, a person merges from the app at the reviewed commit.
 
-| Level | Name           | Adds                                                                 | Today   |
-| ----- | -------------- | -------------------------------------------------------------------- | ------- |
-| 1     | Diff only      | Review. Findings are not verified                                    | Yes     |
-| 2     | With context   | Checks (CI and install), Task, Change type                           | Yes     |
-| 3     | Verified       | Verify: a verdict with quoted evidence and a reproduction            | Yes     |
-| 4     | Fix on request | Implement with agent; nothing is pushed without a person             | Planned |
-| 5     | Autofix        | Fixes and pushes by itself when every autofix condition holds        | Planned |
-| 6     | Learning       | After a PR closes, the analyst proposes lessons for a person to keep | Yes     |
+| Level | Name           | Adds                                                                 | Today |
+| ----- | -------------- | -------------------------------------------------------------------- | ----- |
+| 1     | Diff only      | Review. Findings are not verified                                    | Yes   |
+| 2     | With context   | Checks (CI and install), Task, Change type                           | Yes   |
+| 3     | Verified       | Verify: a verdict with quoted evidence and a reproduction            | Yes   |
+| 4     | Fix on request | Implement with agent; nothing is pushed without a person             | Yes   |
+| 5     | Autofix        | Fixes and pushes by itself when every autofix condition holds        | Yes   |
+| 6     | Learning       | After a PR closes, the analyst proposes lessons for a person to keep | Yes   |
 
 ## Screenshots
 
@@ -142,8 +141,9 @@ GitHub theme. Click one for full size.
 | **Insights**            | Five pilot metrics with sample sizes, plus Cost, Quality and the Trust ladder.                                                                    |
 | **Settings, audit**     | Repositories, Team, models per role, review levels, budget, integrations, alerts and learning; every signed change in the Audit log.              |
 
-**On the roadmap:** Implement with agent and patch review (level 4), signed push and level 5
-autofix with a shadow log, read-only fork PRs, and a hosted deploy. See
+**Also shipped:** Implement with agent and patch review (level 4), signed push and level 5
+autofix with a shadow log, and read-only review of fork PRs. **On the roadmap:** a hosted
+deploy. See
 [the roadmap](context/foundation/roadmap.md) and the
 [work packages](context/foundation/work-packages.md).
 
