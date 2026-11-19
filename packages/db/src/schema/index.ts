@@ -6,3 +6,4 @@ export * from './team.ts';
 export * from './settings-changes.ts';
 export * from './timeline.ts';
 export * from './chains.ts';
+export * from './sensitive-files.ts';

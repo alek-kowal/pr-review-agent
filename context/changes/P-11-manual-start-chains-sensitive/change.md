@@ -104,3 +104,20 @@ decide and record).
   answers unverified. The stack imports the global verifier instruction files so level 3 runs.
 - `chains.spec.ts` decides findings through the api (the UI is `decide.spec.ts`'s); it signs with
   the first Team member, adding Kasia (`wb-dev`) only when Team is empty.
+
+### S-11-T1 (sensitive files per PR)
+
+- One `sensitive_files` row per PR and path (pattern, reason, status, actor, member, comment, at,
+  head SHA); `pull_requests.sensitive_version` moves with every add, reset, approve and send back.
+- A completed round (full or fix check) diffs the PR base to the round's head in the mirror and
+  adds new matches as pending (`runCompleted` hook, before the timeline hook so its state change
+  counts them). An approved path stays approved when later commits change it again; the task only
+  asks for newly matching files.
+- Core's `SensitiveFiles` for the PR: approved when every file is (files: all); otherwise the files
+  not approved yet, `sent_back` when any of them was sent back (`sentBackBy` its signer).
+- Any head change (`headChanged` PR event hook) turns sent back into pending and clears the
+  comment and signer; the timeline already logs the push.
+- `settleSensitiveFiles` (approve by hand or send back signed) sits in `@pra/db` like
+  `decideFindings`: it locks the PR row, compares the version, settles every file not approved
+  yet, and writes the timeline entry (`sensitive_approved` / `sensitive_sent_back`) and the state
+  change in the same transaction.

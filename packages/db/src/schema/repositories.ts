@@ -57,6 +57,8 @@ export const pullRequests = pgTable(
     forcedChangeType: text('forced_change_type', { enum: CHANGE_TYPES }),
     /** The review level for this PR's next rounds (FR-059); null: the repository's default. */
     level: integer(),
+    /** Moves with every change to the PR's sensitive files (S-11); a person acts on what they saw. */
+    sensitiveVersion: integer('sensitive_version').notNull().default(0),
     /** GitHub's dates, refreshed with every snapshot. */
     openedAt: timestamp('opened_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),

@@ -17,3 +17,4 @@ export * from './timeline.ts';
 export * from './pr-state.ts';
 export * from './start-round.ts';
 export * from './fix-checks.ts';
+export * from './sensitive-files.ts';

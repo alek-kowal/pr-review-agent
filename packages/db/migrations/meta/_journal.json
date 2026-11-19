@@ -99,6 +99,13 @@
       "when": 1795069605163,
       "tag": "0013_finding_fix_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795071462286,
+      "tag": "0014_sensitive_files",
+      "breakpoints": true
     }
   ]
 }

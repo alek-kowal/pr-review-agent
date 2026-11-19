@@ -22,6 +22,7 @@ import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
 import { newestFixChecks, type FixCheck } from './fix-checks.ts';
+import { sensitiveFilesOf, sensitiveState, type SensitiveFile } from './sensitive-files.ts';
 import { readRepositoryConfig, type PullRequest, type Repository } from './repositories.ts';
 import type { FindingRow, QuestionRow, Run } from './runs.ts';
 import type { TeamMember } from './team.ts';
@@ -44,6 +45,8 @@ export type PrStateLoad = {
    * checks only add Resolved / Not resolved to them.
    */
   findingsRound: Run | null;
+  /** The PR's sensitive files with their pattern and status, in path order. */
+  sensitiveFiles: SensitiveFile[];
   findings: FindingRow[];
   questions: QuestionRow[];
   decisions: Map<number, CurrentDecision>;
@@ -242,7 +245,7 @@ export async function loadPrStateInputs(
           .orderBy(desc(stageExecutions.id))
       : [],
   ]);
-  const [decisions, fixChecks] = await Promise.all([
+  const [decisions, fixChecks, sensitiveByPr] = await Promise.all([
     currentDecisions(
       db,
       findingRows.map((row) => row.id),
@@ -250,6 +253,10 @@ export async function loadPrStateInputs(
     newestFixChecks(
       db,
       findingRows.map((row) => row.id),
+    ),
+    sensitiveFilesOf(
+      db,
+      prRows.map((row) => row.pullRequest.id),
     ),
   ]);
   const chainIds = [...perPr.values()].flatMap((p) =>
@@ -304,7 +311,7 @@ export async function loadPrStateInputs(
         reviewed,
         chainById.get(p.latestRound?.chainId ?? '') ?? null,
       ),
-      // Change type arrives in S-04, sensitive files in S-11, patches in S-13.
+      // Change type arrives in S-04, patches in S-13.
       changeType: null,
       activeRun: activeRun(p.active),
       failedRound,
@@ -314,7 +321,7 @@ export async function loadPrStateInputs(
       ),
       // Answers arrive in S-08, so every question is open.
       questions: prQuestions.map((row) => ({ id: String(row.id), answered: false })),
-      sensitive: null,
+      sensitive: sensitiveState(sensitiveByPr.get(pullRequest.id) ?? []),
       patch: null,
       // Opinions arrive in S-08, CI checks and reviews with the merge checklist (S-12).
       reviewers: 0,
@@ -329,6 +336,7 @@ export async function loadPrStateInputs(
       authorMember,
       reviewedRound: reviewed,
       findingsRound,
+      sensitiveFiles: sensitiveByPr.get(pullRequest.id) ?? [],
       findings: prFindings,
       questions: prQuestions,
       decisions: new Map(

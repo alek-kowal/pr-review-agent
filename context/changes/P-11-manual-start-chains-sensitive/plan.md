@@ -187,7 +187,7 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 8: Sensitive files per PR
 
-- [ ] 8.1 `pnpm --filter @pra/worker test sensitive-files.test.ts`
+- [x] 8.1 `pnpm --filter @pra/worker test sensitive-files.test.ts`
 
 ### Phase 9: Approve and send back API
 
