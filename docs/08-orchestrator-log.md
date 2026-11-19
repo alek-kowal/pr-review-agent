@@ -98,3 +98,12 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
   - The old apps on :4300/:4400 can be switched off once the real smokes pass.
   - About 24 GB of reclaimable Docker images belong to other projects on this Mac: your call.
 - Tech debt left: foreign key `runs.chain_id` (P-11r F10); sandbox tests leave `pra-sbx-*` containers behind (27 removed tonight); flaky `e2e/decide.spec.ts` and API tests near the 5 s limit under load.
+
+## 19–20 Nov, evening: after the roadmap
+
+- Alek is the only user for now; the agents run on his Claude subscription. P-25: `CLAUDE_CODE_OAUTH_TOKEN` wins over `ANTHROPIC_API_KEY`; costs labelled "API-equivalent"; a usage-limit pause reschedules the run after the reset; the judge and the analyst go through the Agent SDK on a subscription.
+- P-26: the change-type judge can run on OpenRouter (Alek wants `typesafe/jev-router`, a router billed at the routed model's price). `data_collection: "deny"`, the routed model and real cost recorded per call, fallback to the Claude judge, `pnpm judge:compare` against forced types. Default stays Claude.
+- FLAKY: `decide.spec.ts` exposed a real bug: a live update refreshed the finding version in an open form, so "Defer" silently overwrote another person's decision. Fixed; 10/10 on repeat. Sandbox tests now remove their `pra-sbx-*` containers.
+- Mikrus VPS (wojtek118, unprivileged LXC, 1 vCPU, 4 GB, no KVM). On Alek's request: removed n8n, cezar (incl. code-server), paperclip, DevMentor and their data, users and units; added an nginx default server returning 444. Now about 3.5 GB RAM and 27 GB disk free; nginx, kurs and wiedza-watch keep running.
+- gVisor tested on Mikrus (runsc release-20261116.0): fails with "configuring device cgroup: loading device filter: operation not permitted". `--ignore-cgroups` would drop the sandbox memory and CPU caps, so the decision is runc with caps on Mikrus; gVisor waits for a KVM VM. Rolled back; server clean.
+- P-27: deploy kit in `deploy/mikrus/`, two concurrency limits (Claude-bound stages several at once, sandbox stages one at a time), sandbox caps, shared pnpm store, `pnpm sandbox:bench`.

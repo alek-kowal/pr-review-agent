@@ -105,6 +105,7 @@ All of them are in `/private/tmp/claude-501/-Users-alek-Projects/bac86def-abc6-4
 ## Lessons
 Read `docs/orchestrator-lessons.md` before coordinating new work; add a lesson when a problem repeats.
 
-## 21:50 status: roadmap done
-All 24 work packages are merged, plus impl-reviews P-03r, P-05r, P-11r, P-18r, P-22r, the parity pass P-02b and a README (main 271886c). No agent is running.
-What is left is Alek's: the "Needs Alek" table in context/foundation/work-packages.md, plus the items in the 19 Nov 21:50 entry of docs/08-orchestrator-log.md.
+## 20 Nov 00:45 status
+All 24 roadmap packages plus P-25 (Claude subscription auth), P-26 (OpenRouter judge, e.g. Jev Router), P-27 (Mikrus VPS deploy kit, two concurrency limits, sandbox caps, `pnpm sandbox:bench`), FLAKY (real conflict bug in decide + sandbox container cleanup) and README are merged; CI green on 9969ed5. No agent is running.
+Next: deploy to Mikrus. Blocked on Alek: GitHub App (S-01-T16), Mikrus subdomain, secrets on the server, gate password; steps in deploy/mikrus/bootstrap.md and the P-27 row of "Needs Alek". Server changes by the orchestrator need Alek's permission rule (the auto-mode classifier blocks root SSH changes).
+
