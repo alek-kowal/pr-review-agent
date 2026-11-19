@@ -64,3 +64,9 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
 - 06:10: P-05r impl-review merged (2ad38d7). It fixed 8 of 10 findings. The critical one: a round could stay "running" forever and block the PR. F10 is deferred to P-15/P-16. **For Alek (F6):** until P-16 nothing caps daily agent spend (one session is capped at $10). If you connect a real ANTHROPIC_API_KEY before then, set a monthly limit in the Anthropic console.
 - P-06f started: a Docker sandbox test fails under parallel load.
 - `supervise.sh` now does handoffs and continuations by itself, and wakes the orchestrator only when a package finishes or blocks.
+- 07:00–07:30: **the disk filled up** (117 MB free) and Docker Desktop hung. The disk was nearly full before tonight; most of Docker's 62 GB belongs to other projects.
+  - Freed: the pnpm store prune (1.3 GB), the Docker build cache (13.9 GB, cache only), and 10 leftover `pra-sbx-*` sandbox containers. Images of other projects (trainplan, mercatify, carollo and others) were not touched.
+  - Docker was force-restarted, because it no longer answered `docker info`. `pra-db-1` was recreated from main: its bind mount pointed at the removed P-01 worktree.
+  - `supervise.sh` now stops with DISK_LOW below 4 GB free.
+  - Follow-up bug: the sandbox tests leave `pra-sbx-*` containers behind (Created/Exited). Their cleanup must remove them.
+  - **For Alek:** about 32 GB of Docker images are reclaimable (`docker system df`), but they belong to your other projects, so that is your call.
