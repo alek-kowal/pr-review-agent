@@ -66,6 +66,9 @@ import {
   analystInputFile,
   API_PORT,
   API_URL,
+  AUTOFIX_FINDINGS,
+  AUTOFIX_PRS,
+  AUTOFIX_REPOSITORY,
   briefFile,
   CLICKUP_REPOSITORY,
   CLICKUP_TASKS,
@@ -102,6 +105,7 @@ import {
   releaseFile,
   SECOND_REPOSITORY,
   SENSITIVE_REPOSITORY,
+  SHADOW_REPOSITORY,
   STATE_FILE,
   TRIAL_PRS,
   TRIAL_RULE_FINDING,
@@ -207,6 +211,11 @@ const VERIFIER_ANSWERS: Record<string, { script?: string; quote?: string }> = {
     quote: "export * from './edges.ts';",
     script: reproduction(1),
   },
+  // autofix.spec.ts: confirmed by a reproduction.
+  [AUTOFIX_FINDINGS.sensitive.title]: {
+    quote: 'export const store = new Map<string, string>();',
+    script: reproduction(0),
+  },
 };
 
 async function verifierAnswer(cwd: string) {
@@ -277,6 +286,13 @@ const loggedSandbox = (log: string): Sandbox => ({
  * reads holds `trialRule(number)`, the Nit gives way to `TRIAL_RULE_FINDING` (instructions.spec.ts).
  */
 async function scriptedReview(number: number, readDirs: readonly string[] = []) {
+  // autofix.spec.ts: one Blocking finding with an obvious fix, so nothing holds level 5.
+  if (inRange(number, AUTOFIX_PRS.fixes) || inRange(number, AUTOFIX_PRS.shadow)) {
+    return { ...SCRIPTED_REVIEW, findings: [AUTOFIX_FINDINGS.fixes] };
+  }
+  if (inRange(number, AUTOFIX_PRS.sensitive)) {
+    return { ...SCRIPTED_REVIEW, findings: [AUTOFIX_FINDINGS.sensitive] };
+  }
   if (number < TRIAL_PRS.from || number > TRIAL_PRS.to) return SCRIPTED_REVIEW;
   for (const dir of readDirs) {
     const rules = await readFile(path.join(dir, 'review-rules.md'), 'utf8').catch(() => '');
@@ -497,6 +513,9 @@ class ScriptedAnalyst implements Analyst {
   }
 }
 
+/** The repositories whose remote is the push remote (push-recheck.spec.ts, autofix.spec.ts). */
+const PUSHED_TO = new Set([PUSH_REPOSITORY.fullName, AUTOFIX_REPOSITORY.fullName]);
+
 /**
  * The GitHub double, plus fresh PR state for PRs the specs only delivered as webhooks: GitHub
  * would answer what those webhooks said, which is the stored row (merge.spec.ts, and the
@@ -516,13 +535,13 @@ class StackGitHub extends FakeGitHubGateway {
     this.#pushRemote = pushRemote;
   }
 
-  /** The push repository's commits are real: GitHub compares them with git in its remote. */
+  /** The push remote's commits are real: GitHub compares them with git in it. */
   override async compareCommits(
     fullName: string,
     base: string,
     head: string,
   ): Promise<CommitComparison> {
-    if (fullName !== PUSH_REPOSITORY.fullName) return super.compareCommits(fullName, base, head);
+    if (!PUSHED_TO.has(fullName)) return super.compareCommits(fullName, base, head);
     const counted = await isolatedGitExec(
       'git',
       ['rev-list', '--left-right', '--count', `${base}...${head}`],
@@ -534,9 +553,9 @@ class StackGitHub extends FakeGitHubGateway {
     return super.compareCommits(fullName, base, head);
   }
 
-  /** The push repository's CI is green at every commit, the pushed ones too. */
+  /** CI in the push remote's repositories is green at every commit, the pushed ones too. */
   override async getCiStatus(fullName: string, sha: string): Promise<CiStatus> {
-    if (fullName === PUSH_REPOSITORY.fullName) {
+    if (PUSHED_TO.has(fullName)) {
       this.setCiChecks(fullName, sha, [{ name: 'build', source: 'check_run', state: 'passed' }]);
     }
     return super.getCiStatus(fullName, sha);
@@ -623,12 +642,16 @@ const [database, fixture] = await Promise.all([
     ],
   }),
 ]);
-// push-recheck.spec.ts: a bare copy of the fixture that accepts pushes, one branch per PR.
+// push-recheck.spec.ts and autofix.spec.ts: a bare copy of the fixture that accepts pushes, one
+// branch per PR.
 const pushRemote = path.join(root, 'push-remote.git');
 const gitPushes = path.join(root, 'git-pushes.jsonl');
 const inRoot = { cwd: root, env: {}, timeout: 30_000 };
 await isolatedGitExec('git', ['clone', '--quiet', '--bare', fixture.dir, pushRemote], inRoot);
-for (let number = PUSH_PRS.from; number <= PUSH_PRS.to; number++) {
+const pushedPrs = [PUSH_PRS, AUTOFIX_PRS.fixes, AUTOFIX_PRS.sensitive].flatMap(({ from, to }) =>
+  Array.from({ length: to - from + 1 }, (_, i) => from + i),
+);
+for (const number of pushedPrs) {
   await isolatedGitExec(
     'git',
     ['-C', pushRemote, 'update-ref', `refs/heads/${pushBranch(number)}`, fixture.headSha],
@@ -662,6 +685,8 @@ const github = new StackGitHub(db, pushRemote, {
     [LEARNING_REPOSITORY.fullName]: LEARNING_REPOSITORY.installationId,
     [README_REPOSITORY.fullName]: README_REPOSITORY.installationId,
     [PUSH_REPOSITORY.fullName]: PUSH_REPOSITORY.installationId,
+    [AUTOFIX_REPOSITORY.fullName]: AUTOFIX_REPOSITORY.installationId,
+    [SHADOW_REPOSITORY.fullName]: SHADOW_REPOSITORY.installationId,
   },
 });
 github.addUser(PUSH_SIGNER.login, PUSH_SIGNER.id);
@@ -718,6 +743,22 @@ await upsertRepository(
   db,
   { slug: PUSH_REPOSITORY.slug, githubFullName: PUSH_REPOSITORY.fullName, defaultLevel: 4 },
   { installationId: PUSH_REPOSITORY.installationId },
+);
+// autofix.spec.ts: level 5 acts by itself, level 3 only writes the shadow log.
+await upsertRepository(
+  db,
+  {
+    slug: AUTOFIX_REPOSITORY.slug,
+    githubFullName: AUTOFIX_REPOSITORY.fullName,
+    defaultLevel: 5,
+    sensitivePatterns: AUTOFIX_REPOSITORY.patterns,
+  },
+  { installationId: AUTOFIX_REPOSITORY.installationId },
+);
+await upsertRepository(
+  db,
+  { slug: SHADOW_REPOSITORY.slug, githubFullName: SHADOW_REPOSITORY.fullName, defaultLevel: 3 },
+  { installationId: SHADOW_REPOSITORY.installationId },
 );
 // implement-patch.spec.ts: level 3 without sensitive files, raised to level 4 per PR.
 await upsertRepository(
@@ -892,7 +933,7 @@ const worker = await startWorker(
     github,
     gitMirror: new CliGitMirror({
       rootDir: path.join(root, 'git'),
-      remoteUrl: (fullName) => (fullName === PUSH_REPOSITORY.fullName ? pushRemote : fixture.dir),
+      remoteUrl: (fullName) => (PUSHED_TO.has(fullName) ? pushRemote : fixture.dir),
       exec: loggedGit,
     }),
     agentRunner: new ScriptedAgents(holdDir, fixture.fixShas, agentCalls),

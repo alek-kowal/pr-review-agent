@@ -143,6 +143,23 @@ questions (orchestrator rule: decide and record).
   fixed F of T" (start), "… and pushed" (push) or "Level 5 would have waited: <reason>".
 - `patch_pushed` and `patch_push_refused` (S-14) got their Timeline sentences here as well.
 
+### S-15-T5 (e2e autofix)
+
+- Own repositories: `autofix-repo` (level 5) and `shadow-repo` (level 3), PRs 210–218 in three
+  ranges (`AUTOFIX_PRS`: fixes, sensitive, shadow). Their review has one Blocking finding the
+  verifier confirms by a reproduction with an obvious fix, so nothing else holds level 5 (the
+  default scripted review has a Not proven finding, which is `unsure_verdicts`).
+- `autofix-repo` shares the push remote and its rules with `push-repo` (`PUSHED_TO`: git compare,
+  green CI at any commit, a branch per PR), so the bot's push is a real fast-forward.
+- The sensitive file is `packages/sdk/src/store.ts`: tracked in the fixture but not in its diff.
+  A sensitive file in the PR's own diff makes the change type a One-way door, which holds autofix
+  at the start (`one_way_door_hold`) before any patch exists; an untracked new file is not seen as
+  patched by the sandbox double, so its reproduction would still "fail".
+- The level 3 case checks the Timeline's "Level 5 would have fixed 1 of 1" and no implementer
+  run here; its Trust ladder count is asserted in S-19-T9, which adds the shadow log there.
+- The level 5 patch cap (P-23's `level.settings.autofixMaxPatches`) was already wired in S-15-T2
+  (`apps/worker/src/run/autofix.ts`), so the "second to merge wires it" note needs nothing more.
+
 ### P-18 review observations applied here
 
 - O3: `canPush` refuses a closed or merged PR (`pr_closed`, from GitHub's fresh state), after the

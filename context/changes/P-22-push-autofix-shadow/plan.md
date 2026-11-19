@@ -355,7 +355,7 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 9.1 autofix.spec.ts passes
+- [x] 9.1 autofix.spec.ts passes
 
 ### Phase 10: S-19-T9
 
