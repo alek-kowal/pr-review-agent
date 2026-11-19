@@ -43,7 +43,11 @@ export function changedLines(diff: string): number {
   return lines;
 }
 
-/** The floor the path and size rules set. The judge may raise it, never lower it. */
+/**
+ * The floor the path and size rules set. The judge may raise it, never lower it. First match
+ * wins: a sensitive file, a one-way path, the size threshold, then the "uses existing" paths
+ * (P `classify.ts:211` checks gated paths before `oneWayPaths` the same way).
+ */
 export function classifyChange({
   files,
   diff,
@@ -53,15 +57,28 @@ export function classifyChange({
   const lines = changedLines(diff);
   const result = (changeType: ChangeType, why: Reason) => ({ changeType, reason: why, lines });
 
-  for (const path of files) {
-    if (firstMatch(path, rules.oneWayPaths)) {
-      return result('one_way_door', reason('path_one_way', { path }));
-    }
-  }
-  for (const path of files) {
+  const sensitive = files.flatMap((path) => {
     const hit = sensitivePatterns.find((s) => matchGlob(path, s.pattern));
-    if (hit)
-      return result('one_way_door', reason('sensitive_one_way', { path, pattern: hit.pattern }));
+    return hit ? [{ path, hit }] : [];
+  });
+  const first = sensitive[0];
+  if (first) {
+    return result(
+      'one_way_door',
+      reason('sensitive_one_way', {
+        path: first.path,
+        pattern: first.hit.pattern,
+        reason: first.hit.reason,
+        files: sensitive.length,
+      }),
+    );
+  }
+  const oneWay = files.filter((path) => firstMatch(path, rules.oneWayPaths));
+  if (oneWay[0] !== undefined) {
+    return result(
+      'one_way_door',
+      reason('path_one_way', { path: oneWay[0], files: oneWay.length }),
+    );
   }
   if (lines > rules.sizeLines) {
     return result(
@@ -69,10 +86,17 @@ export function classifyChange({
       reason('size_over_threshold', { lines, threshold: rules.sizeLines }),
     );
   }
-  const other = files.find((path) => !firstMatch(path, rules.usesExistingPaths));
-  return other === undefined
+  const other = files.filter((path) => !firstMatch(path, rules.usesExistingPaths));
+  return other[0] === undefined
     ? result('uses_existing', reason('paths_uses_existing', { files: files.length }))
-    : result('changes_behaviour', reason('paths_change_behaviour', { path: other }));
+    : result(
+        'changes_behaviour',
+        reason('paths_change_behaviour', {
+          path: other[0],
+          files: other.length,
+          total: files.length,
+        }),
+      );
 }
 
 /**
@@ -111,9 +135,16 @@ export function raiseChangeType(
       };
 }
 
-/** A One-way door always needs a person. */
-export function needsPerson(changeType: ChangeType): Need {
-  return changeType === 'one_way_door'
-    ? { needed: true, reason: reason('one_way_needs_person') }
-    : { needed: false, reason: reason('change_type_no_person', { changeType }) };
+/**
+ * A One-way door always needs a person. That holds when the rules picked it and a person then
+ * forced a lower type: the files the rules flagged still go to a person (P `classify.ts:207`
+ * keeps `extraGated` whatever tier is forced).
+ */
+export function needsPerson(changeType: ChangeType, rulesPicked: ChangeType = changeType): Need {
+  if (changeType === 'one_way_door')
+    return { needed: true, reason: reason('one_way_needs_person') };
+  if (rulesPicked === 'one_way_door') {
+    return { needed: true, reason: reason('one_way_rules_need_person', { forced: changeType }) };
+  }
+  return { needed: false, reason: reason('change_type_no_person', { changeType }) };
 }
