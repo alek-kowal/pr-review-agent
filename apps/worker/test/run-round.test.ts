@@ -254,9 +254,10 @@ describe('run.stage', () => {
   });
 
   test('the level’s stage timeout aborts the session and fails with stage_timeout', async () => {
+    // Under load the 180 ms timeout can fire before the session starts: then it ends at once.
     const waitForAbort: FakeAgentStep = (input) =>
       new Promise((resolve) => {
-        input.signal!.addEventListener('abort', () =>
+        const end = () =>
           resolve({
             status: 'cancelled',
             output: null,
@@ -267,8 +268,9 @@ describe('run.stage', () => {
             turns: 2,
             durationMs: 180,
             transcript: [],
-          }),
-        );
+          });
+        if (input.signal!.aborted) end();
+        else input.signal!.addEventListener('abort', end);
       });
     deps.agentRunner.enqueue(waitForAbort);
     const run = await queueRunWith({ 1: { stageTimeoutMinutes: 0.003 } });
@@ -337,18 +339,22 @@ describe('restart', () => {
     expect(review).toMatchObject({ status: 'failed', errorCode: 'interrupted' });
   });
 
-  test('a queued run whose job was lost gets its first stage job again', async () => {
-    const repository = await connectRepository(deps.db);
-    const { pullRequest } = await upsertPullRequest(
-      deps.db,
-      aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
-    );
-    const run = await insertRun(deps.db, aRun(pullRequest.id, { headSha: fixture.headSha }));
-    deps.agentRunner.enqueue({ output: ANSWER });
+  test(
+    'a queued run whose job was lost gets its first stage job again',
+    { timeout: 30_000 },
+    async () => {
+      const repository = await connectRepository(deps.db);
+      const { pullRequest } = await upsertPullRequest(
+        deps.db,
+        aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
+      );
+      const run = await insertRun(deps.db, aRun(pullRequest.id, { headSha: fixture.headSha }));
+      deps.agentRunner.enqueue({ output: ANSWER });
 
-    const recovered = await recoverRuns(deps);
+      const recovered = await recoverRuns(deps);
 
-    expect(recovered.resent).toContain(run.id);
-    expect((await settled(run.id)).status).toBe('completed');
-  });
+      expect(recovered.resent).toContain(run.id);
+      expect((await settled(run.id)).status).toBe('completed');
+    },
+  );
 });

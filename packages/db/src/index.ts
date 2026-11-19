@@ -41,3 +41,4 @@ export {
   STAGE_STATUSES,
   type CostSource,
 } from './schema/runs.ts';
+export { TASK_LINK_HOWS, type TaskLinkHow } from './schema/clickup.ts';

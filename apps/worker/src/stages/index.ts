@@ -3,11 +3,13 @@
 // executor fails with `stage_not_available`.
 import { checksStage } from './checks.ts';
 import { reviewStage } from './review/index.ts';
+import { taskStage } from './task.ts';
 import type { StageExecutor } from './stage.ts';
 
 export type StageExecutors = Readonly<Record<string, StageExecutor>>;
 
 export const STAGE_EXECUTORS: StageExecutors = {
   [checksStage.key]: checksStage,
+  [taskStage.key]: taskStage,
   [reviewStage.key]: reviewStage,
 };

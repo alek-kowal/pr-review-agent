@@ -47,3 +47,24 @@ listed order.
 - The package cache is `<dataDir>/cache/<repository slug>`.
 - The run-round test "a stage without an executor fails with `stage_not_available`" now runs
   `executeStage` directly on deps without the Checks executor, since every round stage has one.
+
+### S-06-T3 (Task stage)
+
+- Order: a stored link (from an earlier round or by hand) wins and its task is read again; else
+  an id in the branch (`how = branch`), then in the title (`title`), each checked with `getTask`;
+  else the search for a task that mentions `https://github.com/<owner>/<name>/pull/<n>`
+  (`search`). A new link is stored with `linked_by = bot` and the custom id when the task has one.
+- A missing `CLICKUP_API_KEY` is treated like a repository without ClickUp (`not_configured`,
+  `params.missing` names what is missing) and the round goes on; `clickup_error` and
+  `clickup_auth_failed` fail the stage. A stored link whose task is gone gives `no_task` with
+  `linked_task_not_found`.
+- Stage output: `{status: 'linked', how, task: {id, customId, name, url, status, description}}`
+  (description cut at 20,000 characters) or `{status: 'not_configured' | 'no_task', reason}`.
+  Worker reason codes are plain `{code, params}` (like stage errors), not core reason codes.
+- The reviewer gets the task through a context provider (`stages/review/task-context.ts`,
+  section "ClickUp task"); `taskOfRun`/`taskText` give it to the judge and the verifier.
+- `FakeClickUpGateway` got `failNext` and `callsOf`; `@pra/db` got `getTaskLink`,
+  `upsertTaskLink` and `succeededStageOutput`.
+- `run-round.test.ts` (P-05): the stage-timeout test no longer waits forever when the 180 ms
+  timeout fires before the session starts (it hung under parallel load and blocked the file's
+  `afterAll`); the lost-job test gets a 30 s timeout like its `settled` wait.

@@ -26,6 +26,7 @@ export class FakeClickUpGateway implements ClickUpGateway {
   readonly calls: ClickUpCall[] = [];
   readonly tasks = new Map<string, ClickUpTask>();
   readonly #unconfigured: boolean;
+  readonly #failures = new Map<ClickUpCall['method'], Error[]>();
   #nextId = 1;
 
   constructor(options: { tasks?: ClickUpTask[]; unconfigured?: boolean } = {}) {
@@ -33,9 +34,22 @@ export class FakeClickUpGateway implements ClickUpGateway {
     this.#unconfigured = options.unconfigured ?? false;
   }
 
+  /** The next call of `method` rejects with `error` (after the settings check). */
+  failNext(method: ClickUpCall['method'], error: Error): this {
+    this.#failures.set(method, [...(this.#failures.get(method) ?? []), error]);
+    return this;
+  }
+
+  callsOf<M extends ClickUpCall['method']>(method: M): Extract<ClickUpCall, { method: M }>[] {
+    return this.calls.filter(
+      (call): call is Extract<ClickUpCall, { method: M }> => call.method === method,
+    );
+  }
+
   async getTask(settings: ClickUpSettings | null, id: string): Promise<ClickUpTask | null> {
     this.#check(settings);
     this.calls.push({ method: 'getTask', id });
+    this.#fail('getTask');
     return this.#find(id);
   }
 
@@ -45,6 +59,7 @@ export class FakeClickUpGateway implements ClickUpGateway {
   ): Promise<ClickUpTask | null> {
     this.#check(settings);
     this.calls.push({ method: 'findTaskMentioningPr', prUrl });
+    this.#fail('findTaskMentioningPr');
     const mentions = new RegExp(`${prUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\d)`);
     return [...this.tasks.values()].find((task) => mentions.test(task.description)) ?? null;
   }
@@ -61,6 +76,7 @@ export class FakeClickUpGateway implements ClickUpGateway {
       text: comment.text,
       mentionUserId: comment.mentionUserId ?? null,
     });
+    this.#fail('createComment');
     return { id: `comment-${this.#nextId++}` };
   }
 
@@ -72,6 +88,7 @@ export class FakeClickUpGateway implements ClickUpGateway {
     this.#check(settings);
     const parentId = task.parentId ?? null;
     this.calls.push({ method: 'createTask', listId, ...task, parentId });
+    this.#fail('createTask');
     const id = `task-${this.#nextId++}`;
     const url = `https://app.clickup.com/t/${id}`;
     this.tasks.set(id, {
@@ -84,6 +101,11 @@ export class FakeClickUpGateway implements ClickUpGateway {
       listId,
     });
     return { id, url };
+  }
+
+  #fail(method: ClickUpCall['method']): void {
+    const failure = this.#failures.get(method)?.shift();
+    if (failure) throw failure;
   }
 
   #find(id: string): ClickUpTask | null {
