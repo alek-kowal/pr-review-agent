@@ -1,0 +1,132 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { IntegrationError } from '../errors.ts';
+import {
+  GITHUB_APP_NOT_INSTALLED,
+  toPullRequest,
+  type GitHubGateway,
+  type GitHubPullRequest,
+  type InstallationToken,
+  type RawPullRequest,
+} from '../github/index.ts';
+
+/** The `X-Hub-Signature-256` value GitHub sends for `body` signed with `secret`. */
+export function signWebhook(body: string | Uint8Array, secret: string): string {
+  return `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
+}
+
+export const GITHUB_FIXTURES = [
+  'ping',
+  'pull_request.opened',
+  'pull_request.opened-draft',
+  'pull_request.opened-fork',
+  'pull_request.ready_for_review',
+  'pull_request.synchronize',
+  'pull_request.closed',
+  'pull_request.reopened',
+] as const;
+export type GitHubFixtureName = (typeof GITHUB_FIXTURES)[number];
+
+export type GitHubFixture = {
+  /** The `X-GitHub-Event` header value. */
+  event: 'ping' | 'pull_request';
+  /** The raw body, as GitHub sends it (sign this, not a re-serialised payload). */
+  body: string;
+  payload: Record<string, unknown>;
+};
+
+/**
+ * A trimmed webhook delivery from `fixtures/github/` (WB-like values: `synergycodes/workflowbuilder`,
+ * PR 312, installation 55500001; the fork variant is PR 313 from `outside-dev/workflowbuilder`).
+ */
+export function githubFixture(name: GitHubFixtureName): GitHubFixture {
+  const body = readFileSync(new URL(`./fixtures/github/${name}.json`, import.meta.url), 'utf8');
+  const event = name === 'ping' ? 'ping' : 'pull_request';
+  return { event, body, payload: JSON.parse(body) as Record<string, unknown> };
+}
+
+/** The PR snapshot inside a `pull_request` fixture. */
+export function fixturePullRequest(name: Exclude<GitHubFixtureName, 'ping'>): GitHubPullRequest {
+  return toPullRequest(githubFixture(name).payload.pull_request as RawPullRequest);
+}
+
+type Method = keyof GitHubGateway;
+export type GitHubCall = { method: Method; args: unknown[] };
+
+/**
+ * In-memory `GitHubGateway` for tests. It records every call, verifies signatures with a real
+ * HMAC over its `webhookSecret`, serves the PRs and installations it was given, and fails a
+ * method once when told to.
+ */
+export class FakeGitHubGateway implements GitHubGateway {
+  readonly webhookSecret: string;
+  readonly calls: GitHubCall[] = [];
+  readonly comments: Array<{ fullName: string; number: number; body: string; id: number }> = [];
+  readonly installations = new Map<string, number>();
+  readonly pullRequests = new Map<string, GitHubPullRequest>();
+  readonly #failures = new Map<Method, Error[]>();
+  #nextId = 1;
+
+  constructor(options: { webhookSecret?: string; installations?: Record<string, number> } = {}) {
+    this.webhookSecret = options.webhookSecret ?? 'test-webhook-secret';
+    for (const [fullName, id] of Object.entries(options.installations ?? {})) {
+      this.installations.set(fullName, id);
+    }
+  }
+
+  addPullRequest(pr: GitHubPullRequest): this {
+    this.pullRequests.set(`${pr.fullName}#${pr.number}`, pr);
+    return this;
+  }
+
+  /** The next call of `method` rejects with `error`. */
+  failNext(method: Method, error: Error): this {
+    this.#failures.set(method, [...(this.#failures.get(method) ?? []), error]);
+    return this;
+  }
+
+  callsOf(method: Method): unknown[][] {
+    return this.calls.filter((call) => call.method === method).map((call) => call.args);
+  }
+
+  async verifyWebhook(rawBody: string | Uint8Array, signature: string | undefined) {
+    this.#record('verifyWebhook', [rawBody, signature]);
+    if (!signature) return false;
+    const expected = Buffer.from(signWebhook(rawBody, this.webhookSecret));
+    const given = Buffer.from(signature);
+    return expected.length === given.length && timingSafeEqual(expected, given);
+  }
+
+  async getRepoInstallationId(fullName: string) {
+    this.#record('getRepoInstallationId', [fullName]);
+    return this.installations.get(fullName) ?? null;
+  }
+
+  async getInstallationToken(installationId: number): Promise<InstallationToken> {
+    this.#record('getInstallationToken', [installationId]);
+    return { token: `fake-token-${installationId}`, expiresAt: new Date(Date.now() + 3_600_000) };
+  }
+
+  async getPullRequest(fullName: string, number: number) {
+    this.#record('getPullRequest', [fullName, number]);
+    const pr = this.pullRequests.get(`${fullName}#${number}`);
+    if (!pr) throw Object.assign(new Error(`Not Found: ${fullName}#${number}`), { status: 404 });
+    return pr;
+  }
+
+  async postIssueComment(fullName: string, number: number, body: string) {
+    this.#record('postIssueComment', [fullName, number, body]);
+    if (!this.installations.has(fullName)) {
+      throw new IntegrationError(GITHUB_APP_NOT_INSTALLED, { fullName });
+    }
+    const id = this.#nextId++;
+    this.comments.push({ fullName, number, body, id });
+    return { id };
+  }
+
+  #record(method: Method, args: unknown[]): void {
+    this.calls.push({ method, args });
+    const failure = this.#failures.get(method)?.shift();
+    if (failure) throw failure;
+  }
+}

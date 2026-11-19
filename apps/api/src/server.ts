@@ -10,7 +10,21 @@ export function serverOptions(env: NodeJS.ProcessEnv = process.env): FastifyServ
     // A caller's (or proxy's) X-Request-Id is kept; otherwise each request gets a UUID.
     requestIdHeader: 'x-request-id',
     genReqId: () => randomUUID(),
+    trustProxy: trustProxyFrom(env.TRUST_PROXY),
   };
+}
+
+/**
+ * `TRUST_PROXY`: comma-separated proxy addresses or CIDRs (or proxy-addr names such as
+ * `loopback`) whose `X-Forwarded-*` headers count. Unset: none do, so `request.host` is the
+ * `Host` header and a client cannot spoof it with `X-Forwarded-Host` (CSRF check).
+ */
+export function trustProxyFrom(value: string | undefined): false | string[] {
+  const proxies = (value ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return proxies.length > 0 ? proxies : false;
 }
 
 /** A Fastify instance with the app registered on `deps`, not yet listening. */

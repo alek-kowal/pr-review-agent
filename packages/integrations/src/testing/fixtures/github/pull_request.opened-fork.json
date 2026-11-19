@@ -1,0 +1,95 @@
+{
+  "action": "opened",
+  "number": 313,
+  "pull_request": {
+    "id": 2100000313,
+    "number": 313,
+    "state": "open",
+    "locked": false,
+    "title": "Add edge label editing",
+    "body": "Lets users rename an edge label inline.\n\nClickUp: https://app.clickup.com/t/86c0abcde",
+    "html_url": "https://github.com/synergycodes/workflowbuilder/pull/313",
+    "user": {
+      "login": "outside-dev",
+      "id": 9000099,
+      "type": "User"
+    },
+    "draft": false,
+    "created_at": "2026-11-18T09:00:00Z",
+    "updated_at": "2026-11-18T10:00:00Z",
+    "closed_at": null,
+    "merged_at": null,
+    "merged": false,
+    "commits": 2,
+    "additions": 120,
+    "deletions": 14,
+    "changed_files": 5,
+    "head": {
+      "label": "outside-dev:feature/edge-labels",
+      "ref": "feature/edge-labels",
+      "sha": "2222222222222222222222222222222222222222",
+      "user": {
+        "login": "outside-dev",
+        "id": 9000099,
+        "type": "User"
+      },
+      "repo": {
+        "id": 700000099,
+        "name": "workflowbuilder",
+        "full_name": "outside-dev/workflowbuilder",
+        "private": false,
+        "owner": {
+          "login": "outside-dev",
+          "id": 9000099,
+          "type": "User"
+        },
+        "default_branch": "main",
+        "fork": true
+      }
+    },
+    "base": {
+      "label": "synergycodes:main",
+      "ref": "main",
+      "sha": "1111111111111111111111111111111111111111",
+      "user": {
+        "login": "synergycodes",
+        "id": 9000001,
+        "type": "Organization"
+      },
+      "repo": {
+        "id": 700000001,
+        "name": "workflowbuilder",
+        "full_name": "synergycodes/workflowbuilder",
+        "private": false,
+        "owner": {
+          "login": "synergycodes",
+          "id": 9000001,
+          "type": "Organization"
+        },
+        "default_branch": "main",
+        "fork": false
+      }
+    }
+  },
+  "repository": {
+    "id": 700000001,
+    "name": "workflowbuilder",
+    "full_name": "synergycodes/workflowbuilder",
+    "private": false,
+    "owner": {
+      "login": "synergycodes",
+      "id": 9000001,
+      "type": "Organization"
+    },
+    "default_branch": "main",
+    "fork": false
+  },
+  "installation": {
+    "id": 55500001
+  },
+  "sender": {
+    "login": "outside-dev",
+    "id": 9000099,
+    "type": "User"
+  }
+}

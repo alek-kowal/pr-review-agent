@@ -2,6 +2,7 @@
 // gracefully on SIGTERM or SIGINT.
 import { closeDb, createDb, createQueue } from '@pra/db';
 import { createLogger } from '@pra/integrations/logging';
+import { startHeartbeat, type Heartbeat } from './health/heartbeat.ts';
 import { startWorker } from './worker.ts';
 
 const logger = createLogger('worker');
@@ -25,12 +26,21 @@ try {
   process.exit(1);
 }
 
+// Only in containers (deploy/compose.yaml sets it): the healthcheck reads the file's age.
+const heartbeatFile = process.env.WORKER_HEARTBEAT_FILE;
+const heartbeat: Heartbeat | undefined = heartbeatFile
+  ? startHeartbeat(heartbeatFile, {
+      onError: (error) => logger.warn({ err: error }, 'heartbeat write failed'),
+    })
+  : undefined;
+
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     if (stopping) return;
     stopping = true;
     logger.info({ signal }, 'worker stopping');
+    heartbeat?.stop();
     void worker
       .stop()
       .then(() => closeDb(db))

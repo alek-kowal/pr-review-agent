@@ -1,0 +1,128 @@
+# Single-VM deploy (F-04). Build context is the repository root. Secrets reach only api, worker
+# and migrate, through the env file the secret store writes (`PRA_ENV_FILE`, default `app.env`
+# next to this file; names in `app.env.example`). See deploy/README.md.
+name: pra-deploy
+
+x-app-env: &app-env
+  env_file:
+    - path: ${PRA_ENV_FILE:-app.env}
+      required: true
+
+x-local-db:
+  &local-db # Only in the `local` profile; on the VM the database is external (DATABASE_URL).
+  postgres:
+    condition: service_healthy
+    required: false
+  minio-init:
+    condition: service_completed_successfully
+    required: false
+
+services:
+  web:
+    build: { context: .., dockerfile: apps/web/Dockerfile }
+    image: ${PRA_IMAGE_PREFIX:-pra}-web:${PRA_TAG:-latest}
+    restart: unless-stopped
+    # TLS and the access gate sit in front of this port (F-04-T7).
+    ports:
+      - '127.0.0.1:${PRA_WEB_PORT:-8080}:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build: { context: .., dockerfile: apps/api/Dockerfile }
+    image: ${PRA_IMAGE_PREFIX:-pra}-api:${PRA_TAG:-latest}
+    restart: unless-stopped
+    <<: *app-env
+    environment:
+      GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github_app_key
+    secrets: [github_app_key]
+    depends_on: *local-db
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    build: { context: .., dockerfile: apps/worker/Dockerfile }
+    image: ${PRA_IMAGE_PREFIX:-pra}-worker:${PRA_TAG:-latest}
+    restart: unless-stopped
+    <<: *app-env
+    environment:
+      GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github_app_key
+      WORKER_HEARTBEAT_FILE: /tmp/pra-worker.heartbeat
+    secrets: [github_app_key]
+    volumes:
+      - git-data:/app/.data/git
+    depends_on: *local-db
+    healthcheck:
+      test: ['CMD', 'node', 'dist/health/healthcheck.js']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Applies Drizzle migrations and the pg-boss schema once: `docker compose run --rm migrate`.
+  # Never part of `up` (profile `tools`), so nothing migrates on start.
+  migrate:
+    profiles: [tools]
+    image: ${PRA_IMAGE_PREFIX:-pra}-api:${PRA_TAG:-latest}
+    <<: *app-env
+    command: ['node', 'node_modules/@pra/db/dist/cli/migrate.js']
+    restart: 'no'
+    depends_on: *local-db
+
+  # --- `local` profile: rehearse the deploy on a laptop (PRA_ENV_FILE=local.env). ---
+  postgres:
+    profiles: [local]
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pra
+      POSTGRES_PASSWORD: pra
+      POSTGRES_DB: pra
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pra -d pra']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  minio:
+    profiles: [local]
+    image: cgr.dev/chainguard/minio:latest
+    restart: unless-stopped
+    command: ['server', '/data']
+    environment:
+      MINIO_ROOT_USER: pra
+      MINIO_ROOT_PASSWORD: pra-local-only
+    volumes:
+      - minio-data:/data
+
+  # Creates the bucket; retried until MinIO answers.
+  minio-init:
+    profiles: [local]
+    image: cgr.dev/chainguard/minio-client:latest
+    environment:
+      MC_HOST_local: http://pra:pra-local-only@minio:9000
+    command: ['mb', '--ignore-existing', 'local/pra']
+    restart: on-failure
+    depends_on: [minio]
+
+secrets:
+  # Read-only at /run/secrets/github_app_key. Without the file the GitHub integration reports
+  # itself not configured.
+  github_app_key:
+    file: ${GITHUB_APP_PRIVATE_KEY_FILE:-/dev/null}
+
+volumes:
+  git-data:
+  pg-data:
+  minio-data:

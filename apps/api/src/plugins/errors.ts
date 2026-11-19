@@ -1,3 +1,4 @@
+import { reportError } from '@pra/integrations/observability';
 import fp from 'fastify-plugin';
 import type { FastifyError, FastifyReply } from 'fastify';
 import { z } from 'zod/v4';
@@ -8,6 +9,8 @@ export const ApiErrorCode = {
   InternalError: 'internal_error',
   RepositoryNotFound: 'repository_not_found',
   PrNotFound: 'pr_not_found',
+  /** A state-changing request without `X-PRA-Request: 1` and a same-host `Origin` (csrf.ts). */
+  CsrfRejected: 'csrf_rejected',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
@@ -27,7 +30,7 @@ export const ApiErrorSchema = z.object({
   }),
 });
 
-function errorBody(code: ApiErrorCode, params: Record<string, unknown> = {}): ApiErrorBody {
+export function errorBody(code: ApiErrorCode, params: Record<string, unknown> = {}): ApiErrorBody {
   return { error: { code, params } };
 }
 
@@ -45,7 +48,8 @@ export function sendError(
  * The one error handler. Every error leaves the API as `{ error: { code, params } }`:
  * - schema validation errors: 400 `invalid_request`, params `{ part, issues: [{ path, code }] }`
  * - other client errors (4xx, e.g. malformed JSON): same status, `invalid_request`, no params
- * - anything else: 500 `internal_error`, no params; the error is logged, never sent
+ * - anything else: 500 `internal_error`, no params; the error is logged and reported to Sentry
+ *   (when SENTRY_DSN is set), never sent to the client
  */
 export default fp(
   async (fastify) => {
@@ -70,6 +74,7 @@ export default fp(
       }
 
       request.log.error({ err: error }, 'unexpected error');
+      reportError(error, { method: request.method, route: request.routeOptions.url });
       return reply.code(500).send(errorBody(ApiErrorCode.InternalError));
     });
   },

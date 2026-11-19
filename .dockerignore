@@ -1,0 +1,22 @@
+# Build context for apps/*/Dockerfile (context = repository root).
+**/node_modules
+**/dist
+**/.vite
+**/coverage
+**/*.log
+**/.DS_Store
+.git
+.github
+.claude
+.env
+.env.*
+deploy/*.env
+!deploy/local.env
+context
+docs
+e2e
+prototype
+test-results
+playwright-report
+blob-report
+.data

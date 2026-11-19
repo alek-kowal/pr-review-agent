@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --env-file-if-exists=../../.env src/main.ts",
+    "dev": "node --watch --env-file-if-exists=../../.env --import ./src/instrument.ts src/main.ts",
+    "build": "pnpm run clean && tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\"",
+    "start": "node --import ./dist/instrument.js dist/main.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

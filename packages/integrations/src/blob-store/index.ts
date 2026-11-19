@@ -13,3 +13,5 @@ export {
   localBlobStoreFromEnv,
   resolveBlobDir,
 } from './local-blob-store.ts';
+export { createBlobStore } from './create-blob-store.ts';
+export { S3BlobStore, s3ClientConfigFromEnv, type S3BlobStoreOptions } from './s3-blob-store.ts';
