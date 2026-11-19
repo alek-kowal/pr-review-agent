@@ -92,6 +92,13 @@
       "when": 1795071617785,
       "tag": "0012_metric_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795072116347,
+      "tag": "0013_chains_sensitive_files",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,9 @@ import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
 import { RoundProgress } from '@/features/round/RoundProgress.tsx';
 import { Checklist } from './Checklist.tsx';
 import { DecideAction } from './DecideAction.tsx';
+import { StartReviewHeaderAction, StartReviewMainAction } from '@/features/rounds/StartReview.tsx';
+import { SensitiveAction } from '@/features/sensitive/SensitiveAction.tsx';
+import { SensitiveBannerLine, SensitivePanel } from '@/features/sensitive/SensitivePanel.tsx';
 import type { PrTabProps } from './tabs.ts';
 
 export type PrSlotProps = PrTabProps;
@@ -18,13 +21,18 @@ export type PrPanel = PrSlot & { shows: (view: PrView) => boolean };
  */
 export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActionProps>>> = {
   decide: DecideAction,
+  start_review: StartReviewMainAction,
+  approve_sensitive: SensitiveAction,
 };
 
 /**
  * Secondary lines inside the Next step banner, under its title (extension point from P-08): PR
  * alerts, the live cost counter, a failure's details. A line renders nothing when it has nothing.
  */
-export const BANNER_LINES: PrSlot[] = [{ key: 'round-progress', Component: RoundProgress }];
+export const BANNER_LINES: PrSlot[] = [
+  { key: 'round-progress', Component: RoundProgress },
+  { key: 'sensitive', Component: SensitiveBannerLine },
+];
 
 /**
  * Panels in the PR page's side column, in order (extension point from P-08). The column shows
@@ -32,8 +40,11 @@ export const BANNER_LINES: PrSlot[] = [{ key: 'round-progress', Component: Round
  */
 export const PR_PANELS: PrPanel[] = [
   { key: 'checklist', Component: Checklist, shows: (view) => view.nextStep.lane !== null },
+  { key: 'sensitive', Component: SensitivePanel, shows: (view) => view.sensitive.files.length > 0 },
   { key: 'clickup-task', Component: TaskPanel, shows: (view) => view.pullRequest.state === 'open' },
 ];
 
 /** Quiet buttons in the PR header, before the GitHub link (extension point from P-08). */
-export const PR_HEADER_ACTIONS: PrSlot[] = [];
+export const PR_HEADER_ACTIONS: PrSlot[] = [
+  { key: 'start-review', Component: StartReviewHeaderAction },
+];

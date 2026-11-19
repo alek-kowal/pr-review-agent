@@ -43,6 +43,16 @@ export const ApiErrorCode = {
   /** Undo after one of the batch's findings changed (`params.findingIds`). */
   DecisionChangedSince: 'decision_changed_since',
   DecisionAlreadyUndone: 'decision_already_undone',
+  /** A start while a run of the PR is queued or running (`params.kind`, `params.status`). */
+  RunActive: 'run_active',
+  /** A start on a merged or closed PR. */
+  PrClosed: 'pr_closed',
+  /** Send back without a comment. */
+  CommentRequired: 'comment_required',
+  /** The PR's sensitive files changed since the person saw them (`params.version`). */
+  SensitiveStale: 'sensitive_stale',
+  /** Approve or send back when every sensitive file is already approved, or there is none. */
+  SensitiveNothingPending: 'sensitive_nothing_pending',
   /** What was typed is neither a ClickUp task id nor a task link. */
   TaskRefInvalid: 'task_ref_invalid',
   /** ClickUp has no task with this id. */

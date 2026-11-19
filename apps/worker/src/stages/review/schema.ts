@@ -56,6 +56,16 @@ export const reviewOutputSchema = z.object({
     }),
   ),
   notChecked: z.array(text).max(5),
+  fixes: z
+    .array(
+      z.object({
+        findingId: z.number().int(),
+        resolved: z.boolean(),
+        reason: text.describe('One or two sentences: what the fix does or misses.'),
+      }),
+    )
+    .optional()
+    .describe('Only when the brief lists earlier findings decided Implement: one entry per id.'),
 });
 
 export type ReviewOutput = z.infer<typeof reviewOutputSchema>;

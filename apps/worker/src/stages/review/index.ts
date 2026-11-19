@@ -9,7 +9,8 @@ import {
   type ChangeType,
   type FrozenLevel,
 } from '@pra/core';
-import { activeInstructions, getAppSettings, readRepositoryConfig } from '@pra/db';
+import { fixStatuses } from '@pra/agents';
+import { activeInstructions, fixTargetsOfRun, getAppSettings, readRepositoryConfig } from '@pra/db';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { changeTypeOfRun, changeTypeWhy } from '../change-type.ts';
@@ -115,10 +116,14 @@ async function runReview(context: StageContext): Promise<StageResult> {
       sessions,
     };
   }
+  // US-05: a full review also says whether the earlier Implement findings are resolved now.
+  const answers = result.output.fixes ?? [];
+  const earlier = answers.length ? (await fixTargetsOfRun(deps.db, run)).findings : [];
   return {
     status: 'succeeded',
     sessions,
     ...mapReview(result.output, level, changeType?.changeType ?? null),
+    fixChecks: fixStatuses(earlier, answers, { answeredOnly: true }),
   };
 }
 

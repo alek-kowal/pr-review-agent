@@ -1,6 +1,6 @@
 // What a stage executor gets and returns. The `run.stage` handler (src/run/execute-stage.ts)
 // writes the result; executors only read and compute.
-import type { AgentRunResult } from '@pra/agents';
+import type { AgentRunResult, FixStatus } from '@pra/agents';
 import type { AgentRole, FrozenLevel, Severity } from '@pra/core';
 import type { PullRequest, Repository, Run } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
@@ -55,6 +55,8 @@ export type StageResult =
       questions: StageQuestion[];
       /** What the reviewer says it did not check; stored on the run. */
       notChecked: string[];
+      /** Resolved / Not resolved per finding decided Implement (S-07-T3); replaces this round's. */
+      fixChecks?: FixStatus[];
     }
   | { status: 'failed'; error: StageError; sessions: SessionRecord[]; output?: unknown };
 

@@ -17,7 +17,7 @@ import {
   isolatedGitExec,
 } from '@pra/integrations/testing';
 import { randomBytes } from 'node:crypto';
-import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { buildServer } from '../../apps/api/src/server.ts';
@@ -31,6 +31,7 @@ import {
   LEVEL_TWO_REPOSITORY,
   releaseFile,
   SECOND_REPOSITORY,
+  SENSITIVE_REPOSITORY,
   STATE_FILE,
   VERIFIED_REPOSITORY,
   type StackState,
@@ -143,35 +144,75 @@ async function waitForFile(file: string, ms: number): Promise<void> {
   }
 }
 
+/** The reviewer of a fix check at this head leaves the first finding unresolved (chains.spec.ts). */
+const FIX_NOT_RESOLVED_AT = 1;
+
 /**
- * The reviewer reads the PR number from the brief and answers per number: from
+ * Answers per session kind. A full review reads the PR number from the brief: from
  * `FAILING_PR_FROM`, invalid; in `HELD_PRS`, one reported turn, then the review once the spec
- * releases it. The verifier answers per finding title.
+ * releases it; while `hold-<number>` exists in `holdDir` it waits. A fix check (no brief,
+ * `findings.json`) resolves every finding, except at `fixShas[FIX_NOT_RESOLVED_AT]`, where the
+ * first stays unresolved. The verifier answers per finding title.
  */
 class ScriptedAgents implements AgentRunner {
+  readonly #holdDir: string;
+  readonly #fixShas: readonly string[];
+
+  constructor(holdDir: string, fixShas: readonly string[]) {
+    this.#holdDir = holdDir;
+    this.#fixShas = fixShas;
+  }
+
   async run<T>(input: AgentRunInput<T>): Promise<AgentRunResult<T>> {
     if (input.role === 'verifier') {
       const output = await verifierAnswer(input.cwd);
       return new FakeAgentRunner([{ output, costUsd: 0.05, turns: 3 }]).run(input);
     }
-    const brief = await readFile(path.join(input.cwd, 'brief.md'), 'utf8');
+    const brief = await readFile(path.join(input.cwd, 'brief.md'), 'utf8').catch(() => null);
+    if (brief === null) return this.#checkFixes(input);
+
     const number = Number(/PR #(\d+)/.exec(brief)?.[1]);
     if (number >= HELD_PRS.from && number <= HELD_PRS.to) {
       input.onProgress?.({ turns: 1, costUsd: HELD_TURN_COST_USD, usage: NO_USAGE });
       await waitForFile(releaseFile(number), 120_000);
     }
+    await this.#whileHeld(number, input.signal);
     const step =
       number >= FAILING_PR_FROM
         ? { output: { summary: 'not a review' }, costUsd: 0.04 }
         : { output: SCRIPTED_REVIEW, costUsd: 0.31, turns: 6 };
     return new FakeAgentRunner([step]).run(input);
   }
+
+  async #checkFixes<T>(input: AgentRunInput<T>): Promise<AgentRunResult<T>> {
+    const findings = JSON.parse(await readFile(path.join(input.cwd, 'findings.json'), 'utf8')) as {
+      id: number;
+    }[];
+    const missAt = this.#fixShas[FIX_NOT_RESOLVED_AT];
+    const missOne = missAt !== undefined && input.prompt.includes(`new head ${missAt}`);
+    const fixes = findings.map(({ id }, i) => ({
+      findingId: id,
+      resolved: !(missOne && i === 0),
+      reason: missOne && i === 0 ? 'The fix misses the empty case.' : 'The fix handles it.',
+    }));
+    return new FakeAgentRunner([{ output: { fixes }, costUsd: 0.12 }]).run(input);
+  }
+
+  async #whileHeld(number: number, signal?: AbortSignal): Promise<void> {
+    const flag = path.join(this.#holdDir, `hold-${number}`);
+    while (!signal?.aborted && (await stat(flag).catch(() => null))) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
 }
 
 const logger = createLogger('e2e', { LOG_LEVEL: process.env.LOG_LEVEL ?? 'warn' });
 const root = await mkdtemp(path.join(tmpdir(), 'pra-e2e-'));
+const holdDir = path.join(root, 'hold');
+await mkdir(holdDir);
 // The feature branch also adds a migration: a sensitive file for a repository whose settings say
-// so (connect-repo.spec.ts), an ordinary file for the others.
+// so (connect-repo.spec.ts), an ordinary file for the others. Three pushes follow the reviewed
+// head (chains.spec.ts).
 const [database, fixture] = await Promise.all([
   createTestDatabase(),
   createGitFixture({
@@ -179,6 +220,15 @@ const [database, fixture] = await Promise.all([
       ...DEFAULT_FEATURE_FILES,
       'db/migrations/0001_edge_labels.sql': 'alter table edges add column label text;\n',
     },
+    fixes: [
+      {
+        'apps/demo/src/edges.ts':
+          'export const label = (edge: { name: string; id: string }) =>\n' +
+          '  edge.name.trim() || edge.id;\n',
+      },
+      { 'packages/sdk/src/history.ts': 'export const renameStep = (name: string) => name;\n' },
+      { 'packages/sdk/src/history.ts': 'export const renameStep = (to: string) => ({ to });\n' },
+    ],
   }),
 ]);
 const db = createDb(database.url, { max: 5 });
@@ -192,8 +242,19 @@ const github = new FakeGitHubGateway({
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
     [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
     [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
+    [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
   },
 });
+// GitHub's compare on the branch's commits, as the worker measures commits since a review.
+const branch = [fixture.headSha, ...fixture.fixShas];
+for (const [i, base] of branch.entries()) {
+  for (const [j, head] of branch.entries()) {
+    if (j <= i) continue;
+    for (const fullName of [FULL_NAME, SENSITIVE_REPOSITORY.fullName]) {
+      github.setComparison(fullName, base, head, j - i);
+    }
+  }
+}
 const blobStore = new LocalBlobStore(path.join(root, 'blobs'));
 
 const repository = await upsertRepository(db, {
@@ -226,6 +287,16 @@ await upsertRepository(
   },
   { installationId: LEVEL_TWO_REPOSITORY.installationId },
 );
+await upsertRepository(
+  db,
+  {
+    slug: SENSITIVE_REPOSITORY.slug,
+    githubFullName: SENSITIVE_REPOSITORY.fullName,
+    defaultLevel: 1,
+    sensitivePatterns: SENSITIVE_REPOSITORY.patterns,
+  },
+  { installationId: SENSITIVE_REPOSITORY.installationId },
+);
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
   ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
@@ -248,7 +319,7 @@ const worker = await startWorker(
       remoteUrl: () => fixture.dir,
       exec: isolatedGitExec,
     }),
-    agentRunner: new ScriptedAgents(),
+    agentRunner: new ScriptedAgents(holdDir, fixture.fixShas),
     judge: new FakeJudge(),
     sandbox,
     clickup,
@@ -266,6 +337,8 @@ const state: StackState = {
   repository: { slug: repository.slug, fullName: FULL_NAME },
   baseSha: fixture.baseSha,
   headSha: fixture.headSha,
+  fixShas: fixture.fixShas,
+  holdDir,
 };
 await writeFile(STATE_FILE, JSON.stringify(state, null, 2));
 logger.warn({ api: API_URL, database: database.name }, 'e2e stack ready');

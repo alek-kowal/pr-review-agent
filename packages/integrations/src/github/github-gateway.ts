@@ -15,9 +15,18 @@ export interface GitHubGateway {
   getCiStatus(fullName: string, sha: string): Promise<CiStatus>;
   /** Every repository the App can reach, across all its installations, sorted by full name. */
   listAccessibleRepositories(): Promise<AccessibleRepository[]>;
+  /** How `head` relates to `base`: commits `head` has that `base` lacks, and the reverse. */
+  compareCommits(fullName: string, base: string, head: string): Promise<CommitComparison>;
   /** One commit's parents and message (metric 5 tells "Update branch" merges apart). */
   getCommit(fullName: string, sha: string): Promise<GitHubCommit>;
 }
+
+/** GitHub's compare of two commits (`GET /repos/{owner}/{repo}/compare/{base}...{head}`). */
+export type CommitComparison = {
+  status: 'ahead' | 'behind' | 'diverged' | 'identical';
+  aheadBy: number;
+  behindBy: number;
+};
 
 export type GitHubCommit = { sha: string; parents: string[]; message: string };
 

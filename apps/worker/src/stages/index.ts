@@ -3,6 +3,7 @@
 // executor fails with `stage_not_available`.
 import { changeTypeStage } from './change-type.ts';
 import { checksStage } from './checks.ts';
+import { checkFixesStage, fixDiffStage, reproductionsStage } from './fix-check.ts';
 import { reviewStage } from './review/index.ts';
 import { taskStage } from './task.ts';
 import type { StageExecutor } from './stage.ts';
@@ -16,4 +17,7 @@ export const STAGE_EXECUTORS: StageExecutors = {
   [changeTypeStage.key]: changeTypeStage,
   [reviewStage.key]: reviewStage,
   [verifyStage.key]: verifyStage,
+  [fixDiffStage.key]: fixDiffStage,
+  [checkFixesStage.key]: checkFixesStage,
+  [reproductionsStage.key]: reproductionsStage,
 };

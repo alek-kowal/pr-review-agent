@@ -4,6 +4,7 @@ import type {
   ChecklistItemKey,
   Decision,
   Lane,
+  LevelNumber,
   MainActionCode,
   PrState,
   RepositoryConfig,
@@ -111,14 +112,53 @@ export type RoundProgressView = {
 };
 
 /** `GET /api/prs/:repo/:number`: one key per PR view section. */
+/** What the PR's results were measured on (`head` section, S-07-T4). */
+export type HeadView = {
+  /** The head SHA of the latest completed round; null before one completed. */
+  reviewedSha: string | null;
+  headSha: string;
+  commitsSince: number;
+  completedRounds: number;
+  maxRounds: number;
+  level: { pr: LevelNumber | null; repositoryDefault: LevelNumber; next: LevelNumber };
+  /** Findings decided Implement and how many the newest fix checks found resolved. */
+  fixes: { resolved: number; total: number } | null;
+};
+
+export type SensitiveStatus = 'pending' | 'approved' | 'sent_back';
+
+/** The PR's sensitive files (`sensitive` section, S-11-T2). */
+export type SensitiveView = {
+  /** Sent with approve and send back; a stale one answers 409 `sensitive_stale`. */
+  version: number;
+  /** null when no changed file matched a sensitive pattern. */
+  status: SensitiveStatus | null;
+  files: { path: string; pattern: string; reason: string; status: SensitiveStatus }[];
+  /** The latest send back while any file is still sent back. */
+  sentBack: { by: { id: string; name: string }; comment: string; at: string } | null;
+};
+
 export type PrView = {
   pullRequest: PullRequestView;
   latestRound: RoundView | null;
   nextStep: NextStepView;
   checklist: ChecklistView;
   author: AuthorView;
+  head: HeadView;
+  sensitive: SensitiveView;
   roundProgress: RoundProgressView | null;
   task: TaskSectionView;
+};
+
+/** `POST .../sensitive/approve` and `.../sensitive/send-back`: what changed on the PR page. */
+export type SensitiveResult = Pick<PrView, 'nextStep' | 'checklist' | 'sensitive'>;
+
+/** `POST /api/prs/:repo/:number/start-review`. */
+export type StartReviewResponse = {
+  runId: number;
+  chainId: string;
+  roundNumber: number;
+  level: LevelNumber;
 };
 
 /** The PR's ClickUp task (`task` section of the PR view, S-06-T4). */
@@ -205,6 +245,12 @@ export type FindingView = {
   version: number;
   decision: DecisionView | null;
   needsDecision: { needed: boolean; reason: ReasonView };
+  /** The head SHA of the round that found it. */
+  sourceSha: string;
+  /** Commits on the PR's head since `sourceSha`; 0 while the head has not moved. */
+  commitsBehind: number;
+  /** The newest fix check of a finding decided Implement; null before one ran. */
+  fix: { resolved: boolean; reason: string; runId: number } | null;
 };
 
 export type QuestionView = {

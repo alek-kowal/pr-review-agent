@@ -311,6 +311,7 @@ describe('createGitHubGateway', () => {
       github.getInstallationToken(INSTALLATION),
       github.getPullRequest(REPO, 1),
       github.postIssueComment(REPO, 1, 'hello'),
+      github.compareCommits(REPO, 'a', 'b'),
     ];
 
     for (const call of calls) {

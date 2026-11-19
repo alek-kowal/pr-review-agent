@@ -2,6 +2,8 @@ import type { GitHubPullRequest } from '@pra/integrations';
 import type { PullRequest, Repository } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { metricsOnClosed, metricsOnHeadChanged, metricsOnReady } from '../metrics/metric-logs.ts';
+import { chainsOnHeadChanged } from '../run/chains.ts';
+import { sensitiveOnHeadChanged } from '../run/sensitive-files.ts';
 import {
   timelineOnClosed,
   timelineOnHeadChanged,
@@ -43,7 +45,12 @@ export type PrEventHooks = Record<PrEventKind, PrEventHook[]>;
  */
 export const PR_EVENT_HOOKS: PrEventHooks = {
   ready: [timelineOnReady, metricsOnReady],
-  headChanged: [timelineOnHeadChanged, metricsOnHeadChanged],
+  headChanged: [
+    chainsOnHeadChanged,
+    sensitiveOnHeadChanged,
+    timelineOnHeadChanged,
+    metricsOnHeadChanged,
+  ],
   closed: [timelineOnClosed, metricsOnClosed],
   merged: [timelineOnMerged, metricsOnClosed],
 };

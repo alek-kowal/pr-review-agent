@@ -48,6 +48,8 @@ export const copy = {
     level: (n: number) => `level ${n}`,
     commits: (n: number) => (n === 1 ? '1 commit' : `${n} commits`),
     notReviewed: 'not reviewed yet',
+    reviewed: (sha: string) => `Reviewed ${sha}`,
+    newCommitsSince: (n: number) => (n === 1 ? '1 new commit since' : `${n} new commits since`),
     tabsLabel: 'PR sections',
     sideLabel: 'PR status',
     tabs: {
@@ -59,6 +61,45 @@ export const copy = {
     empty: {
       questions: 'No questions for this pull request.',
       patch: 'No patch yet.',
+    },
+  },
+  startReview: {
+    button: 'Start review',
+    levelLabel: 'Review level',
+    level: (n: number, name: string, isDefault: boolean) =>
+      `${n} · ${name}${isDefault ? ' (repo default)' : ''}`,
+    hint: (sha: string) => `New chain, round 1 on ${sha}. Not signed.`,
+    forkHint: 'Fork: read-only review.',
+    queued: 'A round is already queued for this PR.',
+    running: 'A run is in progress. Cancel it first, or wait.',
+    started: (round: number, level: number) => `Review started: round ${round} at level ${level}.`,
+  },
+  sensitive: {
+    title: 'Sensitive files',
+    status: {
+      pending: 'need approval',
+      approved: 'approved by hand',
+      sent_back: 'sent back',
+    } as Record<string, string>,
+    rule: (pattern: string, reason: string) => `Matches ${pattern}. ${reason}`,
+    approve: 'Approve changes',
+    approveHint: 'Not signed. The timeline records "approved by hand".',
+    approved: 'Sensitive files approved',
+    approvedHint: 'Recorded as approved by hand.',
+    sendBack: 'Send back…',
+    pendingLine: 'A change to a sensitive file needs a human OK, even after a clean review.',
+    comment: (text: string) => `"${text}"`,
+    dialog: {
+      title: 'Send the sensitive files back',
+      description: (author: string) => `Tell ${author} what must change before approval.`,
+      commentLabel: 'Comment for the author (required)',
+      commentPlaceholder: 'For example: split the migration from the rename.',
+      commentRequired: (author: string) => `Write a comment, so ${author} knows what to change.`,
+      cancel: 'Cancel',
+      confirm: (author: string) => `Send back to ${author}`,
+      sent: (author: string) => `Sent back to ${author}`,
+      sentHint: (signer: string) =>
+        `Signed by ${signer}. The PR stays in Action needed until the files change.`,
     },
   },
   round: {
@@ -98,6 +139,13 @@ export const copy = {
       unchecked: (level: number) =>
         `Level ${level} does not verify findings. Nobody has checked this one yet.`,
     },
+    behind: (sha: string, n: number) =>
+      `From ${sha} · ${n === 1 ? '1 commit' : `${n} commits`} behind`,
+    behindHint:
+      'These findings stay usable until the next review: you can still give opinions and decide.',
+    fixesResolved: (resolved: number, total: number) => `${resolved} of ${total} fixes resolved`,
+    fixesHint: 'The last round checked each finding marked Implement against the new commits.',
+    fix: { resolved: 'Resolved', notResolved: 'Not resolved' },
     uncheckedBody: 'Not verified at this level. For a verdict, start a review at level 3.',
     uncheckedForChangeType: 'Not verified: this change type verifies only some findings.',
     verifier: (verdict: string) => `Verifier: ${verdict.toLowerCase()}`,
@@ -175,6 +223,12 @@ export const copy = {
     repository_not_reachable: 'The GitHub App cannot reach this repository.',
     repository_already_connected: 'This repository is already connected.',
     clickup_not_configured: 'ClickUp is not configured on this server.',
+    run_active: 'A round is already queued or running for this PR.',
+    pr_closed: 'This pull request is closed.',
+    comment_required:
+      'A comment is required to send files back, so the author knows what to change.',
+    sensitive_stale: 'The sensitive files changed in the meantime. Check them again.',
+    sensitive_nothing_pending: 'Every sensitive file is already approved.',
     clickup_auth_failed: 'ClickUp refused the API key.',
     clickup_error: 'ClickUp did not answer as expected.',
     github_error: 'GitHub did not answer as expected.',

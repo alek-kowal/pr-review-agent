@@ -198,13 +198,14 @@ describe('GET /api/prs/:repo/:number gains the Next step and the checklist', () 
 describe('loadPrStateInput', () => {
   test('counts commits since the review, the chain, and reads rounds only', async () => {
     const pr = await seedPr(db, repository.id, { commitsCount: 5 });
-    await seedRound(db, pr, { run: { commitsCountAtStart: 3 } });
+    // The head moved past the reviewed commit; with no compare stored, commit counts decide.
+    await seedRound(db, pr, { run: { commitsCountAtStart: 3, headSha: 'f'.repeat(40) } });
     // A trial never changes the PR's state.
     await insertRun(db, aRun(pr.id, { kind: 'trial', roundNo: null, status: 'running' }));
 
     const load = (await loadPrStateInput(db, pr.id))!;
     expect(load.input).toMatchObject({
-      reviewedSha: pr.headSha,
+      reviewedSha: 'f'.repeat(40),
       commitsSinceReview: 2,
       chainRounds: 1,
       activeRun: null,

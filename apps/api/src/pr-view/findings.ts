@@ -2,6 +2,7 @@
 // questions and what it did not check.
 import { DECISIONS, needsDecision, SEVERITIES, VERDICTS } from '@pra/core';
 import {
+  commitsSinceRun,
   coreFinding,
   FOLLOW_UP_STATUSES,
   verificationsOfRun,
@@ -72,6 +73,12 @@ export const FindingSchema = z.object({
   decision: DecisionSchema.nullable(),
   /** Whether it waits for a decision, and why (core `needsDecision`). */
   needsDecision: z.object({ needed: z.boolean(), reason: ReasonSchema }),
+  /** The head SHA of the round that found it (FR-045). */
+  sourceSha: z.string(),
+  /** Commits on the PR's head since that SHA; 0 while the head has not moved. */
+  commitsBehind: z.number().int().nonnegative(),
+  /** The newest fix check of a finding decided Implement; null before one ran. */
+  fix: z.object({ resolved: z.boolean(), reason: z.string(), runId: z.number().int() }).nullable(),
 });
 
 export const QuestionSchema = z.object({
@@ -134,10 +141,10 @@ function verificationView(row: FindingVerification | undefined): VerificationVie
 /** Verdicts start at level 3; a lower round's findings are all unchecked. */
 const VERIFYING_LEVEL = 3;
 
-/** The Findings tab for a loaded PR, with the reviewed round's verification rows. */
+/** The Findings tab for a loaded PR, with the findings round's verification rows. */
 export async function loadFindingsView(db: Executor, load: PrStateLoad): Promise<FindingsView> {
-  const verifications = load.reviewedRound
-    ? await verificationsOfRun(db, load.reviewedRound.id)
+  const verifications = load.findingsRound
+    ? await verificationsOfRun(db, load.findingsRound.id)
     : [];
   return findingsView(load, verifications);
 }
@@ -146,9 +153,10 @@ export function findingsView(
   load: PrStateLoad,
   verifications: readonly FindingVerification[] = [],
 ): FindingsView {
-  const run = load.reviewedRound;
+  const run = load.findingsRound;
   if (!run) return { round: null, findings: [], questions: [], notChecked: [], unchecked: null };
   const byFinding = new Map(verifications.map((v) => [v.findingId, v]));
+  const commitsBehind = commitsSinceRun(load.pullRequest, run);
   return {
     round: {
       id: run.id,
@@ -158,6 +166,7 @@ export function findingsView(
     },
     findings: load.findings.map((f) => {
       const decision = load.decisions.get(f.id);
+      const fix = load.fixChecks.get(f.id);
       return {
         id: f.id,
         ordinal: f.ordinal,
@@ -172,7 +181,10 @@ export function findingsView(
         verification: verificationView(byFinding.get(f.id)),
         version: f.version,
         decision: decision ? decisionView(decision) : null,
-        needsDecision: needsDecision(coreFinding(f, decision)),
+        needsDecision: needsDecision(coreFinding(f, decision, fix)),
+        sourceSha: run.headSha,
+        commitsBehind,
+        fix: fix ? { resolved: fix.resolved, reason: fix.reason, runId: fix.runId } : null,
       };
     }),
     questions: load.questions.map((q) => ({

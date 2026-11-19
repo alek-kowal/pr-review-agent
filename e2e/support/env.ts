@@ -20,6 +20,10 @@ export type StackState = {
   repository: { slug: string; fullName: string };
   baseSha: string;
   headSha: string;
+  /** Commits on the PR branch after `headSha`, in order: pushes after the reviewed head. */
+  fixShas: string[];
+  /** A file `hold-<PR number>` here holds that PR's review session until it is removed. */
+  holdDir: string;
 };
 
 /** PR numbers from this one up get a failing reviewer. */
@@ -49,6 +53,20 @@ export const LEVEL_TWO_REPOSITORY = {
   slug: 'level-two-repo',
   fullName: 'acme/level-two-repo',
   installationId: 55500004,
+};
+
+/**
+ * Seeded at level 1 with two sensitive patterns that match two of the fixture's changed files:
+ * the migration and the SDK entry (sensitive-files.spec.ts).
+ */
+export const SENSITIVE_REPOSITORY = {
+  slug: 'sensitive-repo',
+  fullName: 'acme/sensitive-repo',
+  installationId: 55500005,
+  patterns: [
+    { pattern: 'db/migrations/**', reason: 'Migrations cannot be undone.' },
+    { pattern: 'packages/sdk/src/index.ts', reason: 'The public SDK entry.' },
+  ],
 };
 
 /** Insights history (insights.spec.ts): 17 merged PRs here... */

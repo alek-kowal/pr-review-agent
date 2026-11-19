@@ -5,6 +5,8 @@ import type { PullRequest, Repository, Run } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { enqueueAfterRoundComment } from '../handlers/github-comment.ts';
 import type { SessionRecord } from '../stages/stage.ts';
+import { chainsOnRunCompleted } from './chains.ts';
+import { sensitiveOnRunCompleted } from './sensitive-files.ts';
 import {
   timelineOnRunCancelled,
   timelineOnRunCompleted,
@@ -39,7 +41,13 @@ export type RunHooks = {
 
 /** Register a hook by adding it to its list. */
 export const RUN_HOOKS: RunHooks = {
-  runCompleted: [timelineOnRunCompleted, enqueueAfterRoundComment],
+  // Sensitive files before the timeline: its state change then counts them.
+  runCompleted: [
+    chainsOnRunCompleted,
+    sensitiveOnRunCompleted,
+    timelineOnRunCompleted,
+    enqueueAfterRoundComment,
+  ],
   runFailed: [timelineOnRunFailed],
   runCancelled: [timelineOnRunCancelled],
   sessionCostRecorded: [],

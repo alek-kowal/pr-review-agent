@@ -341,6 +341,8 @@ test('the endpoints and their schemas appear in /docs/json', async () => {
     'nextStep',
     'checklist',
     'author',
+    'head',
+    'sensitive',
     'roundProgress',
     'task',
   ]);

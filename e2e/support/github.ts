@@ -10,20 +10,27 @@ export const stackState = (): StackState =>
 /** The GitHub login of the fixtures' PR author. */
 export const AUTHOR_LOGIN = 'wb-dev';
 
-type Fixture = 'ready_for_review' | 'opened-draft';
+type Fixture = 'ready_for_review' | 'opened-draft' | 'synchronize';
 
 type Repo = { full_name: string; name: string; owner: { login: string } };
 type Payload = {
   number: number;
+  before?: string;
+  after?: string;
   repository: Repo;
   installation?: { id: number };
   pull_request: {
     number: number;
     title: string;
+    commits: number;
+    updated_at: string;
     head: { sha: string; repo: Repo };
     base: { sha: string; repo: Repo };
   };
 };
+
+/** The commit count of the ready and draft fixtures: a push adds to it. */
+export const FIXTURE_COMMITS = 2;
 
 /**
  * Posts the `pull_request.<fixture>` payload as PR `number` at the fixture repository's shas;
@@ -35,6 +42,7 @@ export async function deliverPullRequest(
   number: number,
   title: string,
   repository?: { fullName: string; installationId: number },
+  push?: { headSha: string; commits: number },
 ): Promise<void> {
   const { apiUrl, webhookSecret, baseSha, headSha } = stackState();
   const file = new URL(
@@ -47,6 +55,14 @@ export async function deliverPullRequest(
   payload.pull_request.title = title;
   payload.pull_request.head.sha = headSha;
   payload.pull_request.base.sha = baseSha;
+  if (push) {
+    payload.before = payload.pull_request.head.sha;
+    payload.after = push.headSha;
+    payload.pull_request.head.sha = push.headSha;
+    payload.pull_request.commits = push.commits;
+    // Later than any fixture snapshot, so the worker never takes the push for a late delivery.
+    payload.pull_request.updated_at = new Date().toISOString();
+  }
   if (repository) {
     const [owner = '', name = ''] = repository.fullName.split('/');
     for (const repo of [
@@ -74,4 +90,14 @@ export async function deliverPullRequest(
     },
   });
   expect(response.status()).toBe(202);
+}
+
+/** Posts `pull_request.synchronize` for PR `number`: the branch now ends at `headSha`. */
+export async function deliverPush(
+  request: APIRequestContext,
+  number: number,
+  title: string,
+  push: { headSha: string; commits: number },
+): Promise<void> {
+  await deliverPullRequest(request, 'synchronize', number, title, undefined, push);
 }

@@ -16,10 +16,13 @@ import {
 } from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
+import { roundChains } from '../schema/chains.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
+import { newestFixChecks, type FixCheck } from './fix-checks.ts';
+import { sensitiveFilesOf, sensitiveState, type SensitiveFile } from './sensitive-files.ts';
 import { readRepositoryConfig, type PullRequest, type Repository } from './repositories.ts';
 import type { FindingRow, QuestionRow, Run } from './runs.ts';
 import type { TeamMember } from './team.ts';
@@ -35,11 +38,20 @@ export type PrStateLoad = {
   input: PrStateInput;
   /** The Team member whose GitHub login is the PR author's; null when none is. */
   authorMember: TeamMember | null;
-  /** The completed round the findings and questions come from; null before one completed. */
+  /** The latest completed round: its head is the reviewed SHA; null before one completed. */
   reviewedRound: Run | null;
+  /**
+   * The completed full review (round 1 of its chain) the findings and questions come from; fix
+   * checks only add Resolved / Not resolved to them.
+   */
+  findingsRound: Run | null;
+  /** The PR's sensitive files with their pattern and status, in path order. */
+  sensitiveFiles: SensitiveFile[];
   findings: FindingRow[];
   questions: QuestionRow[];
   decisions: Map<number, CurrentDecision>;
+  /** The newest fix status of each finding that has one. */
+  fixChecks: Map<number, FixCheck>;
 };
 
 /** The run's starter as a core actor. */
@@ -67,7 +79,11 @@ export function runRecord(run: Run): RunRecord {
 }
 
 /** A finding row with its current decision, as core's rules see it. */
-export function coreFinding(row: FindingRow, decision: CurrentDecision | undefined): Finding {
+export function coreFinding(
+  row: FindingRow,
+  decision: CurrentDecision | undefined,
+  fixCheck?: Pick<FixCheck, 'resolved'>,
+): Finding {
   return {
     id: String(row.id),
     severity: row.severity,
@@ -80,8 +96,7 @@ export function coreFinding(row: FindingRow, decision: CurrentDecision | undefin
     verdict: row.verdict,
     evidence: row.evidence,
     decision: decision?.decision ?? null,
-    // Fix checks arrive in S-07.
-    resolved: null,
+    resolved: fixCheck?.resolved ?? null,
   };
 }
 
@@ -102,10 +117,44 @@ function activeRun(run: Run | undefined): ActiveRun | null {
   };
 }
 
-/** The PR's level: its latest round's frozen level, else the repository's default. */
-function prLevel(repository: Repository, latest: Run | undefined): LevelNumber {
-  if (latest) return latest.level.number;
-  return readRepositoryConfig(repository).value.defaultLevel;
+/** The level of a PR's next round: its own level (FR-059), else the repository's default. */
+export function prLevel(
+  repository: Repository,
+  pullRequest: Pick<PullRequest, 'level'>,
+): LevelNumber {
+  return (
+    (pullRequest.level as LevelNumber | null) ?? readRepositoryConfig(repository).value.defaultLevel
+  );
+}
+
+/**
+ * Commits on the head since the reviewed round: measured with GitHub's compare when the head moved
+ * (`runs.commits_since`), else the difference of commit counts. The fix PR Review Agent pushed and
+ * did not check (the chain used its rounds) is not "new commits": FR-017 is about people's pushes.
+ */
+function commitsSinceReview(
+  pullRequest: PullRequest,
+  reviewed: Run | null,
+  chain: typeof roundChains.$inferSelect | null,
+): number {
+  if (!reviewed) return 0;
+  if (chain?.expectedHeadSha && chain.expectedHeadSha === pullRequest.headSha) return 0;
+  return commitsSinceRun(pullRequest, reviewed);
+}
+
+/**
+ * Commits on the PR's head since a round's head (FR-045 "N commits behind"): 0 on the same head,
+ * else GitHub's compare when it was measured against this head, else the commit-count difference.
+ */
+export function commitsSinceRun(
+  pullRequest: Pick<PullRequest, 'headSha' | 'commitsCount'>,
+  run: Pick<Run, 'headSha' | 'commitsSince' | 'commitsSinceHead' | 'commitsCountAtStart'>,
+): number {
+  if (run.headSha === pullRequest.headSha) return 0;
+  if (run.commitsSince !== null && run.commitsSinceHead === pullRequest.headSha) {
+    return run.commitsSince;
+  }
+  return Math.max(0, pullRequest.commitsCount - run.commitsCountAtStart);
 }
 
 /**
@@ -153,13 +202,16 @@ export async function loadPrStateInputs(
           rounds,
           latestRound: rounds.at(-1),
           reviewed: completed.at(-1),
+          findingsRound: completed.findLast((run) => (run.roundNo ?? 1) === 1),
           active: all.findLast((run) => run.status === 'queued' || run.status === 'running'),
         },
       ] as const;
     }),
   );
 
-  const reviewedIds = [...perPr.values()].flatMap((p) => (p.reviewed ? [p.reviewed.id] : []));
+  const reviewedIds = [...perPr.values()].flatMap((p) =>
+    p.findingsRound ? [p.findingsRound.id] : [],
+  );
   const failedIds = [...perPr.values()].flatMap((p) =>
     p.latestRound?.status === 'failed' ? [p.latestRound.id] : [],
   );
@@ -193,16 +245,40 @@ export async function loadPrStateInputs(
           .orderBy(desc(stageExecutions.id))
       : [],
   ]);
-  const decisions = await currentDecisions(
-    db,
-    findingRows.map((row) => row.id),
+  const [decisions, fixChecks, sensitiveByPr] = await Promise.all([
+    currentDecisions(
+      db,
+      findingRows.map((row) => row.id),
+    ),
+    newestFixChecks(
+      db,
+      findingRows.map((row) => row.id),
+    ),
+    sensitiveFilesOf(
+      db,
+      prRows.map((row) => row.pullRequest.id),
+    ),
+  ]);
+  const chainIds = [...perPr.values()].flatMap((p) =>
+    p.latestRound?.chainId ? [p.latestRound.chainId] : [],
+  );
+  const chainById = new Map(
+    (chainIds.length
+      ? await db.select().from(roundChains).where(inArray(roundChains.id, chainIds))
+      : []
+    ).map((chain) => [chain.id, chain] as const),
   );
 
   for (const { repository, pullRequest } of prRows) {
     const p = perPr.get(pullRequest.id)!;
     const reviewed = p.reviewed ?? null;
-    const prFindings = reviewed ? findingRows.filter((row) => row.runId === reviewed.id) : [];
-    const prQuestions = reviewed ? questionRows.filter((row) => row.runId === reviewed.id) : [];
+    const findingsRound = p.findingsRound ?? null;
+    const prFindings = findingsRound
+      ? findingRows.filter((row) => row.runId === findingsRound.id)
+      : [];
+    const prQuestions = findingsRound
+      ? questionRows.filter((row) => row.runId === findingsRound.id)
+      : [];
     const failedStage =
       p.latestRound?.status === 'failed'
         ? failedStages.find((row) => row.runId === p.latestRound!.id)
@@ -227,21 +303,25 @@ export async function loadPrStateInputs(
       draft: pullRequest.isDraft,
       fork: pullRequest.isFork,
       author: pullRequest.authorLogin,
-      level: prLevel(repository, p.latestRound),
+      level: prLevel(repository, pullRequest),
       headSha: pullRequest.headSha,
       reviewedSha: reviewed?.headSha ?? null,
-      commitsSinceReview: reviewed
-        ? Math.max(0, pullRequest.commitsCount - reviewed.commitsCountAtStart)
-        : 0,
-      // Change type arrives in S-04, sensitive files in S-11, patches in S-13.
+      commitsSinceReview: commitsSinceReview(
+        pullRequest,
+        reviewed,
+        chainById.get(p.latestRound?.chainId ?? '') ?? null,
+      ),
+      // Change type arrives in S-04, patches in S-13.
       changeType: null,
       activeRun: activeRun(p.active),
       failedRound,
       chainRounds: chainState(p.rounds.map(runRecord)).completedRounds,
-      findings: prFindings.map((row) => coreFinding(row, decisions.get(row.id))),
+      findings: prFindings.map((row) =>
+        coreFinding(row, decisions.get(row.id), fixChecks.get(row.id)),
+      ),
       // Answers arrive in S-08, so every question is open.
       questions: prQuestions.map((row) => ({ id: String(row.id), answered: false })),
-      sensitive: null,
+      sensitive: sensitiveState(sensitiveByPr.get(pullRequest.id) ?? []),
       patch: null,
       // Opinions arrive in S-08, CI checks and reviews with the merge checklist (S-12).
       reviewers: 0,
@@ -255,12 +335,20 @@ export async function loadPrStateInputs(
       input,
       authorMember,
       reviewedRound: reviewed,
+      findingsRound,
+      sensitiveFiles: sensitiveByPr.get(pullRequest.id) ?? [],
       findings: prFindings,
       questions: prQuestions,
       decisions: new Map(
         prFindings.flatMap((row) => {
           const decision = decisions.get(row.id);
           return decision ? [[row.id, decision] as const] : [];
+        }),
+      ),
+      fixChecks: new Map(
+        prFindings.flatMap((row) => {
+          const check = fixChecks.get(row.id);
+          return check ? [[row.id, check] as const] : [];
         }),
       ),
     });

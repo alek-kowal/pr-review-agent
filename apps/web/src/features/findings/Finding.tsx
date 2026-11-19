@@ -60,7 +60,7 @@ export function Finding({
   const { finding: f, round } = slotProps;
   const bodyId = useId();
   const level = round.level.number;
-  const dimmed = f.verdict === 'refuted';
+  const dimmed = f.verdict === 'refuted' || f.fix?.resolved === true;
   const Chevron = open ? ChevronUp : ChevronDown;
 
   return (

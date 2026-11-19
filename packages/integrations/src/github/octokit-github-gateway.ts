@@ -15,6 +15,7 @@ import {
   type AccessibleRepository,
   type CiCheck,
   type CiStatus,
+  type CommitComparison,
   type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,
@@ -105,6 +106,18 @@ export class OctokitGitHubGateway implements GitHubGateway {
       );
       // GitHub's schema allows int64 ids; comment ids fit a JS number.
       return { id: Number(data.id) };
+    });
+  }
+
+  async compareCommits(fullName: string, base: string, head: string): Promise<CommitComparison> {
+    return this.#withInstallation(fullName, async (octokit) => {
+      const { data } = await octokit.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
+        ...splitFullName(fullName),
+        basehead: `${base}...${head}`,
+        // Only the counts are read; one commit per page keeps the response small.
+        per_page: 1,
+      });
+      return { status: data.status, aheadBy: data.ahead_by, behindBy: data.behind_by };
     });
   }
 
@@ -266,6 +279,9 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     return this.#fail();
   }
   getCiStatus(): Promise<CiStatus> {
+    return this.#fail();
+  }
+  compareCommits(): Promise<CommitComparison> {
     return this.#fail();
   }
   listAccessibleRepositories(): Promise<AccessibleRepository[]> {

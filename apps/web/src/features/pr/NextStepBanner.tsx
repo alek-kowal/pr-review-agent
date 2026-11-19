@@ -12,7 +12,12 @@ import { BANNER_ICON, BANNER_ICON_TONE, BANNER_TONE } from './tone.ts';
 export function NextStepBanner(props: PrSlotProps) {
   const { view } = props;
   const step = view.nextStep;
-  const context = stepContext(view.author);
+  // The banner names people from the view: who sent the sensitive files back.
+  const sentBack = view.sensitive?.sentBack;
+  const context = stepContext(
+    view.author,
+    new Map(sentBack ? [[sentBack.by.id, sentBack.by.name]] : []),
+  );
   const done = step.lane === null;
   const who = whoText(step, context);
   const Action = step.mainAction ? MAIN_ACTIONS[step.mainAction.action] : undefined;

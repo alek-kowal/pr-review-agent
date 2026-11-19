@@ -34,6 +34,8 @@ export type GitFixture = {
   baseSha: string;
   /** The feature commit (branch `feature`). */
   headSha: string;
+  /** The `fixes` commits on `feature` after `headSha`, in order. */
+  fixShas: string[];
   remove: () => Promise<void>;
 };
 
@@ -57,10 +59,11 @@ export const DEFAULT_FEATURE_FILES: GitFiles = {
 
 /**
  * A local git repository in a temp dir with `base` committed on `main` and `feature` committed on
- * branch `feature`, built with an isolated git config. No network.
+ * branch `feature`, then one commit per `fixes` entry on top of it (pushes after the reviewed
+ * head), built with an isolated git config. No network.
  */
 export async function createGitFixture(
-  options: { base?: GitFiles; feature?: GitFiles } = {},
+  options: { base?: GitFiles; feature?: GitFiles; fixes?: GitFiles[] } = {},
 ): Promise<GitFixture> {
   const root = await mkdtemp(path.join(tmpdir(), 'pra-git-fixture-'));
   const dir = path.join(root, 'repo');
@@ -79,9 +82,22 @@ export async function createGitFixture(
   await git('add', '--all');
   await git('commit', '--quiet', '--allow-empty', '-m', 'feature');
   const headSha = await git('rev-parse', 'HEAD');
+  const fixShas: string[] = [];
+  for (const [i, files] of (options.fixes ?? []).entries()) {
+    await writeFiles(dir, files);
+    await git('add', '--all');
+    await git('commit', '--quiet', '--allow-empty', '-m', `fix ${i + 1}`);
+    fixShas.push(await git('rev-parse', 'HEAD'));
+  }
   await git('switch', '--quiet', 'main');
 
-  return { dir, baseSha, headSha, remove: () => rm(root, { recursive: true, force: true }) };
+  return {
+    dir,
+    baseSha,
+    headSha,
+    fixShas,
+    remove: () => rm(root, { recursive: true, force: true }),
+  };
 }
 
 async function writeFiles(dir: string, files: GitFiles): Promise<void> {
