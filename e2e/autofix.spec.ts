@@ -174,7 +174,7 @@ test('level 5: a patch that touches a sensitive file waits with the reason and p
   ]);
 });
 
-test('level 3: the Timeline says what level 5 would have done, and no implementer runs', async ({
+test('level 3: the Timeline says what level 5 would have done, no implementer runs, and the Trust ladder counts it', async ({
   page,
 }, testInfo) => {
   test.setTimeout(240_000);
@@ -195,4 +195,17 @@ test('level 3: the Timeline says what level 5 would have done, and no implemente
   );
   await expect(entry(page, 'autofix_started')).toHaveCount(0);
   expect((await runsOf(slug, number)).map((r) => r.kind)).toEqual(['round']);
+
+  // Insights → Trust ladder: the PR is in the repository's shadow log (a retry adds its own PR).
+  const response = await page.request.get(`${stackState().apiUrl}/api/insights/trust?repo=${slug}`);
+  const { repositories } = (await response.json()) as {
+    repositories: { shadow: { eligible: number; needed: number; prs: { number: number }[] } }[];
+  };
+  const { shadow } = repositories[0]!;
+  expect(shadow.prs.map((pr) => pr.number)).toContain(number);
+  await page.goto(`/insights/trust?repo=${slug}`);
+  const log = page
+    .getByRole('region', { name: slug })
+    .getByRole('region', { name: 'Level 5 shadow log' });
+  await expect(log).toContainText(`Not enough data yet (${shadow.eligible} of 5 PRs)`);
 });

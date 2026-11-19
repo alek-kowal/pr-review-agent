@@ -361,6 +361,6 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 10.1 insights-shadow.routes.test.ts passes
-- [ ] 10.2 shadow-log.test.tsx passes
-- [ ] 10.3 pnpm verify and pnpm test:e2e pass after merging main
+- [x] 10.1 insights-shadow.routes.test.ts passes
+- [x] 10.2 shadow-log.test.tsx passes
+- [x] 10.3 pnpm verify and pnpm test:e2e pass after merging main

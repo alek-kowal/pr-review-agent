@@ -1,5 +1,6 @@
 // Copy for Insights (S-19). Numbers always carry their sample size; nothing compares periods.
 
+import { autofix } from './autofix.ts';
 import { levelNames } from './repositories.ts';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -110,6 +111,19 @@ export const insights = {
     tooFew: (n: number) => `Too few findings for rates yet (${n} of 5).`,
     basedOn: (findings: number, rounds: number) =>
       `Based on ${plural(findings, 'finding')} in ${plural(rounds, 'round')}.`,
+    shadow: {
+      title: 'Level 5 shadow log',
+      /** "Level 5 would have fixed 3 of 8 PRs" */
+      summary: (wouldFix: number, prs: number) =>
+        `Level 5 would have fixed ${wouldFix} of ${plural(prs, 'PR')}`,
+      lastDays: (days: number) => `last ${plural(days, 'day')}`,
+      nothingPushed: 'Nothing was pushed: this is only a log of what autofix would have done.',
+      notEnough: (prs: number, needed: number) => `Not enough data yet (${prs} of ${needed} PRs)`,
+      startsAtLevel3: 'The shadow log needs verified findings, so it starts at level 3.',
+      listLabel: 'PRs in the shadow log',
+      /** One PR's row after its number: "would have waited: 2 questions to answer". */
+      row: autofix.shadow,
+    },
   },
   overview: {
     empty: 'No PR finished in this range.',

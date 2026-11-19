@@ -1,7 +1,7 @@
 ---
 change_id: P-22
 title: Push, autofix and shadow log (S-14-T1–T5, S-15-T1, S-15-T2, S-15-T3, S-15-T5, S-19-T9)
-status: planning
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -159,6 +159,23 @@ questions (orchestrator rule: decide and record).
   run here; its Trust ladder count is asserted in S-19-T9, which adds the shadow log there.
 - The level 5 patch cap (P-23's `level.settings.autofixMaxPatches`) was already wired in S-15-T2
   (`apps/worker/src/run/autofix.ts`), so the "second to merge wires it" note needs nothing more.
+
+### S-19-T9 (shadow log in Insights → Trust ladder)
+
+- `GET /api/insights/trust` gives every repository row `shadow: { days: 14, eligible, needed: 5,
+  wouldFix, prs }`, from `shadowByRepository` (latest entry per PR, entries written at level 3+,
+  last 14 days). `prs` is newest first with `{ number, decision, reason, fixed, total, at }`;
+  `reason` is the first of the entry's reasons. The repository filter is the endpoint's own.
+- "Would have fixed" counts PRs whose latest entry is `would_start` or `would_push`. At level 3
+  there is no implementer, so only start entries exist there and they count as fixes.
+- The entry level decides, not the repository's current level: a repository raised to 5 still
+  shows the 14 days it spent at 3–4. Every repository card shows the section, so a level 1 or 2
+  card says "Not enough data yet (0 of 5 PRs)" with ⓘ "… it starts at level 3".
+- Rows show only with enough data, as in the prototype. A row reads "would have fixed 2 of 2 and
+  pushed", "would have fixed 1 of 1" (start) or "would have waited: <reason>"; the Timeline's
+  shadow sentence is the same phrase after "Level 5 " (`autofix.shadow`).
+- The e2e level 3 case (S-15-T5) now also checks that the PR is in the API's shadow log and that
+  the Trust ladder card shows its count.
 
 ### P-18 review observations applied here
 

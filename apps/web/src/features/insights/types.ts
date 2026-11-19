@@ -91,5 +91,20 @@ export type TrustResponse = {
     since: string;
     days: number;
     rounds: number;
+    /** The level 5 shadow log: the latest entry of each PR at level 3+ in the last `days`. */
+    shadow: {
+      days: number;
+      eligible: number;
+      needed: number;
+      wouldFix: number;
+      prs: {
+        number: number;
+        decision: 'would_start' | 'would_push' | 'would_wait';
+        reason: { code: string; params: Record<string, unknown> } | null;
+        fixed: number;
+        total: number;
+        at: string;
+      }[];
+    };
   } & QualityRates)[];
 };

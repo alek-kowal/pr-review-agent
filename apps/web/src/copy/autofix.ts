@@ -44,20 +44,23 @@ export function autofixReason(value: unknown): string {
   return phrase ? phrase((params ?? {}) as Params) : key.replaceAll('_', ' ');
 }
 
+/** What level 5 would have done, from a shadow entry: "would have fixed 2 of 2 and pushed". */
+function shadowPhrase(p: Params): string {
+  if (p.decision === 'would_wait') return `would have waited: ${autofixReason(p.reason)}`;
+  const fixed = `would have fixed ${n(p.fixed)} of ${n(p.total)}`;
+  return p.decision === 'would_push' ? `${fixed} and pushed` : fixed;
+}
+
 export const autofix = {
   reason: autofixReason,
   waiting: (reason: unknown) => `Autofix waiting: ${autofixReason(reason)}`,
+  shadow: shadowPhrase,
   /** Timeline rows (actor: the bot). */
   timeline: {
     autofix_started: () => 'Autofix started by pr-review-agent',
     autofix_pushed: (p: Params) => `Autofix pushed ${sha7(p.sha)}`,
     autofix_waiting: (p: Params) => `Autofix waiting: ${autofixReason(p.reason)}`,
-    autofix_shadow: (p: Params) => {
-      if (p.decision === 'would_wait')
-        return `Level 5 would have waited: ${autofixReason(p.reason)}`;
-      const fixed = `Level 5 would have fixed ${n(p.fixed)} of ${n(p.total)}`;
-      return p.decision === 'would_push' ? `${fixed} and pushed` : fixed;
-    },
+    autofix_shadow: (p: Params) => `Level 5 ${shadowPhrase(p)}`,
     patch_pushed: (p: Params) =>
       `Pushed ${sha7(p.sha)}${p.branch ? ` to ${String(p.branch)}` : ''}`,
     patch_push_refused: (p: Params) => `Push refused: ${autofixReason(p.reason)}`,
