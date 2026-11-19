@@ -49,6 +49,21 @@ export const FAILING_PR_FROM = 400;
  */
 export const HELD_PRS = { from: 350, to: 399 };
 export const HELD_TURN_COST_USD = 0.12;
+
+/**
+ * PR numbers of instructions.spec.ts. Their reviewer answers with `TRIAL_RULE_FINDING` in place of
+ * the Nit when the review rules it reads hold `trialRule(number)`, so a trial's run B differs.
+ */
+export const TRIAL_PRS = { from: 290, to: 297 };
+export const trialRule = (number: number): string => `Check public API names on #${number}.`;
+export const TRIAL_RULE_FINDING = {
+  title: 'Public API rename has no changelog note',
+  severity: 'should',
+  file: 'packages/sdk/src/index.ts',
+  line: 8,
+  scenario: 'Consumers upgrade and their imports break without a word in the changelog.',
+  suggestion: 'Add a changelog line for the renamed export.',
+} as const;
 export const releaseFile = (number: number): string =>
   path.join(tmpdir(), `pra-e2e-${WEB_PORT}-release-${number}`);
 

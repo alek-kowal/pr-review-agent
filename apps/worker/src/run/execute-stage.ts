@@ -18,7 +18,8 @@ import {
   insertFindings,
   insertQuestions,
   saveFixChecks,
-  activeInstructions,
+  freezeRunInstructions,
+  trialReplacements,
   insertStageExecution,
   lockRun,
   stageExecutionsOfRun,
@@ -224,13 +225,15 @@ async function startStageInTx(
     if (!begun.ok) return notStarted;
     state = begun.run;
     const now = new Date();
-    // The instruction files this run reads, for Run detail (S-03-T5).
-    const instructionVersions = (await activeInstructions(tx, repositoryId)).map((v) => ({
-      id: v.id,
-      scope: v.scope,
-      fileKey: v.fileKey,
-      version: v.version,
-    }));
+    // The instruction versions this run reads, frozen now (S-22-T3) and shown in Run detail. A
+    // trial's run B reads its draft in place of the file's active version (S-22-T6).
+    const isTrial = run.kind === 'trial';
+    const instructionVersions = await freezeRunInstructions(
+      tx,
+      run,
+      repositoryId,
+      isTrial ? await trialReplacements(tx, run.id) : [],
+    );
     const patch = {
       status: 'running' as const,
       startedAt: now,
@@ -239,7 +242,8 @@ async function startStageInTx(
     };
     await updateRun(tx, runId, patch);
     run = { ...run, ...patch };
-    await recordRunStarted(tx, run, now);
+    // A trial leaves the PR untouched: no timeline entry and no state change.
+    if (!isTrial) await recordRunStarted(tx, run, now);
     // Stages this level turns off get a row, so the run's history is complete.
     for (const off of state.stages.filter((s) => s.status === 'off')) {
       if (latestAttempt(executions, off.key)) continue;

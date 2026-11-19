@@ -1,0 +1,6 @@
+{
+  "default": { "scope": "repository", "repository": "workflowbuilder" },
+  "files": {},
+  "skip": ["lessons-candidates.md"],
+  "empty": ["lessons.md"]
+}
