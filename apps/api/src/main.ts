@@ -2,11 +2,12 @@
 // env, then the server, and listens. Postgres may be down: the pool connects lazily and the queue
 // keeps retrying in the background, so `/health` can report it.
 import { closeDb, createDb, createQueue } from '@pra/db';
+import { createLogger } from '@pra/integrations/logging';
 import { buildServer } from './server.ts';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
-  console.error('api: DATABASE_URL is not set (see .env.example).');
+  createLogger('api').fatal('DATABASE_URL is not set (see .env.example)');
   process.exit(1);
 }
 

@@ -1,7 +1,7 @@
 ---
 change_id: P-01
 title: Local data and jobs (F-02-T1 to F-02-T6)
-status: in-progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -95,3 +95,29 @@ Plan: no. The tasks' "Done when" checks are the plan; one commit per task.
   `DATABASE_URL` on port 1 the api still listened, `/health` returned 503, and SIGTERM stopped it.
 - `pnpm test:e2e` was not run: P-01 does not touch the UI, and Playwright's web server uses the
   fixed port 5173.
+- BlobStore (T6): `BlobStore` with `put(key, body, { contentType })`, `get` (returns
+  `{ body: Uint8Array, contentType }` or `null`), `exists` and `delete` (missing key is fine).
+  Key rules live in the interface module (`assertBlobKey`, `InvalidBlobKeyError` with code
+  `invalid_blob_key`): `/`-separated segments of `[A-Za-z0-9._-]` not starting with a dot, at most
+  1024 characters. So `..`, absolute paths, empty segments, backslashes and spaces are rejected by
+  every adapter, and the contract checks it for each operation.
+- `LocalBlobStore` keeps bytes in `objects/<key>` and the content type in `meta/<key>.json`, writes
+  through `tmp/` and renames (no half-written blobs), and re-checks the resolved path stays inside
+  its directory. A key that is also a "folder" of another key (`a` and `a/b`) cannot coexist
+  locally; our key shapes never do that.
+- `BLOB_DIR` (default `.data/blobs`): relative values resolve from the repo root, found from the
+  module's location, not from the process cwd, because `pnpm --filter` runs api and worker in
+  different directories and both must see the same blobs. `localBlobStoreFromEnv(env)` is the
+  env entry; P-03's `createBlobStore(env)` picks between it and S3.
+- `blobStoreContract(make)` (from `@pra/integrations/testing`) uses fresh keys under
+  `contract/<uuid>/` per test, so P-03 can run it against a shared MinIO bucket.
+- `AGENTS.md` (hot file H14): the db commands, the shared Postgres and per-run test databases, the
+  worker dev command, and "logs go through `@pra/integrations/logging`". 61 → 66 lines,
+  3,227 → 3,666 characters: about 110 more tokens loaded into every agent session.
+- Parallel safety was checked by running `pnpm test` three times at once against the one compose
+  Postgres: all three green, no `pra_test_*` database left behind.
+
+## Status
+
+All six tasks are done and committed one by one. Open: the green CI run on GitHub (needs the
+orchestrator's push).
