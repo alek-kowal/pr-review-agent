@@ -1,4 +1,3 @@
-import type { NoParams } from '../reason.ts';
 import type { RunStatus } from '../model.ts';
 
 declare module '../reason.ts' {

@@ -8,114 +8,131 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root.tsx'
-import { Route as IndexRouteImport } from './routes/index.tsx'
-import { Route as ActivityRouteImport } from './routes/activity.tsx'
-import { Route as InsightsRouteImport } from './routes/insights.tsx'
-import { Route as PrsRouteImport } from './routes/prs.tsx'
-import { Route as SettingsRouteImport } from './routes/settings.tsx'
+import { Route as rootRouteImport } from './routes/__root.tsx';
+import { Route as IndexRouteImport } from './routes/index.tsx';
+import { Route as ActivityRouteImport } from './routes/activity.tsx';
+import { Route as InsightsRouteImport } from './routes/insights.tsx';
+import { Route as PrsRouteImport } from './routes/prs.tsx';
+import { Route as SettingsRouteImport } from './routes/settings.tsx';
+import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx';
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const InsightsRoute = InsightsRouteImport.update({
   id: '/insights',
   path: '/insights',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PrsRoute = PrsRouteImport.update({
   id: '/prs',
   path: '/prs',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
+const PrRepoNumberRoute = PrRepoNumberRouteImport.update({
+  id: '/pr/$repo/$number',
+  path: '/pr/$repo/$number',
+  getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
-  '/insights': typeof InsightsRoute
-  '/prs': typeof PrsRoute
-  '/settings': typeof SettingsRoute
+  '/': typeof IndexRoute;
+  '/activity': typeof ActivityRoute;
+  '/insights': typeof InsightsRoute;
+  '/prs': typeof PrsRoute;
+  '/settings': typeof SettingsRoute;
+  '/pr/$repo/$number': typeof PrRepoNumberRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
-  '/insights': typeof InsightsRoute
-  '/prs': typeof PrsRoute
-  '/settings': typeof SettingsRoute
+  '/': typeof IndexRoute;
+  '/activity': typeof ActivityRoute;
+  '/insights': typeof InsightsRoute;
+  '/prs': typeof PrsRoute;
+  '/settings': typeof SettingsRoute;
+  '/pr/$repo/$number': typeof PrRepoNumberRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
-  '/insights': typeof InsightsRoute
-  '/prs': typeof PrsRoute
-  '/settings': typeof SettingsRoute
+  __root__: typeof rootRouteImport;
+  '/': typeof IndexRoute;
+  '/activity': typeof ActivityRoute;
+  '/insights': typeof InsightsRoute;
+  '/prs': typeof PrsRoute;
+  '/settings': typeof SettingsRoute;
+  '/pr/$repo/$number': typeof PrRepoNumberRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/activity' | '/insights' | '/prs' | '/settings'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/activity' | '/insights' | '/prs' | '/settings'
-  id: '__root__' | '/' | '/activity' | '/insights' | '/prs' | '/settings'
-  fileRoutesById: FileRoutesById
+  fileRoutesByFullPath: FileRoutesByFullPath;
+  fullPaths: '/' | '/activity' | '/insights' | '/prs' | '/settings' | '/pr/$repo/$number';
+  fileRoutesByTo: FileRoutesByTo;
+  to: '/' | '/activity' | '/insights' | '/prs' | '/settings' | '/pr/$repo/$number';
+  id: '__root__' | '/' | '/activity' | '/insights' | '/prs' | '/settings' | '/pr/$repo/$number';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ActivityRoute: typeof ActivityRoute
-  InsightsRoute: typeof InsightsRoute
-  PrsRoute: typeof PrsRoute
-  SettingsRoute: typeof SettingsRoute
+  IndexRoute: typeof IndexRoute;
+  ActivityRoute: typeof ActivityRoute;
+  InsightsRoute: typeof InsightsRoute;
+  PrsRoute: typeof PrsRoute;
+  SettingsRoute: typeof SettingsRoute;
+  PrRepoNumberRoute: typeof PrRepoNumberRoute;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/activity': {
-      id: '/activity'
-      path: '/activity'
-      fullPath: '/activity'
-      preLoaderRoute: typeof ActivityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/activity';
+      path: '/activity';
+      fullPath: '/activity';
+      preLoaderRoute: typeof ActivityRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/insights': {
-      id: '/insights'
-      path: '/insights'
-      fullPath: '/insights'
-      preLoaderRoute: typeof InsightsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/insights';
+      path: '/insights';
+      fullPath: '/insights';
+      preLoaderRoute: typeof InsightsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/prs': {
-      id: '/prs'
-      path: '/prs'
-      fullPath: '/prs'
-      preLoaderRoute: typeof PrsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/prs';
+      path: '/prs';
+      fullPath: '/prs';
+      preLoaderRoute: typeof PrsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/settings';
+      path: '/settings';
+      fullPath: '/settings';
+      preLoaderRoute: typeof SettingsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/pr/$repo/$number': {
+      id: '/pr/$repo/$number';
+      path: '/pr/$repo/$number';
+      fullPath: '/pr/$repo/$number';
+      preLoaderRoute: typeof PrRepoNumberRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -125,7 +142,8 @@ const rootRouteChildren: RootRouteChildren = {
   InsightsRoute: InsightsRoute,
   PrsRoute: PrsRoute,
   SettingsRoute: SettingsRoute,
-}
+  PrRepoNumberRoute: PrRepoNumberRoute,
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();

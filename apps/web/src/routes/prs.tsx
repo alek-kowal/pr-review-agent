@@ -1,11 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { copy } from '@/copy/index.ts';
-import { PlaceholderPage } from '@/features/shell/PlaceholderPage.tsx';
+import { PrList } from '@/features/prs/PrList.tsx';
+
+type PrsSearch = { repo?: string };
 
 export const Route = createFileRoute('/prs')({
+  validateSearch: (search: Record<string, unknown>): PrsSearch =>
+    typeof search.repo === 'string' && search.repo !== '' ? { repo: search.repo } : {},
   component: PullRequestsPage,
 });
 
 function PullRequestsPage() {
-  return <PlaceholderPage title={copy.prs.title} text={copy.prs.placeholder} />;
+  const { repo } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  return (
+    <PrList
+      repo={repo}
+      onRepoChange={(next) => void navigate({ search: next ? { repo: next } : {} })}
+    />
+  );
 }
