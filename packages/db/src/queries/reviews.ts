@@ -1,6 +1,7 @@
 // S-08-T4: signed opinions on findings, saved together as one signed review (FR-037, FR-038).
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
+import { pullRequests } from '../schema/repositories.ts';
 import { opinions, reviews, type OpinionValue } from '../schema/reviews.ts';
 import { findings, runs } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
@@ -8,6 +9,19 @@ import type { Transactor } from './decisions.ts';
 import { recordStateChange, recordTimelineEntry } from './timeline.ts';
 
 export type Review = typeof reviews.$inferSelect;
+
+/**
+ * Locks the PR row first. A write that adds rows pointing at the PR (key share) and then logs the
+ * state change (`recordStateChange`, which locks the PR row for update) would otherwise deadlock
+ * with a concurrent writer doing the same; with this lock they take turns.
+ */
+export async function lockPullRequestRow(db: Executor, pullRequestId: number): Promise<void> {
+  await db
+    .select({ id: pullRequests.id })
+    .from(pullRequests)
+    .where(eq(pullRequests.id, pullRequestId))
+    .for('update');
+}
 
 /** An opinion with its signer's name (kept after they leave the team). */
 export type OpinionRow = {
@@ -103,6 +117,7 @@ export async function saveReview(
   if (ids.length === 0) throw new Error('saveReview needs at least one opinion');
 
   return db.transaction(async (tx) => {
+    await lockPullRequestRow(tx, input.pullRequestId);
     const found = await tx
       .select({ id: findings.id, roundNo: runs.roundNo })
       .from(findings)

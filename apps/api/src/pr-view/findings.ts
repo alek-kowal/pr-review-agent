@@ -5,7 +5,9 @@ import {
   commitsSinceRun,
   coreFinding,
   FOLLOW_UP_STATUSES,
+  OPINIONS,
   type CurrentAnswer,
+  type OpinionRow,
   verificationsOfRun,
   type CurrentDecision,
   type Executor,
@@ -80,7 +82,33 @@ export const FindingSchema = z.object({
   commitsBehind: z.number().int().nonnegative(),
   /** The newest fix check of a finding decided Implement; null before one ran. */
   fix: z.object({ resolved: z.boolean(), reason: z.string(), runId: z.number().int() }).nullable(),
+  /** Signed opinions, oldest first (FR-037); one per signer. */
+  opinions: z.array(
+    z.object({
+      id: z.number().int(),
+      signedBy: z.object({ id: z.string(), name: z.string() }),
+      value: z.enum(OPINIONS),
+      comment: z.string().nullable(),
+      /** The round it was given in; shown as "from round N" when carried. */
+      fromRound: z.number().int(),
+      /** Copied from the matching finding of an earlier round (FR-043). */
+      carried: z.boolean(),
+      at: timestamp,
+    }),
+  ),
 });
+
+export function opinionView(opinion: OpinionRow): z.output<typeof FindingSchema>['opinions'][0] {
+  return {
+    id: opinion.id,
+    signedBy: { id: opinion.signedBy, name: opinion.signerName },
+    value: opinion.value,
+    comment: opinion.comment,
+    fromRound: opinion.fromRound,
+    carried: opinion.carriedFromId !== null,
+    at: opinion.createdAt.toISOString(),
+  };
+}
 
 export const QuestionSchema = z.object({
   id: z.number().int(),
@@ -207,6 +235,7 @@ export function findingsView(
         sourceSha: run.headSha,
         commitsBehind,
         fix: fix ? { resolved: fix.resolved, reason: fix.reason, runId: fix.runId } : null,
+        opinions: (load.opinions.get(f.id) ?? []).map(opinionView),
       };
     }),
     questions: load.questions.map((q) => ({
