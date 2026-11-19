@@ -280,8 +280,8 @@ Unit-level: brief, prompt, schema mapping. Integration: handlers on the shared t
 
 #### Automated
 
-- [ ] 4.1 run-round.test.ts passes
-- [ ] 4.2 pnpm verify
+- [x] 4.1 run-round.test.ts passes
+- [x] 4.2 pnpm verify
 
 ### Phase 5: After-round comment (S-01-T11)
 

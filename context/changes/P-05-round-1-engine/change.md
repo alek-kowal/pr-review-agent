@@ -56,3 +56,30 @@ are added per task below.
   restores write access before deleting. A file key that leaves the folder is skipped.
 - `createGitFixture` and `isolatedGitExec` went into `@pra/integrations/testing` now (plan:
   phase 6), since the review-stage test needs them.
+
+### S-01-T10 (`run.stage` handler)
+
+- The run state is rebuilt from core `planRun` (level number from the frozen level) plus the
+  latest attempt per stage (`src/run/state.ts`). The round kind comes from the round number
+  (> 1 is a fix check) until P-11 stores it.
+- When a queued run starts, stages its level turns off get a `stage_executions` row with status
+  `off` and the off reason as output, so the run's history is complete.
+- Gates run before the start transaction. A gate that says wait ends the job with no change (run
+  stays queued, stage pending) and logs the reason; whoever opens the gate (P-16) sends the stage
+  job again.
+- Timeout: the frozen level's `stageTimeoutMinutes` aborts the executor's signal; the executor
+  then has 30 s to return its sessions (so their cost is recorded) before the stage fails
+  `stage_timeout` without them.
+- A thrown error with a snake_case `code` (for example `IntegrationError`) fails the stage with
+  that code; anything else (including Node errno codes) with `stage_error`.
+- Blob keys: `runs/<runId>/<stage>-<attempt>/session-<n>/prompt.txt` and `transcript.json`,
+  written before the transaction. Sessions and their cost are stored even when the transition is
+  refused (the run changed meanwhile, e.g. a later cancel).
+- Hooks fire after the commit; a failing hook is logged, not rethrown (a retried job would find
+  the stage done and do nothing). End hooks run before the worktree and
+  `<dataDir>/sessions/run-<id>` are removed; removal failures are logged.
+- Recovery at worker start (`src/run/recover.ts`): a running stage fails `interrupted` (then the
+  `runFailed` hooks and cleanup), a queued run gets its first pending stage job, a running run with
+  no running stage its next one. It assumes one worker process, as deployed.
+- `executeStage` is exported for direct calls; `runs.not_checked` is written only when the
+  reviewer listed something.

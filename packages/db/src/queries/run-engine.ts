@@ -1,5 +1,5 @@
 // Reads and writes the worker's run engine needs (S-01-T6, T10, T11).
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import {
@@ -103,4 +103,22 @@ export async function updateGithubAction(
   patch: Partial<Pick<GithubAction, 'result' | 'githubId' | 'body'>>,
 ): Promise<void> {
   await db.update(githubActions).set(patch).where(eq(githubActions.id, id));
+}
+
+/** Every stage attempt of a run, by stage and attempt. */
+export async function stageExecutionsOfRun(db: Executor, runId: number): Promise<StageExecution[]> {
+  return db
+    .select()
+    .from(stageExecutions)
+    .where(eq(stageExecutions.runId, runId))
+    .orderBy(asc(stageExecutions.stage), asc(stageExecutions.attempt));
+}
+
+/** Adds session costs to the run's total. */
+export async function addRunCost(db: Executor, runId: number, usd: number): Promise<void> {
+  if (usd === 0) return;
+  await db
+    .update(runs)
+    .set({ costUsd: sql`${runs.costUsd} + ${usd}` })
+    .where(eq(runs.id, runId));
 }

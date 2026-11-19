@@ -2,6 +2,8 @@ import { JOBS, type JobPayloads } from '@pra/db';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
 import { handleGithubEvents } from './handlers/github-event.ts';
 import { handleSmoke } from './handlers/smoke.ts';
+import { handleRunStages } from './run/execute-stage.ts';
+import { recoverRuns } from './run/recover.ts';
 
 export type { WorkerDeps, WorkerDepsInput };
 
@@ -30,9 +32,13 @@ export async function startWorker(
 
   queue.on('error', (error) => logger.error({ err: error }, 'queue error'));
   await queue.start();
+  await recoverRuns(deps);
   await queue.work<JobPayloads['smoke']>(JOBS.smoke, work, (jobs) => handleSmoke(deps, jobs));
   await queue.work<JobPayloads['github.event']>(JOBS.githubEvent, work, (jobs) =>
     handleGithubEvents(deps, jobs),
+  );
+  await queue.work<JobPayloads['run.stage']>(JOBS.runStage, work, (jobs) =>
+    handleRunStages(deps, jobs),
   );
   logger.info({ jobs: Object.values(JOBS) }, 'worker started');
 
