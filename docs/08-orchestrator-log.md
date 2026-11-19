@@ -81,3 +81,20 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
 - P-19 left for Alek: a real merge on WB with the App's permissions (S-12-T6) and a real ClickUp key test (S-06-T9).
 - P-23 added an AGENTS.md section "Connect a repository" (about 16 lines, ~250 tokens per agent session in this repo).
 - Flaky: `e2e/decide.spec.ts` (two-browser conflict) failed once in CI and once locally; passed on rerun.
+
+## 19 Nov, 14:25–21:50: the rest of the roadmap
+
+- Merged: P-23, P-24, P-20, P-21, P-18, P-18r, P-22, P-22r and a README package (hero, Mermaid flow, 8 screenshots from `pnpm readme:shots`). All 24 packages are on main.
+- main went red once (15be12f): P-23 and P-24 merged cleanly but broke typecheck together. P-20 fixed it; `merge-task.sh` now verifies the merge result (lesson 4).
+- P-18r: one critical finding fixed: the implementer could write `.git` and run any command on the worker through `git status`, with the worker's secrets. Reproduced, fixed, plus 9 warnings.
+- P-22r: 10 findings fixed, none critical (among them: a pause or reached budget did not stop the bot's push; a person's edit or a lowered level did not stop the bot).
+- Second usage-limit stop at 15:18; the 17:20 auto-resume again hit a DNS error, re-prompted at 17:38.
+- **For Alek, beyond the "Needs Alek" table in `work-packages.md`:**
+  - Repositories whose rules require signed commits refuse the bot's push (`push_rejected`): no push or autofix there until the App's commits are signed or the rule lets the App through.
+  - Provisional answers to confirm or change: OQ3 (the commit is the bot's, the signer is `Co-authored-by`), OQ11 (a nit decided "Implement" blocks merge).
+  - After the first deploy, or after adding a sensitive-file pattern, re-run review on open PRs so they get scanned (P-11r).
+  - Anthropic: set a monthly limit in the Console when the real key is connected (P-05r F6).
+  - The GitHub App private key file must be readable by uid 1000 on the VM (P-03r).
+  - The old apps on :4300/:4400 can be switched off once the real smokes pass.
+  - About 24 GB of reclaimable Docker images belong to other projects on this Mac: your call.
+- Tech debt left: foreign key `runs.chain_id` (P-11r F10); sandbox tests leave `pra-sbx-*` containers behind (27 removed tonight); flaky `e2e/decide.spec.ts` and API tests near the 5 s limit under load.
