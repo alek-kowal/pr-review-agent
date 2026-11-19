@@ -3,22 +3,21 @@ import { DECISIONS, type Decision } from '@pra/core';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { copy } from '@/copy/index.ts';
-import type { DecisionView, PrView } from '@/lib/api-types.ts';
+import type { DecisionView } from '@/lib/api-types.ts';
 import { authorName } from '@/lib/next-step.ts';
 import { canDecide, DECISION_ICONS } from './decision-ui.ts';
 import { DecisionForm } from './DecisionForm.tsx';
 import type { FindingSlotProps } from './slots.ts';
 
-/** "Rejected by Tomek (author: Kasia)", or "Rejected by Kasia (author)" when the author signed. */
-const decidedByText = (decision: DecisionView, view: PrView): string =>
-  copy.decisions.decidedBy(
-    decision.decision,
-    decision.signedBy.name,
-    decision.signedBy.id === view.author.memberId ? null : authorName(view.author),
-  );
+/**
+ * "Rejected by Tomek (author: Kasia)", or "Rejected by Kasia (author)" when the author signed; the
+ * author is the one stored with the decision (S-08-T5).
+ */
+const decidedByText = (decision: DecisionView): string =>
+  copy.decisions.decidedBy(decision.decision, decision.label.signer, decision.label.author);
 
 /** Line slot: a decided finding carries its decision as a badge (FR-036). */
-export function DecisionBadge({ finding, view }: FindingSlotProps) {
+export function DecisionBadge({ finding }: FindingSlotProps) {
   const decision = finding.decision;
   if (!decision) return null;
   const Icon = DECISION_ICONS[decision.decision];
@@ -26,7 +25,7 @@ export function DecisionBadge({ finding, view }: FindingSlotProps) {
     <Badge
       variant="outline"
       data-testid="decision-badge"
-      title={decidedByText(decision, view)}
+      title={decidedByText(decision)}
       className="border-border text-text-2"
     >
       <Icon aria-hidden="true" />
@@ -54,7 +53,7 @@ export function DecideRow({ finding, view, repo, number }: FindingSlotProps) {
           className="flex flex-wrap items-center gap-2 text-sm text-text-2"
         >
           <Icon aria-hidden="true" className="size-3.5" />
-          <span className="font-medium text-text">{decidedByText(decision, view)}</span>
+          <span className="font-medium text-text">{decidedByText(decision)}</span>
           {decision.reason && <span>· {copy.decisions.reasonQuote(decision.reason)}</span>}
         </p>
       )}
@@ -81,8 +80,8 @@ export function DecideRow({ finding, view, repo, number }: FindingSlotProps) {
           })}
           {!decision && (
             <span className="text-xs text-text-3">
-              {finding.needsDecision.needed
-                ? copy.decisions.usuallyDecidedBy(authorName(view.author))
+              {finding.usuallyDecidedBy
+                ? copy.decisions.usuallyDecidedBy(authorName(finding.usuallyDecidedBy))
                 : copy.decisions.optional}
             </span>
           )}

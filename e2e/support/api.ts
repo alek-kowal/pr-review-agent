@@ -22,13 +22,19 @@ export async function sql<T extends pg.QueryResultRow>(
 /** Headers a state-changing api call needs (`X-PRA-Request` and an allowed `Origin`). */
 export const writeHeaders = () => ({ 'x-pra-request': '1', origin: stackState().apiUrl });
 
-export type TeamMember = { id: string; name: string };
+export type TeamMember = { id: string; name: string; githubLogin: string };
+
+const teamMembers = async (request: APIRequestContext) =>
+  (
+    (await (await request.get(`${stackState().apiUrl}/api/team`)).json()) as {
+      members: TeamMember[];
+    }
+  ).members;
 
 /** A Team member to sign with; the first one signs as themselves. */
 export async function signer(request: APIRequestContext): Promise<TeamMember> {
   const { apiUrl } = stackState();
-  const members = async () =>
-    ((await (await request.get(`${apiUrl}/api/team`)).json()) as { members: TeamMember[] }).members;
+  const members = () => teamMembers(request);
   const existing = (await members())[0];
   if (existing) return existing;
   // Another spec may add the first person at the same moment; then theirs signs.
@@ -37,6 +43,29 @@ export async function signer(request: APIRequestContext): Promise<TeamMember> {
     data: { name: 'Kasia', githubLogin: 'wb-dev' },
   });
   return (await members())[0]!;
+}
+
+/**
+ * The Team member with this GitHub login, added through the api (signed by the first member) if
+ * missing. Another spec may add the same person at the same moment; then theirs is used.
+ */
+export async function teamMember(
+  request: APIRequestContext,
+  name: string,
+  githubLogin: string,
+): Promise<TeamMember> {
+  const first = await signer(request);
+  const find = async () =>
+    (await teamMembers(request)).find((m) => m.githubLogin.toLowerCase() === githubLogin);
+  const existing = await find();
+  if (existing) return existing;
+  await request.post(`${stackState().apiUrl}/api/team`, {
+    headers: writeHeaders(),
+    data: { name, githubLogin, signedBy: first.id },
+  });
+  const added = await find();
+  expect(added, `Team member @${githubLogin}`).toBeDefined();
+  return added!;
 }
 
 /** Decides the findings with these titles through the api (decide.spec.ts covers the UI). */

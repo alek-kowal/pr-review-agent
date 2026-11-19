@@ -7,6 +7,7 @@ import {
   loadPrStateInput,
   JOBS,
   lockActiveTeamMember,
+  prAuthor,
   sendJob,
   undoDecisionBatch,
   type Executor,
@@ -55,7 +56,8 @@ export const DecideResponse = DecisionResult.extend({
 
 const errors = { 400: ApiErrorSchema, 404: ApiErrorSchema, 409: ApiErrorSchema };
 
-async function refreshedView(db: Executor, pullRequestId: number) {
+/** The Next step, checklist and Findings tab as they are now (also after answers and reviews). */
+export async function refreshedView(db: Executor, pullRequestId: number) {
   const load = await loadPrStateInput(db, pullRequestId);
   if (!load) throw new Error(`pull request ${pullRequestId} disappeared`);
   return {
@@ -112,14 +114,16 @@ const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
             return sendError(reply, 404, ApiErrorCode.FindingNotFound, {
               missing: result.missing,
             });
-          case 'conflict':
+          case 'conflict': {
+            const author = await prAuthor(db, found.pullRequest.id);
             return sendError(reply, 409, ApiErrorCode.DecisionConflict, {
               conflicts: result.conflicts.map((conflict) => ({
                 findingId: conflict.findingId,
                 version: conflict.version,
-                decision: conflict.current ? decisionView(conflict.current) : null,
+                decision: conflict.current ? decisionView(conflict.current, author) : null,
               })),
             });
+          }
         }
       }
       if (decision === 'defer') {

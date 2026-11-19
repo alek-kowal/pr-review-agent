@@ -5,11 +5,13 @@ import type {
   BoardCard,
   BoardResponse,
   ChecklistView,
+  DecisionView,
   FindingView,
   FindingsResponse,
   HeadView,
   NextStepView,
   PrView,
+  QuestionView,
   RepositoryRef,
   RoundProgressView,
   RoundView,
@@ -160,6 +162,26 @@ export const aHead = (over: Partial<HeadView> = {}): HeadView => ({
   ...over,
 });
 
+/** A decision; its label names the author unless they signed it, as the api does. */
+export const aDecision = (over: Partial<DecisionView> = {}): DecisionView => {
+  const signedBy = over.signedBy ?? { id: 'm-kasia', name: 'Kasia' };
+  const author = over.author ?? anAuthor();
+  return {
+    batchId: 7,
+    decision: 'implement',
+    reason: null,
+    signedBy,
+    decidedAt: '2026-11-19T12:00:00.000Z',
+    author,
+    label: {
+      signer: signedBy.name,
+      author: author.memberId === signedBy.id ? null : (author.name ?? author.login),
+    },
+    followUp: null,
+    ...over,
+  };
+};
+
 let nextFindingId = 1;
 
 export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
@@ -187,16 +209,32 @@ export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
     sourceSha: 'abc123',
     commitsBehind: 0,
     fix: null,
+    opinions: [],
+    usuallyDecidedBy: null,
     ...over,
   };
 };
 
 export const aFindingsResponse = (over: Partial<FindingsResponse> = {}): FindingsResponse => ({
   round: { id: 1, number: 1, level: { number: 1, key: 'review' }, finishedAt: null },
+  // The findings round's results unless a test says otherwise.
+  resultsRound:
+    over.round === null ? null : { id: over.round?.id ?? 1, number: over.round?.number ?? 1 },
   findings: [],
   questions: [],
   notChecked: [],
   unchecked: null,
+  ...over,
+});
+
+export const aQuestion = (over: Partial<QuestionView> = {}): QuestionView => ({
+  id: 1,
+  ordinal: 1,
+  text: 'Should the cache survive a restart?',
+  options: ['Yes', 'No'],
+  recommended: 0,
+  why: 'Restarts are frequent.',
+  answer: null,
   ...over,
 });
 

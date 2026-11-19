@@ -1,6 +1,6 @@
 // Copy for the PR Timeline tab: the time summary and one sentence per entry kind.
 import { shortSha } from './nextStep.ts';
-import { money, plural } from './format.ts';
+import { money, plural, reviewCounts } from './format.ts';
 
 type Params = Record<string, unknown>;
 const n = (value: unknown): number => (typeof value === 'number' ? value : Number(value) || 0);
@@ -93,6 +93,10 @@ export const timeline = {
     sensitive_approved: (p) => `Approved ${plural(n(p.count), 'sensitive file')}`,
     sensitive_sent_back: (p) =>
       `Sent back ${plural(n(p.count), 'sensitive file')}: "${String(p.comment ?? '')}"`,
+    questions_answered: (p) => `Answered ${plural(n(p.count), 'question')}`,
+    review_saved: (p) => `Review saved: ${reviewCounts(n(p.worth), n(p.notWorth))}`,
+    author_notified: (p) =>
+      `Notified ${String(p.authorName ?? 'the author')} in ClickUp (${String(p.taskId ?? '')})`,
   } as Record<string, (p: Params, c: TimelineContext) => string>,
   unknownEntry: (kind: string) => kind.replaceAll('_', ' '),
 };

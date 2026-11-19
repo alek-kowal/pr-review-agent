@@ -11,11 +11,12 @@ import {
   type NewRun,
   type PullRequest,
   type PullRequestSnapshot,
+  type QuestionRow,
   type Run,
 } from '@pra/db';
 import { aFinding, aPullRequest, aQuestion, aRun } from '@pra/db/testing';
 
-export type SeededRound = { run: Run; findings: FindingRow[] };
+export type SeededRound = { run: Run; findings: FindingRow[]; questions: QuestionRow[] };
 
 /** A PR in the repository; `updatedAt` defaults to now, so a merged one is recent. */
 export async function seedPr(
@@ -64,13 +65,13 @@ export async function seedRound(
         options.findings.map((patch, i) => aFinding(run.id, pullRequest.id, i + 1, patch)),
       )
     : [];
-  if (options.questions) {
-    await insertQuestions(
-      db,
-      Array.from({ length: options.questions }, (_, i) => aQuestion(run.id, i + 1)),
-    );
-  }
-  return { run, findings };
+  const questions = options.questions
+    ? await insertQuestions(
+        db,
+        Array.from({ length: options.questions }, (_, i) => aQuestion(run.id, i + 1)),
+      )
+    : [];
+  return { run, findings, questions };
 }
 
 /** Blocking findings, `count` of them. */

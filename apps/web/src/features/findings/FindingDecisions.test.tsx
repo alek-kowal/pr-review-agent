@@ -6,6 +6,7 @@ import type { DecideResponse, DecisionView, FindingView, TeamMember } from '@/li
 import { LAST_SIGNER_KEY } from '@/features/signature/last-signer.ts';
 import {
   aChecklist,
+  aDecision,
   aFinding,
   aFindingsResponse,
   aNextStep,
@@ -28,21 +29,27 @@ const tomek: TeamMember = {
   clickupUserId: null,
 };
 
-const first = aFinding({ id: 11, severity: 'blocking', title: 'Undo loses the group', version: 2 });
-const second = aFinding({ id: 12, severity: 'blocking', title: 'Drag ignores the snap grid' });
-const third = aFinding({ id: 13, severity: 'worth_fixing', title: 'Labels overflow' });
+const KASIA_AUTHOR = anAuthor({ login: 'kasia', name: 'Kasia', memberId: kasia.id });
+const usual = { usuallyDecidedBy: KASIA_AUTHOR };
+const first = aFinding({
+  id: 11,
+  severity: 'blocking',
+  title: 'Undo loses the group',
+  version: 2,
+  ...usual,
+});
+const second = aFinding({
+  id: 12,
+  severity: 'blocking',
+  title: 'Drag ignores the snap grid',
+  ...usual,
+});
+const third = aFinding({ id: 13, severity: 'worth_fixing', title: 'Labels overflow', ...usual });
 const nit = aFinding({ id: 14, severity: 'nit', title: 'Rename the helper' });
 const FINDINGS = [first, second, third, nit];
 
-const decisionBy = (member: TeamMember, over: Partial<DecisionView> = {}): DecisionView => ({
-  batchId: 7,
-  decision: 'implement',
-  reason: null,
-  signedBy: { id: member.id, name: member.name },
-  decidedAt: '2026-11-19T12:00:00.000Z',
-  followUp: null,
-  ...over,
-});
+const decisionBy = (member: TeamMember, over: Partial<DecisionView> = {}): DecisionView =>
+  aDecision({ signedBy: { id: member.id, name: member.name }, author: KASIA_AUTHOR, ...over });
 
 const decided = (findings: FindingView[], decision: DecisionView): DecideResponse => ({
   batchId: decision.batchId,
@@ -67,9 +74,7 @@ const decided = (findings: FindingView[], decision: DecisionView): DecideRespons
 
 function stubPr(routes: Record<string, StubbedResponse | unknown> = {}) {
   return stubFetch({
-    '/api/prs/wb/12': aPrView({
-      author: anAuthor({ login: 'kasia', name: 'Kasia', memberId: kasia.id }),
-    }),
+    '/api/prs/wb/12': aPrView({ author: KASIA_AUTHOR }),
     '/api/prs/wb/12/findings': aFindingsResponse({ findings: FINDINGS }),
     '/api/team': { members: [kasia, tomek] },
     ...routes,

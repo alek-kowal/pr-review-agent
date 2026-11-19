@@ -169,3 +169,20 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
 - AGENTS.md: the seed line points at the fixture, and a new "Connect a repository" section
   describes Settings → Repositories. The two Needs Alek rows in `work-packages.md` that named
   `packages/db/seeds/` now name the fixture and Settings.
+
+### Merge of main (P-14, final)
+
+- main brought `0016_questions_and_reviews` (P-14). Main's migration, snapshot and journal are
+  kept; this package's migration is regenerated on top as `0017_level_model_settings`. The
+  generated SQL matches the old `0016_level_model_settings` line for line, and the hand-written
+  default rows are copied back, so the file is identical to the old one.
+- Barrels (`schema/index.ts`, `queries/index.ts`), `copy/index.ts` and `pr-state.ts` imports
+  keep both sides: level and model settings plus P-14's answers, reviews, questions, opinions and
+  notify.
+- `e2e/support/stack.ts` keeps this package's agent call log and P-14's full-review count per PR,
+  and both `GLOBAL_LEVEL_REPOSITORY` and `CLICKUP_REPOSITORY` in the GitHub double.
+  `GLOBAL_LEVEL_REPOSITORY` moves to installation 55500009: it shared 55500006 with main's
+  `MERGE_REPOSITORY` since the previous merge.
+- `routeTree.gen.ts` merged without a conflict; `vite build` regenerates it unchanged.
+- No main code picks a model or level from live settings, so the per-run snapshot (S-21-T2)
+  needs no change.

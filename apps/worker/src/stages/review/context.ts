@@ -4,6 +4,7 @@
 // adding it to the list.
 import type { StageContext } from '../stage.ts';
 import type { BriefSection } from './brief.ts';
+import { answersProvider } from './answers-context.ts';
 import { earlierFixesProvider } from './earlier-fixes.ts';
 import { taskContextProvider } from './task-context.ts';
 
@@ -15,4 +16,5 @@ export type ReviewerContextProvider = {
 export const REVIEWER_CONTEXT_PROVIDERS: readonly ReviewerContextProvider[] = [
   taskContextProvider,
   earlierFixesProvider,
+  answersProvider,
 ];

@@ -4,6 +4,7 @@
 import { z } from 'zod/v4';
 import { renderPrompt, withSessionDir } from '../prompt.ts';
 import type { AgentProgress, AgentRunner, AgentRunResult } from '../runner.ts';
+import { teamAnswersBody, type TeamAnswer } from './answers.ts';
 
 /** A finding decided Implement, as the fix check sees it. */
 export type FixCheckFinding = {
@@ -31,9 +32,15 @@ export type CheckFixesInput = {
   maxTurns: number;
   maxCostUsd: number;
   stageTimeoutMinutes: number;
+  /** The team's answers to earlier questions (FR-035); none adds no file and no prompt line. */
+  answers?: readonly TeamAnswer[];
   signal?: AbortSignal;
   onProgress?: (progress: AgentProgress) => void;
 };
+
+/** Added to the prompt when the PR has answers. */
+export const FIX_CHECK_ANSWERS_LINE =
+  "answers.md holds the team's answers to the reviewer's earlier questions; take them as given.";
 
 /** The answer the session must follow. */
 export const FixCheckAnswerSchema = z.object({
@@ -64,16 +71,21 @@ export async function checkFixes(
   runner: AgentRunner,
   input: CheckFixesInput,
 ): Promise<AgentRunResult<FixStatus[]> & { prompt: string }> {
-  const files = {
+  const answers = input.answers ?? [];
+  const files: Record<string, string> = {
     'findings.json': `${JSON.stringify(input.findings.map(findingJson), null, 2)}\n`,
     'diff.patch': input.diff,
+    ...(answers.length ? { 'answers.md': `${teamAnswersBody(answers)}\n` } : {}),
   };
   return withSessionDir(files, async (dir) => {
-    const prompt = renderPrompt(FIX_CHECK_PROMPT, {
-      fromSha: input.fromSha,
-      toSha: input.toSha,
-      repoDir: input.worktree,
-    });
+    const prompt = [
+      renderPrompt(FIX_CHECK_PROMPT, {
+        fromSha: input.fromSha,
+        toSha: input.toSha,
+        repoDir: input.worktree,
+      }),
+      ...(answers.length ? [FIX_CHECK_ANSWERS_LINE] : []),
+    ].join(' ');
     const result = await runner.run({
       role: 'reviewer',
       model: input.model,

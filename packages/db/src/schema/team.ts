@@ -54,6 +54,12 @@ export const decisionBatches = pgTable(
     signedBy: uuid('signed_by')
       .notNull()
       .references(() => teamMembers.id),
+    /**
+     * The PR author when it was decided (S-08-T5, FR-041), so a decision by someone else reads
+     * "Rejected by Tomek (author: Kasia)". The member is null when no active member had the login.
+     */
+    authorLogin: text('author_login'),
+    authorMemberId: uuid('author_member_id').references(() => teamMembers.id),
     createdAt: createdAt(),
     undoneAt: timestamp('undone_at', { withTimezone: true }),
   },

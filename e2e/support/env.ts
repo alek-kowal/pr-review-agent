@@ -22,7 +22,10 @@ export type StackState = {
   headSha: string;
   /** Commits on the PR branch after `headSha`, in order: pushes after the reviewed head. */
   fixShas: string[];
-  /** A file `hold-<PR number>` here holds that PR's review session until it is removed. */
+  /**
+   * A file `hold-<PR number>` here holds that PR's review session until it is removed. The
+   * reviewer double also writes the brief of a PR's k-th full review here (`briefFile`).
+   */
   holdDir: string;
   /**
    * JSON lines `{ role, model, dirs }`, one per agent session the doubles answered; `dirs` holds
@@ -38,8 +41,19 @@ export type StackState = {
 export const GLOBAL_LEVEL_REPOSITORY = {
   slug: 'global-level-repo',
   fullName: 'acme/global-level-repo',
-  installationId: 55500006,
+  installationId: 55500009,
 };
+
+/** The brief the reviewer double got for PR `number`'s k-th full review (from 1). */
+export const briefFile = (holdDir: string, number: number, k: number): string =>
+  path.join(holdDir, `brief-${number}-${k}.md`);
+
+/**
+ * PR numbers in this range get a reviewer that asks 2 questions; once the brief carries the
+ * team's answers it asks none and adds one finding (questions-reviews.spec.ts). Level 1 drops
+ * questions, so the spec uses `LEVEL_TWO_REPOSITORY`.
+ */
+export const QUESTION_PRS = { from: 270, to: 279 };
 
 /** PR numbers from this one up get a failing reviewer. */
 export const FAILING_PR_FROM = 400;
@@ -136,6 +150,19 @@ export const CLICKUP_TASKS = {
     listId: 'list-wb-sprint',
   },
 };
+
+/**
+ * Seeded at level 1 with ClickUp settings; the ClickUp double knows `task` (notify-author.spec.ts).
+ * The double appends each `createComment` call as one JSON line to `commentsFile(holdDir)`.
+ */
+export const NOTIFY_REPOSITORY = {
+  slug: 'notify-repo',
+  fullName: 'acme/notify-repo',
+  installationId: 55500008,
+  task: { id: '86c1abc', customId: 'WB-123', name: 'Inline edge labels' },
+};
+export const commentsFile = (holdDir: string): string =>
+  path.join(holdDir, 'clickup-comments.jsonl');
 
 /** Insights history (insights.spec.ts): 17 merged PRs here... */
 export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };
