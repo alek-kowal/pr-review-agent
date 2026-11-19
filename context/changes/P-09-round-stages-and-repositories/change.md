@@ -104,7 +104,7 @@ listed order.
   the worktree or in `.git` read as missing). Missing quotes are dropped and kept in
   `droppedQuotes`; the kept ones become the finding's evidence. No quote left → Not proven
   (`quote_missing`, or `no_evidence` when none was given).
-- Reproduction: the script is written to the worktree root as `.pra-repro-<findingId>-<n>.mjs`
+- Reproduction: the script is written to the worktree root as `.pra-repro-<findingId>-<n>-<uuid>.mjs`
   (the v1 rules run it with `node` from the repository root, so relative imports work), the
   worktree is the only mount, read-only at `/work`; network `none`; 2 CPUs, 2 GB, 512 pids,
   5 minutes; `HOME=/tmp`. The file is removed right after the run. Exit 0/3 decide; any other
@@ -121,3 +121,7 @@ listed order.
   under the run's lock, only while the run is `running`. The stage output lists every finding
   with all its sandbox runs and `written`.
 - "Earlier rounds untouched" holds because only this run's findings are read and written.
+- Security (from the commit security review): the PR controls the worktree, so the script file
+  gets a random name and is opened with `O_CREAT | O_EXCL | O_NOFOLLOW` (a committed symlink can
+  never redirect the write onto the host), and the quote reader resolves `realpath` and refuses
+  files outside the worktree.

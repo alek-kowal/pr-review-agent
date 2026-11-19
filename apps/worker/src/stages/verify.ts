@@ -29,8 +29,9 @@ import {
   type VerificationWrite,
 } from '@pra/db';
 import { DEFAULT_SANDBOX_IMAGE, type SandboxLimits, type SandboxResult } from '@pra/integrations';
-import { readFileSync } from 'node:fs';
-import { rm, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { constants, readFileSync, realpathSync } from 'node:fs';
+import { open, rm } from 'node:fs/promises';
 import * as path from 'node:path';
 import { changeTypeOfRun } from './change-type.ts';
 import { effectiveInstructions } from './review/prompt.ts';
@@ -288,14 +289,21 @@ function splitQuotes(
 
 /** Reads a file of the worktree (the reviewed SHA); null outside it, in `.git`, or missing. */
 function worktreeReader(worktree: string): (file: string) => string | null {
-  const root = path.resolve(worktree);
-  return (file) => {
-    const full = path.resolve(root, file);
+  const root = realpathSync(worktree);
+  const inside = (full: string) => {
     const relative = path.relative(root, full);
-    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null;
-    if (relative.split(path.sep)[0] === '.git') return null;
+    return (
+      relative !== '' &&
+      !relative.startsWith('..') &&
+      !path.isAbsolute(relative) &&
+      relative.split(path.sep)[0] !== '.git'
+    );
+  };
+  return (file) => {
     try {
-      return readFileSync(full, 'utf8');
+      // A symlink in the PR must not lead out of the worktree.
+      const full = realpathSync(path.resolve(root, file));
+      return inside(full) ? readFileSync(full, 'utf8') : null;
     } catch {
       return null;
     }
@@ -313,9 +321,20 @@ async function reproduce(
   script: string,
   n: number,
 ): Promise<SandboxResult> {
-  const name = `.pra-repro-${findingId}-${n}.mjs`;
+  // The PR controls the worktree: a fresh random name, created exclusively and never through a
+  // symlink, so the write cannot land outside it.
+  const name = `.pra-repro-${findingId}-${n}-${randomUUID()}.mjs`;
   const file = path.join(worktree, name);
-  await writeFile(file, script);
+  const handle = await open(
+    file,
+    constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
+    0o644,
+  );
+  try {
+    await handle.writeFile(script);
+  } finally {
+    await handle.close();
+  }
   try {
     return await deps.sandbox.run({
       image: DEFAULT_SANDBOX_IMAGE,

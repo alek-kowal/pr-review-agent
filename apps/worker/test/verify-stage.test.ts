@@ -194,7 +194,7 @@ describe('Verify stage', () => {
     expect(spec!.mounts[0]!.containerPath).toBe('/work');
     expect(spec!.mounts[0]!.writable).toBeFalsy();
     expect(spec!.command[0]).toBe('node');
-    expect(spec!.command[1]).toMatch(/^\/work\/\.pra-repro-\d+-1\.mjs$/);
+    expect(spec!.command[1]).toMatch(/^\/work\/\.pra-repro-\d+-1-[0-9a-f-]{36}\.mjs$/);
     // The script sits in the worktree's root for the run only.
     expect(seen).toEqual([[path.basename(spec!.command[1]!)]]);
   });
@@ -225,10 +225,7 @@ describe('Verify stage', () => {
 
     expect(sandbox.calls).toHaveLength(2);
     // The broken script was removed before the repaired one ran.
-    expect(seen.map((names) => names.map((name) => name.slice(-6)))).toEqual([
-      ['-1.mjs'],
-      ['-2.mjs'],
-    ]);
+    expect(seen.map((names) => names.map((name) => name.split('-')[3]))).toEqual([['1'], ['2']]);
     expect(findings[0]!.verdict).toBe('confirmed');
     expect(verifications[0]).toMatchObject({
       script: 'process.exit(0)',
