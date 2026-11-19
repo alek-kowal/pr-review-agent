@@ -7,7 +7,6 @@ import { enqueueAfterRoundComment } from '../handlers/github-comment.ts';
 import type { SessionRecord } from '../stages/stage.ts';
 import { carryOpinionsOnRunCompleted } from './carry-opinions.ts';
 import { chainsOnRunCompleted } from './chains.ts';
-import { sensitiveOnRunCompleted } from './sensitive-files.ts';
 import {
   timelineOnRunCancelled,
   timelineOnRunCompleted,
@@ -42,11 +41,9 @@ export type RunHooks = {
 
 /** Register a hook by adding it to its list. */
 export const RUN_HOOKS: RunHooks = {
-  // Sensitive files before the timeline: its state change then counts them.
   runCompleted: [
     chainsOnRunCompleted,
     carryOpinionsOnRunCompleted,
-    sensitiveOnRunCompleted,
     timelineOnRunCompleted,
     enqueueAfterRoundComment,
   ],

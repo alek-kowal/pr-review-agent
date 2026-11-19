@@ -26,6 +26,10 @@ const runShort = (p: Params) =>
     ? `Round ${n(p.roundNumber)}`
     : runName(p);
 
+/** A PR level as the timeline names it; null is the repository default. */
+const prLevel = (value: unknown) =>
+  value === null || value === undefined ? 'the repository default' : `level ${n(value)}`;
+
 const DECISIONS: Record<string, string> = {
   implement: 'implement',
   reject: 'reject',
@@ -82,6 +86,10 @@ export const timeline = {
     task_linked: (p) => `Linked ClickUp task ${String(p.taskId ?? '')}`,
     follow_up_created: (p) =>
       `Created ClickUp follow-up ${String(p.taskId ?? '')} for a deferred finding`,
+    pr_level_changed: (p) => `PR level set to ${prLevel(p.to)} (was ${prLevel(p.from)})`,
+    sensitive_approved: (p) => `Approved ${plural(n(p.count), 'sensitive file')}`,
+    sensitive_sent_back: (p) =>
+      `Sent back ${plural(n(p.count), 'sensitive file')}: "${String(p.comment ?? '')}"`,
     questions_answered: (p) => `Answered ${plural(n(p.count), 'question')}`,
     review_saved: (p) => `Review saved: ${reviewCounts(n(p.worth), n(p.notWorth))}`,
     author_notified: (p) =>

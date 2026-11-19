@@ -5,6 +5,7 @@ import {
   decideFindings,
   eq,
   fixChecksOfRun,
+  getPullRequest,
   getRun,
   insertFindings,
   insertRun,
@@ -37,7 +38,10 @@ let repository: Repository;
 let pullRequest: PullRequest;
 
 beforeAll(async () => {
-  fixture = await createGitFixture();
+  // One more fix on top of the feature commit, for round 3.
+  fixture = await createGitFixture({
+    fixes: [{ 'apps/demo/src/label.ts': 'export const trim = true;\n' }],
+  });
   deps = await createTestWorkerDeps();
   deps.gitMirror = new CliGitMirror({
     rootDir: path.join(deps.dataDir, 'git'),
@@ -161,6 +165,42 @@ describe('fix check', () => {
       ['Empty label shows nothing', true],
       ['Label is not trimmed', null],
     ]);
+  });
+
+  test("round 3 checks the diff since round 2's head, not since round 1", async () => {
+    const { round, implement } = await reviewedRound();
+    const answer = (input: Parameters<FakeAgentRunner['run']>[0]) =>
+      new FakeAgentRunner([
+        {
+          output: { fixes: [{ findingId: implement.id, resolved: false, reason: 'Still empty.' }] },
+        },
+      ]).run(input);
+    deps.agentRunner.enqueue(answer);
+    await runToEnd(await fixRound(round));
+
+    const fixSha = fixture.fixShas[0]!;
+    await deps.db
+      .update(schema.pullRequests)
+      .set({ headSha: fixSha })
+      .where(eq(schema.pullRequests.id, pullRequest.id));
+    await deps.db
+      .update(schema.roundChains)
+      .set({ expectedHeadSha: fixSha })
+      .where(eq(schema.roundChains.id, round.chainId!));
+    pullRequest = (await getPullRequest(deps.db, repository.id, pullRequest.number))!;
+    const third = await start({ trigger: 'own_fix', startedBy: { kind: 'bot' } });
+    expect(third.run).toMatchObject({ roundNo: 3, headSha: fixSha });
+    const seen: { diff?: string; prompt?: string } = {};
+    deps.agentRunner.enqueue(async (input) => {
+      seen.diff = await readFile(path.join(input.cwd, 'diff.patch'), 'utf8');
+      seen.prompt = input.prompt;
+      return answer(input);
+    });
+
+    expect((await runToEnd(third)).status).toBe('completed');
+    expect(seen.prompt).toContain(fixture.headSha);
+    expect(seen.diff).toContain('apps/demo/src/label.ts');
+    expect(seen.diff).not.toContain('apps/demo/src/edges.ts');
   });
 
   test('a finding the fix check does not answer is Not resolved', async () => {

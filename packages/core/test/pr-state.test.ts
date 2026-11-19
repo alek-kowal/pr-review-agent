@@ -311,6 +311,15 @@ describe('state precedence', () => {
     });
   });
 
+  it("the bot's unchecked fix after 3 rounds holds the PR even with no finding to fix", () => {
+    expect(prState(makePr({ chainRounds: 3, findings: [], ownFixUnchecked: true }))).toBe(
+      'rounds_used',
+    );
+    expect(prState(makePr({ chainRounds: 3, findings: [], ownFixUnchecked: false }))).toBe(
+      'ready_to_merge',
+    );
+  });
+
   it('Implement findings still open after 3 completed rounds give rounds_used', () => {
     expect(prState(makePr({ chainRounds: 2, findings: [implementOpen()] }))).toBe(
       'waiting_for_fix',
