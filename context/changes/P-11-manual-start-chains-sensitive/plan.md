@@ -159,15 +159,15 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 1: Chains and one round-start service
 
-- [ ] 1.1 `pnpm --filter @pra/worker test chains.test.ts`
+- [x] 1.1 `pnpm --filter @pra/worker test chains.test.ts`
 
 ### Phase 2: Pushes
 
-- [ ] 2.1 `pnpm --filter @pra/worker test pushes.test.ts`
+- [x] 2.1 `pnpm --filter @pra/worker test pushes.test.ts`
 
 ### Phase 3: Fix check
 
-- [ ] 3.1 `pnpm --filter @pra/worker test fix-check.test.ts`
+- [x] 3.1 `pnpm --filter @pra/worker test fix-check.test.ts`
 
 ### Phase 4: Manual start, PR level, head-aware summary
 

@@ -17,6 +17,7 @@ import {
   insertAgentSession,
   insertFindings,
   insertQuestions,
+  saveFixChecks,
   activeInstructions,
   insertStageExecution,
   lockRun,
@@ -490,6 +491,7 @@ async function storeResultInTx(
         result.questions.map((question, index) => ({ ...question, runId, ordinal: index + 1 })),
       );
     }
+    if (result.fixChecks?.length) await saveFixChecks(tx, runId, result.fixChecks);
     await updateStageExecution(tx, executionId, {
       status: 'succeeded',
       finishedAt: now,

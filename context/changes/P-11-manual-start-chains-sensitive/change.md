@@ -32,8 +32,10 @@ decide and record).
   fix checks add Resolved / Not resolved. The reviewed SHA is the latest completed round's head.
 - **Sensitive files match `sensitivePatterns`** (pattern plus reason, PRD FR-002 / FR-046), not
   `changeTypeRules.oneWayPaths`; the task's "one-way paths" means these sensitive patterns.
-- **Fix check `reproductions` stage** reruns nothing until scripts exist for the checked findings;
-  it records that in its output instead of failing `stage_not_available`.
+- **Fix check `reproductions` stage** reruns the scripts Verify kept for the checked findings
+  (none for a fork PR). Exit 0 (the bug still shows) turns the round's Resolved into Not resolved.
+  Without scripts it records `scripts: 0` and succeeds. (Replaces the planned "reruns nothing":
+  P-09 already stores the scripts.)
 
 ### S-07-T2 (pushes)
 
@@ -46,3 +48,16 @@ decide and record).
 - When the head equals the reviewed SHA there are 0 commits since, whatever the commit counts say.
 - The loader takes findings and questions from the latest completed full round (round 1 of its
   chain), so a fix check, which writes no findings, keeps them on the PR (moved here from T4).
+
+### S-07-T3 (fix check)
+
+- The reviewer lives in `apps/worker/src/stages/review`; there was no `packages/agents/src/reviewer`.
+  The fix-check mode is an adapter there (`packages/agents/src/reviewer/fix-check.ts`) with a
+  built-in prompt, not a stored instruction file, because only the full review has one.
+- Rounds 2 and 3 check every Implement finding of the chain's round 1, on the diff since the
+  chain's latest completed round. A finding the session does not answer is stored Not resolved.
+- Round 1 of a new chain lists the previous full round's Implement findings that are not resolved
+  yet (reviewer context provider `earlier_fixes`); only answers for listed ids are stored, and a
+  missing answer stores nothing (the field is optional in a full review).
+- `finding_fix_checks` keeps one row per finding and round; a later stage of the same round
+  replaces it. The loader's `resolved` is the newest row.

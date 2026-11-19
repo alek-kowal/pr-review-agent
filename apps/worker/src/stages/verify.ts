@@ -314,8 +314,8 @@ function worktreeReader(worktree: string): (file: string) => string | null {
  * Runs the script with `node` from the repository root, as the v1 rules say. It sits in the
  * worktree's root for the run, so relative imports resolve, and the worktree is mounted read-only.
  */
-async function reproduce(
-  { deps, signal }: StageContext,
+export async function reproduce(
+  { deps, signal }: Pick<StageContext, 'deps' | 'signal'>,
   worktree: string,
   findingId: number,
   script: string,
@@ -351,14 +351,15 @@ async function reproduce(
   }
 }
 
-/** Keeps the whole output in BlobStore and the rest in the stage output. */
-async function keepRun(
-  { deps, run, attempt }: StageContext,
+/** Keeps the whole output in BlobStore (under the stage's key) and the rest in the stage output. */
+export async function keepRun(
+  { deps, run, attempt }: Pick<StageContext, 'deps' | 'run' | 'attempt'>,
   findingId: number,
   n: number,
   result: SandboxResult,
+  stage = 'verify',
 ): Promise<ReproRun> {
-  const outputBlobKey = `runs/${run.id}/verify-${attempt}/finding-${findingId}-repro-${n}.log`;
+  const outputBlobKey = `runs/${run.id}/${stage}-${attempt}/finding-${findingId}-repro-${n}.log`;
   await deps.blobStore.put(outputBlobKey, Buffer.from(result.output), {
     contentType: 'text/plain; charset=utf-8',
   });

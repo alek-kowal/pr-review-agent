@@ -21,6 +21,7 @@ import { pullRequests, repositories } from '../schema/repositories.ts';
 import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
+import { newestFixChecks, type FixCheck } from './fix-checks.ts';
 import { readRepositoryConfig, type PullRequest, type Repository } from './repositories.ts';
 import type { FindingRow, QuestionRow, Run } from './runs.ts';
 import type { TeamMember } from './team.ts';
@@ -46,6 +47,8 @@ export type PrStateLoad = {
   findings: FindingRow[];
   questions: QuestionRow[];
   decisions: Map<number, CurrentDecision>;
+  /** The newest fix status of each finding that has one. */
+  fixChecks: Map<number, FixCheck>;
 };
 
 /** The run's starter as a core actor. */
@@ -73,7 +76,11 @@ export function runRecord(run: Run): RunRecord {
 }
 
 /** A finding row with its current decision, as core's rules see it. */
-export function coreFinding(row: FindingRow, decision: CurrentDecision | undefined): Finding {
+export function coreFinding(
+  row: FindingRow,
+  decision: CurrentDecision | undefined,
+  fixCheck?: Pick<FixCheck, 'resolved'>,
+): Finding {
   return {
     id: String(row.id),
     severity: row.severity,
@@ -86,8 +93,7 @@ export function coreFinding(row: FindingRow, decision: CurrentDecision | undefin
     verdict: row.verdict,
     evidence: row.evidence,
     decision: decision?.decision ?? null,
-    // Fix checks arrive in S-07.
-    resolved: null,
+    resolved: fixCheck?.resolved ?? null,
   };
 }
 
@@ -224,10 +230,16 @@ export async function loadPrStateInputs(
           .orderBy(desc(stageExecutions.id))
       : [],
   ]);
-  const decisions = await currentDecisions(
-    db,
-    findingRows.map((row) => row.id),
-  );
+  const [decisions, fixChecks] = await Promise.all([
+    currentDecisions(
+      db,
+      findingRows.map((row) => row.id),
+    ),
+    newestFixChecks(
+      db,
+      findingRows.map((row) => row.id),
+    ),
+  ]);
   const chainIds = [...perPr.values()].flatMap((p) =>
     p.latestRound?.chainId ? [p.latestRound.chainId] : [],
   );
@@ -285,7 +297,9 @@ export async function loadPrStateInputs(
       activeRun: activeRun(p.active),
       failedRound,
       chainRounds: chainState(p.rounds.map(runRecord)).completedRounds,
-      findings: prFindings.map((row) => coreFinding(row, decisions.get(row.id))),
+      findings: prFindings.map((row) =>
+        coreFinding(row, decisions.get(row.id), fixChecks.get(row.id)),
+      ),
       // Answers arrive in S-08, so every question is open.
       questions: prQuestions.map((row) => ({ id: String(row.id), answered: false })),
       sensitive: null,
@@ -309,6 +323,12 @@ export async function loadPrStateInputs(
         prFindings.flatMap((row) => {
           const decision = decisions.get(row.id);
           return decision ? [[row.id, decision] as const] : [];
+        }),
+      ),
+      fixChecks: new Map(
+        prFindings.flatMap((row) => {
+          const check = fixChecks.get(row.id);
+          return check ? [[row.id, check] as const] : [];
         }),
       ),
     });

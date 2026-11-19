@@ -10,5 +10,6 @@ export {
 export * from './judge/index.ts';
 export * from './verifier/index.ts';
 export * from './implementer/index.ts';
+export * from './reviewer/index.ts';
 export { checkToolPath, pathGuard, type PathDecision, type PathPolicy } from './path-guard.ts';
 export * from './transcript.ts';
