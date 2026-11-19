@@ -28,13 +28,9 @@ export type RunGates = {
 
 /** Register a gate by adding it to its list. */
 export const RUN_GATES: RunGates = {
-  // P-16 handoff: register queueRoundGate / queueSessionGate here together with the drainer and
-  // NO_RUN_GATES as the test-deps default (see context/changes/P-16-handoff.md).
-  beforeRoundStart: [],
-  beforeSession: [],
+  beforeRoundStart: [queueRoundGate],
+  beforeSession: [queueSessionGate],
 };
-void queueRoundGate;
-void queueSessionGate;
 
 /** No gates: for tests whose shared database holds other tests' runs (they would fill slots). */
 export const NO_RUN_GATES: RunGates = { beforeRoundStart: [], beforeSession: [] };
