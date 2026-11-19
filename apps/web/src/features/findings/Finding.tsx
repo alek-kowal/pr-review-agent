@@ -48,11 +48,14 @@ function VerdictText({ verdict, level }: { verdict: Verdict; level: number }) {
  */
 export function Finding({
   open,
+  current = false,
   onToggle,
   selection,
   ...slotProps
 }: FindingSlotProps & {
   open: boolean;
+  /** The finding the triage keys act on (S-17-T6): its border is marked. */
+  current?: boolean;
   onToggle: () => void;
   /** A checkbox before the line, for bulk decisions; left out when nothing can be decided. */
   selection?: { checked: boolean; onChange: () => void };
@@ -66,8 +69,9 @@ export function Finding({
   return (
     <article
       data-finding-id={f.id}
+      data-current={current || undefined}
       aria-label={`${copy.findings.severities[f.severity].one}: ${f.title}`}
-      className="rounded-lg border border-border bg-surface"
+      className="rounded-lg border border-border bg-surface data-current:border-brand-line"
     >
       <div className="flex items-start">
         {selection && (

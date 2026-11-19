@@ -2,6 +2,7 @@
 // an action adds one entry here and its label in `copy.palette.actions[id]`.
 import { openStartReview } from '@/features/rounds/open-start-review.ts';
 import { openStatusChip } from '@/features/shell/open-status-chip.ts';
+import { openShortcuts } from '@/features/shortcuts/open-shortcuts.ts';
 
 export type PaletteContext = {
   /** The PR on screen, on a PR page; null elsewhere. */
@@ -22,6 +23,7 @@ export type PaletteAction = {
 };
 
 export const PALETTE_ACTIONS: PaletteAction[] = [
+  { id: 'shortcuts', keywords: 'keyboard keys help', shortcut: '?', run: () => openShortcuts() },
   { id: 'pause', keywords: 'resume budget status factory agents', run: () => openStatusChip() },
   {
     id: 'startReview',

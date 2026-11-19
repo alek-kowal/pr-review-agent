@@ -34,7 +34,7 @@ export const shortcuts = {
   close: 'Close',
   groups: { global: 'Anywhere', findings: 'Findings tab' },
   /** Key names as shown in Kbd hints. */
-  keys: { mod: '⌘', then: 'then' },
+  keys: { mod: '⌘', then: 'then', enter: 'Enter' },
   items: {
     palette: 'Open the command palette',
     search: 'Search',

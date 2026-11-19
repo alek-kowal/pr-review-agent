@@ -55,3 +55,20 @@ when" checks are the plan. One commit per task, in the listed order.
 - **T5 `CommandDialog` and `Kbd`** were added to `components/ui` (shadcn), with the title and
   description passed in, so the primitives hold no copy. The TopBar test now allows the Search
   and theme buttons in the top bar (still no account menu).
+- **T6 the focused finding** is the line last moved to with `j`/`k` or focused by any means
+  (click, Tab, the Decide action). It gets a brand border (`data-current`). `j`/`k` start at
+  the first finding shown and stop at the ends; the other keys need a focused finding. `x`, `w`,
+  `n`, `i`, `r` and `d` work only while the PR can be decided, the same rule as their buttons.
+- **T6 decision forms move up to the list.** Which form is open on which finding now lives in
+  `FindingList` (`DecisionFormsContext`, `decision-forms.ts`), so `i`/`r`/`d` open a finding's
+  form after expanding it; the form stays open if the finding is collapsed and opened again.
+  Enter confirms through the form's own rule: the focused submit button for Implement, the
+  reason box for Reject and Defer.
+- **T6 Kbd hints sit inside the buttons**, as in the prototype's `Btn kbd`: Implement…,
+  Reject…, Defer to ClickUp…, Worth implementing and Not worth it show their key in a `Kbd`
+  (`aria-hidden`, plus `aria-keyshortcuts`), so the accessible names do not change. No hover
+  tooltip primitive was added.
+- **T6 global keys** live in `ShortcutsDialog` (root layout): `?` opens the list; `g` then `p`
+  or `a` within 1.5 s goes to Pull requests or Activity. The palette's "Show keyboard
+  shortcuts" opens it through a window event (`open-shortcuts.ts`). Key names come from the
+  same maps the buttons use (`DECISION_KEYS`, `OPINION_KEYS`).
