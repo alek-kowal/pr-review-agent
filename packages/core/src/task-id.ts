@@ -26,3 +26,18 @@ function taskIdRegex(pattern: string): RegExp {
   // Letters and digits on either side mean the id is part of another word: `AWB-1`, `WB-12x`.
   return new RegExp(`(?<![\\p{L}\\p{N}])(${pattern})(?![\\p{L}\\p{N}])`, 'iu');
 }
+
+// `https://app.clickup.com/t/86c1abc` or `https://app.clickup.com/t/9012/WB-123` (custom ids
+// carry the workspace id first); the scheme and `app.` are optional.
+const TASK_URL =
+  /^(?:https?:\/\/)?(?:app\.)?clickup\.com\/t\/(?:\d+\/)?([A-Za-z0-9_-]+)\/?(?:[?#].*)?$/i;
+const TASK_ID = /^#?([A-Za-z0-9][A-Za-z0-9_-]*)$/;
+
+/**
+ * The task id in what a person typed to link a task: an id (`WB-123`, `86c1abc`, `#86c1abc`) or
+ * a ClickUp task link. Returns null for anything else.
+ */
+export function taskIdFromRef(input: string): string | null {
+  const text = input.trim();
+  return TASK_URL.exec(text)?.[1] ?? TASK_ID.exec(text)?.[1] ?? null;
+}

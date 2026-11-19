@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { Activity, ChartColumn, GitPullRequest, Settings, type LucideIcon } from 'lucide-react';
 import { copy } from '@/copy/index.ts';
+import { StatusChip } from './StatusChip.tsx';
 
 type NavPath = '/prs' | '/activity' | '/insights' | '/settings';
 
@@ -11,8 +12,8 @@ const NAV: ReadonlyArray<{ to: NavPath; label: string; icon: LucideIcon }> = [
   { to: '/settings', label: copy.nav.settings, icon: Settings },
 ];
 
-// Approved structure (docs/03-design-decisions.md): product name, the four sections, no account menu.
-// Search and the status chip arrive in later slices.
+// Approved structure (docs/03-design-decisions.md): product name, the four sections, the status
+// chip, no account menu. Search arrives in a later slice.
 export function TopBar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-surface">
@@ -36,6 +37,9 @@ export function TopBar() {
             </Link>
           ))}
         </nav>
+        <div className="ml-auto flex min-w-0 shrink items-center">
+          <StatusChip />
+        </div>
       </div>
     </header>
   );

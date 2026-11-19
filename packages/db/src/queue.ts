@@ -19,6 +19,8 @@ export const JOBS = {
   runStage: 'run.stage',
   /** The after-round GitHub comment of one run; keyed `<runId>`. */
   githubComment: 'github.comment',
+  /** ClickUp follow-up tasks of one Defer to ClickUp decision batch; keyed `<batchId>`. */
+  clickupFollowUp: 'clickup.follow-up',
 } as const;
 
 export type JobName = (typeof JOBS)[keyof typeof JOBS];
@@ -29,6 +31,7 @@ export interface JobPayloads {
   'github.event': { eventId: number };
   'run.stage': { runId: number; stage: string };
   'github.comment': { runId: number };
+  'clickup.follow-up': { batchId: number };
 }
 
 type QueueSettings = Omit<QueueDefinition, 'name'>;
@@ -46,7 +49,11 @@ const STAGE_JOB_EXPIRY_SECONDS = 5 * 60 * 60;
 export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   'run.stage': { policy: 'exclusive', expireInSeconds: STAGE_JOB_EXPIRY_SECONDS },
   'github.comment': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
+  'clickup.follow-up': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
 };
+
+/** A follow-up job waits this long, so the decision's Undo (offered for 10 s) creates no task. */
+export const FOLLOW_UP_DELAY_SECONDS = 15;
 
 /**
  * A job id derived from `key` (UUID-shaped hash). pg-boss inserts jobs with `on conflict do

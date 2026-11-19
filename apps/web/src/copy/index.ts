@@ -1,10 +1,15 @@
 // UI copy (English). Components read strings from here, never inline them.
+import { activity } from './activity.ts';
 import { board } from './board.ts';
 import { checklist } from './checklist.ts';
+import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { integrations } from './integrations.ts';
 import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
+import { runs } from './runs.ts';
+import { status } from './status.ts';
+import { timeline } from './timeline.ts';
 
 export const copy = {
   app: {
@@ -23,6 +28,10 @@ export const copy = {
   decisions,
   repositories,
   integrations,
+  status,
+  runs,
+  clickup,
+  timeline,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',
@@ -49,7 +58,6 @@ export const copy = {
     empty: {
       questions: 'No questions for this pull request.',
       patch: 'No patch yet.',
-      timeline: 'Nothing on the timeline yet.',
     },
   },
   round: {
@@ -157,12 +165,14 @@ export const copy = {
     clickup_auth_failed: 'ClickUp refused the API key.',
     clickup_error: 'ClickUp did not answer as expected.',
     github_error: 'GitHub did not answer as expected.',
+    task_not_found: 'ClickUp has no task with this ID.',
+    task_ref_invalid: 'Enter a ClickUp task ID, such as WB-123, or a task link.',
+    run_not_found: 'This run does not exist.',
+    session_not_found: 'This agent session does not exist.',
+    transcript_not_found: 'The transcript of this session is not stored.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
-  activity: {
-    title: 'Activity',
-    placeholder: 'The activity feed arrives in a later slice.',
-  },
+  activity,
   insights: {
     title: 'Insights',
     placeholder: 'Cost, quality and trust insights arrive in a later slice.',

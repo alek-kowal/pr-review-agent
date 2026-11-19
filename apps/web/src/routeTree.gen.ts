@@ -14,6 +14,7 @@ import { Route as ActivityRouteImport } from './routes/activity.tsx'
 import { Route as InsightsRouteImport } from './routes/insights.tsx'
 import { Route as PrsRouteImport } from './routes/prs.tsx'
 import { Route as SettingsRouteImport } from './routes/settings.tsx'
+import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
@@ -45,6 +46,11 @@ const PrsRoute = PrsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RunsRunIdRoute = RunsRunIdRouteImport.update({
+  id: '/runs/$runId',
+  path: '/runs/$runId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/insights': typeof InsightsRoute
   '/prs': typeof PrsRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/settings/': typeof SettingsIndexRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/insights': typeof InsightsRoute
   '/prs': typeof PrsRoute
+  '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/settings': typeof SettingsIndexRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/insights': typeof InsightsRoute
   '/prs': typeof PrsRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/settings/': typeof SettingsIndexRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/prs'
     | '/settings'
+    | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
     | '/settings/'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/insights'
     | '/prs'
+    | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
     | '/settings'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/prs'
     | '/settings'
+    | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
     | '/settings/'
@@ -177,6 +189,7 @@ export interface RootRouteChildren {
   InsightsRoute: typeof InsightsRoute
   PrsRoute: typeof PrsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
+  RunsRunIdRoute: typeof RunsRunIdRoute
   PrRepoNumberRoute: typeof PrRepoNumberRoute
 }
 
@@ -215,6 +228,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/runs/$runId': {
+      id: '/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/runs/$runId'
+      preLoaderRoute: typeof RunsRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -297,6 +317,7 @@ const rootRouteChildren: RootRouteChildren = {
   InsightsRoute: InsightsRoute,
   PrsRoute: PrsRoute,
   SettingsRoute: SettingsRouteWithChildren,
+  RunsRunIdRoute: RunsRunIdRoute,
   PrRepoNumberRoute: PrRepoNumberRoute,
 }
 export const routeTree = rootRouteImport
