@@ -113,3 +113,10 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   model (FR-075); an empty or invalid value falls back.
 - `holdReason` returns `paused` or `budget_reached`; `autofixDecision` keeps its own
   `autofix_paused` and `autofix_budget_reached`, because codes are unique.
+- T11: a proposal is a duplicate when the analyst names the candidate (`duplicateOf`) or the
+  titles match case-, whitespace- and end-punctuation-insensitively. Open candidates win over
+  accepted, then rejected ones; a repeat of an accepted lesson changes nothing
+  (`lesson_already_accepted`). New candidates take `proposal.id`, so the function stays pure. PR
+  counts are distinct PRs. `canAccept(candidate, signer?)` checks status, then PRs, then that the
+  signer is a Team member, so the UI can call it without a signer to decide whether Accept is
+  enabled. `withLesson` appends `## <title>` and the rule, and is idempotent on the heading.
