@@ -59,3 +59,22 @@ See `plan.md` "Key decisions"; implementation-time decisions are appended here a
   It forwards `/api/*`, `/webhooks/*`, `/health` unchanged (like the Vite dev proxy), compresses
   only the static files and marks `/assets/*` immutable.
 - No BuildKit cache mounts: the `pnpm fetch` layer is cached by Docker until the lockfile changes.
+
+### F-04-T2 Deploy Compose
+
+- The GitHub App key is a Compose secret (`file: ${GITHUB_APP_PRIVATE_KEY_FILE:-/dev/null}`),
+  mounted read-only at `/run/secrets/github_app_key`; compose sets `GITHUB_APP_PRIVATE_KEY_PATH`.
+  `/dev/null` (empty key) means "not configured", so the stack starts without a key.
+- `env_file` `${PRA_ENV_FILE:-app.env}` is required: `compose config` and `up` fail fast without
+  it. `deploy/app.env` is gitignored; `deploy/local.env` holds only throwaway local values.
+- `migrate` (profile `tools`) runs the api image with `node node_modules/@pra/db/dist/cli/migrate.js`
+  (no pnpm in the images). The worker restarts until the first migration has run.
+- Worker health: `WORKER_HEARTBEAT_FILE` (set only by compose) is written every 10 s; the
+  healthcheck (`dist/health/healthcheck.js`) fails when it is older than 30 s. api health:
+  `fetch('/health')` from inside the container (no curl in the slim image).
+- MinIO: the `minio/minio` and `quay.io/minio` images are no longer pullable, so the local profile
+  uses `cgr.dev/chainguard/minio` and `cgr.dev/chainguard/minio-client` (bucket `pra`, created by
+  `minio-init` with `restart: on-failure` until MinIO answers). These images only have `latest`.
+- Local services are `depends_on` with `required: false`, so on the VM (no `local` profile) api
+  and worker start against the external database alone. Only `web` publishes a port, on
+  `127.0.0.1:${PRA_WEB_PORT:-8080}`.

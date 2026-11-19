@@ -245,17 +245,17 @@ Compose checks are run by hand once per phase, on free ports and own project nam
 
 #### Automated
 
-- [x] 4.1 api, worker and web images build
-- [x] 4.2 api image serves `/health` 200 and runs as non-root
-- [x] 4.3 `pnpm verify` passes
+- [x] 4.1 api, worker and web images build — cb9884d
+- [x] 4.2 api image serves `/health` 200 and runs as non-root — cb9884d
+- [x] 4.3 `pnpm verify` passes — cb9884d
 
 ### Phase 5: Deploy Compose
 
 #### Automated
 
-- [ ] 5.1 `compose config` shows no secrets on `web`
-- [ ] 5.2 local rehearsal: `/health` 200 and `/prs` SPA through the proxy
-- [ ] 5.3 `pnpm verify` passes
+- [x] 5.1 `compose config` shows no secrets on `web`
+- [x] 5.2 local rehearsal: `/health` 200 and `/prs` SPA through the proxy
+- [x] 5.3 `pnpm verify` passes
 
 ### Phase 6: S3 BlobStore
 

@@ -10,3 +10,6 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
+
+# Deploy env file written by the secret store (deploy/compose.yaml)
+deploy/app.env

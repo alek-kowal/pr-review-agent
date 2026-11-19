@@ -20,5 +20,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 # Owned by root: the app user can read its code but not change it.
 COPY --from=build /out ./
+# The only writable app path: the git mirrors and worktrees (a volume in deploy/compose.yaml).
+RUN mkdir -p /app/.data/git && chown -R node:node /app/.data
 USER node
 CMD ["node", "dist/main.js"]
