@@ -29,3 +29,4 @@ export * from './answers.ts';
 export * from './reviews.ts';
 export * from './status.ts';
 export * from './merge.ts';
+export * from './alerts.ts';
