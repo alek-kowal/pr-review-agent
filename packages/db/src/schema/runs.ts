@@ -61,12 +61,16 @@ const inList = (column: AnyPgColumn, values: readonly string[]): SQL =>
     sql`, `,
   )})`;
 
-/** One active instruction file version, as a run recorded it. */
+/** One instruction file version, as a run recorded it (`run_instruction_versions` holds the ids). */
 export type RunInstructionVersion = {
   id: number;
-  scope: 'global' | 'repository';
+  scope: 'global' | 'repository' | 'level';
   fileKey: string;
   version: number;
+  /** The level of a level copy. */
+  level?: number | null;
+  /** The file, for a link to its editor. */
+  fileId?: number;
 };
 
 /** One run on a PR: a review round, an implementer run, a trial or the analyst. */

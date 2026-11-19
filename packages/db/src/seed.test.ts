@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { RepositoryConfigSchema } from '@pra/core';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import {
+  activeInstructions,
   closeDb,
   createDb,
   eq,
@@ -73,9 +74,9 @@ describe('the workflowbuilder seed', () => {
     });
     expect(config.sensitivePatterns).toHaveLength(8);
 
-    const versions = await db.select().from(schema.instructionVersions);
+    const versions = await activeInstructions(db, rows[0]!.id);
     const imported = versions
-      .filter((v) => v.scope === 'global' || v.repositoryId === rows[0]!.id)
+      .filter((v) => v.scope !== 'level')
       // Other test files add global versions under `test-only/`.
       .filter((v) => !v.fileKey.startsWith('test-only/'))
       .map((v) => [v.scope, v.fileKey, v.version, v.status])

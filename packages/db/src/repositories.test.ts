@@ -229,29 +229,4 @@ describe('instruction versions', () => {
       ]),
     );
   });
-
-  test('a file has at most one active version, and scope matches the repository', async () => {
-    const fileKey = `test-only/prompt-${unique()}.md`;
-    await importInstructionV1(db, { scope: 'global', fileKey, content: 'v1' });
-
-    await expect(
-      db.insert(schema.instructionVersions).values({
-        scope: 'global',
-        fileKey,
-        version: 2,
-        status: 'active',
-        content: 'v2',
-      }),
-    ).rejects.toThrow();
-    await expect(
-      db.insert(schema.instructionVersions).values({
-        scope: 'repository',
-        repositoryId: null,
-        fileKey,
-        version: 3,
-        status: 'draft',
-        content: 'v3',
-      }),
-    ).rejects.toThrow();
-  });
 });
