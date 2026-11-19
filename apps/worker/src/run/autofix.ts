@@ -122,12 +122,15 @@ export const autofixOnRoundCompleted: RunHook = async (context) => {
     trigger: 'autofix',
     prepare: (tx) => decideAsBot(tx, load, check),
     afterInsert: async (tx, implementer) => {
-      await recordAutofixAttempt(tx, {
+      const started = await recordAutofixAttempt(tx, {
         ...attempt,
         implementerRunId: implementer.id,
         outcome: 'started',
         reasons: check.reasons,
       });
+      // The `started` row is what the cap counts and what lets the bot push the patch: a run
+      // without it (the round already has a start attempt) is rolled back, never left uncounted.
+      if (!started) throw new Error(`Round ${run.id} already has an autofix start attempt`);
     },
   });
   if (!started.started) {
