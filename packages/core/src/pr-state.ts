@@ -92,7 +92,7 @@ export function prState(input: PrStateInput): PrState {
   if (openQuestions(input.questions).length) return 'questions_waiting';
   if (toDecide(input.findings).length) return 'findings_to_decide';
   if (input.sensitive && input.sensitive.status !== 'approved') return 'sensitive_files';
-  if (toFix(input.findings).length) {
+  if (toFix(input.findings).length || input.ownFixUnchecked) {
     return input.chainRounds >= MAX_CHAIN_ROUNDS ? 'rounds_used' : 'waiting_for_fix';
   }
   return 'ready_to_merge';
