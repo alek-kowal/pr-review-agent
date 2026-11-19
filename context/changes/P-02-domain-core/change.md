@@ -87,3 +87,12 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   run back to `queued` (it passes the start gates again), adds one to `attempt`, and records
   `retryFrom`. `recoverAfterRestart` leaves a running run between stages unchanged, because the
   next stage's pg-boss job is durable. Stages must start in plan order (`stage_out_of_order`).
+- T9: `autofixDecision` is the start check after a round; `go` ignores the level, so below
+  level 5 (`enabled: false`) it says what level 5 would have done (shadow log). Work = findings
+  that need a decision plus Implement findings not resolved. Holds, in order: fork, nothing to
+  fix, open questions, unsure verdicts, a fix that needs a decision (`remedy` not `obvious`),
+  One-way door, new commits since the review (from the prototype's `commitsSince === 0` guard),
+  N patches per chain used, paused, budget reached. Conditions 1 to 3 (all fixed, reproductions
+  pass, no sensitive file) are checked on the patch by `pushByItself(patch, sensitivePatterns)`.
+  Sensitive files the PR itself touches are not an autofix hold (the PRD condition is about the
+  patch); they still hold the PR in Action needed through the state table.
