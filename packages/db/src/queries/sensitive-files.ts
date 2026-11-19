@@ -85,7 +85,10 @@ export async function addSensitiveFiles(
   });
 }
 
-/** The author pushed: files sent back wait for a person again. Returns the reset rows. */
+/**
+ * The author pushed: files sent back wait for a person again. While any file waits the version
+ * moves, so an approval sent from a page loaded before the push is stale. Returns the reset rows.
+ */
 export async function resetSentBackSensitiveFiles(
   db: Transactor,
   pullRequestId: number,
@@ -109,7 +112,20 @@ export async function resetSentBackSensitiveFiles(
         ),
       )
       .returning();
-    if (reset.length > 0) await bumpVersion(tx, pullRequestId);
+    const [waiting] =
+      reset.length > 0
+        ? reset
+        : await tx
+            .select({ id: sensitiveFiles.id })
+            .from(sensitiveFiles)
+            .where(
+              and(
+                eq(sensitiveFiles.pullRequestId, pullRequestId),
+                ne(sensitiveFiles.status, 'approved'),
+              ),
+            )
+            .limit(1);
+    if (waiting) await bumpVersion(tx, pullRequestId);
     return reset;
   });
 }

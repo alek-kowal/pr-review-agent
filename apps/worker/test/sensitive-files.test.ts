@@ -274,4 +274,19 @@ describe('sensitive files', () => {
       await renamed.remove();
     }
   });
+
+  test('an approval sent from a page loaded before a push is stale', async () => {
+    const { pullRequest } = await reviewedRound();
+    expect((await pr()).sensitiveVersion).toBe(1);
+    // The person opened the page at version 1; the author then pushes.
+    await deliver('pull_request.synchronize', 'b'.repeat(40));
+    expect(
+      await settleSensitiveFiles(deps.db, {
+        pullRequestId: pullRequest.id,
+        version: 1,
+        action: 'approve',
+      }),
+    ).toEqual({ ok: false, reason: 'stale', version: 2 });
+    expect(await files()).toEqual([expect.objectContaining({ status: 'pending' })]);
+  });
 });
