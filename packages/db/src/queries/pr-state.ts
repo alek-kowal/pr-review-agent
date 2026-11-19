@@ -145,19 +145,35 @@ function commitsSinceReview(
   return commitsSinceRun(pullRequest, reviewed);
 }
 
+/** The head is the chain's expected fix and no round reviewed it (the start takes the head). */
+function ownFixUnchecked(
+  pullRequest: PullRequest,
+  reviewed: Run | null,
+  chain: typeof roundChains.$inferSelect | null,
+): boolean {
+  return (
+    !!chain?.expectedHeadSha &&
+    chain.expectedHeadSha === pullRequest.headSha &&
+    reviewed?.headSha !== pullRequest.headSha
+  );
+}
+
 /**
  * Commits on the PR's head since a round's head (FR-045 "N commits behind"): 0 on the same head,
  * else GitHub's compare when it was measured against this head, else the commit-count difference.
+ * A head other than the round's is never 0: a force push (same count) or a reset (compare ahead 0)
+ * is code nobody reviewed, so it must not read as Ready to merge.
  */
 export function commitsSinceRun(
   pullRequest: Pick<PullRequest, 'headSha' | 'commitsCount'>,
   run: Pick<Run, 'headSha' | 'commitsSince' | 'commitsSinceHead' | 'commitsCountAtStart'>,
 ): number {
   if (run.headSha === pullRequest.headSha) return 0;
-  if (run.commitsSince !== null && run.commitsSinceHead === pullRequest.headSha) {
-    return run.commitsSince;
-  }
-  return Math.max(0, pullRequest.commitsCount - run.commitsCountAtStart);
+  const since =
+    run.commitsSince !== null && run.commitsSinceHead === pullRequest.headSha
+      ? run.commitsSince
+      : pullRequest.commitsCount - run.commitsCountAtStart;
+  return Math.max(1, since);
 }
 
 /**
@@ -323,6 +339,11 @@ export async function loadPrStateInputs(
       activeRun: activeRun(p.active, p.active && waits.get(p.active.id)),
       failedRound,
       chainRounds: chainState(p.rounds.map(runRecord)).completedRounds,
+      ownFixUnchecked: ownFixUnchecked(
+        pullRequest,
+        reviewed,
+        chainById.get(p.latestRound?.chainId ?? '') ?? null,
+      ),
       findings: prFindings.map((row) =>
         coreFinding(row, decisions.get(row.id), fixChecks.get(row.id)),
       ),

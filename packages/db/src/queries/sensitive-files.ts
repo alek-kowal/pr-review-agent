@@ -49,6 +49,18 @@ export function sensitiveState(rows: readonly SensitiveFile[]): SensitiveFiles |
   };
 }
 
+/**
+ * Every write here locks the PR row before the file rows, as settling does, so a push reset and an
+ * approval at the same moment queue instead of deadlocking.
+ */
+async function lockPullRequest(tx: Executor, pullRequestId: number): Promise<void> {
+  await tx
+    .select({ id: pullRequests.id })
+    .from(pullRequests)
+    .where(eq(pullRequests.id, pullRequestId))
+    .for('update');
+}
+
 async function bumpVersion(db: Executor, pullRequestId: number): Promise<number> {
   const [row] = await db
     .update(pullRequests)
@@ -67,6 +79,7 @@ export async function addSensitiveFiles(
 ): Promise<SensitiveFile[]> {
   if (matches.length === 0) return [];
   return db.transaction(async (tx) => {
+    await lockPullRequest(tx, pullRequestId);
     const added = await tx
       .insert(sensitiveFiles)
       .values(
@@ -85,13 +98,17 @@ export async function addSensitiveFiles(
   });
 }
 
-/** The author pushed: files sent back wait for a person again. Returns the reset rows. */
+/**
+ * The author pushed: files sent back wait for a person again. While any file waits the version
+ * moves, so an approval sent from a page loaded before the push is stale. Returns the reset rows.
+ */
 export async function resetSentBackSensitiveFiles(
   db: Transactor,
   pullRequestId: number,
   headSha: string,
 ): Promise<SensitiveFile[]> {
   return db.transaction(async (tx) => {
+    await lockPullRequest(tx, pullRequestId);
     const reset = await tx
       .update(sensitiveFiles)
       .set({
@@ -109,8 +126,57 @@ export async function resetSentBackSensitiveFiles(
         ),
       )
       .returning();
-    if (reset.length > 0) await bumpVersion(tx, pullRequestId);
+    const [waiting] =
+      reset.length > 0
+        ? reset
+        : await tx
+            .select({ id: sensitiveFiles.id })
+            .from(sensitiveFiles)
+            .where(
+              and(
+                eq(sensitiveFiles.pullRequestId, pullRequestId),
+                ne(sensitiveFiles.status, 'approved'),
+              ),
+            )
+            .limit(1);
+    if (waiting) await bumpVersion(tx, pullRequestId);
     return reset;
+  });
+}
+
+/**
+ * Approved files a later commit changed wait for a person again (FR-046 approves changes, not
+ * paths). Returns the reopened rows.
+ */
+export async function reopenSensitiveFiles(
+  db: Transactor,
+  pullRequestId: number,
+  paths: readonly string[],
+  headSha: string,
+): Promise<SensitiveFile[]> {
+  if (paths.length === 0) return [];
+  return db.transaction(async (tx) => {
+    await lockPullRequest(tx, pullRequestId);
+    const reopened = await tx
+      .update(sensitiveFiles)
+      .set({
+        status: 'pending',
+        actor: null,
+        memberId: null,
+        comment: null,
+        at: new Date(),
+        headSha,
+      })
+      .where(
+        and(
+          eq(sensitiveFiles.pullRequestId, pullRequestId),
+          eq(sensitiveFiles.status, 'approved'),
+          inArray(sensitiveFiles.path, [...paths]),
+        ),
+      )
+      .returning();
+    if (reopened.length > 0) await bumpVersion(tx, pullRequestId);
+    return reopened;
   });
 }
 

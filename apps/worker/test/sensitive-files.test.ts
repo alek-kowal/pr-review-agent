@@ -25,7 +25,9 @@ import {
 import * as path from 'node:path';
 import { afterAll, beforeEach, describe, expect, test } from 'vitest';
 import { processGithubEvent } from '../src/handlers/github-event.ts';
-import { sensitiveOnRunCompleted } from '../src/run/sensitive-files.ts';
+import { executeStage } from '../src/run/execute-stage.ts';
+import { sensitiveFilesGate } from '../src/run/sensitive-files.ts';
+import { startRound } from '../src/run/start-round.ts';
 import { connectRepository, createTestWorkerDeps, storeGithubEvent } from './support.ts';
 
 const MIGRATION = 'db/migrations/0001_edge_labels.sql';
@@ -33,6 +35,8 @@ const PATTERNS = [{ pattern: 'db/migrations/**', reason: 'Migrations run once on
 
 const fixture = await createGitFixture({
   feature: { ...DEFAULT_FEATURE_FILES, [MIGRATION]: 'alter table edges add column label text;\n' },
+  // After the review: the approved migration is rewritten, then an unrelated file changes.
+  fixes: [{ [MIGRATION]: 'drop table edges;\n' }, { 'README.md': 'Docs.\n' }],
 });
 const deps = await createTestWorkerDeps();
 deps.gitMirror = new CliGitMirror({
@@ -68,7 +72,7 @@ async function pr(): Promise<PullRequest> {
   return (await getPullRequest(deps.db, repository.id, 312))!;
 }
 
-/** Round 1 from a ready event on the fixture's feature commit, completed with its hook run. */
+/** Round 1 from a ready event on the fixture's feature commit, scanned at its start, completed. */
 async function reviewedRound(): Promise<{ run: Run; pullRequest: PullRequest }> {
   await deliver('pull_request.ready_for_review', fixture.headSha);
   // The fixture payload's base is not in the git fixture.
@@ -82,7 +86,13 @@ async function reviewedRound(): Promise<{ run: Run; pullRequest: PullRequest }> 
     .set({ status: 'completed', finishedAt: new Date() })
     .where(eq(schema.runs.pullRequestId, pullRequest!.id))
     .returning();
-  await sensitiveOnRunCompleted({ deps, run: run!, pullRequest: pullRequest!, repository });
+  await sensitiveFilesGate({
+    deps,
+    run: run!,
+    pullRequest: pullRequest!,
+    repository,
+    stage: 'review',
+  });
   return { run: run!, pullRequest: pullRequest! };
 }
 
@@ -126,7 +136,7 @@ describe('sensitive files', () => {
     expect((await pr()).sensitiveVersion).toBe(1);
 
     // The same round again adds nothing and keeps the version.
-    await sensitiveOnRunCompleted({ deps, run, pullRequest, repository });
+    await sensitiveFilesGate({ deps, run, pullRequest, repository, stage: 'review' });
     expect(await files()).toHaveLength(1);
     expect((await pr()).sensitiveVersion).toBe(1);
   });
@@ -210,5 +220,128 @@ describe('sensitive files', () => {
       sentBackBy: null,
     });
     expect(after.row).toMatchObject({ ok: false, reason: { code: 'checklist_sensitive_pending' } });
+  });
+
+  test('a round whose scan fails stays queued: it never completes unscanned', async () => {
+    await deliver('pull_request.ready_for_review', fixture.headSha);
+    const [run] = await deps.db
+      .select()
+      .from(schema.runs)
+      .where(eq(schema.runs.pullRequestId, (await pr()).id));
+    const diff = deps.gitMirror.diff.bind(deps.gitMirror);
+    deps.gitMirror.diff = () => Promise.reject(new Error('git failed'));
+    try {
+      await expect(executeStage(deps, run!.id, 'review')).rejects.toThrow('git failed');
+    } finally {
+      deps.gitMirror.diff = diff;
+    }
+    const [after] = await deps.db.select().from(schema.runs).where(eq(schema.runs.id, run!.id));
+    expect(after!.status).toBe('queued');
+    expect(await files()).toEqual([]);
+  });
+
+  test('a file renamed out of a sensitive path still needs a person', async () => {
+    const OLD = 'db/migrations/0000_init.sql';
+    const renamed = await createGitFixture({
+      base: { ...DEFAULT_FEATURE_FILES, [OLD]: 'create table edges (id int);\n' },
+      feature: { [OLD]: null, 'archive/0000_init.sql': 'create table edges (id int);\n' },
+    });
+    const mirror = deps.gitMirror;
+    deps.gitMirror = new CliGitMirror({
+      rootDir: path.join(deps.dataDir, 'git-renamed'),
+      remoteUrl: () => renamed.dir,
+      exec: isolatedGitExec,
+    });
+    try {
+      await deps.gitMirror.fetch(repository.githubFullName);
+      await deliver('pull_request.ready_for_review', renamed.headSha);
+      const [pullRequest] = await deps.db
+        .update(schema.pullRequests)
+        .set({ baseSha: renamed.baseSha })
+        .where(eq(schema.pullRequests.id, (await pr()).id))
+        .returning();
+      const [run] = await deps.db
+        .select()
+        .from(schema.runs)
+        .where(eq(schema.runs.pullRequestId, pullRequest!.id));
+      await sensitiveFilesGate({
+        deps,
+        run: run!,
+        pullRequest: pullRequest!,
+        repository,
+        stage: 'review',
+      });
+      expect(await files()).toEqual([expect.objectContaining({ path: OLD, status: 'pending' })]);
+    } finally {
+      deps.gitMirror = mirror;
+      await renamed.remove();
+    }
+  });
+
+  test('an approval sent from a page loaded before a push is stale', async () => {
+    const { pullRequest } = await reviewedRound();
+    expect((await pr()).sensitiveVersion).toBe(1);
+    // The person opened the page at version 1; the author then pushes.
+    await deliver('pull_request.synchronize', 'b'.repeat(40));
+    expect(
+      await settleSensitiveFiles(deps.db, {
+        pullRequestId: pullRequest.id,
+        version: 1,
+        action: 'approve',
+      }),
+    ).toEqual({ ok: false, reason: 'stale', version: 2 });
+    expect(await files()).toEqual([expect.objectContaining({ status: 'pending' })]);
+  });
+
+  test('an approved file a later commit changes needs a person again', async () => {
+    const { run, pullRequest } = await reviewedRound();
+    await decideAll(run, pullRequest);
+    await settleSensitiveFiles(deps.db, {
+      pullRequestId: pullRequest.id,
+      version: 1,
+      action: 'approve',
+    });
+
+    /** A push, then a review started by hand on it, scanned at its start. */
+    const reviewAt = async (head: string) => {
+      await deliver('pull_request.synchronize', head);
+      const [moved] = await deps.db
+        .update(schema.pullRequests)
+        .set({ baseSha: fixture.baseSha })
+        .where(eq(schema.pullRequests.id, pullRequest.id))
+        .returning();
+      const started = await startRound(deps, {
+        pullRequestId: pullRequest.id,
+        trigger: 'manual',
+        startedBy: { kind: 'hand' },
+      });
+      if (!started.started) throw new Error(started.reason.code);
+      await sensitiveFilesGate({
+        deps,
+        run: started.run,
+        pullRequest: moved!,
+        repository,
+        stage: 'review',
+      });
+      await deps.db
+        .update(schema.runs)
+        .set({ status: 'completed', finishedAt: new Date() })
+        .where(eq(schema.runs.id, started.run.id));
+    };
+
+    await reviewAt(fixture.fixShas[0]!);
+    expect(await files()).toEqual([
+      expect.objectContaining({ status: 'pending', actor: null, headSha: fixture.fixShas[0] }),
+    ]);
+    expect((await state()).input.sensitive?.status).toBe('pending');
+
+    // Approved on the rewrite, a commit that does not touch it leaves the approval.
+    await settleSensitiveFiles(deps.db, {
+      pullRequestId: pullRequest.id,
+      version: (await pr()).sensitiveVersion,
+      action: 'approve',
+    });
+    await reviewAt(fixture.fixShas[1]!);
+    expect(await files()).toEqual([expect.objectContaining({ status: 'approved' })]);
   });
 });

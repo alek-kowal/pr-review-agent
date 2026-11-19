@@ -28,7 +28,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from '../src/deps.ts';
-import { NO_RUN_GATES } from '../src/run/gates.ts';
+import { NO_QUEUE_GATES } from '../src/run/gates.ts';
 import { removeTree } from '../src/stages/review/prompt.ts';
 
 export type TestWorkerDeps = WorkerDeps & {
@@ -81,7 +81,7 @@ export async function createTestWorkerDeps(
     ...rest,
     // Without the pause, budget and slot gates: the shared test database keeps other tests'
     // runs, which would fill the agent slots. Gate tests pass `runGates: RUN_GATES`.
-    extensions: { runGates: NO_RUN_GATES, ...rest.extensions },
+    extensions: { runGates: NO_QUEUE_GATES, ...rest.extensions },
   });
   return {
     ...(deps as TestWorkerDeps),
