@@ -111,7 +111,10 @@ describe('config resilience', () => {
 
   it('paused holds every review, even with the budget spent (P control.test.ts:53)', () => {
     const settings = { ...DEFAULT_APP_SETTINGS, paused: true, pausedReason: 'release freeze' };
-    expect(holdReason(settings, 0)).toEqual({ code: 'paused', params: { note: 'release freeze' } });
+    expect(holdReason(settings, 0)).toEqual({
+      code: 'paused',
+      params: { by: null, note: 'release freeze' },
+    });
     expect(holdReason({ ...settings, dailyBudgetUsd: 1 }, 5)?.code).toBe('paused');
   });
 
@@ -199,8 +202,11 @@ describe('config resilience', () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
       paused: false,
       pausedReason: null,
+      pausedBy: null,
+      pausedAt: null,
       dailyBudgetUsd: null,
       agentSlots: 2,
+      timeZone: 'Europe/Warsaw',
       models: {},
       afterRoundGithubComment: true,
     });

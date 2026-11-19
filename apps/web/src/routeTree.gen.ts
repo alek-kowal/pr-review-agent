@@ -20,6 +20,7 @@ import { Route as InsightsQualityRouteImport } from './routes/insights.quality.t
 import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
 import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
+import { Route as SettingsBudgetRouteImport } from './routes/settings.budget.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
 import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
@@ -82,6 +83,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsBudgetRoute = SettingsBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights': typeof InsightsIndexRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/budget'
     | '/settings/integrations'
     | '/settings/team'
     | '/insights/'
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/budget'
     | '/settings/integrations'
     | '/settings/team'
     | '/insights'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/insights/quality'
     | '/insights/trust'
     | '/runs/$runId'
+    | '/settings/budget'
     | '/settings/integrations'
     | '/settings/team'
     | '/insights/'
@@ -318,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/budget': {
+      id: '/settings/budget'
+      path: '/budget'
+      fullPath: '/settings/budget'
+      preLoaderRoute: typeof SettingsBudgetRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/integrations': {
       id: '/settings/integrations'
       path: '/integrations'
@@ -382,6 +401,7 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
 )
 
 interface SettingsRouteChildren {
+  SettingsBudgetRoute: typeof SettingsBudgetRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -391,6 +411,7 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsBudgetRoute: SettingsBudgetRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,

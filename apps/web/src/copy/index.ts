@@ -1,6 +1,7 @@
 // UI copy (English). Components read strings from here, never inline them.
 import { activity } from './activity.ts';
 import { board } from './board.ts';
+import { budget } from './budget.ts';
 import { checklist } from './checklist.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
@@ -25,6 +26,7 @@ export const copy = {
     settings: 'Settings',
   },
   board,
+  budget,
   nextStep,
   checklist,
   decisions,
@@ -207,6 +209,8 @@ export const copy = {
     repository_not_found: 'This repository is not connected.',
     pr_not_found: 'This pull request is not in PR Review Agent.',
     signature_required: 'Pick your name to sign.',
+    already_paused: 'Someone paused the factory in the meantime.',
+    not_paused: 'Someone resumed the factory in the meantime.',
     signer_unknown: 'The signer is no longer in Team. Pick another name.',
     settings_stale:
       'Someone saved these settings in the meantime. Reload the page to see their change, then try again.',

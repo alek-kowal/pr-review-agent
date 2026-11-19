@@ -2,6 +2,7 @@
 import {
   chainState,
   member,
+  queueCauseOf,
   BOT,
   HAND,
   type ActiveRun,
@@ -23,6 +24,7 @@ import { teamMembers } from '../schema/team.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
 import { newestFixChecks, type FixCheck } from './fix-checks.ts';
 import { sensitiveFilesOf, sensitiveState, type SensitiveFile } from './sensitive-files.ts';
+import { runWaitsOf, type RunWait } from './status.ts';
 import { readRepositoryConfig, type PullRequest, type Repository } from './repositories.ts';
 import type { FindingRow, QuestionRow, Run } from './runs.ts';
 import type { TeamMember } from './team.ts';
@@ -100,9 +102,10 @@ export function coreFinding(
   };
 }
 
-function activeRun(run: Run | undefined): ActiveRun | null {
+/** `wait`: why the run waits (S-10); a started run that waits before a session reads as queued. */
+function activeRun(run: Run | undefined, wait?: RunWait): ActiveRun | null {
   if (!run) return null;
-  const status = run.status === 'queued' ? 'queued' : 'running';
+  const status = run.status === 'queued' || wait?.reason ? 'queued' : 'running';
   return {
     kind: run.kind,
     status,
@@ -111,9 +114,9 @@ function activeRun(run: Run | undefined): ActiveRun | null {
     startedBy: runActor(run),
     roundNumber: run.kind === 'round' ? (run.roundNo ?? 1) : null,
     fixSha: run.trigger === 'own_fix' ? run.headSha : null,
-    // Retry from a stage arrives in S-09, the queue's other causes in S-10.
+    // Retry from a stage arrives in S-09.
     retryFrom: null,
-    queue: status === 'queued' ? { cause: 'slot' } : null,
+    queue: status === 'queued' ? queueCauseOf(wait?.reason) : null,
   };
 }
 
@@ -278,6 +281,10 @@ export async function loadPrStateInputs(
   const chainIds = [...perPr.values()].flatMap((p) =>
     p.latestRound?.chainId ? [p.latestRound.chainId] : [],
   );
+  const waits = await runWaitsOf(
+    db,
+    [...perPr.values()].flatMap((p) => (p.active ? [p.active.id] : [])),
+  );
   const chainById = new Map(
     (chainIds.length
       ? await db.select().from(roundChains).where(inArray(roundChains.id, chainIds))
@@ -329,7 +336,7 @@ export async function loadPrStateInputs(
       ),
       // Change type arrives in S-04, patches in S-13.
       changeType: null,
-      activeRun: activeRun(p.active),
+      activeRun: activeRun(p.active, p.active && waits.get(p.active.id)),
       failedRound,
       chainRounds: chainState(p.rounds.map(runRecord)).completedRounds,
       ownFixUnchecked: ownFixUnchecked(
