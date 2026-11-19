@@ -80,6 +80,7 @@ describe('installDependencies steps', () => {
           'HOME',
           'PATH',
           'npm_config_store_dir',
+          'npm_config_verify_store_integrity',
         ]);
       }
     } finally {

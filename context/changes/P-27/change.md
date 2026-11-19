@@ -60,8 +60,13 @@ copies every package (about 1.5 GB of `node_modules` per run on WB).
   shared across repositories), every sandbox has no network and no secrets, so a poisoned file
   can only change sandbox results (install outcome, reproductions) of that repository, never
   the worker, the host or a push (`node_modules` is ignored by git). Mitigations: the fetch step
-  still runs no PR code; the cleanup timer wipes a cache after `--cache-max-age-days` (7);
-  `SANDBOX_SHARED_STORE=false` restores the copy mode. Mounting one folder that holds the store
+  still runs no PR code; only files the fetch step wrote are linked back into the store;
+  `npm_config_verify_store_integrity=true` makes pnpm re-hash a store file whose mtime changed,
+  which catches accidental in-place edits (patch-package and the like) but not a script that
+  also resets the mtime; the cleanup timer wipes a cache after `--cache-max-age-days` (7);
+  `SANDBOX_SHARED_STORE=false` restores the copy mode. Read-only store files would not help:
+  the container runs as the files' owner and may chmod them back. The automated security
+  review flagged this; it stays on by default because the task asks for it, and Alek decides. Mounting one folder that holds the store
   and the worktree was rejected: it would expose other runs' worktrees of the same repository,
   which push patches come from.
 - **systemd, not Compose, for api and worker.** The worker drives Docker for the sandbox with

@@ -62,6 +62,9 @@ export const INSTALL_ENV: Readonly<Record<string, string>> = {
   COREPACK_HOME: `${CACHE}/corepack`,
   COREPACK_ENABLE_DOWNLOAD_PROMPT: '0',
   npm_config_store_dir: `${CACHE}/store`,
+  // pnpm re-hashes a store file whose mtime changed before linking it, so a file an earlier
+  // install edited in place (shared store, P-27) is caught; the env wins over the PR's .npmrc.
+  npm_config_verify_store_integrity: 'true',
 };
 
 /** Runs `command` after putting corepack's shims (pnpm, yarn) on `PATH` in the writable `/tmp`. */
