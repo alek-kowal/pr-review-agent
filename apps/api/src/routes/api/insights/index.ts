@@ -162,6 +162,7 @@ export const TrustResponse = z.object({
   /** One row per repository, by slug. */
   repositories: z.array(
     z.object({
+      repositoryId: z.number().int(),
       repository: z.string(),
       level: z.number().int(),
       /** When the current level was set, and whole days since. */
@@ -437,6 +438,7 @@ const insights: FastifyPluginAsyncZod = async (fastify) => {
             (run) => run.repositoryId === row.id && run.kind === 'round' && run.level === row.level,
           );
           return {
+            repositoryId: row.id,
             repository: row.slug,
             level: row.level,
             since: row.since.toISOString(),

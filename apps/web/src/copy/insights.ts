@@ -94,6 +94,23 @@ export const insights = {
     noVersion: 'No version recorded',
     noRuns: 'No run in this range.',
   },
+  trust: {
+    ladderLabel: 'Review levels',
+    changeLevel: 'Change the level',
+    cardHint:
+      'A repository earns a higher review level when people keep agreeing with what the current level finds.',
+    empty: 'No repository is connected yet.',
+    /** "Level 3 for 14 days:" */
+    heading: (level: number, days: number) => `Level ${level} for ${plural(days, 'day')}:`,
+    rates: (implement: string, confirmed: string, refuted: string) =>
+      `${implement} of decided findings were Implement, ${confirmed} confirmed, ${refuted} refuted.`,
+    ratesUnchecked: (implement: string) =>
+      `${implement} of decided findings were Implement. Findings are not verified at this level.`,
+    noDecided: 'No finding has been decided yet.',
+    tooFew: (n: number) => `Too few findings for rates yet (${n} of 5).`,
+    basedOn: (findings: number, rounds: number) =>
+      `Based on ${plural(findings, 'finding')} in ${plural(rounds, 'round')}.`,
+  },
   overview: {
     empty: 'No PR finished in this range.',
     emptyHint: 'Pick a longer range, another author or another repository.',

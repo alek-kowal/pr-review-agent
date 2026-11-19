@@ -154,3 +154,16 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
 - Quality: below 5 findings one cell spans the rate columns: "Too few findings (n of 5)".
   Levels 1–2 show "Unchecked" in Confirmed and Refuted; the per-version table shows Confirmed
   only (the prototype's columns). Runs with no recorded version are "No version recorded".
+
+### S-19-T7 (Trust ladder tab)
+
+- The trust endpoint also returns `repositoryId`, so "Change the level" links to
+  `/settings/repositories/$id` (that route takes the id).
+- The ladder is an ordered list of levels 1–6; the current one has `aria-current="step"`, levels
+  below it are solid and levels above it dashed (the prototype). The level 5 shadow log section
+  is S-19-T9's (P-15).
+- The line: "Level N for D days: X% of decided findings were Implement, Y% confirmed, Z% refuted.
+  Based on F findings in R rounds." Below 5 findings it says "Too few findings for rates yet
+  (n of 5)"; at levels 1–2 it leaves out Confirmed and Refuted ("Findings are not verified at this
+  level"); with no decided finding it says so.
+- The prototype's "Next: level 4 …" hint is left out: no rule for promotion exists yet.

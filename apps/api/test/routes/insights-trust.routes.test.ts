@@ -88,6 +88,7 @@ test('one row per repository with its level, days at it and that level rates', a
   const body = await trust();
   expect(body.repositories.map((row) => row.repository)).toEqual(['a-verified', 'b-fresh']);
   expect(body.repositories[0]).toEqual({
+    repositoryId: verified.id,
     repository: 'a-verified',
     level: 3,
     since: levelSetAt.toISOString(),

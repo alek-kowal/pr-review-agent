@@ -22,11 +22,12 @@ export function validateInsightsSearch(search: Record<string, unknown>): Insight
   };
 }
 
-/** The query string the api takes for these filters. */
-export function apiQuery(params: Record<string, string | number | undefined>): string {
+/** An api path with the filters that are set as its query string. */
+export function apiPath(path: string, params: Record<string, string | number | undefined>): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) query.set(key, String(value));
   }
-  return query.toString();
+  const search = query.toString();
+  return search ? `${path}?${search}` : path;
 }

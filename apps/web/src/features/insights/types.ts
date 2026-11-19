@@ -85,6 +85,7 @@ export type QualityResponse = {
 
 export type TrustResponse = {
   repositories: ({
+    repositoryId: number;
     repository: string;
     level: number;
     since: string;
