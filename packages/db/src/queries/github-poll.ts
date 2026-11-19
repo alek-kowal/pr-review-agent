@@ -1,13 +1,14 @@
 // P-28: the GitHub poller's state. The lease keeps two polls from running at once; the seen
 // state of each PR moves by compare-and-set, so a transition is handled by one poll only.
-import { and, asc, eq, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import {
   githubPoller,
   githubPollPullRequests,
   githubPollRepositories,
 } from '../schema/github-poll.ts';
-import { repositories } from '../schema/repositories.ts';
+import { pullRequests, repositories } from '../schema/repositories.ts';
+import { ACTIVE_RUN_STATUSES, runs } from '../schema/runs.ts';
 
 export type GithubPoller = typeof githubPoller.$inferSelect;
 export type PollReason = { code: string; params: Record<string, unknown> };
@@ -145,6 +146,26 @@ export async function listPollRepositories(db: Executor): Promise<
     .leftJoin(open, eq(open.repositoryId, repositories.id))
     .orderBy(asc(repositories.githubFullName));
   return rows.map((row) => ({ ...row, openCount: Number(row.openCount) }));
+}
+
+/** Numbers of the repository's open PRs that have a queued or running run. */
+export async function openPrNumbersWithActiveRun(
+  db: Executor,
+  repositoryId: number,
+): Promise<number[]> {
+  const rows = await db
+    .selectDistinct({ number: pullRequests.number })
+    .from(pullRequests)
+    .innerJoin(runs, eq(runs.pullRequestId, pullRequests.id))
+    .where(
+      and(
+        eq(pullRequests.repositoryId, repositoryId),
+        eq(pullRequests.state, 'open'),
+        inArray(runs.status, [...ACTIVE_RUN_STATUSES]),
+      ),
+    )
+    .orderBy(asc(pullRequests.number));
+  return rows.map((row) => row.number);
 }
 
 export async function seenPullRequests(

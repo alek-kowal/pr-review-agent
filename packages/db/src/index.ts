@@ -44,7 +44,7 @@ export {
 export * from './queries/index.ts';
 export {
   githubEventBlobKey,
-  ingestGithubEvent,
+  ingestGithubEvents,
   type DeliveryBlobStore,
   type GithubDelivery,
 } from './github-ingest.ts';

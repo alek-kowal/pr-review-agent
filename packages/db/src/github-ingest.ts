@@ -1,7 +1,7 @@
-// One GitHub delivery into the app: its payload into the blob store unchanged, one `github_events`
-// row per delivery id, and the `github.event` job with a fixed id. The webhook route and the
-// poller (P-28) both come in here, so the worker handles a polled change exactly like a webhook.
-import type { Executor } from './client.ts';
+// GitHub deliveries into the app: each payload into the blob store unchanged, one `github_events`
+// row per delivery id, and a `github.event` job with a fixed id. The webhook route and the poller
+// (P-28) both come in here, so the worker handles a polled change exactly like a webhook.
+import type { Db, Executor } from './client.ts';
 import { recordGithubEvent, type GithubEvent } from './queries/github-events.ts';
 import { githubEventJobId, JOBS, sendJob, type Queue } from './queue.ts';
 
@@ -26,30 +26,49 @@ export const githubEventBlobKey = (deliveryId: string): string =>
   `github-events/${deliveryId}.json`;
 
 /**
- * Stores a delivery once and queues its job. A second call with the same id (a redelivery, or
- * two polls that saw the same change) writes the same blob, adds no row and no job.
+ * Stores deliveries once and queues their jobs. A second call with the same ids (a redelivery, or
+ * two polls that saw the same change) writes the same blobs, adds no row and no job. `guard` runs
+ * in the transaction that records the rows; false records nothing and gives null (the poller's
+ * compare-and-set on its seen state). A job lost after the commit is sent again by the worker's
+ * recovery of unprocessed events.
  */
-export async function ingestGithubEvent(
-  deps: { db: Executor; queue: Queue; blobStore: DeliveryBlobStore },
-  delivery: GithubDelivery,
-): Promise<{ event: GithubEvent; created: boolean }> {
-  const blobKey = githubEventBlobKey(delivery.deliveryId);
+export async function ingestGithubEvents(
+  deps: { db: Db; queue: Queue; blobStore: DeliveryBlobStore },
+  deliveries: readonly GithubDelivery[],
+  guard?: (tx: Executor) => Promise<boolean>,
+): Promise<{ event: GithubEvent; created: boolean }[] | null> {
   // Same key and bytes on a redelivery, so writing again is harmless.
-  await deps.blobStore.put(blobKey, delivery.rawBody, { contentType: 'application/json' });
-  const recorded = await recordGithubEvent(deps.db, {
-    deliveryId: delivery.deliveryId,
-    event: delivery.event,
-    action: delivery.action,
-    repositoryFullName: delivery.repositoryFullName,
-    prNumber: delivery.prNumber,
-    blobKey,
+  for (const delivery of deliveries) {
+    await deps.blobStore.put(githubEventBlobKey(delivery.deliveryId), delivery.rawBody, {
+      contentType: 'application/json',
+    });
+  }
+  const recorded = await deps.db.transaction(async (tx) => {
+    if (guard && !(await guard(tx))) return null;
+    const rows = [];
+    for (const delivery of deliveries) {
+      rows.push(
+        await recordGithubEvent(tx, {
+          deliveryId: delivery.deliveryId,
+          event: delivery.event,
+          action: delivery.action,
+          repositoryFullName: delivery.repositoryFullName,
+          prNumber: delivery.prNumber,
+          blobKey: githubEventBlobKey(delivery.deliveryId),
+        }),
+      );
+    }
+    return rows;
   });
-  // A fixed job id per delivery: a redelivery (or a retry after a failed send) adds no job.
-  await sendJob(
-    deps.queue,
-    JOBS.githubEvent,
-    { eventId: recorded.event.id },
-    { id: githubEventJobId(delivery.deliveryId) },
-  );
+  if (!recorded) return null;
+  for (const [i, { event }] of recorded.entries()) {
+    // A fixed job id per delivery: a redelivery (or a retry after a failed send) adds no job.
+    await sendJob(
+      deps.queue,
+      JOBS.githubEvent,
+      { eventId: event.id },
+      { id: githubEventJobId(deliveries[i]!.deliveryId) },
+    );
+  }
   return recorded;
 }
