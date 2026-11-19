@@ -43,6 +43,7 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { listenForCancels } from '../src/run/cancel.ts';
 import { executeStage } from '../src/run/execute-stage.ts';
 import { handlePatchCheck, storePatchOnCompleted } from '../src/run/patches.ts';
+import { resendLostJobs } from '../src/run/recover.ts';
 import { connectRepository, createTestWorkerDeps, type TestWorkerDeps } from './support.ts';
 
 let database: TestDatabase;
@@ -354,6 +355,8 @@ describe('implementer run', () => {
       blobKey: 'edits/a.txt',
     });
     expect(edited).toMatchObject({ ok: true });
+    // The api's send of the check was lost: the worker's periodic resend sends it again.
+    expect((await resendLostJobs(deps)).patchChecks).toContain(patch.id);
     let seen = '';
     deps.sandbox = new FakeSandbox(async (spec) => {
       seen = await readFile(path.join(spec.mounts[0]!.hostPath, FILE_A), 'utf8');

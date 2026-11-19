@@ -9,8 +9,10 @@ import {
   githubEventJobId,
   JOBS,
   lockRun,
+  patchesAwaitingCheck,
   runsWithStatus,
   sendJob,
+  sendPatchCheckJob,
   stageExecutionsOfRun,
   unprocessedGithubEvents,
   type Run,
@@ -27,7 +29,13 @@ import { runStateOf } from './state.ts';
 const EVENT_RESEND_AFTER_MS = 60_000;
 const EVENT_RESEND_WITHIN_MS = 24 * 60 * 60_000;
 
-export type ResendResult = { resent: number[]; events: number[]; followUps: number[] };
+export type ResendResult = {
+  resent: number[];
+  events: number[];
+  followUps: number[];
+  /** Patches whose check was sent again. */
+  patchChecks: number[];
+};
 export type RecoveryResult = ResendResult & { interrupted: number[] };
 
 /** Only at worker start: before it, no handler of this process runs a stage. */
@@ -88,7 +96,7 @@ export async function resendLostJobs(
   now: Date = new Date(),
 ): Promise<ResendResult> {
   const { db } = deps;
-  const result: ResendResult = { resent: [], events: [], followUps: [] };
+  const result: ResendResult = { resent: [], events: [], followUps: [], patchChecks: [] };
 
   for (const run of await runsWithStatus(db, ['queued', 'running'])) {
     // A cancel the listener missed is finished here instead (S-09-T3 backstop).
@@ -114,5 +122,11 @@ export async function resendLostJobs(
   }
 
   result.followUps = await resendLostFollowUps(deps, now);
+
+  // A patch left `checking` by a lost send or a failed check: one waits per patch, so a resend
+  // while its check is queued is dropped, and a check that finds nothing to do returns at once.
+  for (const patchId of await patchesAwaitingCheck(db)) {
+    if (await sendPatchCheckJob(deps.queue, patchId)) result.patchChecks.push(patchId);
+  }
   return result;
 }

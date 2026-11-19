@@ -97,7 +97,12 @@ export async function startWorker(
     resending = true;
     resendLostJobs(deps)
       .then((result) => {
-        if (result.resent.length || result.events.length || result.followUps.length) {
+        if (
+          result.resent.length ||
+          result.events.length ||
+          result.followUps.length ||
+          result.patchChecks.length
+        ) {
           logger.info(result, 'lost jobs sent');
         }
       })

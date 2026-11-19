@@ -30,6 +30,7 @@ export {
   RECONCILE_CRON,
   sendDrainJob,
   sendJob,
+  sendPatchCheckJob,
   stableJobId,
   type JobName,
   type JobPayloads,

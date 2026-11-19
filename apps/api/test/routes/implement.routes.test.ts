@@ -220,6 +220,23 @@ describe('patch routes', () => {
     expect(entry).toMatchObject({ actor: 'hand', params: { revision: 1, path: 'src/a.ts' } });
   });
 
+  test('edits on two patches queue a check for each, not one for the whole system', async () => {
+    const one = await readyPatch();
+    const two = await readyPatch();
+    for (const { patch, run } of [one, two]) {
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/api/patches/${patch.id}/files`,
+        headers: SAME_ORIGIN,
+        payload: { path: 'src/b.ts', revision: 1, blobKey: `${run.id}/after/b`, content: 'b\n' },
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    expect(await patchChecks(one.patch.id)).toHaveLength(1);
+    expect(await patchChecks(two.patch.id)).toHaveLength(1);
+  });
+
   test('a stale edit returns 409 patch_stale', async () => {
     const { patch } = await readyPatch();
 

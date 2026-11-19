@@ -6,11 +6,10 @@ import {
   editPatchFile,
   findPullRequest,
   getPatch,
-  JOBS,
   lockActiveTeamMember,
   recordTimelineEntry,
   revertPatchFile,
-  sendJob,
+  sendPatchCheckJob,
   startImplementer,
   type Db,
   type PatchFileChange,
@@ -77,9 +76,12 @@ export async function startImplementerRun(
   }
 }
 
-/** Queues the patch check after an edit or a revert; a lost send leaves `checking` set. */
+/**
+ * Queues the patch check after an edit or a revert; a lost send leaves `checking` set, and the
+ * worker's `resendLostJobs` sends it again.
+ */
 async function queueCheck(queue: Queue, log: FastifyBaseLogger, patchId: number) {
-  await sendJob(queue, JOBS.patchCheck, { patchId }).catch((error: unknown) =>
+  await sendPatchCheckJob(queue, patchId).catch((error: unknown) =>
     log.warn({ err: error, patchId }, 'patch check job not sent'),
   );
 }

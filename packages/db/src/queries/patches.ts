@@ -217,6 +217,16 @@ export function revertPatchFile(db: Transactor, target: FileTarget): Promise<Pat
  * Stores a patch check's reproduction results. `seen` is the patch's `updatedAt` when the check
  * read its files; a later edit or revert queued its own check, so this one is dropped.
  */
+/** Ready patches still waiting for their check: a lost or failed check job is sent again. */
+export async function patchesAwaitingCheck(db: Executor): Promise<number[]> {
+  const rows = await db
+    .select({ id: patches.id })
+    .from(patches)
+    .where(and(eq(patches.checking, true), eq(patches.status, 'ready')))
+    .orderBy(asc(patches.id));
+  return rows.map((row) => row.id);
+}
+
 export async function storePatchCheck(
   db: Executor,
   patchId: number,
