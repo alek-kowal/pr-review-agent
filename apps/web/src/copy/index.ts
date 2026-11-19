@@ -69,6 +69,50 @@ export const copy = {
     failedAt: (n: number | null, stage: string, why: string) =>
       `${n === null ? 'Round' : `Round ${n}`} failed at ${stage}: ${why}`,
   },
+  findings: {
+    loading: 'Loading findings…',
+    severities: {
+      blocking: { group: 'Blocking', one: 'Blocking', hint: 'Must be dealt with before merge.' },
+      worth_fixing: {
+        group: 'Worth fixing',
+        one: 'Worth fixing',
+        hint: 'Real problems that do not have to block.',
+      },
+      nit: { group: 'Nits', one: 'Nit', hint: 'Small remarks. A nit never blocks.' },
+    },
+    verdicts: {
+      confirmed: 'Confirmed',
+      refuted: 'Refuted',
+      not_proven: 'Not proven',
+      unchecked: (level: number) => `Unchecked (level ${level})`,
+    },
+    verdictHints: {
+      confirmed: 'The verifier proved it with quoted evidence or a reproduction.',
+      refuted: 'The verifier showed it does not happen.',
+      not_proven: 'The verifier found no proof either way.',
+      unchecked: (level: number) =>
+        `Level ${level} does not verify findings. Nobody has checked this one yet.`,
+    },
+    uncheckedBody: 'Not verified at this level.',
+    location: (file: string, line: number | null) => (line === null ? file : `${file}:${line}`),
+    scenario: 'Scenario',
+    suggestion: 'Suggestion',
+    evidence: 'Evidence quoted from the code',
+    filterLabel: 'Filter findings',
+    filters: { all: 'All', todo: 'To decide', done: 'Decided' },
+    noMatch: 'No finding matches this filter.',
+    expandAll: 'Expand all',
+    collapseAll: 'Collapse all',
+    notChecked: 'Not checked',
+    notCheckedHint: 'What the reviewer says it did not check in this round.',
+    empty: {
+      none: 'No findings yet',
+      draft: 'Round 1 starts when the pull request is marked ready for review.',
+      waiting: 'Findings appear when the round finishes.',
+      clean: (n: number | null) =>
+        n === null ? 'No findings in this round.' : `No findings in round ${n}.`,
+    },
+  },
   stages: {
     checks: 'Checks',
     task: 'Task',

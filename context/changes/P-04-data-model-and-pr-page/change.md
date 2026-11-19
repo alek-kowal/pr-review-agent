@@ -1,7 +1,7 @@
 ---
 change_id: P-04
 title: Data model and PR page (S-01-T1 to T3, S-01-T12 to T14)
-status: in-progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -114,3 +114,39 @@ checks are the plan. One commit per task.
   file H13, P-03's in this wave) still uses the fixed port 5173 with `reuseExistingServer`, which
   is not safe when two worktrees run e2e at once; left for H13's owners. P-04 checked the port was
   free before each e2e run.
+- T13: `noUnusedLocals` applies when the web compiles `@pra/core`, so the unused
+  `import type { NoParams }` lines were removed from nine `packages/core/src/reasons/*.ts` files
+  (no behaviour change; core tests green). `@pra/core` is a dependency of web, api and db;
+  `@testing-library/user-event` is a web dev dependency.
+- T14: groups follow core `SEVERITIES` (Blocking, Worth fixing, Nits; one finding is "Nit", as in
+  the prototype). Inside a group refuted findings go last, otherwise the reviewer's order.
+- T14: findings start closed, as in the prototype. The line shows severity, title, `file:line`
+  (just the file when the line is null), the line slots and the verdict; a click opens scenario,
+  suggestion, the "Unchecked (level N)" box or the evidence quotes, then the action slots.
+  "Expand all" opens every shown finding. Open findings reset when a newer round arrives.
+- T14: the verdict is grey text with an icon and a hover hint, never a badge (FR-036). The level
+  in "Unchecked (level N)" is the level of the round the findings come from, not of a newer round.
+- T14 (extension point): `FINDING_LINE_SLOTS` and `FINDING_ACTION_SLOTS` in
+  `apps/web/src/features/findings/slots.ts`. A slot is `{ key, Component }` and gets
+  `{ finding, round, repo, number, view }`; line slots render before the verdict (decision and
+  fix-result badges, opinions), action slots at the bottom of an open finding (forms, actions).
+- T14: the api has no reproduction result yet (no column in `findings`); the package that adds
+  the verifier's reproductions adds the field and a block next to the evidence in `Finding.tsx`.
+  Scenario and suggestion are plain text with their line breaks; there is no Markdown renderer yet.
+- T14: the filter shows from 7 findings (`FILTER_FROM`) with the prototype's All, To decide and
+  Decided. `filters.ts` holds the rules: "to decide" is not a nit and not refuted, "decided" is
+  always false until P-08 adds decisions and changes both rules there. The filter is local state.
+- T14: the "Not checked" section appears below the findings only when the round lists something.
+  When the latest round failed, a red line "Round N failed at <stage>: <reason>" sits above the
+  findings of the latest completed round (or above the empty state when there is none). Empty
+  states: no findings yet (plus a hint for drafts), "appear when the round finishes" while a
+  round runs, "No findings in round N" for a clean round.
+- T14: checked visually once with a throwaway Playwright spec that routed the api (not
+  committed): severity groups, the open finding with evidence, the failed-round line.
+
+## For the merge
+
+- Migrations `0001_repositories` and `0002_runs`: if another package landed a migration first,
+  delete them and run `pnpm db:generate` again after the rebase (work-packages rule). Check
+  migrations and the seed only on a throwaway database, never the shared `pra`.
+- `playwright.config.ts` still uses the fixed port 5173 (see T13); worth a fix by H13's owner.
