@@ -27,3 +27,15 @@ export const WB_SENSITIVE_PATTERNS: SensitivePattern[] = [
   { pattern: 'CLAUDE.md', reason: 'Instructions that agents follow in this repository.' },
   { pattern: '.claude/', reason: 'Agent commands and settings.' },
 ];
+
+export const WB_REPOSITORY_CONFIG = {
+  slug: 'workflowbuilder',
+  githubFullName: 'synergycodes/workflowbuilder',
+  defaultBranch: 'main',
+  defaultLevel: 3,
+  installCommand: 'pnpm install --frozen-lockfile --ignore-scripts',
+  clickupSpace: 'Workflow Builder',
+  sensitivePatterns: WB_SENSITIVE_PATTERNS,
+  changeTypeRules: WB_CHANGE_TYPE_RULES,
+  largePrLines: 1500,
+};

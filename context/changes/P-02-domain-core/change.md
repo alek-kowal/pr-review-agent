@@ -96,3 +96,20 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   pass, no sensitive file) are checked on the patch by `pushByItself(patch, sensitivePatterns)`.
   Sensitive files the PR itself touches are not an autofix hold (the PRD condition is about the
   patch); they still hold the PR in Action needed through the state table.
+- T10: schemas use `zod/v4` like `apps/api`. RepositoryConfig: `slug`, `githubFullName`,
+  `defaultBranch` (`main`), `defaultLevel` (1), `installCommand`, `clickupSpace`,
+  `sensitivePatterns` (`{ pattern, reason }`), `changeTypeRules` (`usesExistingPaths`,
+  `oneWayPaths`, `sizeLines`, default 400) and `largePrLines` (default 1000; the WB fixture uses
+  1500). The two line defaults are placeholders until OQ14 and S-04 settle them. AppSettings:
+  `paused`, `pausedReason`, `dailyBudgetUsd` (null = no budget), `agentSlots` (2), `models` per
+  role, `afterRoundGithubComment` (true). LevelOverrides: one optional patch per level key
+  `"1"`..`"6"`, so a broken level falls back on its own.
+- `parseWithFallback` falls back per top-level field (a broken nested object falls back whole);
+  a non-object input gives the defaults plus `config_not_object`. The warning params are
+  `{ field, issue }`, where `issue` is Zod's issue code.
+- `validModelName` is this repo's own rule (P's regex at `src/settings.ts:33` was not read): start
+  with a letter or digit, then only `A-Z a-z 0-9 . _ : @ [ ] -`, at most 100 characters.
+  `modelFor` returns `{ model, source, level }` so Settings can show where a level overrides a
+  model (FR-075); an empty or invalid value falls back.
+- `holdReason` returns `paused` or `budget_reached`; `autofixDecision` keeps its own
+  `autofix_paused` and `autofix_budget_reached`, because codes are unique.
