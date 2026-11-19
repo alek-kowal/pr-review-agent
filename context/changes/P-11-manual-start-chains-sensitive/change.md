@@ -1,7 +1,7 @@
 ---
 change_id: P-11
 title: Manual start, chains and sensitive files (S-07-T1–T7, S-11-T1–T4)
-status: planned
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -162,3 +162,19 @@ decide and record).
   adds the quoted comment. The banner's second line shows the pending hint or the quoted comment.
 - A success merges the answer's `nextStep`, `checklist` and `sensitive` into the cached PR view,
   then refetches the view and the board.
+
+### S-11-T4 (e2e sensitive files)
+
+- The stack seeds its own `sensitive-repo` (level 1, `SENSITIVE_REPOSITORY` in `e2e/support/env.ts`)
+  instead of changing WB's settings, so the other specs keep a PR without sensitive files. Its two
+  patterns, `db/migrations/**` and `packages/sdk/src/index.ts`, match two of the fixture's changed
+  files; the GitHub double gets the branch's comparisons for it too.
+- The spec rejects the three findings that need a decision through the api, then works in the UI:
+  Approve changes (PR becomes Ready to merge, rows `approved` / `hand`), and Send back… (comment
+  required, signed by the first Team member) followed by a `synchronize` push to `fixShas[0]`,
+  which turns both files back into pending without the comment.
+- Shared spec helpers (`sql`, `writeHeaders`, `signer`, `decide`, `bannerTitle`, `onPrPage`) moved
+  from `chains.spec.ts` to `e2e/support/api.ts`; `decide` and `onPrPage` take a repository slug
+  (default WB) and `signer` returns the member's id and name.
+- PR numbers: sensitive files 200–205; the last chains test moved from 349 to 300 so a CI retry
+  never lands in main's held range `HELD_PRS` (350–399).

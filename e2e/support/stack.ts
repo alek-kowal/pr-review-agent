@@ -31,6 +31,7 @@ import {
   LEVEL_TWO_REPOSITORY,
   releaseFile,
   SECOND_REPOSITORY,
+  SENSITIVE_REPOSITORY,
   STATE_FILE,
   VERIFIED_REPOSITORY,
   type StackState,
@@ -241,13 +242,17 @@ const github = new FakeGitHubGateway({
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
     [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
     [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
+    [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
   },
 });
 // GitHub's compare on the branch's commits, as the worker measures commits since a review.
 const branch = [fixture.headSha, ...fixture.fixShas];
 for (const [i, base] of branch.entries()) {
   for (const [j, head] of branch.entries()) {
-    if (j > i) github.setComparison(FULL_NAME, base, head, j - i);
+    if (j <= i) continue;
+    for (const fullName of [FULL_NAME, SENSITIVE_REPOSITORY.fullName]) {
+      github.setComparison(fullName, base, head, j - i);
+    }
   }
 }
 const blobStore = new LocalBlobStore(path.join(root, 'blobs'));
@@ -281,6 +286,16 @@ await upsertRepository(
     defaultLevel: 2,
   },
   { installationId: LEVEL_TWO_REPOSITORY.installationId },
+);
+await upsertRepository(
+  db,
+  {
+    slug: SENSITIVE_REPOSITORY.slug,
+    githubFullName: SENSITIVE_REPOSITORY.fullName,
+    defaultLevel: 1,
+    sensitivePatterns: SENSITIVE_REPOSITORY.patterns,
+  },
+  { installationId: SENSITIVE_REPOSITORY.installationId },
 );
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],

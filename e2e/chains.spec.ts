@@ -2,26 +2,16 @@
 // 1 Nit). The branch has three commits after the reviewed head (`fixShas`); a fix check resolves
 // every finding except at the second, where the first stays unresolved. The expected head of a
 // chain is seeded with SQL, as the implementer's push (S-14) sets it later.
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import pg from 'pg';
+import { bannerTitle, decide, onPrPage, sql } from './support/api.ts';
 import { deliverPullRequest, deliverPush, FIXTURE_COMMITS, stackState } from './support/github.ts';
 
 const BLOCKING = ['Empty label hides the edge', 'Renaming drops the undo history'];
 const WORTH_FIXING = 'SDK entry exports an internal type';
 
 const short = (sha: string) => sha.slice(0, 7);
-
-async function sql<T extends pg.QueryResultRow>(text: string, values: unknown[]): Promise<T[]> {
-  const client = new pg.Client({ connectionString: stackState().databaseUrl });
-  await client.connect();
-  try {
-    return (await client.query<T>(text, values)).rows;
-  } finally {
-    await client.end();
-  }
-}
 
 type RunRow = { status: string; trigger: string; round_no: number; chain_id: string };
 
@@ -52,62 +42,6 @@ async function expectHead(number: number, sha: string): Promise<void> {
 
 /** While the file exists, the reviewer holds PR `number`'s review session. */
 const holdFile = (number: number) => path.join(stackState().holdDir, `hold-${number}`);
-
-const writeHeaders = () => ({ 'x-pra-request': '1', origin: stackState().apiUrl });
-
-/** A Team member to sign with; the first one signs as themselves. */
-async function signer(request: APIRequestContext): Promise<string> {
-  const { apiUrl } = stackState();
-  const members = async () =>
-    ((await (await request.get(`${apiUrl}/api/team`)).json()) as { members: { id: string }[] })
-      .members;
-  const existing = (await members())[0];
-  if (existing) return existing.id;
-  // Another spec may add the first person at the same moment; then theirs signs.
-  await request.post(`${apiUrl}/api/team`, {
-    headers: writeHeaders(),
-    data: { name: 'Kasia', githubLogin: 'wb-dev' },
-  });
-  return (await members())[0]!.id;
-}
-
-/** Decides the findings with these titles through the api (decide.spec.ts covers the UI). */
-async function decide(
-  request: APIRequestContext,
-  number: number,
-  titles: string[],
-  decision: 'implement' | 'reject',
-): Promise<void> {
-  const { apiUrl } = stackState();
-  const base = `${apiUrl}/api/prs/workflowbuilder/${number}`;
-  const { findings } = (await (await request.get(`${base}/findings`)).json()) as {
-    findings: { id: number; title: string; version: number }[];
-  };
-  const chosen = findings.filter((f) => titles.includes(f.title));
-  expect(chosen).toHaveLength(titles.length);
-  const response = await request.post(`${base}/decisions`, {
-    headers: writeHeaders(),
-    data: {
-      findingIds: chosen.map((f) => f.id),
-      decision,
-      reason: decision === 'reject' ? 'Out of scope for this PR.' : null,
-      signedBy: await signer(request),
-      expectedVersions: Object.fromEntries(chosen.map((f) => [String(f.id), f.version])),
-    },
-  });
-  expect(response.status()).toBe(200);
-}
-
-const bannerTitle = (page: Page) =>
-  page.getByRole('region', { name: 'Next step' }).getByRole('heading', { level: 2 });
-
-/** Reloads the PR page until `check` passes: the page does not follow the worker by itself. */
-async function onPrPage(page: Page, number: number, check: () => Promise<void>): Promise<void> {
-  await expect(async () => {
-    await page.goto(`/pr/workflowbuilder/${number}`);
-    await check();
-  }).toPass({ timeout: 60_000 });
-}
 
 const meta = (page: Page) => page.getByTestId('pr-meta');
 
@@ -233,7 +167,8 @@ test('a push during a running round leaves it running and labels its result', as
   request,
 }, testInfo) => {
   test.setTimeout(120_000);
-  const number = 349 + testInfo.retry;
+  // Below `HELD_PRS` (350–399), also on a retry.
+  const number = 300 + testInfo.retry;
   const title = `Chains: push while running ${number}`;
   const { headSha, fixShas } = stackState();
   await writeFile(holdFile(number), '');

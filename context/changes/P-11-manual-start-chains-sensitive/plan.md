@@ -199,4 +199,4 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 11: e2e sensitive files
 
-- [ ] 11.1 `pnpm test:e2e sensitive-files.spec.ts`
+- [x] 11.1 `pnpm test:e2e sensitive-files.spec.ts`

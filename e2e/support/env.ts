@@ -55,6 +55,20 @@ export const LEVEL_TWO_REPOSITORY = {
   installationId: 55500004,
 };
 
+/**
+ * Seeded at level 1 with two sensitive patterns that match two of the fixture's changed files:
+ * the migration and the SDK entry (sensitive-files.spec.ts).
+ */
+export const SENSITIVE_REPOSITORY = {
+  slug: 'sensitive-repo',
+  fullName: 'acme/sensitive-repo',
+  installationId: 55500005,
+  patterns: [
+    { pattern: 'db/migrations/**', reason: 'Migrations cannot be undone.' },
+    { pattern: 'packages/sdk/src/index.ts', reason: 'The public SDK entry.' },
+  ],
+};
+
 /** Insights history (insights.spec.ts): 17 merged PRs here... */
 export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };
 /** ...and 3 here. No App installation: nothing is delivered for them. */
