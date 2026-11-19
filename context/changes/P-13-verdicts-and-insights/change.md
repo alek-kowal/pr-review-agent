@@ -1,7 +1,7 @@
 ---
 change_id: P-13
 title: Verdicts and Insights (S-05-T3, S-05-T4, S-19-T1–T8)
-status: in_progress
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -167,3 +167,16 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
   (n of 5)"; at levels 1–2 it leaves out Confirmed and Refuted ("Findings are not verified at this
   level"); with no decided finding it says so.
 - The prototype's "Next: level 4 …" hint is left out: no rule for promotion exists yet.
+
+### S-19-T8 (end-to-end Insights)
+
+- The history is seeded once from `e2e/support/stack.ts` by `e2e/support/insights-seed.ts`
+  (`seedPrHistory` from `@pra/db/testing`) into two repositories of its own (`INSIGHTS_MAIN`: 17
+  merged PRs, 5 by ola; `INSIGHTS_SIDE`: 3), so the other specs' PRs never change its counts. The
+  PRs finished 8–12 days ago: inside the 14-day range, outside the board's 7-day fold.
+- The Trust ladder check opens `/insights/trust` directly, without the repository filter: the tab
+  links keep the search, so following them would show only `INSIGHTS_MAIN`.
+- "No trend" is checked as text: no `+n%`/`-n%`, "better", "worse" or "trend" on any tab.
+- `e2e/a11y-routes.ts` exists neither here nor on `main`, so the Insights routes were not added to
+  it; whoever adds that file lists `/insights`, `/insights/cost`, `/insights/quality` and
+  `/insights/trust`.
