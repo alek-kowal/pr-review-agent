@@ -3,7 +3,7 @@ import { findingsOutcome, needsDecision, toDecide, toFix } from '../src/index.ts
 import { makeFinding, makeQuestion, makeRound } from './builders.ts';
 
 describe('which findings need a person', () => {
-  it('questions come first (P review.test.ts:36)', () => {
+  it('questions come first, and an answered one no longer waits (P review.test.ts:47)', () => {
     const round = makeRound({
       questions: [makeQuestion(), makeQuestion({ answered: true })],
       findings: [makeFinding({ severity: 'blocking' })],
@@ -14,7 +14,7 @@ describe('which findings need a person', () => {
     expect(outcome.reasons.map((r) => r.code)).toEqual(['questions_waiting', 'findings_to_decide']);
   });
 
-  it('a finding decided Implement blocks until resolved, even a nit (P review.test.ts:47)', () => {
+  it('a finding decided Implement blocks until resolved, even a nit (P review.test.ts:62)', () => {
     const nit = makeFinding({ severity: 'nit', decision: 'implement' });
     const round = makeRound({ findings: [nit] });
     expect(toFix(round.findings)).toEqual([nit]);
@@ -24,7 +24,7 @@ describe('which findings need a person', () => {
     expect(findingsOutcome(resolved).reason).toEqual({ code: 'round_clean', params: {} });
   });
 
-  it('nits are optional and never block (P review.test.ts:55)', () => {
+  it('nits are optional and never block, unless the round touches sensitive files (P review.test.ts:55)', () => {
     const nit = makeFinding({ severity: 'nit' });
     expect(needsDecision(nit)).toEqual({
       needed: false,
@@ -35,9 +35,16 @@ describe('which findings need a person', () => {
     );
     expect(outcome.needsPerson).toBe(false);
     expect(outcome.reason).toEqual({ code: 'round_clean', params: {} });
+    const sensitive = findingsOutcome(
+      makeRound({
+        findings: [nit],
+        sensitive: { status: 'pending', files: ['CLAUDE.md'], sentBackBy: null },
+      }),
+    );
+    expect(sensitive.reason).toEqual({ code: 'sensitive_files_need_person', params: { count: 1 } });
   });
 
-  it('a clean round that touches sensitive files still needs a person (P review.test.ts:62)', () => {
+  it('a clean round that touches sensitive files still needs a person (P review.test.ts:36)', () => {
     const round = makeRound({
       sensitive: { status: 'pending', files: ['deploy/app.yaml'], sentBackBy: null },
     });

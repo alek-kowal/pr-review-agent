@@ -32,7 +32,7 @@ function runUntil(run: RunState, until: RunStageKey): RunState {
 }
 
 describe('run state machine', () => {
-  it('after a restart a running stage fails as interrupted and can be retried (P runs.test.ts:19)', () => {
+  it('after a restart a running stage fails as interrupted and can be retried (P runs.test.ts:35)', () => {
     const running = runUntil(planRun({ kind: 'round', level: 3, roundNumber: 1 }), 'review');
     const recovered = recoverAfterRestart(running);
     expect(recovered.status).toBe('failed');
@@ -51,7 +51,14 @@ describe('run state machine', () => {
     expect(recoverAfterRestart(implementer).status).toBe('queued');
   });
 
-  it('runs a level 2 round to completion, skipping the stages that are off', () => {
+  it('after a restart a run between stages is left as it is: the next stage job is durable (P runs.test.ts:35)', () => {
+    const running = runUntil(planRun({ kind: 'round', level: 3, roundNumber: 1 }), 'review');
+    const between = must(completeStage(running, 'review'));
+    expect(between.status).toBe('running');
+    expect(recoverAfterRestart(between)).toEqual(between);
+  });
+
+  it('runs a level 2 round to completion, skipping the stages that are off (P runs.test.ts:19)', () => {
     let run = must(startRun(planRun({ kind: 'round', level: 2, roundNumber: 1 })));
     expect(statuses(run)).toEqual({
       checks: 'pending',
