@@ -21,6 +21,8 @@ export type AgentRunInput<T> = {
   maxTurns: number;
   /** The session is stopped once its cost passes this. */
   maxCostUsd: number;
+  /** Wall-clock limit (the stage timeout); past it the session is stopped with `timeout`. */
+  timeoutMs: number;
   /** Aborting it cancels the session (run cancel, S-09). */
   signal?: AbortSignal;
   onProgress?: (progress: AgentProgress) => void;
@@ -35,6 +37,7 @@ export const AGENT_ERROR_CODES = [
   'max_turns_reached',
   'output_invalid',
   'agent_failed',
+  'timeout',
   'cancelled',
 ] as const;
 export type AgentErrorCode = (typeof AGENT_ERROR_CODES)[number];

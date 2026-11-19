@@ -8,8 +8,12 @@
 .git
 .github
 .claude
-.env
-.env.*
+# Secrets at any depth: env files (an app's own .env would ship through `pnpm deploy`) and keys
+# such as the GitHub App's `*.private-key.pem`.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
 deploy/*.env
 !deploy/local.env
 context

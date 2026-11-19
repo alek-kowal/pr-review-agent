@@ -8,6 +8,14 @@ x-app-env: &app-env
     - path: ${PRA_ENV_FILE:-app.env}
       required: true
 
+# Docker's default json-file log never rotates; on one VM it would fill the disk.
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '5'
+
 x-local-db:
   &local-db # Only in the `local` profile; on the VM the database is external (DATABASE_URL).
   postgres:
@@ -22,18 +30,26 @@ services:
     build: { context: .., dockerfile: apps/web/Dockerfile }
     image: ${PRA_IMAGE_PREFIX:-pra}-web:${PRA_TAG:-latest}
     restart: unless-stopped
+    <<: *logging
     # TLS and the access gate sit in front of this port (F-04-T7).
     ports:
       - '127.0.0.1:${PRA_WEB_PORT:-8080}:8080'
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      # The SPA from Caddy's own file server; the api has its own check.
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:8080/']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   api:
     build: { context: .., dockerfile: apps/api/Dockerfile }
     image: ${PRA_IMAGE_PREFIX:-pra}-api:${PRA_TAG:-latest}
     restart: unless-stopped
-    <<: *app-env
+    <<: [*app-env, *logging]
     environment:
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github_app_key
     secrets: [github_app_key]
@@ -53,7 +69,7 @@ services:
     build: { context: .., dockerfile: apps/worker/Dockerfile }
     image: ${PRA_IMAGE_PREFIX:-pra}-worker:${PRA_TAG:-latest}
     restart: unless-stopped
-    <<: *app-env
+    <<: [*app-env, *logging]
     environment:
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github_app_key
       WORKER_HEARTBEAT_FILE: /tmp/pra-worker.heartbeat

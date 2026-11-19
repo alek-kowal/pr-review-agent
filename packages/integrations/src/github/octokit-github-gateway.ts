@@ -76,22 +76,43 @@ export class OctokitGitHubGateway implements GitHubGateway {
   }
 
   async getPullRequest(fullName: string, number: number): Promise<GitHubPullRequest> {
-    const octokit = await this.#installationOctokit(fullName);
-    const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
-      ...splitFullName(fullName),
-      pull_number: number,
+    return this.#withInstallation(fullName, async (octokit) => {
+      const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+        ...splitFullName(fullName),
+        pull_number: number,
+      });
+      return toPullRequest(data as RawPullRequest);
     });
-    return toPullRequest(data as RawPullRequest);
   }
 
   async postIssueComment(fullName: string, number: number, body: string) {
-    const octokit = await this.#installationOctokit(fullName);
-    const { data } = await octokit.request(
-      'POST /repos/{owner}/{repo}/issues/{issue_number}/comments',
-      { ...splitFullName(fullName), issue_number: number, body },
-    );
-    // GitHub's schema allows int64 ids; comment ids fit a JS number.
-    return { id: Number(data.id) };
+    return this.#withInstallation(fullName, async (octokit) => {
+      const { data } = await octokit.request(
+        'POST /repos/{owner}/{repo}/issues/{issue_number}/comments',
+        { ...splitFullName(fullName), issue_number: number, body },
+      );
+      // GitHub's schema allows int64 ids; comment ids fit a JS number.
+      return { id: Number(data.id) };
+    });
+  }
+
+  /**
+   * Runs `call` with the repository's installation client. A cached installation goes stale when
+   * the App is reinstalled (new id, old tokens revoked) or the repository leaves it; GitHub then
+   * answers 401 or 404. So on those, once, the cached id and its token are dropped and the call
+   * runs again on a fresh lookup (a 401 or 404 means nothing was written, so a retry is safe).
+   */
+  async #withInstallation<T>(fullName: string, call: (octokit: Octokit) => Promise<T>): Promise<T> {
+    const cachedId = this.#installations.get(fullName);
+    try {
+      return await call(await this.#installationOctokit(fullName));
+    } catch (error) {
+      const status = statusOf(error);
+      if (cachedId === undefined || (status !== 401 && status !== 404)) throw error;
+      this.#installations.delete(fullName);
+      this.#tokens.delete(cachedId);
+      return call(await this.#installationOctokit(fullName));
+    }
   }
 
   #newToken(installationId: number): Promise<InstallationToken> {

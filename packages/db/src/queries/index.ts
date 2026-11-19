@@ -5,3 +5,6 @@ export * from './instructions.ts';
 export * from './runs.ts';
 export * from './pr-views.ts';
 export * from './run-engine.ts';
+export * from './team.ts';
+export * from './decisions.ts';
+export * from './settings-changes.ts';

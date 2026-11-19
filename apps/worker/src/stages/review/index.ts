@@ -93,6 +93,8 @@ async function runReview(context: StageContext): Promise<StageResult> {
     outputSchema: reviewOutputSchema,
     maxTurns: REVIEW_MAX_TURNS,
     maxCostUsd: REVIEW_MAX_COST_USD,
+    // Same limit as the stage timer in execute-stage.ts, which stays the one that ends the stage.
+    timeoutMs: level.settings.stageTimeoutMinutes * 60_000,
     signal,
   });
   const sessions: SessionRecord[] = [{ role: 'reviewer', model, prompt, result }];

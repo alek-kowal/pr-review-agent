@@ -60,18 +60,26 @@ export class ClaudeAgentRunner implements AgentRunner {
     if (!tools) return notStarted('role_not_supported', { role: input.role });
     if (input.signal?.aborted) return notStarted('cancelled');
 
-    const home = await mkdtemp(path.join(tmpdir(), 'pra-agent-'));
+    // Linked before the first await, so a cancel at any moment reaches the session.
     const abort = new AbortController();
     const cancel = () => abort.abort();
     input.signal?.addEventListener('abort', cancel, { once: true });
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      abort.abort();
+    }, input.timeoutMs);
 
     const meter = new UsageMeter(input.model);
     const transcript: unknown[] = [];
     let final: SDKResultMessage | undefined;
     let costStopped = false;
     let thrown: unknown;
+    let home: string | undefined;
 
     try {
+      home = await mkdtemp(path.join(tmpdir(), 'pra-agent-'));
+      if (abort.signal.aborted) throw new Error('aborted before the session started');
       const messages = this.#query({
         prompt: input.prompt,
         options: this.#options(input, tools, home, abort),
@@ -93,35 +101,49 @@ export class ClaudeAgentRunner implements AgentRunner {
     } catch (error) {
       thrown = error;
     } finally {
+      clearTimeout(timer);
       input.signal?.removeEventListener('abort', cancel);
-      await rm(home, { recursive: true, force: true });
+      if (home) await rm(home, { recursive: true, force: true });
     }
 
-    if (final && !costStopped) return fromResult(final, input, transcript);
+    // A session that finished keeps its result. One we stopped (cost, timeout, cancel) is
+    // explained by why we stopped it, even if the SDK still sent an error result.
+    if (final && (final.subtype === 'success' || !abort.signal.aborted)) {
+      return fromResult(final, input, transcript);
+    }
 
-    const computed = {
-      usage: meter.usage,
-      costUsd: meter.costUsd,
-      costSource: 'computed' as const,
-      turns: meter.turns,
-      durationMs: this.#now() - startedAt,
-      transcript,
-    };
+    const spent = final
+      ? reportedSpend(final, transcript)
+      : {
+          usage: meter.usage,
+          costUsd: meter.costUsd,
+          costSource: 'computed' as const,
+          turns: meter.turns,
+          durationMs: this.#now() - startedAt,
+          transcript,
+        };
     if (costStopped) {
       return result<T>({
-        ...computed,
+        ...spent,
         status: 'failed',
         error: error('cost_limit_reached', {
           maxCostUsd: input.maxCostUsd,
-          costUsd: meter.costUsd,
+          costUsd: spent.costUsd,
         }),
       });
     }
-    if (input.signal?.aborted) {
-      return result<T>({ ...computed, status: 'cancelled', error: error('cancelled') });
+    if (timedOut) {
+      return result<T>({
+        ...spent,
+        status: 'failed',
+        error: error('timeout', { timeoutMs: input.timeoutMs }),
+      });
+    }
+    if (abort.signal.aborted) {
+      return result<T>({ ...spent, status: 'cancelled', error: error('cancelled') });
     }
     return result<T>({
-      ...computed,
+      ...spent,
       status: 'failed',
       error: error('agent_failed', thrown ? { detail: detailOf(thrown) } : { detail: 'no_result' }),
     });
@@ -195,8 +217,11 @@ class UsageMeter {
     return total;
   }
 
+  /** Priced per message: a long-prompt rate applies to that request only. */
   get costUsd(): number {
-    return costOf(this.#model, this.usage);
+    let total = 0;
+    for (const usage of this.#byMessage.values()) total += costOf(this.#model, usage);
+    return total;
   }
 }
 
@@ -223,12 +248,8 @@ const RESULT_ERRORS: Record<Exclude<SDKResultMessage['subtype'], 'success'>, Age
   error_during_execution: 'agent_failed',
 };
 
-function fromResult<T>(
-  final: SDKResultMessage,
-  input: AgentRunInput<T>,
-  transcript: unknown[],
-): AgentRunResult<T> {
-  const reported = {
+function reportedSpend(final: SDKResultMessage, transcript: unknown[]) {
+  return {
     usage: toUsage(final.usage),
     costUsd: final.total_cost_usd,
     costSource: 'reported' as const,
@@ -236,6 +257,14 @@ function fromResult<T>(
     durationMs: final.duration_ms,
     transcript,
   };
+}
+
+function fromResult<T>(
+  final: SDKResultMessage,
+  input: AgentRunInput<T>,
+  transcript: unknown[],
+): AgentRunResult<T> {
+  const reported = reportedSpend(final, transcript);
   if (final.subtype !== 'success') {
     const code = RESULT_ERRORS[final.subtype] ?? 'agent_failed';
     return result<T>({

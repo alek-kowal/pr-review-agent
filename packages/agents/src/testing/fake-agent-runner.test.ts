@@ -14,6 +14,7 @@ function input(): AgentRunInput<z.infer<typeof Answer>> {
     outputSchema: Answer,
     maxTurns: 5,
     maxCostUsd: 1,
+    timeoutMs: 60_000,
   };
 }
 
