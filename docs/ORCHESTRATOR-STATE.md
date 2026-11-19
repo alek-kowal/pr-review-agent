@@ -48,7 +48,9 @@ Execution runs by **work packages** (`context/foundation/work-packages.md`: 24 p
 
 A package that stops at its context budget leaves `context/changes/<id>-handoff.md`, and a continuation session (`prompts/continue.txt`, adapted) picks up from it.
 
-Done and merged (06:35): F-01, P-01..P-08, P-10, plus P-02b (parity), P-03r and P-05r (impl-reviews), P-06f (stable tests, Vitest worker cap). Running: P-09 (wave 4). Waves 5+ wait for P-09.
+Done and merged (08:25): F-01, P-01..P-13, plus P-02b (parity), P-03r, P-05r (impl-reviews) and P-06f (stable tests). Running: P-14, P-15, P-16, P-17, P-19 (wave 6/7) and P-11r (impl-review of chains). Next ready: P-23. Planned reviews: P-18, P-22.
+
+Disk: the Mac's disk is nearly full (about 9 GB free). `supervise.sh` stops with DISK_LOW below 4 GB. Then free only regenerable things: `docker builder prune -af`, leftover `pra-sbx-*` containers, `pnpm store prune`. Never touch other projects' Docker images. Agent prompts now say Write/Edit only, because shell heredocs trigger a permission prompt; `supervise.sh` declines those prompts by itself (`decline-shell.sh`). Use `prompts/merge-fix-generic.txt` for merge conflicts.
 
 Preferred loop (06:00): `supervise.sh <agents…>` in the background does handoffs and continuations by itself, and exits only on FINISHED, BLOCKED or GONE. Merge with `merge-when-calm.sh <id>`: it waits for load < 16 and retries once. On a code conflict, `git merge --abort` and start a fresh session in the worktree with `prompts/merge-fix.txt` (it merges main into the branch).
 
