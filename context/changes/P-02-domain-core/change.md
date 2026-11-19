@@ -1,7 +1,7 @@
 ---
 change_id: P-02
 title: Domain core (F-03-T1 to F-03-T14)
-status: in_progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -144,3 +144,10 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   queued state keeps the checklist red), and trials and the analyst never count. CI: no checks
   fails (`checklist_ci_none`); a failed check wins over a running one (`conclusion: null`).
   `ok` also needs `prState === 'ready_to_merge'`, so a waiting patch or a queued run keeps it red.
+- T14: `packages/core/PORTING.md` has one row per P test, sorted by P file and line, with columns
+  P test, status (`ported`, `slice`, `not ported`), where and a note. Ported rows were built from
+  Vitest's JSON report, so each names the real `file › describe › title`; partial ports ("pure
+  part only", the model-name part of `classify.test.ts:273`) and the docs/05 rule change for
+  `sync.test.ts` are noted. The four `patch-change` tests have no line numbers in the task text,
+  so they are rows "1 of 4" to "4 of 4". The file states that parity with P is unverified.
+- No UI was touched, so the package needs `pnpm verify` only, not `pnpm test:e2e`.
