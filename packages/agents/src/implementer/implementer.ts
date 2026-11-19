@@ -36,6 +36,8 @@ export type RunImplementerInput = {
   instructions: { prompt: string; rules: string };
   maxTurns: number;
   maxCostUsd: number;
+  /** From the frozen level (`settings.stageTimeoutMinutes`); the session is stopped past it. */
+  stageTimeoutMinutes: number;
   signal?: AbortSignal;
   onProgress?: (progress: AgentProgress) => void;
 };
@@ -98,6 +100,7 @@ export function runImplementer(
       outputSchema: ImplementerAnswerSchema,
       maxTurns: input.maxTurns,
       maxCostUsd: input.maxCostUsd,
+      timeoutMs: input.stageTimeoutMinutes * 60_000,
       signal: input.signal,
       onProgress: input.onProgress,
     });

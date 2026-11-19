@@ -7,7 +7,7 @@ import type {
   PreToolUseHookInput,
   SDKMessage,
 } from '@anthropic-ai/claude-agent-sdk';
-import { DEFAULT_MODELS } from '@pra/core';
+import { DEFAULT_MODELS, DEFAULT_STAGE_TIMEOUT_MINUTES } from '@pra/core';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { z } from 'zod/v4';
 import { ClaudeAgentRunner, type QueryFn } from '../claude-agent-runner.ts';
@@ -68,6 +68,7 @@ const input = (overrides: Partial<RunImplementerInput> = {}): RunImplementerInpu
   },
   maxTurns: 40,
   maxCostUsd: 3,
+  stageTimeoutMinutes: DEFAULT_STAGE_TIMEOUT_MINUTES,
   ...overrides,
 });
 
@@ -245,7 +246,12 @@ describe('the implementer session on the Agent SDK', () => {
       onProgress: () => controller.abort(),
     });
 
-    expect(result).toMatchObject({ status: 'cancelled', costSource: 'computed', turns: 1 });
+    expect(result).toMatchObject({
+      status: 'cancelled',
+      error: { code: 'cancelled' },
+      costSource: 'computed',
+      turns: 1,
+    });
     expect(result.costUsd).toBeCloseTo(
       costOf('claude-opus-5-5', {
         inputTokens: 4000,
@@ -276,7 +282,12 @@ describe('runImplementer', () => {
 
     const call = runner.calls[0]!;
     const dir = call.readDirs![0]!;
-    expect(call).toMatchObject({ role: 'implementer', model: 'claude-opus-5-5', cwd: worktree });
+    expect(call).toMatchObject({
+      role: 'implementer',
+      model: 'claude-opus-5-5',
+      cwd: worktree,
+      timeoutMs: 30 * 60_000,
+    });
     expect(call.prompt).toContain(`Read ${dir}/instructions/implement-rules.md.`);
     expect(call.prompt).toContain(`Findings: ${dir}/findings.json.`);
     expect(call.prompt).toContain(`${dir}/answers.json`);
@@ -332,6 +343,7 @@ describe('the read-only roles get the same path guard', () => {
       outputSchema: z.object({ verdict: z.string(), notes: z.array(z.string()) }),
       maxTurns: 5,
       maxCostUsd: 1,
+      timeoutMs: 60_000,
     });
     const options = calls[0]!;
     expect(options.permissionMode).toBe('dontAsk');

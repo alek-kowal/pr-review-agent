@@ -148,3 +148,14 @@ The planning step ran without questions (orchestrator rule: decide and record).
   asserts no `GITHUB_*`, `CLICKUP_*` or `DATABASE_URL`. The `role_not_supported` runner test now
   uses `analyst`, the only role still without tools.
 - **No e2e run**: the package changes no UI (`pnpm verify` only, per the orchestrator rule).
+
+### Merge fix (main's runner timeout, db07ee1)
+
+- **The implementer and verifier take `stageTimeoutMinutes`, not `timeoutMs`.** Like `model`, it
+  comes from the frozen level (`settings.stageTimeoutMinutes`, default
+  `DEFAULT_STAGE_TIMEOUT_MINUTES` = 30), so the caller passes the config value as stored and the
+  adapter turns it into the runner's `timeoutMs` (`* 60_000`). Tests assert the 30 min → ms value.
+- **Test 5 failed only because `timeoutMs` was missing**: `setTimeout(…, undefined)` fires at once,
+  so the session was aborted as a timeout before (or racing with) the cancel. With the stage
+  timeout passed it is deterministic; it now also asserts `error.code = cancelled`. The runner is
+  unchanged. Two other tests (env, reviewer hook) failed the same way and pass now.

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Options, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import { DEFAULT_MODELS, type Finding } from '@pra/core';
+import { DEFAULT_MODELS, DEFAULT_STAGE_TIMEOUT_MINUTES, type Finding } from '@pra/core';
 import { describe, expect, test } from 'vitest';
 import { ClaudeAgentRunner, ROLE_TOOLS, type QueryFn } from '../claude-agent-runner.ts';
 import type { AgentRunInput } from '../runner.ts';
@@ -47,6 +47,7 @@ const input = (overrides: Partial<VerifyFindingInput> = {}): VerifyFindingInput 
   },
   maxTurns: 30,
   maxCostUsd: 2,
+  stageTimeoutMinutes: DEFAULT_STAGE_TIMEOUT_MINUTES,
   ...overrides,
 });
 
@@ -110,6 +111,7 @@ describe('verifyFinding', () => {
       readDirs: ['/runs/r1/worktree'],
       maxTurns: 30,
       maxCostUsd: 2,
+      timeoutMs: 30 * 60_000,
     });
     expect(call.cwd).not.toBe('/runs/r1/worktree');
     expect(call.prompt).toBe(
