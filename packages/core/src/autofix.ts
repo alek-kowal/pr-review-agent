@@ -133,6 +133,12 @@ export interface AutofixPushInput {
   /** Automatic patches made in this chain before this one. */
   autoPatchesInChain: number;
   maxAutoPatches?: number;
+  /**
+   * The agent is paused, or today's budget is reached, right now. A pause or a budget stops the
+   * bot's own push too (a release freeze), although the implementer run it started may finish.
+   */
+  paused: boolean;
+  budgetReached: boolean;
 }
 
 export interface AutofixCheck {
@@ -179,6 +185,8 @@ export function autofixCheck(
   if (push.autoPatchesInChain >= max) {
     holds.push(reason('auto_patches_used', { used: push.autoPatchesInChain, max }));
   }
+  if (push.paused) holds.push(reason('autofix_paused'));
+  if (push.budgetReached) holds.push(reason('autofix_budget_reached'));
   const reasons = holds.length ? holds : rule.reasons;
   return { mode, allowed: holds.length === 0, reasons, reason: reasons[0]!, findingIds: [] };
 }

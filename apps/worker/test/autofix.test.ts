@@ -314,6 +314,36 @@ describe('autofix at level 5', () => {
       await writeAppSettings(deps.db, DEFAULT_APP_SETTINGS);
     }
   });
+
+  test('a pause after the autofix run started pushes nothing, at patch ready or in the job', async () => {
+    const pr = await reviewedPr(5);
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    const [queued] = (await runsOf(pr.pullRequest.id)).filter((r) => r.kind === 'implementer');
+    const { implementer, patch } = await completeImplementer(pr, queued!, 'src/paused.ts');
+    const before = pushCalls();
+    await writeAppSettings(deps.db, {
+      ...DEFAULT_APP_SETTINGS,
+      paused: true,
+      pausedReason: 'release freeze',
+    });
+    try {
+      await autofixOnPatchReady(hookContext(pr, implementer));
+      expect(await jobsWhere(deps.db, 'patch.push', 'patchId', patch.id)).toEqual([]);
+      expect((await autofixAttemptsOfPr(deps.db, pr.pullRequest.id)).at(-1)).toMatchObject({
+        point: 'push',
+        outcome: 'waiting',
+        reasons: [reason('autofix_paused')],
+      });
+
+      // A push job queued before the pause checks it again.
+      const outcome = await handlePatchPush(deps, { patchId: patch.id, signedBy: null });
+      expect(outcome).toEqual({ pushed: false, reason: reason('autofix_paused') });
+      expect(pushCalls() - before).toBe(0);
+      expect(await git(pr.bare, 'rev-parse', `refs/heads/${pr.branch}`)).toBe(fixture.headSha);
+    } finally {
+      await writeAppSettings(deps.db, DEFAULT_APP_SETTINGS);
+    }
+  });
 });
 
 describe('the shadow below level 5', () => {

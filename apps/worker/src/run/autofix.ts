@@ -30,6 +30,7 @@ import {
   type PatchWithFiles,
   type PrStateLoad,
 } from '@pra/db';
+import { autofixHolds } from './budget-gate.ts';
 import type { RunHook, RunHookContext } from './hooks.ts';
 
 /** The autofix start inputs core reads, from the PR as the round left it. */
@@ -197,6 +198,7 @@ export const autofixOnPatchReady: RunHook = async ({ deps, run, pullRequest, rep
       ? await autoPatchesInChain(deps.db, start.chainId, { exceptRunId: run.id })
       : 0,
     maxAutoPatches: run.level.settings.autofixMaxPatches ?? undefined,
+    ...(await autofixHolds(deps.db)),
   });
 
   if (mode === 'shadow') {

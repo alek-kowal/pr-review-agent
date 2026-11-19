@@ -36,6 +36,8 @@ const push = (overrides: Partial<AutofixPushInput> = {}): AutofixPushInput => ({
   headSha: HEAD,
   sensitivePatterns: WB_SENSITIVE_PATTERNS,
   autoPatchesInChain: 0,
+  paused: false,
+  budgetReached: false,
   ...overrides,
 });
 const codes = (reasons: { code: string }[]) => reasons.map((r) => r.code);
@@ -128,5 +130,12 @@ describe('autofixCheck', () => {
     const atPush = autofixCheck('push', push({ fork: true }));
     expect(atPush.allowed).toBe(false);
     expect(atPush.reason.code).toBe('fork_read_only');
+  });
+
+  it('a pause or a reached budget holds the push of a ready patch', () => {
+    const paused = autofixCheck('push', push({ paused: true }));
+    expect(paused).toMatchObject({ allowed: false, reason: { code: 'autofix_paused' } });
+    const budget = autofixCheck('push', push({ budgetReached: true }));
+    expect(budget).toMatchObject({ allowed: false, reason: { code: 'autofix_budget_reached' } });
   });
 });

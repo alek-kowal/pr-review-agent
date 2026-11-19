@@ -18,6 +18,7 @@ import {
 import { noreplyEmail, PUSH_COMMIT_MESSAGE, type GitIdentity } from '@pra/integrations';
 import type { WorkerDeps } from '../deps.ts';
 import { fetchMirror } from '../stages/worktree.ts';
+import { autofixHolds } from './budget-gate.ts';
 import { expectOwnFix } from './chains.ts';
 
 export type PushJob = { patchId: number; signedBy: string | null };
@@ -63,6 +64,14 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
   // delivery of this job that stopped before it marked the patch.
   if (!gate.allowed && (gate.reason.code !== 'head_moved' || files.length === 0)) {
     return refuse(deps, job, patch, actor, gate.reason);
+  }
+  // The bot's own push: a pause or a reached budget since the patch was ready stops it.
+  if (gate.allowed && job.signedBy === null) {
+    const holds = await autofixHolds(deps.db);
+    if (holds.paused) return refuse(deps, job, patch, actor, reason('autofix_paused'));
+    if (holds.budgetReached) {
+      return refuse(deps, job, patch, actor, reason('autofix_budget_reached'));
+    }
   }
 
   await fetchMirror({ deps, repository, run: found.run });
