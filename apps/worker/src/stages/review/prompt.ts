@@ -1,4 +1,5 @@
 // The reviewer's knowledge directory and launch prompt, after P's `src/prompt.ts`.
+import { BUILT_IN_REVIEWER_PROMPT } from '@pra/core';
 import type { InstructionVersion } from '@pra/db';
 import { chmod, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -11,11 +12,7 @@ type Placeholder = 'knowledgeDir' | 'repoDir' | 'runDir';
 const REQUIRED: readonly Placeholder[] = ['knowledgeDir', 'repoDir'];
 
 /** Used when the instruction is missing, empty or lacks a required placeholder. */
-export const BUILT_IN_REVIEWER_PROMPT = [
-  'Review the pull request. First read the rules: {{knowledgeDir}}/review-rules.md.',
-  'Then read brief.md and diff.patch in the current directory.',
-  'The repository at the PR head: {{repoDir}}. The knowledge directory: {{knowledgeDir}}.',
-].join(' ');
+export { BUILT_IN_REVIEWER_PROMPT };
 
 /** Why a template is not used; null when it is fine. */
 export function promptProblem(

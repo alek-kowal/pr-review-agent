@@ -36,6 +36,7 @@ export {
 } from './queue.ts';
 export * from './queries/index.ts';
 export * from './seed/seed-repo.ts';
+export * from './seed/instructions-import.ts';
 export { PR_STATES, type PrState } from './schema/repositories.ts';
 export { INSTRUCTION_STATUSES, type InstructionStatus } from './schema/instructions.ts';
 export {
