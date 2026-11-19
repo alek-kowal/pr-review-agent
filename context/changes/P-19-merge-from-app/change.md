@@ -1,7 +1,7 @@
 ---
 change_id: P-19
 title: Merge from the app (S-12-T1–T5, S-06-T8)
-status: planned
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -97,4 +97,13 @@ questions (orchestrator rule: decide and record).
 - The follow-up case checks the link shape (`task-N`), not a fixed ID: the double numbers tasks
   and comments from one shared counter. It waits up to 60 s (the job starts after 15 s).
 - PR numbers: 120–122 branch link, 124–126 by hand, 128–130 follow-up.
+
+### Closing
+
+- `main` was merged twice (at the start and before the final checks). P-11r's
+  `commitsSinceRun` (a head other than the round's is never 0 commits since) said the same as
+  T3's change; its version was kept.
+- Final checks after the second merge: `pnpm verify` and `pnpm test:e2e` (23 specs) green.
+- Left for Alek: S-12-T6 (WB branch protection, App merge permission, a real merge) and S-06-T9
+  (real ClickUp key).
 

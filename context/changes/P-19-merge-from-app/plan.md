@@ -128,25 +128,25 @@ spec 100–119 on `merge-repo`, ClickUp spec 120–139 on `clickup-repo` (free, 
 
 ### Phase 1: GitHub merge and fresh-state reads
 
-- [ ] 1.1 `github.merge.test.ts` passes
+- [x] 1.1 `github.merge.test.ts` passes
 
 ### Phase 2: Merge service and route
 
-- [ ] 2.1 `merge.test.ts` passes
+- [x] 2.1 `merge.test.ts` passes
 
 ### Phase 3: Keep the checklist fresh
 
-- [ ] 3.1 worker and api `checklist-fresh.test.ts` pass
+- [x] 3.1 worker and api `checklist-fresh.test.ts` pass
 
 ### Phase 4: Merge checklist and Merge dialog
 
-- [ ] 4.1 `checklist.test.tsx merge-dialog.test.tsx` pass
+- [x] 4.1 `checklist.test.tsx merge-dialog.test.tsx` pass
 
 ### Phase 5: End-to-end merge
 
-- [ ] 5.1 `pnpm test:e2e merge.spec.ts` passes
+- [x] 5.1 `pnpm test:e2e merge.spec.ts` passes
 
 ### Phase 6: End-to-end task link, context and follow-up
 
-- [ ] 6.1 `pnpm test:e2e clickup-link.spec.ts` passes
-- [ ] 6.2 merge main, `pnpm verify` and `pnpm test:e2e` green
+- [x] 6.1 `pnpm test:e2e clickup-link.spec.ts` passes
+- [x] 6.2 merge main, `pnpm verify` and `pnpm test:e2e` green
