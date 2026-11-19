@@ -17,6 +17,9 @@ export const ApiErrorCode = {
   SignerUnknown: 'signer_unknown',
   /** A settings save whose `before` is no longer current: someone saved in between. */
   SettingsStale: 'settings_stale',
+  TeamMemberNotFound: 'team_member_not_found',
+  /** Another active Team member has this GitHub login. */
+  GithubLoginTaken: 'github_login_taken',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

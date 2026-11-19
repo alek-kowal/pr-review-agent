@@ -46,3 +46,10 @@ tasks' "Done when" checks are the plan. One commit per task.
   treating a missing field as null. Saving what is stored writes no row (`change: null`).
 - The first Team member signs as themselves through `signAsCreated`, checked inside the same
   transaction: refused with `signature_required` once Team has an active member.
+- Team api lives at `apps/api/src/routes/api/team` (the existing `/api` routes folder), not
+  `routes/team`. Team changes are logged in `settings_changes` (area `team`, entity = member id)
+  through `applySignedSettingsChange`, not in an `audit_events` table. `POST` signs as the new
+  member while Team is empty and ignores `signedBy` then. `PATCH` and `DELETE` take an optional
+  `before`; when sent, an edit made in between gives 409 `settings_stale`. `DELETE` answers 204.
+  GitHub logins drop a leading `@` and must be a valid GitHub login; an empty ClickUp user is
+  stored as null. Unknown or removed member: 404 `team_member_not_found`.
