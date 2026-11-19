@@ -1,7 +1,7 @@
 ---
 change_id: P-20
 title: Alerts (S-18-T1–T6, S-18-T8, S-21-T9)
-status: in_progress
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -164,4 +164,10 @@ in the listed order.
   alert on #42 at 108% of the typed threshold, linking to `window.location.origin/pr/example/42`
   (the sample repository name is copy).
 - Activity → Alerts has the "Alert settings" link at the right of its heading.
+- `/settings/alerts` is in `e2e/a11y-routes.ts`; the "Activity" link inside the text is always
+  underlined (axe `link-in-text-block`).
+- `main`'s a11y spec failed on four of main's own Settings pages (Models, Review levels, Level 5,
+  Audit log): none marked `data-work-start`. Fixed here so `pnpm test:e2e` is green: the Models
+  table, the ladder and the level's "Adds" section (`Section` got a `workStart` prop) and the
+  Audit log filters carry the marker. No other change to those pages.
 

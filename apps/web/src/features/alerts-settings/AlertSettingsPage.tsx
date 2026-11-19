@@ -255,7 +255,7 @@ function AlertSettingsForm({ config }: { config: AlertConfig }) {
         <Row label={t.dashboard.label} hint={t.dashboard.hint}>
           <span>
             {t.dashboard.value} ·{' '}
-            <Link to="/activity" className="text-brand-text hover:underline">
+            <Link to="/activity" className="text-brand-text underline">
               {t.dashboard.activity}
             </Link>
           </span>
