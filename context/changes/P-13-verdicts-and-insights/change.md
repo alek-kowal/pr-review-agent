@@ -90,3 +90,20 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
   merge, or a merge at a head SHA not seen since (the ready head or a later head change). The
   sample is merged PRs (as the prototype's "X of N merged"); merged PRs that never reached Ready
   to merge count as not changed.
+
+### S-19-T3 (Overview and Cost API)
+
+- A PR is in the range when it finished (`coalesce(merged_at, closed_at, updated_at)`, the last
+  for rows from before the S-19-T1 logs) in the last 14 or 30 days; `range` defaults to 30.
+  Overview covers merged and closed PRs; metrics 2 and 5 use the merged ones only.
+- The author filter runs in the API over the loaded histories. `authors` lists every PR author in
+  the range (repository filter applied), so the web's author select can switch freely.
+- Cost counts rounds and implementer runs; trials and the analyst come as `separate.trial` and
+  `separate.analyst` (zero when none). Days are UTC: the range's first day starts at midnight and
+  `byDay` lists every day, zero when nothing was spent. A session counts on the day it was
+  recorded; its level is the run's frozen level.
+- Cost also returns today's spend against the daily budget and the mean cost of completed rounds
+  (the Cost tab's stat tiles, S-19-T6). An unknown `repo` is 404 `repository_not_found`.
+- `seedPrHistory` (`@pra/db/testing`) writes one PR with its runs (one stage and one session
+  each), findings with verdicts and decisions, state rows and head changes. The API tests and
+  the e2e seed share it.
