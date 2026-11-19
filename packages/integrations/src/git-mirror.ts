@@ -60,7 +60,8 @@ export const DEFAULT_GIT_TIMEOUT_MS = 15 * 60_000;
 
 const NAME_SEGMENT = /^[A-Za-z0-9_.-]+$/;
 const RUN_ID = /^[A-Za-z0-9_-]+$/;
-const SHA = /^[0-9a-f]{7,64}$/i;
+/** Full object ids only (SHA-1 or SHA-256): git may read a short one as a branch or tag name. */
+const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
 
 const STATUS: Record<string, ChangedFileStatus> = {
   A: 'added',

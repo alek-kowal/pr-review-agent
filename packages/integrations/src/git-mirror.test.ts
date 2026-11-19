@@ -185,6 +185,10 @@ describe('CliGitMirror', () => {
     await expect(mirror.addWorktree(REPO, 'run-6', '--upload-pack=x')).rejects.toThrow(
       'Not a commit sha',
     );
+    // A short id could name a branch or tag in the mirror instead of the commit.
+    await expect(mirror.addWorktree(REPO, 'run-7', headSha.slice(0, 9))).rejects.toThrow(
+      'Not a commit sha',
+    );
   });
 
   test('a git command past the timeout is killed and frees the repository for the next one', async () => {
