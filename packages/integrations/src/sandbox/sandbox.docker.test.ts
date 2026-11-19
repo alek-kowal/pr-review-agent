@@ -18,7 +18,7 @@ const labels = { 'pra.sandbox.test': randomUUID() };
 const leftoverContainers = () =>
   labelledContainers(`pra.sandbox.test=${labels['pra.sandbox.test']}`);
 
-describe.skipIf(skipReason)('DockerSandbox on the local daemon', () => {
+describe.skipIf(skipReason)('DockerSandbox on the local daemon', { timeout: 30_000 }, () => {
   const sandbox = new DockerSandbox();
   let dir: string;
 

@@ -53,11 +53,7 @@
         "apps/docs/**",
         "apps/e2e/**"
       ],
-      "oneWayPaths": [
-        "apps/backend/drizzle/**",
-        "packages/*/src/index.ts",
-        "deploy/**"
-      ],
+      "oneWayPaths": ["apps/backend/drizzle/**", "packages/*/src/index.ts", "deploy/**"],
       "sizeLines": 800
     },
     "largePrLines": 1500
@@ -73,9 +69,6 @@
       "prompt-implementer.md",
       "implement-rules.md"
     ],
-    "repository": [
-      "lessons.md",
-      "feature-map/"
-    ]
+    "repository": ["lessons.md", "feature-map/"]
   }
 }

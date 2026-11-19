@@ -179,7 +179,10 @@ describe('Change type stage', () => {
     expect(judgeCalls).toEqual([]);
     expect(output).toMatchObject({
       changeType: 'uses_existing',
-      reason: { code: 'forced_by_person', params: { forced: 'uses_existing', rules: 'one_way_door' } },
+      reason: {
+        code: 'forced_by_person',
+        params: { forced: 'uses_existing', rules: 'one_way_door' },
+      },
       forced: 'uses_existing',
       judgeSkipped: { code: 'forced' },
       // The files the rules flagged still go to a person.
@@ -244,7 +247,7 @@ describe('Change type stage', () => {
 
     expect(await executeStage(deps, run.id, 'review')).toBe('succeeded');
 
-    expect(brief).toContain('## Change risk\n\n**Uses existing parts.**');
+    expect(brief).toContain('## Change risk\n\n**Uses what exists.**');
     const findings = await deps.db
       .select()
       .from(schema.findings)
@@ -255,7 +258,7 @@ describe('Change type stage', () => {
     const review = await stageRow(run.id, 'review');
     expect(review.output).toMatchObject({
       changeType: 'uses_existing',
-      dropped: { findings: 2, questions: 1 },
+      dropped: { severity: 1, overLimit: 1, questions: 1 },
     });
   });
 

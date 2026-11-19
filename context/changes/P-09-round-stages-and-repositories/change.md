@@ -68,3 +68,24 @@ listed order.
 - `run-round.test.ts` (P-05): the stage-timeout test no longer waits forever when the 180 ms
   timeout fires before the session starts (it hung under parallel load and blocked the file's
   `afterAll`); the lost-job test gets a 30 s timeout like its `settled` wait.
+
+### S-04-T5 (Change type stage, tier limits and large-PR flag)
+
+- Order: the rules (`classifyChange`) set the floor; the judge may raise it, never lower it; a
+  type a person forced (`pull_requests.forced_change_type`, set with `setForcedChangeType`) wins.
+- The judge is skipped, with `judgeSkipped = {code, params}` in the output, when the type is
+  forced (`forced`), the floor is already `one_way_door` (`floor_is_highest`), or the repository
+  has no judge prompt or rules file (`judge_instructions_missing`, `params.missing`). A skipped
+  judge is not an error; the floor stands.
+- A judge that runs and fails fails the stage with its error code; `output_invalid` becomes
+  `judge_output_invalid`. The judge session is kept like other stage sessions.
+- The result (rules, judge, forced, final type, reason, lines, `largePr`, `largePrLines`) lives
+  only in the stage output, read with `succeededStageOutput`/`changeTypeOfRun`; no new `runs`
+  columns. `largePr` is `lines > largePrLines` (repository setting; the WB seed uses 1,500).
+- Review reads the change type: the brief gets a "Change risk" section, and `limitsFor(type)`
+  cuts findings and questions after the reviewer answers. The review output stores
+  `changeType` and `dropped: {severity, overLimit, questions}`.
+- The T5 work landed as a `wip(...)` commit before `git merge main`; it is finished in a second
+  commit instead of a squash, since squashing across the merge would need a rebase.
+- The Docker sandbox test file (P-06) gets a 30 s test timeout: one container test timed out at
+  5 s under the parallel `pnpm verify` load and passes alone.
