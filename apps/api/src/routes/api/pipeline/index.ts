@@ -1,6 +1,6 @@
 import { PIPELINE_STAGE_KEYS, PIPELINE_STAGES } from '@pra/agents';
 import { AGENT_ROLES, LEVEL_NUMBERS, modelFor, resolveLevel } from '@pra/core';
-import { getAppSettings, listInstructionFiles } from '@pra/db';
+import { getLevelOverrides, getRoleModels, listInstructionFiles } from '@pra/db';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
 
@@ -43,17 +43,22 @@ const pipelineRoutes: FastifyPluginAsyncZod = async (fastify): Promise<void> => 
   const { db } = fastify.deps;
 
   fastify.get('/', { schema: { response: { 200: PipelineResponse } } }, async () => {
-    const [settings, files] = await Promise.all([getAppSettings(db), listInstructionFiles(db)]);
+    const [overrides, roleModels, files] = await Promise.all([
+      getLevelOverrides(db),
+      getRoleModels(db),
+      listInstructionFiles(db),
+    ]);
     const global = new Map(
       files.filter((f) => f.scope === 'global').map((f) => [f.fileKey, f] as const),
     );
     return {
       stages: PIPELINE_STAGES.map((stage) => {
-        const level = resolveLevel(stage.onFrom);
+        // Settings → Models and Review levels (S-21), the same sources a new run snapshots.
+        const level = resolveLevel(stage.onFrom, overrides.value);
         return {
           key: stage.key,
           role: stage.role,
-          model: stage.role ? modelFor(settings.value, level, stage.role) : null,
+          model: stage.role ? modelFor(roleModels, level, stage.role) : null,
           tools: [...stage.tools],
           integrations: [...stage.integrations],
           instructions: stage.instructionFiles.map((fileKey) => {

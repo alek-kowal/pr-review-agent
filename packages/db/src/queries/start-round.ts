@@ -9,6 +9,7 @@ import {
   planRun,
   reason,
   resolveLevel,
+  resolveRunModels,
   type Actor,
   type LevelNumber,
   type Reason,
@@ -23,6 +24,8 @@ import { JOBS, sendJob, type Queue } from '../queue.ts';
 import { roundChains } from '../schema/chains.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import { runs } from '../schema/runs.ts';
+import { getAppSettings } from './app-settings.ts';
+import { getLevelOverrides, getRoleModels } from './level-settings.ts';
 import { prLevel, runRecord } from './pr-state.ts';
 import type { PullRequest } from './repositories.ts';
 import { activeBlockingRun } from './run-engine.ts';
@@ -93,13 +96,16 @@ export async function createRun(
   try {
     run = await deps.db.transaction(async (tx) => {
       await input.beforeInsert?.(tx);
+      // S-21-T2: the level with its settings and every role's model, frozen for the run.
+      const [overrides, roleModels] = await Promise.all([getLevelOverrides(tx), getRoleModels(tx)]);
+      const level = resolveLevel(input.level, overrides.value);
       const inserted = await insertRun(tx, {
         pullRequestId: pullRequest.id,
         kind: input.kind,
         roundNo: input.roundNo ?? null,
         chainId: input.chainId ?? null,
-        // App-level level overrides arrive with P-23; until then the built-in level applies.
-        level: freezeLevel(resolveLevel(input.level)),
+        level: freezeLevel(level),
+        models: resolveRunModels(level, roleModels),
         headSha: pullRequest.headSha,
         commitsCountAtStart: pullRequest.commitsCount,
         status: 'queued',
@@ -208,7 +214,9 @@ export async function startRound(
 
   let roundNumber = 1;
   let chainId: string;
-  let level = input.level ?? prLevel(repository, pullRequest);
+  let level =
+    input.level ??
+    prLevel(repository, pullRequest, (await getAppSettings(deps.db)).value.defaultLevel);
   let newChain = true;
   if (input.trigger === 'own_fix') {
     const rounds = await roundsOf(deps.db, pullRequest.id);

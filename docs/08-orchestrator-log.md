@@ -70,3 +70,14 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
   - `supervise.sh` now stops with DISK_LOW below 4 GB free.
   - Follow-up bug: the sandbox tests leave `pra-sbx-*` containers behind (Created/Exited). Their cleanup must remove them.
   - **For Alek:** about 32 GB of Docker images are reclaimable (`docker system df`), but they belong to your other projects, so that is your call.
+
+## 19 Nov, 08:40–14:25: usage limit, wave 6 merges
+
+- 08:40 every agent hit the subscription usage limit; at 10:20 the auto-resume failed on a DNS outage. The orchestrator re-prompted them at 12:28.
+- P-11r (impl-review of chains): 9 of 11 findings fixed, among them a failed sensitive-file scan that still let "Ready to merge" through. Left: foreign key `runs.chain_id` (F10) for the next migration. **For Alek:** after deploying, or after adding a sensitive-file pattern, re-run review on open PRs so they get scanned.
+- Merged: P-19, P-16, P-14, P-17, P-15. Several packages generated migrations with the same number; each conflict went to a fresh merge-fix session (keep main's migration, regenerate ours, compare SQL). P-15 needed three rounds. Lesson: merge one package at a time and pause other merge-fixes while one lands.
+- P-15 added `run_not_retryable` (409): a failed instruction trial can't be retried.
+- P-14: the ClickUp author mention is tested only against the double; the "Notify author" card lives in page memory. **For Alek:** check the mention on a real ClickUp (needs `CLICKUP_API_KEY`).
+- P-19 left for Alek: a real merge on WB with the App's permissions (S-12-T6) and a real ClickUp key test (S-06-T9).
+- P-23 added an AGENTS.md section "Connect a repository" (about 16 lines, ~250 tokens per agent session in this repo).
+- Flaky: `e2e/decide.spec.ts` (two-browser conflict) failed once in CI and once locally; passed on rerun.

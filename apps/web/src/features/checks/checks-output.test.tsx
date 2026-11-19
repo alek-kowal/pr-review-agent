@@ -62,6 +62,7 @@ const DETAIL: RunDetail = {
     notChecked: [],
     instructionVersions: [],
     error: null,
+    models: [],
     retryOf: null,
     retryFrom: null,
     retriedBy: null,

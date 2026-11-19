@@ -557,6 +557,8 @@ export type RunDetail = {
       fileId?: number | null;
     }[];
     error: { stage: string; code: string } | null;
+    /** The model of every role, frozen when the run was created. */
+    models: ModelChoiceView[];
     /** The failed run this run retries, with its cost up to the failure. */
     retryOf: LinkedRunView | null;
     /** The stage this retry started from. */
@@ -600,6 +602,69 @@ export type TimelineEntryView = {
   runId: number | null;
   /** A finished run's final cost. */
   costUsd: number | null;
+};
+
+/** `GET /api/settings/models` (S-21-T3): every role's model, the defaults and level overrides. */
+export type ModelsResponse = {
+  models: Record<AgentRole, string>;
+  defaults: Record<AgentRole, string>;
+  /** Levels that set their own model for a role ("Level 6 uses claude-opus-5-5"). */
+  overrides: { level: LevelNumber; role: AgentRole; model: string }[];
+};
+
+/** The settings a review level resolves to (core `LevelSettings`). */
+export type LevelSettingsView = {
+  brief: string | null;
+  maxFindings: number;
+  maxQuestions: number;
+  stageTimeoutMinutes: number;
+  autofixMaxPatches: number | null;
+};
+export type LevelSettingKey = keyof LevelSettingsView;
+
+/** One review level: what it adds, its own values, what it resolves to and where from. */
+export type LevelView = {
+  number: LevelNumber;
+  key: string;
+  adds: string[];
+  /** The level's own values (`models` holds its own model per role); the rest is inherited. */
+  own: Partial<LevelSettingsView> & { models?: Partial<Record<AgentRole, string>> };
+  settings: LevelSettingsView;
+  origins: Record<string, { level: LevelNumber; source: 'built_in' | 'override' }>;
+  models: ModelChoiceView[];
+};
+
+/** `GET /api/settings/levels`. */
+export type LevelsResponse = { defaultLevel: LevelNumber; levels: LevelView[] };
+
+/** One `settings_changes` row (S-21-T6). */
+export type AuditEntry = {
+  id: number;
+  at: string;
+  area: string;
+  entity: string;
+  actor: 'member' | 'bot' | 'hand';
+  signer: { id: string; name: string } | null;
+  before: unknown;
+  after: unknown;
+  note: string | null;
+};
+
+/** `GET /api/audit`: a page of changes, newest first, and the filters' options. */
+export type AuditResponse = {
+  entries: AuditEntry[];
+  nextCursor: string | null;
+  areas: string[];
+  signers: { id: string; name: string }[];
+};
+
+/** A role's model and where it comes from (core `ModelChoice`). */
+export type ModelChoiceView = {
+  role: AgentRole;
+  model: string;
+  /** `level`: a level override (`level` names it); `settings`: Settings → Models. */
+  source: 'level' | 'settings' | 'default';
+  level: number | null;
 };
 
 // Instructions (apps/api/src/routes/api/instructions).

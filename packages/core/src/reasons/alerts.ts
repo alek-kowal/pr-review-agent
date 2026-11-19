@@ -1,4 +1,3 @@
-import type { NoParams } from '../reason.ts';
 import type { StageKey } from '../vocabulary.ts';
 
 declare module '../reason.ts' {

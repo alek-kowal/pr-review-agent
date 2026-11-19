@@ -37,6 +37,7 @@ const run = (over: Partial<RunDetail['run']>): RunDetail['run'] => ({
   notChecked: [],
   instructionVersions: [],
   error: null,
+  models: [],
   retryOf: null,
   retryFrom: null,
   retriedBy: null,

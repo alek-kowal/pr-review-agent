@@ -1,13 +1,16 @@
 // `pnpm instructions:import --from <dir> [--map <file>]`: creates version 1 of each instruction
 // file from a read-only copy of the old knowledge folder (S-22-T2). The default map is
-// `packages/db/seeds/instructions-import.json`. Safe to run again; it never writes to `<dir>`.
+// `packages/db/src/testing/fixtures/instructions-import.json`. Safe to run again; it never writes
+// to `<dir>`.
 import { resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '../client.ts';
 import { importInstructions, readImportMap } from '../seed/instructions-import.ts';
 
-const DEFAULT_MAP = fileURLToPath(new URL('../../seeds/instructions-import.json', import.meta.url));
+const DEFAULT_MAP = fileURLToPath(
+  new URL('../testing/fixtures/instructions-import.json', import.meta.url),
+);
 const usage = 'usage: pnpm instructions:import --from <dir> [--map <instructions-import.json>]';
 
 const { values } = parseArgs({

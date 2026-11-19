@@ -27,6 +27,21 @@ export type StackState = {
    * reviewer double also writes the brief of a PR's k-th full review here (`briefFile`).
    */
   holdDir: string;
+  /**
+   * JSON lines `{ role, model, dirs }`, one per agent session the doubles answered; `dirs` holds
+   * the session's cwd and read dirs (a run's worktree path ends in `run-<id>`).
+   */
+  agentCalls: string;
+};
+
+/**
+ * Seeded without a level of its own: its rounds start at the global default level
+ * (models-levels-audit.spec.ts). No other spec uses it, so changing the default is safe.
+ */
+export const GLOBAL_LEVEL_REPOSITORY = {
+  slug: 'global-level-repo',
+  fullName: 'acme/global-level-repo',
+  installationId: 55500009,
 };
 
 /** The brief the reviewer double got for PR `number`'s k-th full review (from 1). */

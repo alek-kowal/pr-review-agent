@@ -8,6 +8,7 @@ export * from './verification.ts';
 export * from './change-type.ts';
 export * from './limits.ts';
 export * from './levels.ts';
+export * from './level-settings.ts';
 export * from './rounds.ts';
 export * from './run.ts';
 export * from './autofix.ts';

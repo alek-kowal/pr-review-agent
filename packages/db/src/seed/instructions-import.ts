@@ -1,7 +1,7 @@
 // S-22-T2: version 1 of each instruction file from a read-only copy of the old knowledge folder.
-// The folder's files are Polish and name Workflow Builder, so the default map puts them at the WB
-// repository. Global version 1 is the built-in text used since S-01, so other repositories get no
-// WB rules. Lessons start empty; lesson candidates, runs and decisions are not imported (OQ15).
+// The folder's files are Polish and name one repository, so the default map puts them at that
+// repository's scope. Global version 1 is the built-in text used since S-01, so other repositories
+// get none of its rules. Lessons start empty; lesson candidates, runs and decisions are not imported (OQ15).
 import { BUILT_IN_REVIEWER_PROMPT, LEVEL_NUMBERS } from '@pra/core';
 import { readdir, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
