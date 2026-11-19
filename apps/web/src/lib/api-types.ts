@@ -88,6 +88,28 @@ export type ChecklistView = {
 /** The PR author, and the Team member with their GitHub login. */
 export type AuthorView = { login: string; memberId: string | null; name: string | null };
 
+/** A step of the PR page's stepper (core `stepperModel`). */
+export type RoundStepView = {
+  key: string;
+  status: RunStepStatus;
+  /** Every attempt of the stage. */
+  costUsd: number;
+  errorCode: string | null;
+  offReason: ReasonView | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+};
+
+/** The latest round's stepper and label; the cost grows per agent turn. */
+export type RoundProgressView = {
+  runId: number;
+  /** `round_label`. */
+  label: ReasonView | null;
+  steps: RoundStepView[];
+  current: string | null;
+  costUsd: number;
+};
+
 /** `GET /api/prs/:repo/:number`: one key per PR view section. */
 export type PrView = {
   pullRequest: PullRequestView;
@@ -95,6 +117,7 @@ export type PrView = {
   nextStep: NextStepView;
   checklist: ChecklistView;
   author: AuthorView;
+  roundProgress: RoundProgressView | null;
 };
 
 /** A board card: `GET /api/board`. */

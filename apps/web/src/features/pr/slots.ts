@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { MainActionCode } from '@pra/core';
 import type { NextStepView, PrView } from '@/lib/api-types.ts';
+import { RoundProgress } from '@/features/round/RoundProgress.tsx';
 import { Checklist } from './Checklist.tsx';
 import { DecideAction } from './DecideAction.tsx';
 import type { PrTabProps } from './tabs.ts';
@@ -22,7 +23,7 @@ export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActi
  * Secondary lines inside the Next step banner, under its title (extension point from P-08): PR
  * alerts, the live cost counter, a failure's details. A line renders nothing when it has nothing.
  */
-export const BANNER_LINES: PrSlot[] = [];
+export const BANNER_LINES: PrSlot[] = [{ key: 'round-progress', Component: RoundProgress }];
 
 /**
  * Panels in the PR page's side column, in order (extension point from P-08). The column shows

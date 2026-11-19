@@ -9,6 +9,7 @@ import type {
   NextStepView,
   PrView,
   RepositoryRef,
+  RoundProgressView,
   RoundView,
 } from '@/lib/api-types.ts';
 
@@ -102,6 +103,7 @@ export const aPrView = (
     nextStep?: NextStepView;
     checklist?: ChecklistView;
     author?: AuthorView;
+    roundProgress?: RoundProgressView | null;
   } = {},
 ): PrView => ({
   pullRequest: {
@@ -125,6 +127,7 @@ export const aPrView = (
   nextStep: over.nextStep ?? aNextStep(),
   checklist: over.checklist ?? aChecklist(),
   author: over.author ?? anAuthor(),
+  roundProgress: over.roundProgress ?? null,
 });
 
 let nextFindingId = 1;

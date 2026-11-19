@@ -5,6 +5,7 @@ import { decisions } from './decisions.ts';
 import { integrations } from './integrations.ts';
 import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
+import { runs } from './runs.ts';
 import { status } from './status.ts';
 
 export const copy = {
@@ -25,6 +26,7 @@ export const copy = {
   repositories,
   integrations,
   status,
+  runs,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',

@@ -1,13 +1,6 @@
 // S-03-T6: Run detail and a session's full transcript. Reads only.
 import { summarizeTranscript } from '@pra/agents/transcript';
-import {
-  chainState,
-  roundLabel,
-  stepperModel,
-  stepStatus,
-  type StageRow,
-  type StageStatus,
-} from '@pra/core';
+import { chainState, roundLabel } from '@pra/core';
 import {
   getRunContext,
   getRunDetail,
@@ -17,12 +10,12 @@ import {
   runRecord,
   type AgentSession,
   type Run,
-  type StageExecution,
 } from '@pra/db';
 import type { BlobStore } from '@pra/integrations';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
+import { runSteps, stageRows } from '../../../pr-view/stepper.ts';
 import {
   ActorSchema,
   iso,
@@ -149,21 +142,6 @@ async function sessionView(blobStore: BlobStore, session: AgentSession) {
   };
 }
 
-/** Stage rows as core's stepper reads them, with each attempt's session cost. */
-function stageRows(stages: StageExecution[], sessions: AgentSession[]): StageRow[] {
-  return stages.map((stage) => ({
-    stage: stage.stage,
-    attempt: stage.attempt,
-    status: stage.status as StageStatus,
-    costUsd: sessions
-      .filter((s) => s.stageExecutionId === stage.id)
-      .reduce((sum, s) => sum + s.costUsd, 0),
-    errorCode: stage.errorCode,
-    startedAt: stage.startedAt,
-    finishedAt: stage.finishedAt,
-  }));
-}
-
 const runs: FastifyPluginAsyncZod = async (fastify) => {
   const { db, blobStore } = fastify.deps;
 
@@ -181,19 +159,7 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
       const { run, stages, sessions } = detail;
       const chain = chainState((await runsOfPullRequest(db, run.pullRequestId)).map(runRecord));
       const rows = stageRows(stages, sessions);
-      const isRound = run.kind === 'round' || run.kind === 'trial';
-      const steps = isRound
-        ? stepperModel(rows, run.level.number, (run.roundNo ?? 1) > 1 ? 'fix_check' : 'full').steps
-        : rows.map((row) => ({
-            key: row.stage,
-            status: stepStatus(row.status),
-            attempt: row.attempt,
-            costUsd: row.costUsd,
-            errorCode: row.errorCode,
-            offReason: null,
-            startedAt: row.startedAt,
-            finishedAt: row.finishedAt,
-          }));
+      const steps = runSteps(run, rows);
       const views = new Map(
         await Promise.all(
           sessions.map(async (s) => [s.id, await sessionView(blobStore, s)] as const),

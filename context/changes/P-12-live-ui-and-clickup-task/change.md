@@ -38,3 +38,20 @@ tasks' "Done when" checks are the plan. One commit per task, in the listed order
   `CHIP_SECTIONS` in its popover (S-10's pause and budget controls). The popover shows today's
   spend and a link to Activity. The chip renders nothing until `/api/status` answers.
 - Shared formats (`money`, `duration`, `clock`, `dateTime`, `plural`) live in `copy/format.ts`.
+
+### S-03-T9 (stepper and round line)
+
+- New PR view section `roundProgress` (`apps/api/src/pr-view/sections/round-progress.ts`): the
+  latest round's run id, `round_label`, the steps with per-stage cost from core `stepperModel`
+  (the same steps as Run detail, through the shared `pr-view/stepper.ts`, which also replaced the
+  run route's private helpers) and the cost so far (sum of the round's sessions). The existing
+  `latestRound` section is unchanged.
+- The stepper and round line render as a Next step banner line (`BANNER_LINES`, P-08's slot),
+  so P-12 does not edit the PR page frame files (H9, edited by P-11 in this wave).
+- Full stepper while the round is queued or running and after a failure; otherwise the round line
+  with a Stages toggle. Merged and closed PRs show neither (as the prototype).
+- Round label copy: "Round 2 of 3 · started by PR Review Agent after fix abc1234",
+  "started by hand", "started by <Team name>", plus "new chain". The bot is named with the
+  existing `copy.nextStep.bot`; member names come from `/api/team` (`useMemberNames`).
+- `ROUND_LINE_LINKS` in `features/round/slots.ts` takes links after the round line (Run details
+  in T10).
