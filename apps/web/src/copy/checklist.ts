@@ -41,7 +41,8 @@ export const checklist = {
     checklist_findings_undecided: (p) => `${plural(n(p.count), 'finding')} to decide.`,
     checklist_no_fix_pending: () => 'No fix pending.',
     checklist_fixes_pending: (p) => `${plural(n(p.count), 'finding')} to implement.`,
-    checklist_sensitive_approved: (p) => `${plural(n(p.count), 'sensitive file')} approved.`,
+    checklist_sensitive_approved: (p) =>
+      `${plural(n(p.count), 'sensitive file')} approved by hand.`,
     checklist_sensitive_pending: (p) =>
       `${plural(n(p.count), 'sensitive file')} need a person's OK.`,
     checklist_sensitive_sent_back: (p) => `${plural(n(p.count), 'sensitive file')} sent back.`,

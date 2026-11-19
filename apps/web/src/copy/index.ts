@@ -65,6 +65,34 @@ export const copy = {
     running: 'A run is in progress. Cancel it first, or wait.',
     started: (round: number, level: number) => `Review started: round ${round} at level ${level}.`,
   },
+  sensitive: {
+    title: 'Sensitive files',
+    status: {
+      pending: 'need approval',
+      approved: 'approved by hand',
+      sent_back: 'sent back',
+    } as Record<string, string>,
+    rule: (pattern: string, reason: string) => `Matches ${pattern}. ${reason}`,
+    approve: 'Approve changes',
+    approveHint: 'Not signed. The timeline records "approved by hand".',
+    approved: 'Sensitive files approved',
+    approvedHint: 'Recorded as approved by hand.',
+    sendBack: 'Send back…',
+    pendingLine: 'A change to a sensitive file needs a human OK, even after a clean review.',
+    comment: (text: string) => `"${text}"`,
+    dialog: {
+      title: 'Send the sensitive files back',
+      description: (author: string) => `Tell ${author} what must change before approval.`,
+      commentLabel: 'Comment for the author (required)',
+      commentPlaceholder: 'For example: split the migration from the rename.',
+      commentRequired: (author: string) => `Write a comment, so ${author} knows what to change.`,
+      cancel: 'Cancel',
+      confirm: (author: string) => `Send back to ${author}`,
+      sent: (author: string) => `Sent back to ${author}`,
+      sentHint: (signer: string) =>
+        `Signed by ${signer}. The PR stays in Action needed until the files change.`,
+    },
+  },
   round: {
     status: (n: number | null, status: string) =>
       n === null ? `Round ${status}` : `Round ${n} ${status}`,

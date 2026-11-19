@@ -11,6 +11,7 @@ import type {
   PrView,
   RepositoryRef,
   RoundView,
+  SensitiveView,
 } from '@/lib/api-types.ts';
 
 export const aRepository = (over: Partial<RepositoryRef> = {}): RepositoryRef => ({
@@ -104,6 +105,7 @@ export const aPrView = (
     checklist?: ChecklistView;
     author?: AuthorView;
     head?: Partial<HeadView>;
+    sensitive?: Partial<SensitiveView>;
   } = {},
 ): PrView => ({
   pullRequest: {
@@ -127,6 +129,16 @@ export const aPrView = (
   checklist: over.checklist ?? aChecklist(),
   author: over.author ?? anAuthor(),
   head: aHead(over.head),
+  sensitive: aSensitive(over.sensitive),
+});
+
+/** No sensitive file by default. */
+export const aSensitive = (over: Partial<SensitiveView> = {}): SensitiveView => ({
+  version: 0,
+  status: null,
+  files: [],
+  sentBack: null,
+  ...over,
 });
 
 export const aHead = (over: Partial<HeadView> = {}): HeadView => ({

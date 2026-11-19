@@ -56,7 +56,7 @@ const banner: Record<string, Line> = {
   state_findings_to_decide: (p) => `Decide ${plural(n(p.count), 'finding')}`,
   state_sensitive_files: (p) => `Approve changes to ${plural(n(p.count), 'sensitive file')}`,
   state_sensitive_sent_back: (p, c) =>
-    `Sent back by ${c.actor(p.by)}: ${plural(n(p.count), 'sensitive file')}`,
+    `Sent back by ${c.actor(p.by)}: ${c.author} changes ${plural(n(p.count), 'sensitive file')}`,
   state_waiting_for_fix: (p) => `${plural(n(p.count), 'finding')} to implement`,
   state_rounds_used: (p) => `Automatic rounds used (${n(p.used)} of ${n(p.max)})`,
   state_ready_to_merge: (p) => `Ready to merge at ${shortSha(p.sha)}`,
