@@ -66,7 +66,6 @@ describe('the workflowbuilder seed', () => {
       githubFullName: 'synergycodes/workflowbuilder',
       defaultLevel: 1,
       defaultBranch: 'main',
-      clickupSpace: 'Workflow Builder',
       fetchCommand: 'pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile',
       installCommand: 'pnpm install --offline --frozen-lockfile',
     });

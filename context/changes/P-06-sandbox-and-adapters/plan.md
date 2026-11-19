@@ -256,7 +256,7 @@ the guard. Every role also gets the guard as a PreToolUse hook.
 
 #### Automated
 
-- [ ] 6.1 task-id.test.ts and seed-clickup.test.ts pass; migration applies
+- [x] 6.1 task-id.test.ts and seed-clickup.test.ts pass; migration applies
 
 ### Phase 7: Implementer adapter
 

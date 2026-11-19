@@ -47,7 +47,7 @@ export const WB_REPOSITORY_CONFIG = {
   defaultLevel: 3,
   fetchCommand: 'pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile',
   installCommand: 'pnpm install --offline --frozen-lockfile',
-  clickupSpace: 'Workflow Builder',
+  clickup: null,
   sensitivePatterns: WB_SENSITIVE_PATTERNS,
   changeTypeRules: WB_CHANGE_TYPE_RULES,
   largePrLines: 1500,

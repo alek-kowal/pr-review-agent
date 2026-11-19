@@ -6,7 +6,6 @@
     "defaultLevel": 1,
     "fetchCommand": "pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
     "installCommand": "pnpm install --offline --frozen-lockfile",
-    "clickupSpace": "Workflow Builder",
     "sensitivePatterns": [
       {
         "pattern": "packages/(sdk|ui|temporal)/src/index.ts",

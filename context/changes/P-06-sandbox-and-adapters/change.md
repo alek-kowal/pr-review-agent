@@ -112,3 +112,16 @@ The planning step ran without questions (orchestrator rule: decide and record).
   `markdown_description`); `parent` must be the parent's ClickUp id, not its custom id.
 - **S-06-T1: `getTask` returns null on 404**; 401 is `clickup_auth_failed`; any other status, and
   a network failure (`status: null`), is `clickup_error`.
+- **S-06-T2: `RepositoryConfig.clickup`** = `{workspaceId, spaceId, followUpListId, taskIdPattern}`
+  or null (default: ClickUp off). `spaceId` and `followUpListId` are nullable; the pattern must
+  compile and must not match an empty string (`isValidTaskIdPattern`). The WB seed file sets no
+  ClickUp: the ids come from the seed flags. `--clickup-workspace` and `--clickup-task-pattern`
+  go together, `--clickup-list` is optional; invalid flags fail before any write.
+- **S-06-T2: `findTaskId` returns the id as written** (case kept, e.g. `wb-12`); a letter or digit
+  on either side means no match (Unicode-aware). Normalising for ClickUp, if needed, is the Task
+  stage's job (P-09).
+- **S-06-T2: `pr_task_links`** keeps `linked_by` (`member|bot|hand`) and `linked_by_member_id`
+  like `runs.started_by`, with the same check; one link per PR (unique `pull_request_id`).
+  Migration `0003_pr_task_links`; renumber after rebase if another package lands a migration first.
+- **AGENTS.md not updated for the seed flags** (hot file H14, edited by P-07 in this wave); the CLI's
+  usage line documents them.
