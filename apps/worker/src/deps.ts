@@ -1,12 +1,14 @@
 import { OpenRouterJudge, type AgentRunner, type Analyst, type Judge } from '@pra/agents';
 import type { ModelAuthMode } from '@pra/core';
 import type { Db, Queue } from '@pra/db';
-import type {
-  BlobStore,
-  ClickUpGateway,
-  GitHubGateway,
-  GitMirror,
-  Sandbox,
+import {
+  DEFAULT_SANDBOX_PROFILE,
+  type BlobStore,
+  type ClickUpGateway,
+  type GitHubGateway,
+  type GitMirror,
+  type Sandbox,
+  type SandboxProfile,
 } from '@pra/integrations';
 import type { Logger } from '@pra/integrations/logging';
 import { DEFAULT_EXTENSIONS, type Extensions } from './extensions.ts';
@@ -30,8 +32,13 @@ export type WorkerDeps = {
   openRouterJudge: Judge;
   /** The analyst after a PR closes (one Messages API call, no tools). */
   analyst: Analyst;
-  /** Throwaway containers for the Checks install and Verify's reproductions. */
+  /**
+   * Throwaway containers for the Checks install and Verify's reproductions. `src/main.ts` wraps
+   * it in a `LimitedSandbox` (`WORKER_SANDBOX_CONCURRENCY`).
+   */
   sandbox: Sandbox;
+  /** Caps and timeouts of each kind of sandbox run (`SANDBOX_*` env). */
+  sandboxProfile: SandboxProfile;
   clickup: ClickUpGateway;
   /**
    * The address people open the app at (`APP_BASE_URL`); alert comments link to it. Without it
@@ -50,16 +57,18 @@ export type WorkerDeps = {
 
 export type WorkerDepsInput = Omit<
   WorkerDeps,
-  'extensions' | 'cancellation' | 'openRouterJudge'
+  'extensions' | 'cancellation' | 'openRouterJudge' | 'sandboxProfile'
 > & {
   extensions?: Partial<Extensions>;
   cancellation?: RunCancellation;
   openRouterJudge?: Judge;
+  sandboxProfile?: SandboxProfile;
 };
 
 export function withDefaults(input: WorkerDepsInput): WorkerDeps {
   return {
     ...input,
+    sandboxProfile: input.sandboxProfile ?? DEFAULT_SANDBOX_PROFILE,
     openRouterJudge: input.openRouterJudge ?? new OpenRouterJudge({ client: null }),
     extensions: { ...DEFAULT_EXTENSIONS, ...input.extensions },
     cancellation: input.cancellation ?? new RunCancellation(),

@@ -28,7 +28,7 @@ import {
   type FindingRow,
   type VerificationWrite,
 } from '@pra/db';
-import { DEFAULT_SANDBOX_IMAGE, type SandboxLimits, type SandboxResult } from '@pra/integrations';
+import { DEFAULT_SANDBOX_IMAGE, type SandboxResult } from '@pra/integrations';
 import { randomUUID } from 'node:crypto';
 import { constants, readFileSync, realpathSync } from 'node:fs';
 import { open, rm } from 'node:fs/promises';
@@ -50,13 +50,8 @@ export const VERIFIER_RULES_FILE = 'verify-rules.md';
 /** Per verifier session (one finding, or its repair). */
 export const VERIFY_MAX_TURNS = 60;
 export const VERIFY_MAX_COST_USD = 3;
-/** A reproduction: no network, read-only worktree, 5 minutes. */
-export const REPRO_LIMITS: SandboxLimits = {
-  cpus: 2,
-  memoryMb: 2048,
-  pids: 512,
-  timeoutMs: 5 * 60_000,
-};
+// A reproduction: no network, read-only worktree; caps and timeout from `deps.sandboxProfile.repro`
+// (`SANDBOX_*` env, default 1 CPU, 2 GB, 5 minutes).
 const WORKDIR = '/work';
 const REPRO_ENV: Readonly<Record<string, string>> = {
   HOME: '/tmp',
@@ -344,7 +339,7 @@ export async function reproduce(
       mounts: [{ hostPath: worktree, containerPath: WORKDIR }],
       env: { ...REPRO_ENV },
       network: 'none',
-      limits: REPRO_LIMITS,
+      limits: deps.sandboxProfile.repro,
       signal,
     });
   } finally {

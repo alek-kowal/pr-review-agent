@@ -70,6 +70,9 @@ async function runChecks(context: StageContext): Promise<StageResult> {
         worktree: await runWorktree(context),
         config,
         cacheDir: path.join(deps.dataDir, 'cache', repository.slug),
+        fetchLimits: deps.sandboxProfile.fetch,
+        installLimits: deps.sandboxProfile.install,
+        sharedStore: deps.sandboxProfile.sharedStore,
         signal,
       });
 
