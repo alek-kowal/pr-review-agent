@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
 import { copy } from '@/copy/index.ts';
 import { ApiError } from '@/lib/api.ts';
-import type { FindingView } from '@/lib/api-types.ts';
+import type { DecisionConflict, FindingView } from '@/lib/api-types.ts';
 import { errorText } from '@/lib/reasons.ts';
 import { WithAgentField } from '@/features/implementer/WithAgentField.tsx';
 import { prViewQuery } from '@/features/pr/queries.ts';
@@ -55,6 +55,12 @@ export function DecisionForm({
   }).data?.implementer;
   const [withAgent, setWithAgent] = useState(false);
   const agentBlock = implementer?.block ?? null;
+  // The versions this person saw when the form opened. A live update can bring someone else's
+  // decision while the form is open; sending the refreshed version would overwrite it unseen, so
+  // it ends in a conflict instead. After a conflict, saving again overrides it on purpose.
+  const [seenVersions, setSeenVersions] = useState<Record<number, number>>(() =>
+    Object.fromEntries(findings.map((f) => [f.id, f.version])),
+  );
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -66,6 +72,9 @@ export function DecisionForm({
     try {
       await decide.mutateAsync({
         findings,
+        expectedVersions: Object.fromEntries(
+          findings.map((f) => [f.id, seenVersions[f.id] ?? f.version]),
+        ),
         decision,
         reason,
         signedBy: signature.signedBy,
@@ -74,6 +83,13 @@ export function DecisionForm({
       });
     } catch (failure) {
       const code = failure instanceof ApiError ? failure.code : 'http_error';
+      if (failure instanceof ApiError && code === 'decision_conflict') {
+        const conflicts = (failure.params.conflicts ?? []) as DecisionConflict[];
+        setSeenVersions((seen) => ({
+          ...seen,
+          ...Object.fromEntries(conflicts.map((c) => [c.findingId, c.version])),
+        }));
+      }
       return setError(
         failure instanceof ApiError && code === 'decision_conflict'
           ? copy.decisions.conflict(conflictNames(failure))

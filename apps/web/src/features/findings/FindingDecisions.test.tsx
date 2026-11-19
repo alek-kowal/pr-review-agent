@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { copy } from '@/copy/index.ts';
 import type { DecideResponse, DecisionView, FindingView, TeamMember } from '@/lib/api-types.ts';
+import { prKeys } from '@/features/pr/queries.ts';
 import { LAST_SIGNER_KEY } from '@/features/signature/last-signer.ts';
 import {
   aChecklist,
@@ -212,4 +213,44 @@ test('a conflict shows the other signer and refetches the findings', async () =>
   );
   const findingsLoads = () => calls.filter((c) => c.path === '/api/prs/wb/12/findings').length;
   await waitFor(() => expect(findingsLoads()).toBeGreaterThan(1));
+});
+
+test('a decision that arrives live while the form is open still ends in a conflict', async () => {
+  const conflict = { findingId: 11, version: 3, decision: decisionBy(tomek) };
+  const { calls } = stubPr({
+    'POST /api/prs/wb/12/decisions': {
+      status: 409,
+      body: { error: { code: 'decision_conflict', params: { conflicts: [conflict] } } },
+    },
+  });
+  const user = userEvent.setup();
+  const { queryClient } = renderApp('/pr/wb/12');
+
+  const finding = await openFinding(user, 'Undo loses the group');
+  await user.click(within(finding).getByRole('button', { name: /Implement…/ }));
+  await waitFor(() => expect(within(finding).getByRole('combobox')).toHaveTextContent('Kasia'));
+  // A live update brings Tomek's decision before this person confirms.
+  queryClient.setQueryData(
+    prKeys.findings('wb', '12'),
+    aFindingsResponse({
+      findings: FINDINGS.map((f) =>
+        f.id === first.id ? { ...f, version: 3, decision: conflict.decision } : f,
+      ),
+    }),
+  );
+  await waitFor(() =>
+    expect(within(finding).getByTestId('decision-badge')).toHaveTextContent('Implement'),
+  );
+  await user.click(within(finding).getByRole('button', { name: 'Implement' }));
+
+  expect(await within(finding).findByRole('alert')).toHaveTextContent(
+    'Tomek decided this in the meantime.',
+  );
+  // Having seen the conflict, saving again overrides Tomek's decision on purpose.
+  await user.click(within(finding).getByRole('button', { name: 'Implement' }));
+  await waitFor(() => expect(postsTo(calls, '/api/prs/wb/12/decisions')).toHaveLength(2));
+  const versions = postsTo(calls, '/api/prs/wb/12/decisions').map(
+    (c) => (c as { body?: { expectedVersions?: unknown } }).body?.expectedVersions,
+  );
+  expect(versions).toEqual([{ 11: 2 }, { 11: 3 }]);
 });

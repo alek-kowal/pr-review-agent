@@ -17,6 +17,8 @@ import { prKeys } from '@/features/pr/queries.ts';
 
 export type DecideInput = {
   findings: FindingView[];
+  /** The version of each finding the person saw; a finding left out sends its current one. */
+  expectedVersions?: Readonly<Record<number, number>>;
   decision: Decision;
   reason: string;
   signedBy: string;
@@ -88,7 +90,9 @@ export function useDecide(repo: string, number: string) {
           decision: input.decision,
           ...(input.reason.trim() ? { reason: input.reason.trim() } : {}),
           signedBy: input.signedBy,
-          expectedVersions: Object.fromEntries(input.findings.map((f) => [f.id, f.version])),
+          expectedVersions: Object.fromEntries(
+            input.findings.map((f) => [f.id, input.expectedVersions?.[f.id] ?? f.version]),
+          ),
           ...(input.withAgent ? { withAgent: true } : {}),
         },
       }),
