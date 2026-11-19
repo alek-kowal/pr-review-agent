@@ -1,3 +1,4 @@
+import type { VerifyScope } from '../limits.ts';
 import type { ChangeType, Severity } from '../vocabulary.ts';
 
 declare module '../reason.ts' {
@@ -7,7 +8,10 @@ declare module '../reason.ts' {
     max_findings_clamped: { requested: number; max: number };
     questions_not_allowed: { dropped: number };
     over_max_questions: { max: number; dropped: number };
-    verify_off_for_change_type: { changeType: ChangeType | null };
+    verify_off_for_change_type: {
+      changeType: ChangeType | null;
+      scope: Exclude<VerifyScope, 'all'>;
+    };
     verify_on: { changeType: ChangeType | null };
   }
 }
