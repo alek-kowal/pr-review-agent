@@ -184,6 +184,12 @@ const patches: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       if (result.reason === 'not_found') {
         return sendError(reply, 404, ApiErrorCode.PatchFileNotFound, { path: target.path });
       }
+      if (result.reason === 'revising') {
+        return sendError(reply, 409, ApiErrorCode.RunActive, {
+          kind: 'implementer',
+          status: result.status,
+        });
+      }
       return sendError(reply, 409, ApiErrorCode.PatchStale, { revision: result.revision });
     }
     await queueCheck(queue, log, patchId);

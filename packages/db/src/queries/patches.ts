@@ -10,7 +10,9 @@ import {
 import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { implementerRequests, patchFiles, patches } from '../schema/patches.ts';
-import { runs } from '../schema/runs.ts';
+import { ACTIVE_RUN_STATUSES, runs } from '../schema/runs.ts';
+
+type ActiveRunStatus = (typeof ACTIVE_RUN_STATUSES)[number];
 import type { Transactor } from './decisions.ts';
 
 export type PatchRow = typeof patches.$inferSelect;
@@ -145,7 +147,9 @@ export function corePatch(row: PatchRow): CorePatch {
 export type PatchFileChange =
   | { ok: true; patch: PatchRow; file: PatchFileRow }
   | { ok: false; reason: 'not_found' }
-  | { ok: false; reason: 'stale'; revision: number };
+  | { ok: false; reason: 'stale'; revision: number }
+  /** A revise run of this patch is queued or running: it already read (or will read) the files. */
+  | { ok: false; reason: 'revising'; status: ActiveRunStatus };
 
 type FileTarget = {
   patchId: number;
@@ -183,6 +187,20 @@ async function changeFile(
       file.blobKey !== target.expectedBlobKey
     ) {
       return { ok: false, reason: 'stale', revision: patch.revision };
+    }
+    // The new revision is built from the files the revise run read: an edit now would be lost.
+    const [revising] = await tx
+      .select({ status: runs.status })
+      .from(implementerRequests)
+      .innerJoin(runs, eq(runs.id, implementerRequests.runId))
+      .where(
+        and(
+          eq(implementerRequests.revisesPatchId, patch.id),
+          inArray(runs.status, [...ACTIVE_RUN_STATUSES]),
+        ),
+      );
+    if (revising) {
+      return { ok: false, reason: 'revising', status: revising.status as ActiveRunStatus };
     }
     const [updated] = await tx
       .update(patchFiles)

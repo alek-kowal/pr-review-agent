@@ -259,7 +259,7 @@ export const copy = {
     repository_not_reachable: 'The GitHub App cannot reach this repository.',
     repository_already_connected: 'This repository is already connected.',
     clickup_not_configured: 'ClickUp is not configured on this server.',
-    run_active: 'A round is already queued or running for this PR.',
+    run_active: 'A round or the implementer is already queued or running for this PR.',
     run_not_failed: 'Only a failed round can be retried. Reload the page.',
     run_not_retryable: 'A trial is not retried. Start it again from Experiments.',
     run_finished: 'This run already ended. Reload the page.',

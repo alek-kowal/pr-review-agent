@@ -6,6 +6,7 @@ import {
   createDb,
   createQueue,
   eq,
+  getPatch,
   insertRun,
   JOBS,
   schema,
@@ -249,6 +250,28 @@ describe('patch routes', () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toEqual({ error: { code: 'patch_stale', params: { revision: 1 } } });
+  });
+
+  test('an edit while a revise run of the patch is active returns 409 run_active', async () => {
+    const { patch, run } = await readyPatch();
+    const revised = await post(`/api/patches/${patch.id}/revise`, { note: 'Keep the old name.' });
+    expect(revised.statusCode).toBe(202);
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: `/api/patches/${patch.id}/files`,
+      headers: SAME_ORIGIN,
+      payload: { path: 'src/a.ts', revision: 1, blobKey: `${run.id}/after/a`, content: 'x\n' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      error: { code: 'run_active', params: { kind: 'implementer', status: 'queued' } },
+    });
+    expect((await getPatch(db, patch.id))!.files.find((f) => f.path === 'src/a.ts')).toMatchObject({
+      status: 'changed',
+      blobKey: `${run.id}/after/a`,
+    });
   });
 
   test('a revert points the file at its base and is recorded by hand', async () => {
