@@ -19,6 +19,7 @@ export * from './pr-state.ts';
 export * from './start-round.ts';
 export * from './run-state.ts';
 export * from './retry.ts';
+export * from './cancel.ts';
 export * from './fix-checks.ts';
 export * from './sensitive-files.ts';
 export * from './metric-logs.ts';

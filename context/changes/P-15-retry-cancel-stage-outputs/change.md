@@ -38,6 +38,15 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   `CANCEL_GRACE_MS` (2 s) to return its sessions; live sessions already stored each turn's cost.
   A session that returns later still updates its own cost row (money spent stays true, NFR Cost
   truth) but nothing else: no findings, outputs or status.
+- **Cancel wiring (T3).** `RunCancellation` lives in `WorkerDeps.cancellation` (default from
+  `withDefaults`, own file so `deps.ts` does not import the stage runner). `executeStage`
+  registers the run's controller before the start transaction, so a cancel from then on aborts
+  instead of racing; the start transaction refuses a run with a cancel request. The guard in
+  `storeResultInTx` cancels the run under its lock whenever a request exists, even if the stage
+  succeeded just before the abort (its findings and outputs are dropped). `afterTransition`
+  deletes the run's queued stage jobs on `cancelled`. The `run_cancelled` timeline entry carries
+  the asker as actor and `params.reason`. The listener re-reads the run on every `runs` change
+  (cost writes included); one indexed read each, accepted.
 - **Stage jobs:** `retryLimit: 0`, and each send sets `expireInSeconds` to the run's stage timeout
   plus 10 minutes (the backstop). A cancel deletes the run's queued `run.stage` jobs
   (`findJobs` + `deleteJob`).

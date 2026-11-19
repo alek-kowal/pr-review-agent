@@ -4,6 +4,7 @@
 // one is queued or active) and stored GitHub events nobody processed (fixed job id per delivery).
 import { nextStage } from '@pra/core';
 import {
+  cancelRequested,
   getRunContext,
   githubEventJobId,
   JOBS,
@@ -15,6 +16,7 @@ import {
 } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { resendLostFollowUps } from '../handlers/clickup-follow-up.ts';
+import { finishCancel, finishRequestedCancels } from './cancel.ts';
 import { afterTransition } from './execute-stage.ts';
 import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
@@ -31,6 +33,9 @@ export type RecoveryResult = ResendResult & { interrupted: number[] };
 export async function recoverRuns(deps: WorkerDeps): Promise<RecoveryResult> {
   const { db, logger } = deps;
   const interrupted: number[] = [];
+  // A run with a cancel request is cancelled, not interrupted (nothing of ours runs yet).
+  const cancelled = await finishRequestedCancels(deps);
+  if (cancelled.length) logger.info({ cancelled }, 'requested cancels finished after start');
 
   for (const candidate of await runsWithStatus(db, ['running'])) {
     const state = await db.transaction(async (tx) => {
@@ -60,6 +65,11 @@ export async function resendLostJobs(
   const result: ResendResult = { resent: [], events: [], followUps: [] };
 
   for (const run of await runsWithStatus(db, ['queued', 'running'])) {
+    // A cancel the listener missed is finished here instead (S-09-T3 backstop).
+    if (cancelRequested(run)) {
+      await finishCancel(deps, run.id);
+      continue;
+    }
     const state = runStateOf(run, await stageExecutionsOfRun(db, run.id));
     const next =
       state.status === 'queued'

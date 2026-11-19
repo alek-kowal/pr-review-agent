@@ -161,11 +161,11 @@ the durability test uses a child process. API tests use `apps/api/test/helper.ts
 
 ### Phase 2: Retry route, banner and reused marks
 
-- [x] 2.1 `pnpm --filter @pra/api test retry-route.test.ts` and `pnpm --filter @pra/web test retry-banner.test.tsx run-detail-reused.test.tsx` pass
+- [x] 2.1 (b32f4e0) `pnpm --filter @pra/api test retry-route.test.ts` and `pnpm --filter @pra/web test retry-banner.test.tsx run-detail-reused.test.tsx` pass
 
 ### Phase 3: Cancel that stops spend at once
 
-- [ ] 3.1 `pnpm --filter @pra/worker test cancel.test.ts` passes
+- [x] 3.1 `pnpm --filter @pra/worker test cancel.test.ts` passes
 
 ### Phase 4: Cancel controls
 
