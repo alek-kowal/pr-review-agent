@@ -32,6 +32,7 @@ import {
   VERIFIED_REPOSITORY,
   type StackState,
 } from './env.ts';
+import { seedInsightsHistory } from './insights-seed.ts';
 
 const FULL_NAME = 'synergycodes/workflowbuilder';
 const INSTALLATION_ID = 55500001;
@@ -208,6 +209,7 @@ for (const [fileKey, content] of [
 ] as const) {
   await importInstructionV1(db, { scope: 'global', fileKey, content });
 }
+await seedInsightsHistory(db);
 
 // One ClickUp double for the api and the worker, like one key on one server.
 const clickup = new FakeClickUpGateway();

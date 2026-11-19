@@ -41,3 +41,8 @@ export const LEVEL_TWO_REPOSITORY = {
   fullName: 'acme/level-two-repo',
   installationId: 55500004,
 };
+
+/** Insights history (insights.spec.ts): 17 merged PRs here... */
+export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };
+/** ...and 3 here. No App installation: nothing is delivered for them. */
+export const INSIGHTS_SIDE = { slug: 'insights-side', fullName: 'acme/insights-side' };
