@@ -21,6 +21,7 @@ import {
   isolatedGitExec,
   type GitFixture,
 } from '@pra/integrations/testing';
+import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { processGithubEvent } from '../src/handlers/github-event.ts';
@@ -200,9 +201,23 @@ describe('nothing starts a round for a fork by itself', () => {
       deps.db,
       aPullRequest(repository.id, { isFork: true }),
     );
+    // The chain expects exactly this head: only the fork rule keeps the fix check from starting.
+    const chainId = randomUUID();
+    await deps.db
+      .insert(schema.roundChains)
+      .values({ id: chainId, pullRequestId: pullRequest.id, expectedHeadSha: pullRequest.headSha });
+    await insertRun(
+      deps.db,
+      aRun(pullRequest.id, { chainId, status: 'completed', finishedAt: new Date() }),
+    );
 
     const started = await startFixCheckOnPush(deps, pullRequest as PullRequest, undefined);
 
     expect(started).toBeNull();
+    const runs = await deps.db
+      .select()
+      .from(schema.runs)
+      .where(eq(schema.runs.pullRequestId, pullRequest.id));
+    expect(runs.map((run) => run.trigger)).not.toContain('own_fix');
   });
 });
