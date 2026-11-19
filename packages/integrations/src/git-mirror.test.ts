@@ -106,6 +106,24 @@ describe('CliGitMirror', () => {
     ]);
   });
 
+  test('a worktree reset restores every file byte for byte and drops new ones', async () => {
+    const { mirror } = mirrorWithSpy('reset');
+    await mirror.ensureMirror(REPO, TOKEN);
+    const dir = await mirror.addWorktree(REPO, 'run-reset', headSha);
+    const before = await readFile(path.join(dir, 'a.txt'));
+
+    await writeFile(path.join(dir, 'a.txt'), Buffer.from([0xff, 0xfe, 0x00, 0x01]));
+    await rm(path.join(dir, 'c.txt'));
+    await mkdir(path.join(dir, 'src'), { recursive: true });
+    await writeFile(path.join(dir, 'src', 'new.ts'), 'export {};\n');
+    await mirror.resetWorktree(dir);
+
+    expect(await mirror.worktreeChanges(dir)).toEqual([]);
+    expect(await readFile(path.join(dir, 'a.txt'))).toEqual(before);
+    expect(await readFile(path.join(dir, 'c.txt'), 'utf8')).toBe('new file\n');
+    expect(existsSync(path.join(dir, 'src'))).toBe(false);
+  });
+
   test('worktree changes never take the git dir or its config from the worktree', async () => {
     const { mirror } = mirrorWithSpy('changes-guard');
     await mirror.ensureMirror(REPO, TOKEN);

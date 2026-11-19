@@ -23,6 +23,8 @@ export interface GitMirror {
    * included, ignored files not), each with its content at that commit (`null` when added).
    */
   worktreeChanges(worktree: string): Promise<WorktreeChange[]>;
+  /** Puts a run's worktree back at its checked-out commit, byte for byte; ignored files stay. */
+  resetWorktree(worktree: string): Promise<void>;
 }
 
 export type WorktreeChange = { path: string; base: string | null };
@@ -196,6 +198,12 @@ export class CliGitMirror implements GitMirror {
       changes.push({ path: file, base });
     }
     return changes;
+  }
+
+  async resetWorktree(worktree: string): Promise<void> {
+    const git = await this.#worktreeGit(worktree);
+    await git(['reset', '--hard', '--quiet', 'HEAD']);
+    await git(['clean', '-d', '--force', '--quiet']);
   }
 
   /**
