@@ -31,11 +31,12 @@ import {
 export type QueryFn = (params: { prompt: string; options: Options }) => AsyncIterable<SDKMessage>;
 
 /**
- * Built-in tools per role. Nobody gets a shell; the reviewer only reads its worktree.
- * P-06 adds the verifier and implementer here.
+ * Built-in tools per role. Nobody gets a shell; the reviewer and the verifier only read.
+ * The judge is not here: it is one Messages API call without tools (`AnthropicJudge`).
  */
 export const ROLE_TOOLS: Partial<Record<AgentRole, readonly string[]>> = Object.freeze({
   reviewer: Object.freeze(['Read', 'Grep', 'Glob']),
+  verifier: Object.freeze(['Read', 'Grep', 'Glob']),
 });
 
 export type ClaudeAgentRunnerOptions = {

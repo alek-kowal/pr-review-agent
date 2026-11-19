@@ -8,3 +8,4 @@ export {
   type QueryFn,
 } from './claude-agent-runner.ts';
 export * from './judge/index.ts';
+export * from './verifier/index.ts';

@@ -92,3 +92,13 @@ The planning step ran without questions (orchestrator rule: decide and record).
   stage and for adapter tests.
 - **Seed CLI test timeout raised to 30 s**: it spawns the CLI twice and hit 5 s under a parallel
   `pnpm verify`.
+- **S-05-T1: the verifier keeps the v1 `remedy` field** (`obvious|decision`, mapped to core
+  `obvious|needs_decision`) because `verify-rules.md` asks for it; the output carries
+  `remedy: {kind, why}` next to verdict, reason, evidence `{file, line, quote}` and `reproduction`.
+- **S-05-T1: the session folder is the `cwd`** (fresh temp folder, removed afterwards) with
+  `finding.json` (title, file, line, scenario only), `diff.patch`, `task.md` when there is a task,
+  and the rules under `instructions/`; `{{knowledgeDir}}` and `{{repoDir}}` are filled, and the
+  worktree is the only read dir. Repair adds `script.mjs` and `output.txt`.
+- **S-05-T1: the adapter's own prompt lines are English** (fork: quotes only; repair: fix the
+  script), appended to the stored v1 prompt as v1 did. `renderPrompt` / `withSessionDir` live in
+  `packages/agents/src/prompt.ts`.

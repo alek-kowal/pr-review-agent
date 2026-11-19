@@ -10,6 +10,7 @@ import {
   toUsage,
 } from '../agent-result.ts';
 import { costOf } from '../prices.ts';
+import { renderPrompt } from '../prompt.ts';
 import type { AgentRunResult } from '../runner.ts';
 
 /**
@@ -147,7 +148,7 @@ export function createAnthropicJudge(env: NodeJS.ProcessEnv = process.env): Anth
  * and paths are data inside their own blocks.
  */
 export function judgeRequest(input: JudgeInput): Anthropic.MessageCreateParamsNonStreaming {
-  const prompt = input.instructions.prompt.replaceAll('{{knowledgeDir}}', KNOWLEDGE_DIR);
+  const prompt = renderPrompt(input.instructions.prompt, { knowledgeDir: KNOWLEDGE_DIR });
   const files = [
     file(`${KNOWLEDGE_DIR}/classify-rules.md`, input.instructions.rules),
     file('task.md', input.task),

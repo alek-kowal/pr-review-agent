@@ -31,6 +31,8 @@ beforeAll(async () => {
   await writeFile(path.join(knowledge, 'review-rules.md'), 'Rules.');
   await writeFile(path.join(knowledge, 'prompt-classifier.md'), 'Judge.');
   await writeFile(path.join(knowledge, 'classify-rules.md'), 'Judge rules.');
+  await writeFile(path.join(knowledge, 'prompt-verifier.md'), 'Verify.');
+  await writeFile(path.join(knowledge, 'verify-rules.md'), 'Verify rules.');
   await writeFile(path.join(knowledge, 'lessons.md'), 'Lessons.');
   await writeFile(path.join(knowledge, 'feature-map', 'sdk.md'), 'SDK.');
   await writeFile(path.join(knowledge, 'feature-map', 'nested', 'ui.md'), 'UI.');
@@ -52,8 +54,8 @@ describe('the workflowbuilder seed', () => {
     const first = await run();
     const second = await run();
 
-    expect(first.stdout).toContain('7 imported as version 1');
-    expect(second.stdout).toContain('0 imported as version 1, 7 already had version 1');
+    expect(first.stdout).toContain('9 imported as version 1');
+    expect(second.stdout).toContain('0 imported as version 1, 9 already had version 1');
     const rows = await db
       .select()
       .from(schema.repositories)
@@ -81,7 +83,9 @@ describe('the workflowbuilder seed', () => {
       ['global', 'classify-rules.md', 1, 'active'],
       ['global', 'prompt-classifier.md', 1, 'active'],
       ['global', 'prompt-reviewer.md', 1, 'active'],
+      ['global', 'prompt-verifier.md', 1, 'active'],
       ['global', 'review-rules.md', 1, 'active'],
+      ['global', 'verify-rules.md', 1, 'active'],
       ['repository', 'feature-map/nested/ui.md', 1, 'active'],
       ['repository', 'feature-map/sdk.md', 1, 'active'],
       ['repository', 'lessons.md', 1, 'active'],

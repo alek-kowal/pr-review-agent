@@ -40,7 +40,9 @@
       "prompt-reviewer.md",
       "review-rules.md",
       "prompt-classifier.md",
-      "classify-rules.md"
+      "classify-rules.md",
+      "prompt-verifier.md",
+      "verify-rules.md"
     ],
     "repository": ["lessons.md", "feature-map/"]
   }
