@@ -35,6 +35,8 @@ import { startWorker } from '../../apps/worker/src/worker.ts';
 import {
   API_PORT,
   API_URL,
+  CLICKUP_REPOSITORY,
+  CLICKUP_TASKS,
   FAILING_PR_FROM,
   HELD_PRS,
   HELD_TURN_COST_USD,
@@ -281,6 +283,7 @@ const github = new StackGitHub(db, {
   webhookSecret,
   installations: {
     [MERGE_REPOSITORY.fullName]: MERGE_REPOSITORY.installationId,
+    [CLICKUP_REPOSITORY.fullName]: CLICKUP_REPOSITORY.installationId,
     [FULL_NAME]: INSTALLATION_ID,
     // Reachable but not connected: Settings → Repositories connects it (connect-repo.spec.ts).
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
@@ -354,6 +357,16 @@ await upsertRepository(
   { slug: MERGE_REPOSITORY.slug, githubFullName: MERGE_REPOSITORY.fullName, defaultLevel: 1 },
   { installationId: MERGE_REPOSITORY.installationId },
 );
+await upsertRepository(
+  db,
+  {
+    slug: CLICKUP_REPOSITORY.slug,
+    githubFullName: CLICKUP_REPOSITORY.fullName,
+    defaultLevel: 2,
+    clickup: CLICKUP_REPOSITORY.clickup,
+  },
+  { installationId: CLICKUP_REPOSITORY.installationId },
+);
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
   ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
@@ -363,7 +376,7 @@ for (const [fileKey, content] of [
 await seedInsightsHistory(db);
 
 // One ClickUp double for the api and the worker, like one key on one server.
-const clickup = new FakeClickUpGateway();
+const clickup = new FakeClickUpGateway({ tasks: Object.values(CLICKUP_TASKS) });
 const worker = await startWorker(
   {
     db,

@@ -84,6 +84,44 @@ export const MERGE_REFUSAL = {
   message: 'At least 1 approving review is required by reviewers with write access.',
 };
 
+/**
+ * Seeded at level 2 with ClickUp settings (clickup-link.spec.ts): task IDs look like `WB-123`, and
+ * the ClickUp double knows `CLICKUP_TASKS`. The fixture branch and the specs' titles carry no ID.
+ */
+export const CLICKUP_REPOSITORY = {
+  slug: 'clickup-repo',
+  fullName: 'acme/clickup-repo',
+  installationId: 55500007,
+  clickup: {
+    workspaceId: '9012',
+    spaceId: null,
+    followUpListId: 'list-follow-ups',
+    taskIdPattern: 'WB-\\d+',
+  },
+};
+/** The tasks the ClickUp double answers: one a branch names, one a person links by hand. */
+export const CLICKUP_TASKS = {
+  branch: {
+    id: '86c0e2e01',
+    customId: 'WB-4821',
+    name: 'Rename edge labels inline',
+    description:
+      'Double-click an edge label to rename it. An empty label falls back to the edge id.',
+    url: 'https://app.clickup.com/t/86c0e2e01',
+    status: 'in progress',
+    listId: 'list-wb-sprint',
+  },
+  hand: {
+    id: '86c0e2e02',
+    customId: 'WB-4822',
+    name: 'Keep edge labels in the undo history',
+    description: 'Renaming a label is one undo step.',
+    url: 'https://app.clickup.com/t/86c0e2e02',
+    status: 'to do',
+    listId: 'list-wb-sprint',
+  },
+};
+
 /** Insights history (insights.spec.ts): 17 merged PRs here... */
 export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };
 /** ...and 3 here. No App installation: nothing is delivered for them. */

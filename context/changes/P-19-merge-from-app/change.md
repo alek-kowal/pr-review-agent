@@ -86,3 +86,15 @@ questions (orchestrator rule: decide and record).
 - `deliverPullRequest`, `deliverPush` (now with an optional repository) and `deliverCheckSuite`
   share one signed `deliver`.
 
+### S-06-T8 (end-to-end task link, context and follow-up)
+
+- `clickup-repo` (level 2, so the Task stage runs; installation 55500007) carries ClickUp settings
+  (`WB-\d+`, follow-up list `list-follow-ups`). The stack's one `FakeClickUpGateway` is seeded
+  with `CLICKUP_TASKS` (`WB-4821` for the branch, `WB-4822` for the link by hand); a spec cannot
+  add tasks at runtime, since the double lives in the stack process.
+- `deliverPullRequest` takes an optional head branch name; the fixture's own branch and the specs'
+  titles carry no task ID and no task mentions those PRs, so the no-task case is real.
+- The follow-up case checks the link shape (`task-N`), not a fixed ID: the double numbers tasks
+  and comments from one shared counter. It waits up to 60 s (the job starts after 15 s).
+- PR numbers: 120–122 branch link, 124–126 by hand, 128–130 follow-up.
+
