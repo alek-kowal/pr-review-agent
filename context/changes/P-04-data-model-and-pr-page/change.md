@@ -39,3 +39,19 @@ checks are the plan. One commit per task.
 - `pnpm db:migrate` was checked twice on a throwaway database (`create database`, migrate, migrate,
   `drop`), never on the shared `pra` database, so other worktrees' dev data and migrations are
   untouched.
+- T2: `runs.started_by` is the core actor kind (`bot`, `hand`, `member`) and
+  `started_by_member_id` a text id (core `Actor.memberId` is a string; P-07's Team table adds the
+  foreign key if it wants one). A check requires the id exactly for `member`.
+- T2: the "one active run per PR" partial unique index (`runs_one_active_per_pr`) covers queued
+  and running runs of kind `round` and `implementer` only, because core's round rules say trials
+  and the analyst never block a PR (F-03-T7). So P-17 and P-21 need no index change.
+- T2: `round_kind` is not stored: round 1 of a chain is a full review, rounds 2 and 3 are fix
+  checks (core), so it follows from `round_no`. `runs.trigger` is free text holding a reason code.
+- T2: money is `numeric(12, 6)` read as a JS number (Drizzle `mode: 'number'`); GitHub comment ids
+  are `bigint` (they pass 2^31). `questions` also keep `ordinal` and the reviewer's `why`, as in
+  P's `reviewSchema`; `recommended` is an index into `options`.
+- T2: `isUniqueViolation(error, constraint?)` looks through Drizzle's `DrizzleQueryError` to the
+  pg error, so the worker can tell "a run is already active" from other failures.
+- `@pra/db/testing` exports row builders (`aRepositoryConfig`, `aPullRequest`, `aRun`,
+  `aFinding`, `aQuestion`, `seedPullRequest`) with unique slugs, because test files share one
+  database per run.
