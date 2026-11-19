@@ -4,7 +4,7 @@ import type { PrView } from '@/lib/api-types.ts';
 import { FindingsTab } from '@/features/findings/FindingsTab.tsx';
 import { TimelineTab } from '@/features/timeline/TimelineTab.tsx';
 import { QuestionsTab } from '@/features/questions/QuestionsTab.tsx';
-import { PatchTab } from './tab-panels.tsx';
+import { PatchTab } from '@/features/patch/PatchTab.tsx';
 
 export type PrTabProps = { repo: string; number: string; view: PrView };
 

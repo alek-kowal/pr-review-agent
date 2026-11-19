@@ -82,7 +82,6 @@ export const copy = {
     },
     empty: {
       questions: 'No questions for this pull request.',
-      patch: 'No patch yet.',
     },
   },
   startReview: {
