@@ -69,3 +69,24 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
   backfilled: states depend on runs and decisions, which raw GitHub events do not hold.
 - Migration `0011_metric_logs.sql`. If another migration lands first, delete it and run
   `pnpm db:generate` again (`--name metric_logs`).
+
+### S-19-T2 (metric calculations in core)
+
+- `packages/core/src/metrics.ts`: `prMetrics(history)` gives one PR's figures (also the PR
+  table's row); `pilotMetrics(rows)` gives the five metrics as `{ value, sampleSize, tooFew }`
+  (`tooFew` below `TOO_FEW_PRS = 10`). Medians for metrics 1–3 (the prototype's choice), counts
+  for 4 and 5.
+- Metric 1 sums stage durations (`started_at` → `finished_at`) of rounds and implementer runs,
+  any status; queue time is outside stages, so it never counts. A stage still running counts
+  once it ends.
+- Metric 2: total from `ready_at` (fallback: the first ready state) to `merged_at`; the lane
+  split reuses `timeSummary` over the state log. Time back in Not reviewed (a draft again) is
+  waiting for people, so it adds to Action needed. Lanes are summed over merged PRs (the
+  prototype's "where the time goes").
+- Metric 3: sessions of rounds and implementer runs; trial and analyst sessions are summed apart.
+- Metric 4: a PR counts when its state log has `rounds_used` (core's state for "a chain used 3 of
+  3 with a fix still open"); next to it, PRs with more than 3 rounds in total.
+- Metric 5: from the first `ready_to_merge` state: a head change by a person that is not a base
+  merge, or a merge at a head SHA not seen since (the ready head or a later head change). The
+  sample is merged PRs (as the prototype's "X of N merged"); merged PRs that never reached Ready
+  to merge count as not changed.
