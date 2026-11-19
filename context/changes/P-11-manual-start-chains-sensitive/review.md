@@ -5,7 +5,8 @@
 - **Scope**: all 11 phases (`git diff b2a8189^1 b2a8189`)
 - **Date**: 2026-11-19
 - **Reviewer**: package P-11r (decisions in `context/changes/P-11r-review/change.md`)
-- **Verdict**: REJECTED as merged (sensitive files failed open); F1–F8 are fixed in P-11r, F9–F11 are left (see handoff)
+- **Verdict**: REJECTED as merged (sensitive files failed open); F1–F9 and F11's tests are fixed in P-11r; F10 and F11's rollout notes are left as follow-ups
+- **After the fixes**: `pnpm verify` green (920 tests), `pnpm test:e2e` 17 of 17 passed
 - **Findings**: 1 critical, 7 warnings, 3 observations
 
 Focus, as asked: round chains (3-round cap, triggers, webhook/job races, restart mid-chain),
@@ -20,7 +21,7 @@ sensitive files and holds that must stop a merge or push, and test doubles.
 | Safety & Quality | FAIL | F1 critical; F2–F8 warnings. All fixed. |
 | Architecture | PASS | Package boundaries hold; doubles only behind `@pra/*/testing`; no runtime fake mode. |
 | Pattern Consistency | PASS | |
-| Success Criteria | WARNING | Automated criteria pass; several tests assert less than their "Done when" (F11). |
+| Success Criteria | PASS | Automated criteria pass; the tests that asserted less than their "Done when" are tightened (F11). |
 
 ## Checked and OK
 
@@ -44,7 +45,7 @@ sensitive files and holds that must stop a merge or push, and test doubles.
 - **Detail**: The scan was a `runCompleted` hook: it runs after the run commits and only logs
   errors. A git failure or a worker stop after the commit left no rows and a green PR, never retried.
 - **Fix**: scan in a `beforeRoundStart` gate that opens or throws; the round stays queued and is re-sent.
-- **Decision**: FIXED (0a04682)
+- **Decision**: FIXED (0a04682; the gate fetches the mirror first, debdba6)
 
 ### F2 — Approved file stayed approved after later commits changed it
 - **Severity**: ⚠️ WARNING · **Impact**: 🔎 MEDIUM · **Dimension**: Safety & Quality
@@ -87,14 +88,14 @@ sensitive files and holds that must stop a merge or push, and test doubles.
 - **Severity**: ⚠️ WARNING (latent until S-14) · **Impact**: 🔎 MEDIUM
 - **Location**: packages/db/src/queries/pr-state.ts `commitsSinceReview` (expected head → 0)
 - **Detail**: if people then decide the remaining Implement findings otherwise, nothing holds the PR; that head was never reviewed or scanned.
-- **Fix**: core input flag (e.g. `ownFixUnchecked`) that keeps `rounds_used` until a new chain reviews the head.
-- **Decision**: PENDING (handoff)
+- **Fix**: core input `ownFixUnchecked` keeps `rounds_used` / `waiting_for_fix` until a round reviews the head.
+- **Decision**: FIXED (03ef7a3)
 
 ### F10 — `runs.chain_id` has no foreign key to `round_chains`
 - **Severity**: 🔍 OBSERVATION · **Impact**: 🏃 LOW · **Fix**: add the FK in the next migration that touches `runs` (parallel packages make a new migration risky now).
-- **Decision**: PENDING (handoff)
+- **Decision**: Tests FIXED (354fcb9: by hand, 409 while running, round 3 `fromSha`, author push on the agent's checked commit). Rollout note for Alek: after deploy, or after adding a sensitive pattern, start a review on open PRs so they are scanned. Prompt injection in fix checks stays a known limit (reproductions override only findings with scripts).
 
 ### F11 — Tests assert less than their "Done when"; rollout gaps
 - **Severity**: 🔍 OBSERVATION · **Impact**: 🏃 LOW
 - **Detail**: start-review 409 only while queued and no "by hand" check; fix-check "diff since previous round" cannot tell round head from PR base; no round-3 `fromSha` test. Open PRs reviewed before deploy (or before a pattern is added) are not scanned until their next round; a rerun scan after adding patterns is a rollout step. Fix-check answers can be steered by PR content (prompt injection) for findings without Verify scripts.
-- **Decision**: PENDING (handoff)
+- **Decision**: Tests FIXED (354fcb9: by hand, 409 while running, round 3 `fromSha`, author push on the agent's checked commit). Rollout note for Alek: after deploy, or after adding a sensitive pattern, start a review on open PRs so they are scanned. Prompt injection in fix checks stays a known limit (reproductions override only findings with scripts).

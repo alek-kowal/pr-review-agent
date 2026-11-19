@@ -1,7 +1,7 @@
 ---
 change_id: P-11r
 title: Implementation review of P-11 (manual start, chains, sensitive files)
-status: implementing
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -10,8 +10,9 @@ archived_at: null
 ## Notes
 
 Reviews P-11 (10x-impl-review format) and fixes what it finds, one commit per finding. No plan.
-Report: `context/changes/P-11-manual-start-chains-sensitive/review.md`. Handed off: see
-`context/changes/P-11r-handoff.md`.
+Report: `context/changes/P-11-manual-start-chains-sensitive/review.md`. Verdict REJECTED as
+merged; F1–F9 fixed, F11's tests tightened, F10 (FK) left for a later migration.
+Result: `pnpm verify` green (920 tests), `pnpm test:e2e` 17 of 17 passed.
 
 ## Decisions
 
@@ -29,3 +30,9 @@ Report: `context/changes/P-11-manual-start-chains-sensitive/review.md`. Handed o
   fix check if the webhook came first and is idempotent for a retried push job. `startRound` takes
   the expected head with a compare-and-clear in the run's transaction.
 - **No new migration** in P-11r (parallel packages): the `runs.chain_id` FK is left for later.
+- **The bot's unchecked fix** (head = chain's expected head, not reviewed) gets core input
+  `ownFixUnchecked`; it holds the PR in `rounds_used` / `waiting_for_fix` like an open fix.
+- **The round-start scan fetches the mirror first**: it runs before any stage, so the mirror may
+  not have the round's head yet (found by e2e).
+- **A web test timeout under full parallel load** (`start-review.test.tsx`, findBy 1 s) passed on
+  rerun and alone twice; not changed.
