@@ -1,17 +1,9 @@
 # P-16 handoff (stopped: context full)
 
-Plan and decisions: `context/changes/P-16-pause-budget-and-queue/` (plan.md, change.md).
-Done: T1 `2709201` (settings fields, migration 0014 `run_waits`, `spentToday`), T2 `bc53b85` (core `startGate`).
+Plan and decisions: `context/changes/P-16-pause-budget-and-queue/` (plan.md, change.md). Main merged (no conflicts; migration 0014 still free).
+Done: T1–T5 (`ecd08ad` T3 worker gates, `11bdf12` T4 api, `ad7d169` T5 chip + `/settings/budget`). Verify was green after T5 (web tests can time out under parallel `pnpm verify` load; they pass alone).
 Left, partial first:
-1. T3 (wip commits): gates in `apps/worker/src/run/budget-gate.ts` are registered in `RUN_GATES`; drainer
-   `run/drain.ts` (`run.drain` job, cron each minute, wake on start and via `queue-hooks.ts` end hooks);
-   `sendPendingStageJob` in recover.ts; test deps default `NO_RUN_GATES`. `test/budget-gate.test.ts`: 4 of 5
-   pass; the pause test's held round ends with review `failed stage_error` (likely a stale `FakeAgentRunner`
-   step left by a `review()` call whose gate said wait: enqueue the step only after the gate passes, or
-   reset steps in `beforeEach`). Remove the debug `expect(stages...).toEqual([])` there. Then run the full
-   worker suite and `pnpm verify` (not run since T2).
-2. T4–T7 as in plan.md: api routes with `signedBy`, 409 `already_paused`/`not_paused`, `sendDrainJob` after
-   commit, GET status from `spentToday`, Insights too; chip controls, `/settings/budget`, Progress primitive;
-   queued reason via `runWaitsOf` in the pr-state loader line 116, Activity and banner `resume` action;
-   e2e spec in its own Playwright project run first; e2e stack sets agent slots 20.
-3. Merge main, regenerate migration 0014 if the number is taken, `pnpm verify`, `pnpm test:e2e`.
+1. T6 (`3973dbf` wip): done: core `queueCauseOf` (+ test), db pr-state loader reads `run_waits` (running run with a wait = queued), api Activity rows `wait`, web `ResumeAction` (main action `resume` opens the chip via `open-status-chip.ts`), `features/budget/wait-text.ts` (`usePauseNames`, `waitText`) in Activity, banner and board card. Banner test wraps a QueryClient now.
+   To do: write `apps/web/src/features/budget/queued-banner.test.tsx` (paused/budget/slots: banner text via `renderApp('/pr/wb/12')` with `aPrView({nextStep: {state:'queued', banner:{code:'state_queued_paused', params:{by:{kind:'member',memberId}, note}}, mainAction: resume}})` + status stub `aStatus({pausedBy})`; Resume… opens group "Factory status"; board card in agents_working; Activity row `wait`). Add `wait: null` to activity test fixtures if needed; check `apps/api/test/routes/activity.test.ts` and `pnpm --filter @pra/db test` (pr-state) still pass. Then tick 6.1, commit `feat(S-10): ... (T6)`.
+2. T7: `e2e/pause-budget.spec.ts` in its own Playwright project that the main project depends on (runs first, restores state); `e2e/support/stack.ts` sets agent slots 20. `settings-team.spec.ts` already opens `/settings/team` (Settings now lands on Budget & status).
+3. `pnpm verify`, `pnpm test:e2e`; last commit deletes this file; change.md Decisions are up to date through T5 (add any T6/T7 ones).
