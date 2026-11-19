@@ -17,6 +17,7 @@ import {
 import type { PullRequest, Repository, Run } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import type { PrEventHook } from '../github-events/pr-hooks.ts';
+import { fetchMirror } from '../stages/worktree.ts';
 import type { RunGate } from './gates.ts';
 
 /** The paths a diff changes; a renamed file counts under its old and its new path. */
@@ -38,16 +39,18 @@ async function changedPaths(
 
 /**
  * Adds the sensitive files the PR changes up to the run's head, and reopens approved files changed
- * since the head they were approved on. Throws when git fails.
+ * since the head they were approved on. Fetches the mirror first. Throws when git fails.
  */
 export async function scanSensitiveFiles(
-  deps: Pick<WorkerDeps, 'db' | 'gitMirror' | 'logger'>,
+  deps: Pick<WorkerDeps, 'db' | 'gitMirror' | 'github' | 'dataDir' | 'logger'>,
   repository: Repository,
   pullRequest: PullRequest,
   run: Run,
 ): Promise<void> {
   const patterns = readRepositoryConfig(repository).value.sensitivePatterns;
   if (patterns.length === 0) return;
+  // Before any stage: the mirror may not have the round's head yet.
+  await fetchMirror({ deps, run, repository });
   const paths = await changedPaths(deps, repository, pullRequest.baseSha, run.headSha);
   await addSensitiveFiles(
     deps.db,
