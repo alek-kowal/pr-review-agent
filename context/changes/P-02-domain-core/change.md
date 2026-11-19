@@ -61,3 +61,14 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   `review-profiles.json` (not read): Uses existing 3 findings, 1 question, no nits, no Verify;
   Changes behaviour and One-way door 7 and 3. `limitsFor` takes an optional table so S-04 can
   seed a repository's own caps. A level only narrows (minimum, or severity intersection).
+- T6: level names are keys (`diff_only` ... `learning`); the web maps them to copy. Stages and
+  features per level are fixed by the PRD table, not settings. Settable per level: `brief`,
+  `maxFindings`, `maxQuestions`, `stageTimeoutMinutes`, `autofixMaxPatches` and models per role.
+  Built-in values: level 1 sets 4 findings, 0 questions, 30 min, no brief (prototype
+  `S.levels`); level 2 sets 7 and 3; level 5 sets 2 automatic patches. A value comes from the
+  nearest level at or below `n` that sets it, an override beating the built-in value at the same
+  level. Built-in models stay in `DEFAULT_MODELS` (tech-stack.md; analyst `claude-sonnet-5-5`),
+  not in a level, so `modelFor` can put AppSettings between level overrides and the defaults.
+- `freezeLevel` returns a deep-frozen JSON copy (origins included, so Run detail can show them).
+- Fix-check rounds plan `checks`, `fix_diff`, `check_fixes`, `reproductions` (prototype
+  `stepsFor('fixcheck')`); only Checks can be off (below level 2).

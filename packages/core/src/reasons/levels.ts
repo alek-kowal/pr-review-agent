@@ -1,7 +1,8 @@
-// Reason codes of the levels family, added to ReasonParams by declaration merging.
-export {};
+import type { LevelNumber } from '../vocabulary.ts';
 
 declare module '../reason.ts' {
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- codes come with the family
-  interface ReasonParams {}
+  interface ReasonParams {
+    /** The stage is off at this level; it turns on from level `onFrom`. */
+    off_at_level: { stage: string; level: LevelNumber; onFrom: LevelNumber };
+  }
 }
