@@ -45,3 +45,20 @@ tries, rejects (signed) or accepts (signed) them, and an accepted lesson becomes
   There is no built-in default: without them the stage fails `analyst_instructions_missing`.
 - The candidates merge in the `runCompleted` hook (status "finished", count); `runFailed` and
   `runCancelled` end the analysis "failed".
+
+### S-23-T4 (API)
+
+- **Routes**: `/api/learning/candidates` (GET, `PUT /:id`, `POST /:id/reject|accept|draft`) and
+  `POST /api/prs/:repo/:number/analyst` (keyed by repository slug and number like merge, not by
+  PR id; 202 with the run, 409 `pr_open` on an open PR).
+- **Reject and accept are one `learning` settings store** (entity = candidate id, value = title,
+  text, status, reason, lessons version). Accept's store write calls `acceptLessonCandidate`, which
+  also writes the bot's `instructions` row, so one accept leaves two log rows. `before` is the
+  stored candidate, with the `text` the signer saw when the client sends it (409
+  `settings_stale` after someone else's edit).
+- Checks in this order: 404, 409 `candidate_not_open { status }`, 409 `needs_more_prs { have,
+  need }` (core `canAcceptLesson`), then the signature (400) inside the signed change. Reject
+  without a reason is 400 `reason_required`.
+- **"Try on a PR…"** is `POST /api/learning/candidates/:id/draft`: it saves the `lessons.md`
+  draft with the lesson (unsigned) and returns `{ fileId, versionId }`; the web then starts
+  `POST /api/trials` with that draft. Accepting later creates a fresh version, not this draft.

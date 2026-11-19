@@ -106,6 +106,13 @@ export const ApiErrorCode = {
   MergeRefused: 'merge_refused',
   /** GitHub did not answer as expected (`params.status` when it answered). */
   GithubError: 'github_error',
+  LessonCandidateNotFound: 'lesson_candidate_not_found',
+  /** Edit, reject or accept a candidate that is already decided (`params.status`). */
+  CandidateNotOpen: 'candidate_not_open',
+  /** Accept below the PR minimum (`params.have`, `params.need`): "1 of 2 PRs: waits for one more". */
+  NeedsMorePrs: 'needs_more_prs',
+  /** Run the analyst on a PR that is still open. */
+  PrOpen: 'pr_open',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
