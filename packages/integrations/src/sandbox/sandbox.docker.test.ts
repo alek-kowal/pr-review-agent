@@ -5,32 +5,18 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { execa } from 'execa';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { dockerSkipReason, ensureDockerImage, labelledContainers } from '../testing/sandbox.ts';
 import { DockerSandbox } from './docker-sandbox.ts';
 import { DEFAULT_SANDBOX_IMAGE, type SandboxRunSpec } from './sandbox.ts';
 
 /** Real containers on the local Docker daemon. Skipped, with the reason printed, without one. */
-const docker = await execa('docker', ['version', '--format', '{{.Server.Version}}'], {
-  reject: false,
-  timeout: 15_000,
-});
-const skipReason =
-  docker.exitCode === 0 ? null : `Docker is not reachable (docker version: ${docker.exitCode})`;
+const skipReason = await dockerSkipReason();
 if (skipReason) console.warn(`sandbox.docker.test.ts skipped: ${skipReason}`);
 
 /** Every container of this test run carries this label, so cleanup is checked by it. */
-const RUN_LABEL = 'pra.sandbox.test';
-const runId = randomUUID();
-
-async function leftoverContainers(): Promise<string[]> {
-  const { stdout } = await execa('docker', [
-    'ps',
-    '--all',
-    '--quiet',
-    '--filter',
-    `label=${RUN_LABEL}=${runId}`,
-  ]);
-  return stdout.split('\n').filter(Boolean);
-}
+const labels = { 'pra.sandbox.test': randomUUID() };
+const leftoverContainers = () =>
+  labelledContainers(`pra.sandbox.test=${labels['pra.sandbox.test']}`);
 
 describe.skipIf(skipReason)('DockerSandbox on the local daemon', () => {
   const sandbox = new DockerSandbox();
@@ -43,16 +29,13 @@ describe.skipIf(skipReason)('DockerSandbox on the local daemon', () => {
       workdir: '/work',
       mounts: [{ hostPath: dir, containerPath: '/work' }],
       limits: { cpus: 1, memoryMb: 256, pids: 64, timeoutMs: 60_000 },
-      labels: { [RUN_LABEL]: runId },
+      labels,
       ...extra,
     });
 
   beforeAll(async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'pra-sbx-'));
-    const image = await execa('docker', ['image', 'inspect', DEFAULT_SANDBOX_IMAGE], {
-      reject: false,
-    });
-    if (image.exitCode !== 0) await execa('docker', ['pull', '--quiet', DEFAULT_SANDBOX_IMAGE]);
+    await ensureDockerImage(DEFAULT_SANDBOX_IMAGE);
   }, 300_000);
 
   afterAll(async () => {

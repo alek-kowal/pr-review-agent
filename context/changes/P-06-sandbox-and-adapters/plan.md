@@ -231,8 +231,8 @@ the guard. Every role also gets the guard as a PreToolUse hook.
 
 #### Automated
 
-- [ ] 2.1 install.test.ts passes
-- [ ] 2.2 WB seed sets both commands; pnpm verify passes
+- [x] 2.1 install.test.ts passes
+- [x] 2.2 WB seed sets both commands; pnpm verify passes
 
 ### Phase 3: Judge adapter
 

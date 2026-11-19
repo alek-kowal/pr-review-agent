@@ -1,3 +1,4 @@
+import { execa } from 'execa';
 import type { Sandbox, SandboxResult, SandboxRunSpec } from '../sandbox/sandbox.ts';
 
 export type FakeSandboxHandler = (
@@ -30,4 +31,36 @@ export class FakeSandbox implements Sandbox {
       ...partial,
     };
   }
+}
+
+/**
+ * Why Docker tests cannot run here, or null when the local daemon answers. Docker tests skip with
+ * this reason printed.
+ */
+export async function dockerSkipReason(): Promise<string | null> {
+  const docker = await execa('docker', ['version', '--format', '{{.Server.Version}}'], {
+    reject: false,
+    timeout: 15_000,
+  });
+  return docker.exitCode === 0
+    ? null
+    : `Docker is not reachable (docker version: ${docker.exitCode})`;
+}
+
+/** Ids of the containers, running or not, that carry `label` (`key=value`). */
+export async function labelledContainers(label: string): Promise<string[]> {
+  const { stdout } = await execa('docker', [
+    'ps',
+    '--all',
+    '--quiet',
+    '--filter',
+    `label=${label}`,
+  ]);
+  return stdout.split('\n').filter(Boolean);
+}
+
+/** Pulls `image` when the daemon does not have it yet. */
+export async function ensureDockerImage(image: string): Promise<void> {
+  const found = await execa('docker', ['image', 'inspect', image], { reject: false });
+  if (found.exitCode !== 0) await execa('docker', ['pull', '--quiet', image]);
 }

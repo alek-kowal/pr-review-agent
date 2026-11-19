@@ -69,3 +69,12 @@ The planning step ran without questions (orchestrator rule: decide and record).
   so it can be swept by that label.
 - **S-04-T1 Docker test** labels its containers `pra.sandbox.test=<uuid>`, pulls `node:24-slim`
   when missing, and skips with a printed reason when `docker version` fails.
+- **S-04-T2: WB `installCommand` is now `pnpm install --offline --frozen-lockfile`** (was
+  `--ignore-scripts`): the PR's own scripts run, but in the install step with no network, so the
+  sandbox, not a flag, keeps them offline (the fixture's postinstall proves it).
+- **S-04-T2: the install test has two parts**: step mounts, networks and env checked with
+  `FakeSandbox`, and the real two-step install of the fixture in Docker (needs registry access,
+  skipped with a printed reason without Docker). Docker test helpers (`dockerSkipReason`,
+  `labelledContainers`, `ensureDockerImage`) live in `@pra/integrations/testing`.
+- **S-04-T2: `installDependencies` creates the cache folder** if missing and uses default limits
+  (fetch 2 CPU / 2 GB / 10 min, install 2 CPU / 4 GB / 15 min), overridable per call.

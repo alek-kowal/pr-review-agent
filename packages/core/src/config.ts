@@ -50,6 +50,12 @@ export const RepositoryConfigSchema = z.object({
   githubFullName: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
   defaultBranch: z.string().trim().min(1).default('main'),
   defaultLevel: levelNumber.default(1),
+  /**
+   * Downloads the PR's packages from its lockfile, with network but no PR scripts or hooks
+   * (e.g. `pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile`). Null: no fetch step.
+   */
+  fetchCommand: z.string().trim().min(1).nullable().default(null),
+  /** Installs from the fetched packages with no network (e.g. `pnpm install --offline`). */
   installCommand: z.string().trim().min(1).nullable().default(null),
   clickupSpace: z.string().trim().min(1).nullable().default(null),
   sensitivePatterns: z.array(SensitivePatternSchema).default([]),

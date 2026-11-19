@@ -63,6 +63,8 @@ describe('the workflowbuilder seed', () => {
       defaultLevel: 1,
       defaultBranch: 'main',
       clickupSpace: 'Workflow Builder',
+      fetchCommand: 'pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile',
+      installCommand: 'pnpm install --offline --frozen-lockfile',
     });
     expect(config.sensitivePatterns).toHaveLength(8);
 

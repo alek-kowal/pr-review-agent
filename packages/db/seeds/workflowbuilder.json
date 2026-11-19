@@ -4,7 +4,8 @@
     "githubFullName": "synergycodes/workflowbuilder",
     "defaultBranch": "main",
     "defaultLevel": 1,
-    "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
+    "fetchCommand": "pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+    "installCommand": "pnpm install --offline --frozen-lockfile",
     "clickupSpace": "Workflow Builder",
     "sensitivePatterns": [
       {
