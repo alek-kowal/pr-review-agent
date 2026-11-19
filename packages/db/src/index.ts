@@ -12,6 +12,7 @@ export { migrateDatabase, type MigrationResult } from './migrate.ts';
 export * as schema from './schema/index.ts';
 export {
   createQueue,
+  githubEventJobId,
   JOBS,
   QUEUE_SCHEMA,
   QUEUE_SETTINGS,

@@ -49,6 +49,7 @@ async function runReview(context: StageContext): Promise<StageResult> {
 
   const worktree = await runWorktree(context);
   const diff = await deps.gitMirror.diff(fullName, pullRequest.baseSha, run.headSha);
+  signal.throwIfAborted();
   const changed = diff.files.map((file) => file.path);
 
   const config = readRepositoryConfig(repository).value;
@@ -87,6 +88,7 @@ async function runReview(context: StageContext): Promise<StageResult> {
     runDir: sessionDir,
   });
   const model = modelFor((await getAppSettings(deps.db)).value, level, 'reviewer').model;
+  signal.throwIfAborted();
   const result = await deps.agentRunner.run({
     role: 'reviewer',
     model,

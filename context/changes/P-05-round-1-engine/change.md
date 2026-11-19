@@ -1,13 +1,16 @@
 ---
 change_id: P-05
 title: Round 1 engine (S-01-T5, T6, T9, T10, T11, T15)
-status: done
+status: impl_reviewed
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
 ---
 
 ## Notes
+
+Reviewed by P-05r: `review.md` in this folder (10 findings; all code findings fixed, F6 needs
+Alek, F10 left for P-15/P-16).
 
 Work package P-05 from `context/foundation/work-packages.md`, wave 3: webhook to round 1 to
 findings to one GitHub sentence, end to end with doubles. Plan: yes, see `plan.md` (brief in

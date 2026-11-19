@@ -149,6 +149,22 @@ describe('round 1 from a webhook', () => {
     expect(await runsOf(312)).toHaveLength(1);
   });
 
+  test('two deliveries at once start one round', async () => {
+    const store = () =>
+      storeGithubEvent(deps, 'pull_request.ready_for_review', {
+        fullName: repository.githubFullName,
+      });
+    const [first, second] = [await store(), await store()];
+
+    const outcomes = await Promise.all([
+      processGithubEvent(deps, first.id),
+      processGithubEvent(deps, second.id),
+    ]);
+
+    expect(outcomes.sort()).toEqual(['round_started', 'run_active']);
+    expect(await runsOf(312)).toHaveLength(1);
+  });
+
   test('the outcome and installation id are recorded', async () => {
     const event = await storeGithubEvent(deps, 'pull_request.ready_for_review', {
       fullName: repository.githubFullName,
@@ -222,6 +238,64 @@ describe('PR snapshot sync (P sync.test.ts 33, 60, 70)', () => {
     const pr = await getPullRequest(deps.db, repository.id, 312);
     expect(pr?.headSha).toBe('3'.repeat(40));
     expect(pr?.isDraft).toBe(false);
+  });
+
+  test('a late delivery of a PR opened as a draft starts no round', async () => {
+    expect(await deliver('pull_request.synchronize')).toBe('push_never_starts');
+
+    expect(await deliver('pull_request.opened-draft')).toBe('draft');
+
+    expect(await runsOf(312)).toHaveLength(0);
+  });
+
+  test('a late ready delivery starts no second round 1 after the round it caused', async () => {
+    expect(await deliver('pull_request.ready_for_review')).toBe('round_started');
+    const [round] = await runsOf(312);
+    await deps.db
+      .update(schema.runs)
+      .set({ status: 'completed', finishedAt: new Date() })
+      .where(eq(schema.runs.id, round!.id));
+
+    expect(await deliver('pull_request.opened')).toBe('event_stale');
+
+    expect(await runsOf(312)).toHaveLength(1);
+  });
+
+  test('a retried event starts no second round 1, even after its round ended', async () => {
+    let fail = true;
+    const throwingOnce = () => {
+      if (!fail) return Promise.resolve();
+      fail = false;
+      return Promise.reject(new Error('hook failed'));
+    };
+    const withHook = {
+      ...deps,
+      extensions: {
+        ...deps.extensions,
+        prEventHooks: { ...deps.extensions.prEventHooks, ready: [throwingOnce] },
+      },
+    };
+    const event = await storeGithubEvent(deps, 'pull_request.ready_for_review', {
+      fullName: repository.githubFullName,
+    });
+
+    await expect(processGithubEvent(withHook, event.id)).rejects.toThrow('hook failed');
+    const [round] = await runsOf(312);
+    await deps.db
+      .update(schema.runs)
+      .set({ status: 'failed', finishedAt: new Date() })
+      .where(eq(schema.runs.id, round!.id));
+
+    expect(await processGithubEvent(withHook, event.id)).toBe('round_started');
+    expect(await runsOf(312)).toHaveLength(1);
+  });
+
+  test('a ready delivery that arrives after a later push still starts round 1', async () => {
+    expect(await deliver('pull_request.synchronize')).toBe('push_never_starts');
+
+    expect(await deliver('pull_request.ready_for_review')).toBe('round_started');
+
+    expect(await runsOf(312)).toHaveLength(1);
   });
 
   test('a closed PR leaves the open list and returns when reopened', async () => {

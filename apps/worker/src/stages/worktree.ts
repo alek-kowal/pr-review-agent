@@ -12,6 +12,7 @@ type WorktreeContext = {
   deps: Pick<WorkerDeps, 'github' | 'gitMirror' | 'dataDir'>;
   run: Pick<Run, 'id' | 'headSha'>;
   repository: Pick<Repository, 'githubFullName' | 'installationId'>;
+  signal?: AbortSignal;
 };
 
 type Marker = { sha: string; path: string };
@@ -41,6 +42,9 @@ export async function runWorktree(context: WorktreeContext): Promise<string> {
     return marker.path;
   }
   await fetchMirror(context);
+  // Git takes no signal: after the stage timeout, stop at the next step instead of going on to
+  // a worktree and a session nobody waits for.
+  context.signal?.throwIfAborted();
   const worktree = await deps.gitMirror.addWorktree(
     repository.githubFullName,
     worktreeKey(run.id),

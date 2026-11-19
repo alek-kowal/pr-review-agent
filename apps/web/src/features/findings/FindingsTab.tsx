@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { CircleX } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SEVERITIES } from '@pra/core';
 import { copy } from '@/copy/index.ts';
 import { ApiError } from '@/lib/api.ts';
@@ -11,11 +11,14 @@ import {
   type RoundView,
 } from '@/lib/api-types.ts';
 import { errorText, reasonText, stageName } from '@/lib/reasons.ts';
+import { useDecideFocus } from '@/features/pr/decide-focus.ts';
 import { findingsQuery } from '@/features/pr/queries.ts';
 import type { PrTabProps } from '@/features/pr/tabs.ts';
 import { EmptyTab } from '@/features/pr/EmptyTab.tsx';
+import { BulkBar } from './BulkBar.tsx';
+import { canDecide } from './decision-ui.ts';
 import { Finding } from './Finding.tsx';
-import { FILTER_FROM, FINDING_FILTERS, type FindingFilterKey } from './filters.ts';
+import { FILTER_FROM, FINDING_FILTERS, needsDecision, type FindingFilterKey } from './filters.ts';
 import { SeverityMark } from './SeverityMark.tsx';
 
 /** The latest completed round's findings, grouped by severity, then what it did not check. */
@@ -87,28 +90,43 @@ type SlotContext = {
 /** Refuted findings sink to the bottom of their group; otherwise the reviewer's order. */
 const rank = (f: FindingView) => (f.verdict === 'refuted' ? 1 : 0);
 
+/** Findings in the order the tab shows them: by severity, then `rank`, then the reviewer's. */
+const inShownOrder = (findings: FindingView[]) =>
+  SEVERITIES.flatMap((severity) =>
+    findings
+      .filter((f) => f.severity === severity)
+      .sort((a, b) => rank(a) - rank(b) || a.ordinal - b.ordinal),
+  );
+
 function FindingList({ findings, slotProps }: { findings: FindingView[]; slotProps: SlotContext }) {
   const [filter, setFilter] = useState<FindingFilterKey>('all');
   const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set());
+  const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
+  const decidable = canDecide(slotProps.view);
+  const focus = useFocusOnDecide(findings, (id) => {
+    setFilter('all');
+    setOpen((prev) => new Set(prev).add(id));
+  });
 
   const withFilter = findings.length >= FILTER_FROM;
   const matches = FINDING_FILTERS.find((x) => x.key === filter)!.matches;
   const shown = withFilter ? findings.filter(matches) : findings;
+  const ordered = inShownOrder(shown);
   const groups = SEVERITIES.map((severity) => ({
     severity,
-    items: shown
-      .filter((f) => f.severity === severity)
-      .sort((a, b) => rank(a) - rank(b) || a.ordinal - b.ordinal),
+    items: ordered.filter((f) => f.severity === severity),
   })).filter((g) => g.items.length > 0);
 
   const ids = groups.flatMap((g) => g.items.map((f) => f.id));
   const allOpen = ids.length > 0 && ids.every((id) => open.has(id));
-  const toggle = (id: number) =>
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+  const flip = (id: number) => (prev: ReadonlySet<number>) => {
+    const next = new Set(prev);
+    if (!next.delete(id)) next.add(id);
+    return next;
+  };
+  const toggle = (id: number) => setOpen(flip(id));
+  // Selected findings, in the order shown; a finding that left the list drops out.
+  const selectedFindings = inShownOrder(findings).filter((f) => selected.has(f.id));
   const expandToggle = (
     <button
       type="button"
@@ -120,7 +138,7 @@ function FindingList({ findings, slotProps }: { findings: FindingView[]; slotPro
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={focus} className="flex flex-col gap-4">
       {withFilter && (
         <div className="flex flex-wrap items-center gap-3">
           <div
@@ -165,13 +183,56 @@ function FindingList({ findings, slotProps }: { findings: FindingView[]; slotPro
                 {...slotProps}
                 open={open.has(f.id)}
                 onToggle={() => toggle(f.id)}
+                selection={
+                  decidable
+                    ? { checked: selected.has(f.id), onChange: () => setSelected(flip(f.id)) }
+                    : undefined
+                }
               />
             ))}
           </section>
         );
       })}
+      {decidable && selectedFindings.length > 0 && (
+        <BulkBar
+          repo={slotProps.repo}
+          number={slotProps.number}
+          selected={selectedFindings}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
     </div>
   );
+}
+
+/**
+ * Answers the Decide main action: on each new request, `reveal` the first finding that needs a
+ * decision (in shown order), then move focus to its line. Returns the list's ref.
+ */
+function useFocusOnDecide(findings: FindingView[], reveal: (id: number) => void) {
+  const { request } = useDecideFocus();
+  const [handled, setHandled] = useState(0);
+  const [target, setTarget] = useState<{ id: number; request: number } | null>(null);
+  const list = useRef<HTMLDivElement>(null);
+
+  // Adjusting state while rendering, as React suggests for a changed input: no effect needed.
+  if (request !== 0 && request !== handled) {
+    setHandled(request);
+    const first = inShownOrder(findings).find(needsDecision);
+    if (first) {
+      reveal(first.id);
+      setTarget({ id: first.id, request });
+    }
+  }
+
+  useEffect(() => {
+    if (!target) return;
+    list.current
+      ?.querySelector<HTMLElement>(`[data-finding-id="${target.id}"] [aria-expanded]`)
+      ?.focus();
+  }, [target]);
+
+  return list;
 }
 
 function NotChecked({ items }: { items: string[] }) {

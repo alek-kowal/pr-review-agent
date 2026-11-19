@@ -1,73 +1,87 @@
 // At worker start (NFR Durability): a stage left running by a stopped worker fails with
-// `interrupted`, and queued or running runs whose next stage job was lost get it again (the
-// `run.stage` queue drops a duplicate while one is queued or active).
-import { nextStage, recoverAfterRestart } from '@pra/core';
+// `interrupted`. At start and then every few minutes, jobs a lost send left missing are sent
+// again: the next stage of queued or running runs (the `run.stage` queue drops a duplicate while
+// one is queued or active) and stored GitHub events nobody processed (fixed job id per delivery).
+import { nextStage } from '@pra/core';
 import {
   getRunContext,
+  githubEventJobId,
+  JOBS,
   lockRun,
   runsWithStatus,
+  sendJob,
   stageExecutionsOfRun,
-  updateRun,
-  updateStageExecution,
+  unprocessedGithubEvents,
 } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { afterTransition } from './execute-stage.ts';
+import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
 import { runStateOf } from './state.ts';
 
-export type RecoveryResult = { interrupted: number[]; resent: number[] };
+/** Events are re-sent from this age (their own send has had time) up to a day old. */
+const EVENT_RESEND_AFTER_MS = 60_000;
+const EVENT_RESEND_WITHIN_MS = 24 * 60 * 60_000;
 
+export type ResendResult = { resent: number[]; events: number[] };
+export type RecoveryResult = ResendResult & { interrupted: number[] };
+
+/** Only at worker start: before it, no handler of this process runs a stage. */
 export async function recoverRuns(deps: WorkerDeps): Promise<RecoveryResult> {
   const { db, logger } = deps;
-  const result: RecoveryResult = { interrupted: [], resent: [] };
+  const interrupted: number[] = [];
 
-  for (const candidate of await runsWithStatus(db, ['queued', 'running'])) {
-    const interrupted = await db.transaction(async (tx) => {
+  for (const candidate of await runsWithStatus(db, ['running'])) {
+    const state = await db.transaction(async (tx) => {
       const run = await lockRun(tx, candidate.id);
       if (!run || run.status !== 'running') return null;
-      const executions = await stageExecutionsOfRun(tx, run.id);
-      const state = runStateOf(run, executions);
-      const recovered = recoverAfterRestart(state);
-      if (recovered === state) return null;
-      const stage = recovered.error!.stage;
-      const execution = executions
-        .filter((e) => e.stage === stage && e.status === 'running')
-        .at(-1);
-      const now = new Date();
-      if (execution) {
-        await updateStageExecution(tx, execution.id, {
-          status: 'failed',
-          errorCode: recovered.error!.code,
-          finishedAt: now,
-        });
-      }
-      await updateRun(tx, run.id, { status: 'failed', finishedAt: now });
-      return recovered;
+      return interruptRunningStage(tx, run, await stageExecutionsOfRun(tx, run.id));
     });
+    if (!state) continue;
+    interrupted.push(candidate.id);
+    const context = await getRunContext(db, candidate.id);
+    if (context) await afterTransition(deps, { deps, ...context }, state);
+  }
 
-    if (interrupted) {
-      result.interrupted.push(candidate.id);
-      const context = await getRunContext(db, candidate.id);
-      if (context) await afterTransition(deps, { deps, ...context }, interrupted);
-      continue;
-    }
+  const result = { interrupted, ...(await resendLostJobs(deps)) };
+  if (result.interrupted.length || result.resent.length || result.events.length) {
+    logger.info(result, 'runs recovered after start');
+  }
+  return result;
+}
 
-    const run = (await getRunContext(db, candidate.id))?.run;
-    if (!run) continue;
+/** Sends again every job a lost send left missing. Safe at any time: duplicates are dropped. */
+export async function resendLostJobs(
+  deps: WorkerDeps,
+  now: Date = new Date(),
+): Promise<ResendResult> {
+  const { db } = deps;
+  const result: ResendResult = { resent: [], events: [] };
+
+  for (const run of await runsWithStatus(db, ['queued', 'running'])) {
     const state = runStateOf(run, await stageExecutionsOfRun(db, run.id));
     const next =
       state.status === 'queued'
         ? (state.stages.find((s) => s.status === 'pending')?.key ?? null)
-        : state.status === 'running'
-          ? nextStage(state)
-          : null;
+        : nextStage(state);
     if (next) {
       await sendStageJob(deps.queue, run.id, next);
       result.resent.push(run.id);
     }
   }
-  if (result.interrupted.length || result.resent.length) {
-    logger.info(result, 'runs recovered after start');
+
+  const events = await unprocessedGithubEvents(db, {
+    from: new Date(now.getTime() - EVENT_RESEND_WITHIN_MS),
+    to: new Date(now.getTime() - EVENT_RESEND_AFTER_MS),
+  });
+  for (const event of events) {
+    await sendJob(
+      deps.queue,
+      JOBS.githubEvent,
+      { eventId: event.id },
+      { id: githubEventJobId(event.deliveryId) },
+    );
+    result.events.push(event.id);
   }
   return result;
 }
