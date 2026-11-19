@@ -207,7 +207,12 @@ export type BoardCard = {
   title: string;
   author: AuthorView;
   isDraft: boolean;
+  isFork: boolean;
   openedAt: string;
+  /** The level the next round starts at, and the repository's default. */
+  level: { number: number; repositoryDefault: number };
+  /** Completed rounds of the current chain, of `max`. */
+  round: { number: number; max: number };
   nextStep: NextStepView;
   badges: ReasonView[];
 };
@@ -221,6 +226,19 @@ export type BoardResponse = {
   };
   mergedOrClosed: BoardCard[];
   repositoryCount: number;
+  /** Connected repositories' slugs, for the Repository filter. */
+  repositories: string[];
+};
+
+/** `GET /api/search?q=` (S-17-T5). */
+export type SearchResponse = {
+  pullRequests: {
+    repository: { slug: string };
+    number: number;
+    title: string;
+    author: { login: string; name: string | null };
+    state: 'open' | 'closed' | 'merged';
+  }[];
 };
 
 /** A finding's current decision. */

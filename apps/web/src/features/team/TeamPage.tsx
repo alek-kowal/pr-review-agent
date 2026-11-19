@@ -42,13 +42,15 @@ export function TeamPage() {
       {team.isPending ? (
         <p className="text-text-3">{t.loading}</p>
       ) : team.isError ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {errorText(team.error instanceof ApiError ? team.error.code : 'http_error')}
         </p>
       ) : members.length === 0 ? (
-        <p className="text-text-3">{t.empty}</p>
+        <p data-work-start className="text-text-3">
+          {t.empty}
+        </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+        <div data-work-start className="overflow-x-auto rounded-lg border border-border bg-surface">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">{t.tableLabel}</caption>
             <thead className="bg-surface-2 text-xs text-text-3">

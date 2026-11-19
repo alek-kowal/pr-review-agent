@@ -42,7 +42,13 @@ test('has no account menu', async () => {
   renderApp('/prs');
 
   const banner = await screen.findByRole('banner');
-  expect(within(banner).queryAllByRole('button')).toEqual([]);
+  // The only buttons are search (S-17-T5) and the theme toggle (S-17-T7).
+  const buttons = within(banner).queryAllByRole('button');
+  for (const button of buttons) {
+    expect(button).toHaveAccessibleName(
+      new RegExp(`^(${copy.palette.trigger}|${copy.theme.toDark}|${copy.theme.toLight})`),
+    );
+  }
   expect(within(banner).queryByRole('menu')).toBeNull();
   expect(within(banner).queryByText(/account|profile|sign out|log out/i)).toBeNull();
 });

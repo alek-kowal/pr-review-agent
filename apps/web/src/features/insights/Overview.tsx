@@ -20,27 +20,29 @@ export function Overview({ search }: { search: InsightsSearch }) {
         show={['range', 'author', 'repo']}
         authors={query.data?.authors}
       />
-      {query.isPending ? (
-        <p className="text-text-3">{t.loading}</p>
-      ) : query.isError ? (
-        <p role="alert" className="text-bad">
-          {t.failed}
-        </p>
-      ) : query.data.prs.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface px-4 py-6 text-center">
-          <p className="font-medium">{t.overview.empty}</p>
-          <p className="text-sm text-text-3">{t.overview.emptyHint}</p>
-        </div>
-      ) : (
-        <>
-          <MetricTiles data={query.data} />
-          <LaneSplit
-            lanes={query.data.metrics.readyToMerge.lanes}
-            merged={query.data.metrics.readyToMerge.sampleSize}
-          />
-          <PrTable prs={query.data.prs} />
-        </>
-      )}
+      <div data-work-start className="flex flex-col gap-4">
+        {query.isPending ? (
+          <p className="text-text-3">{t.loading}</p>
+        ) : query.isError ? (
+          <p role="alert" className="text-bad">
+            {t.failed}
+          </p>
+        ) : query.data.prs.length === 0 ? (
+          <div className="rounded-lg border border-border bg-surface px-4 py-6 text-center">
+            <p className="font-medium">{t.overview.empty}</p>
+            <p className="text-sm text-text-3">{t.overview.emptyHint}</p>
+          </div>
+        ) : (
+          <>
+            <MetricTiles data={query.data} />
+            <LaneSplit
+              lanes={query.data.metrics.readyToMerge.lanes}
+              merged={query.data.metrics.readyToMerge.sampleSize}
+            />
+            <PrTable prs={query.data.prs} />
+          </>
+        )}
+      </div>
       <NotMeasuredYet />
     </div>
   );

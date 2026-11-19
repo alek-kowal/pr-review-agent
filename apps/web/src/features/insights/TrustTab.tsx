@@ -16,17 +16,19 @@ export function TrustTab({ search }: { search: InsightsSearch }) {
   return (
     <div className="flex flex-col gap-4">
       <InsightsFilters search={search} show={['repo']} />
-      {query.isPending ? (
-        <p className="text-text-3">{t.loading}</p>
-      ) : query.isError ? (
-        <p role="alert" className="text-bad">
-          {t.failed}
-        </p>
-      ) : query.data.repositories.length === 0 ? (
-        <p className="text-text-3">{t.trust.empty}</p>
-      ) : (
-        query.data.repositories.map((row) => <RepositoryCard key={row.repositoryId} row={row} />)
-      )}
+      <div data-work-start className="flex flex-col gap-4">
+        {query.isPending ? (
+          <p className="text-text-3">{t.loading}</p>
+        ) : query.isError ? (
+          <p role="alert" className="text-bad">
+            {t.failed}
+          </p>
+        ) : query.data.repositories.length === 0 ? (
+          <p className="text-text-3">{t.trust.empty}</p>
+        ) : (
+          query.data.repositories.map((row) => <RepositoryCard key={row.repositoryId} row={row} />)
+        )}
+      </div>
     </div>
   );
 }

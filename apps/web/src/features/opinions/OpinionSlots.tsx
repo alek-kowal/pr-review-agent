@@ -4,13 +4,14 @@ import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useId } from 'react';
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
+import { Kbd } from '@/components/ui/kbd.tsx';
 import { copy } from '@/copy/index.ts';
 import { dateTime } from '@/copy/format.ts';
 import type { OpinionValue, OpinionView } from '@/lib/api-types.ts';
 import { canDecide } from '@/features/findings/decision-ui.ts';
 import type { FindingSlotProps } from '@/features/findings/slots.ts';
 import { useReviewDraft } from './draft.ts';
-import { OPINION_ICONS, OPINION_VALUES } from './opinion-ui.ts';
+import { OPINION_ICONS, OPINION_KEYS, OPINION_VALUES } from './opinion-ui.ts';
 
 const t = copy.opinions;
 
@@ -96,10 +97,12 @@ export function OpinionsBlock({ finding, view, repo, number }: FindingSlotProps)
                   variant="outline"
                   size="sm"
                   aria-pressed={drafted?.value === value}
+                  aria-keyshortcuts={OPINION_KEYS[value]}
                   onClick={() => toggle(finding.id, value)}
                 >
                   <Icon aria-hidden="true" />
                   {t.values[value]}
+                  <Kbd aria-hidden="true">{OPINION_KEYS[value]}</Kbd>
                 </Button>
               );
             })}
