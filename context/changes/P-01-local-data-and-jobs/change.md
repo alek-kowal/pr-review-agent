@@ -44,3 +44,18 @@ Plan: no. The tasks' "Done when" checks are the plan; one commit per task.
   `DATABASE_URL=postgres://pra:pra@localhost:5432/pra_test` (throwaway CI credentials), and
   `pnpm db:migrate` before `pnpm test`, as the task asks. The CI steps were rehearsed locally with
   that URL (migrate, then `pnpm test` green); the GitHub run waits for the orchestrator's push.
+- Logging (T3): `@pra/integrations/logging` exports `loggerOptions(service, env)`, `createLogger`
+  and `redactSecrets`. JSON when `NODE_ENV` is `production` or `test`, pretty (pino-pretty,
+  resolved to an absolute path because pnpm hides it from pino) otherwise, so `pnpm dev` needs no
+  `NODE_ENV`. `LOG_LEVEL` sets the level (default `info`).
+- Redaction: pino `redact` paths for authorization headers, plus a `formatters.log` walk over plain
+  objects and arrays that replaces values of keys ending in `authorization`, `api_key`/`apiKey`,
+  `secret`, `password`, `token` or `private_key`/`privateKey`, and any string holding a PEM private
+  key. Class instances (errors, requests) are left to pino's serializers. Empty secret values stay
+  visible, so a missing key shows in logs. Pino skips formatters for `logger.child()` bindings, so
+  child bindings carry ids only.
+- The api no longer starts through `fastify start`: `src/server.ts` has `serverOptions(env)` and
+  `buildServer()`, and `src/main.ts` is the entry (`dev` = `node --watch --env-file-if-exists`,
+  `start` = `node dist/main.js`), because the composition root (T5) builds dependencies from env
+  before Fastify starts. Request ids: a caller's `X-Request-Id` is kept, otherwise a UUID.
+- The worker's entry is `apps/worker/src/main.ts` (the empty `src/index.ts` is gone).

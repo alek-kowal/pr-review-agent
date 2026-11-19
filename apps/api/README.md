@@ -1,24 +1,15 @@
-# Getting Started with [Fastify-CLI](https://www.npmjs.com/package/fastify-cli)
+# @pra/api
 
-This project was bootstrapped with Fastify-CLI.
+Fastify HTTP api. The layout follows the Fastify-CLI generator (`src/plugins`, `src/routes`, loaded
+by `@fastify/autoload`); the entry is `src/main.ts`, which builds the server with
+`buildServer()` from `src/server.ts`.
 
-## Available Scripts
+## Scripts
 
-In the project directory, you can run:
+- `pnpm dev`: run `src/main.ts` with Node's watch mode and the root `.env`, on
+  http://localhost:3000 (`PORT`, `HOST` override it).
+- `pnpm build && pnpm start`: compile to `dist/` and run `dist/main.js`.
+- `pnpm test`: Vitest.
 
-### `pnpm dev`
-
-To start the app in dev mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-### `pnpm build && pnpm start`
-
-For production mode
-
-### `pnpm test`
-
-Run the test cases.
-
-## Learn More
-
-To learn Fastify, check out the [Fastify documentation](https://fastify.dev/docs/latest/).
+Logs use the shared pino options from `@pra/integrations/logging`: pretty in development, JSON
+lines with `service: "api"` when `NODE_ENV=production`.
