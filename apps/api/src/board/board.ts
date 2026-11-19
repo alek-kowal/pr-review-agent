@@ -1,6 +1,12 @@
 // The board: every PR in its lane, from core's state table.
 import { actionNeededOrder, LANES, nextStep, type Lane } from '@pra/core';
-import { boardPullRequestIds, listRepositories, loadPrStateInputs, type Executor } from '@pra/db';
+import {
+  activeAlertCountsByPr,
+  boardPullRequestIds,
+  listRepositories,
+  loadPrStateInputs,
+  type Executor,
+} from '@pra/db';
 import { z } from 'zod/v4';
 import { ReasonSchema } from '../pr-view/round.ts';
 import { AuthorSchema, authorView, NextStepSchema, nextStepView } from '../pr-view/state.ts';
@@ -16,6 +22,8 @@ export const BoardCardSchema = z.object({
   openedAt: z.iso.datetime({ offset: true }),
   nextStep: NextStepSchema,
   badges: z.array(ReasonSchema),
+  /** Active alerts on this PR (S-18); the card shows one bell when it is above 0. */
+  alertCount: z.number().int(),
 });
 export type BoardCard = z.output<typeof BoardCardSchema>;
 
@@ -45,7 +53,10 @@ export async function buildBoard(db: Executor, now: Date = new Date()): Promise<
     boardPullRequestIds(db, now),
     listRepositories(db),
   ]);
-  const loads = await loadPrStateInputs(db, ids);
+  const [loads, alertCounts] = await Promise.all([
+    loadPrStateInputs(db, ids),
+    activeAlertCountsByPr(db, ids),
+  ]);
 
   const lanes = Object.fromEntries(LANES.map((lane) => [lane, [] as BoardCard[]])) as Record<
     Lane,
@@ -67,6 +78,7 @@ export async function buildBoard(db: Executor, now: Date = new Date()): Promise<
       openedAt: load.pullRequest.openedAt.toISOString(),
       nextStep: nextStepView(step),
       badges: cardBadges({ load, nextStep: step }),
+      alertCount: alertCounts.get(load.pullRequest.id) ?? 0,
     };
     if (step.lane === null) mergedOrClosed.push(card);
     else if (step.state === 'draft') drafts.push(card);

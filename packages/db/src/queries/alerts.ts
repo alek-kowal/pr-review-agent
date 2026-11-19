@@ -217,6 +217,12 @@ function viewQuery(db: Executor) {
     .leftJoin(repositories, eq(repositories.id, pullRequests.repositoryId));
 }
 
+/** One alert with its PR, any status. */
+export async function getAlertView(db: Executor, id: number): Promise<AlertView | null> {
+  const [row] = await viewQuery(db).where(eq(alerts.id, id));
+  return row ? toView(row) : null;
+}
+
 /** Active alerts, newest first. */
 export async function listActiveAlerts(db: Executor): Promise<AlertView[]> {
   const rows = await viewQuery(db)

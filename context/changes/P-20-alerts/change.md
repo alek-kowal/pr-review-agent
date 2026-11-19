@@ -80,3 +80,24 @@ in the listed order.
   repository with ClickUp set up (`anyClickUpSettings`), as does a PR whose own repository has none.
 - `APP_BASE_URL` (already listed in `.env.example`, now documented) reaches the worker as
   `WorkerDeps.appBaseUrl`. Links: `<APP_BASE_URL>/pr/<repo slug>/<number>`, Activity for the budget.
+
+### Merge with main
+
+- `main` landed its own `0021_level_model_settings`; the alerts migration is now `0022_alerts`
+  (regenerated, with the hand-written config row INSERT and the `alerts` NOTIFY trigger kept).
+
+### S-18-T5 (alerts API)
+
+- `GET /api/alerts?status=active|past` returns `{ alerts, activeCount, pastCount }`; past alerts
+  are capped at 100 (the most recently ended), `pastCount` counts them all for "Show N past
+  alerts". One alert shape (`apps/api/src/alerts/view.ts`) serves the list, Dismiss and the PR
+  view; it carries `runId` (Retry), the delivery status and task, and the end note.
+- `POST /api/alerts/:id/dismiss` works on any active alert (the UI offers it on the cost alert,
+  the only one that never clears by itself). 404 `alert_not_found`, 409 `alert_not_active`. It adds
+  a timeline entry `alert_dismissed` (actor hand, source key `alert:<id>:dismissed`) when the alert
+  has a PR; the budget alert has none.
+- `alertCount` is a field of every board card (not a badge: `CARD_BADGES` are reason codes, and
+  the web puts the bell in its own card slot). The PR view gets an `alerts` section (the PR's active
+  alerts, for the banner line). The status chip payload gets `activeAlertCount`.
+- SSE: no new event name. The `alerts` trigger sends the existing `change` event with
+  `table: 'alerts'`; that is the `alert.changed` signal the web listens for.
