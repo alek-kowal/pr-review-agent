@@ -176,6 +176,31 @@ test('a second poll with no changes writes nothing', async () => {
   expect(await stateChangesOf(pr.id)).toHaveLength(changes);
 });
 
+test('CI that finished while webhooks were down is stored once', async () => {
+  const repository = await connect('ci-repo');
+  const github = onGitHub(repository, 7);
+  await reconcileRepositories(deps);
+  deps.github.setCiChecks(repository.githubFullName, github.headSha, [
+    { name: 'build', source: 'check_run', state: 'passed' },
+    { name: 'lint', source: 'check_run', state: 'failed' },
+  ]);
+
+  const result = await reconcileRepositories(deps);
+
+  expect(result.corrected).toContain('acme/ci-repo#7');
+  const pr = (await getPullRequest(deps.db, repository.id, 7))!;
+  expect(pr.ciSha).toBe(github.headSha);
+  expect(pr.ciChecks).toEqual([
+    { name: 'build', conclusion: 'success' },
+    { name: 'lint', conclusion: 'failure' },
+  ]);
+  expect((await reconciledEntries(pr.id)).at(-1)?.params).toMatchObject({ corrections: ['ci'] });
+
+  const again = await reconcileRepositories(deps);
+  expect(again.corrected).not.toContain('acme/ci-repo#7');
+  expect(await getPullRequest(deps.db, repository.id, 7)).toEqual(pr);
+});
+
 test('a repository GitHub cannot list is skipped; the others are still polled', async () => {
   const repository = await connect('zz-later-repo');
   onGitHub(repository, 4);

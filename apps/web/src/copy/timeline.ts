@@ -45,6 +45,7 @@ const CORRECTIONS: Record<string, (p: Params) => string> = {
   closed: () => 'closed',
   merged: () => 'merged',
   reopened: () => 'reopened',
+  ci: () => 'CI',
 };
 
 function reconciled(p: Params): string {

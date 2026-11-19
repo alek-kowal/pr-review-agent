@@ -72,9 +72,14 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   (an empty board does not auto-review everything). So no "first poll" marker is stored. It
   corrects the PR snapshot (new PRs, head, draft, closed, merged), writes a `pr_reconciled`
   timeline entry and a `reconciled` state change per corrected PR, and cancels the active run of a
-  PR it finds closed (`pr_closed`, actor bot). CI status is not stored on PRs (only in a Checks
-  stage output), so there is nothing to correct. PR event hooks are not fired from the poll (they
+  PR it finds closed (`pr_closed`, actor bot). PR event hooks are not fired from the poll (they
   are keyed by a webhook delivery).
+- **Reconcile corrects CI too (after merging P-19).** P-19 stores CI on `pull_requests`
+  (`ci_sha`, `ci_checks`), so the poll reads `getCiStatus` for every listed open PR's head (one
+  read per distinct head; CI changes without the head moving) and, when it differs from what the
+  PR shows, stores it with `storePrCi` plus a `pr_reconciled` entry and a `reconciled` state
+  change (`corrections: ['ci']`, timeline "Corrected from GitHub: CI"). An empty CI read equals
+  "nothing stored", so a poll over PRs without CI writes nothing.
 - **`listOpenPullRequests` returns summaries** (`number`, `headSha`, `isDraft`, `updatedAt`): the
   list endpoint has no commit counts, so the poll fetches `getPullRequest` only for PRs that are
   new or differ.

@@ -1,17 +1,19 @@
 // S-03-T14: the reconcile poll (pg-boss cron, every 10 minutes). Per connected repository it lists
 // GitHub's open PRs and corrects what webhooks missed: new PRs (imported), head, draft or ready,
-// closed and merged. It never starts a review, also not for a PR it imports (an empty board does
+// closed and merged, and the CI of each open PR's head. It never starts a review, also not for a PR it imports (an empty board does
 // not auto-review everything; a push never starts a review). Each corrected PR gets a
 // `pr_reconciled` timeline entry and a `reconciled` state change; the `pull_requests` write
 // publishes the same change notification as a webhook. A PR found closed has its active run
 // cancelled as the bot (FR-023).
-import { BOT } from '@pra/core';
+import { BOT, type CiCheck } from '@pra/core';
 import {
+  ciChecksOf,
   getPullRequest,
   listRepositories,
   pullRequestsToReconcile,
   recordStateChange,
   recordTimelineEntry,
+  storePrCi,
   upsertPullRequest,
   type PullRequest,
   type Repository,
@@ -22,7 +24,8 @@ import { toSnapshotRow } from '../github-events/pull-request.ts';
 import { cancelForClosedPr } from '../run/close-cancels.ts';
 
 /** What a poll corrected on one PR, in the order the timeline sentence names them. */
-export type Correction = 'imported' | 'head' | 'draft' | 'ready' | 'closed' | 'merged' | 'reopened';
+export type Correction =
+  'imported' | 'head' | 'draft' | 'ready' | 'closed' | 'merged' | 'reopened' | 'ci';
 
 export type ReconcileResult = {
   /** Corrected PRs as `owner/name#number`. */
@@ -94,7 +97,71 @@ async function reconcileRepository(
       result.failed.push(`${fullName}#${number}`);
     }
   }
+
+  await correctCi(deps, repository, [...listed.keys()], result);
 }
+
+/**
+ * CI runs without moving the head, so every listed open PR has its head's CI read again (one
+ * read per distinct head) and stored when it differs from what the PR shows.
+ */
+async function correctCi(
+  deps: WorkerDeps,
+  repository: Repository,
+  numbers: number[],
+  result: ReconcileResult,
+): Promise<void> {
+  const fullName = repository.githubFullName;
+  const open = (await pullRequestsToReconcile(deps.db, repository.id, numbers)).filter(
+    (pr) => pr.state === 'open' && numbers.includes(pr.number),
+  );
+  const ciByHead = new Map<string, Promise<CiCheck[]>>();
+  for (const pr of open) {
+    const key = `${fullName}#${pr.number}`;
+    try {
+      if (!ciByHead.has(pr.headSha)) {
+        ciByHead.set(
+          pr.headSha,
+          deps.github.getCiStatus(fullName, pr.headSha).then((status) => ciChecksOf(status)),
+        );
+      }
+      const checks = await ciByHead.get(pr.headSha)!;
+      const shown = pr.ciSha === pr.headSha ? pr.ciChecks : [];
+      if (sameChecks(shown, checks)) continue;
+      await deps.db.transaction(async (tx) => {
+        await storePrCi(tx, pr.id, { sha: pr.headSha, checks });
+        await recordTimelineEntry(tx, {
+          pullRequestId: pr.id,
+          actor: BOT,
+          kind: 'pr_reconciled',
+          params: { corrections: ['ci'], headSha: pr.headSha, state: pr.state },
+          sourceKey: `reconcile:${pr.id}:ci:${new Date().toISOString()}`,
+        });
+        await recordStateChange(tx, pr.id, {
+          code: 'reconciled',
+          params: { corrections: ['ci'] },
+        });
+      });
+      if (!result.corrected.includes(key)) result.corrected.push(key);
+    } catch (error) {
+      deps.logger.warn(
+        { err: error, repository: fullName, number: pr.number },
+        'reconcile: CI not read',
+      );
+      if (!result.failed.includes(key)) result.failed.push(key);
+    }
+  }
+}
+
+const checksKey = (checks: readonly CiCheck[]): string =>
+  JSON.stringify(
+    [...checks]
+      .map(({ name, conclusion }) => [name, conclusion])
+      .sort(([a], [b]) => String(a).localeCompare(String(b))),
+  );
+
+const sameChecks = (a: readonly CiCheck[], b: readonly CiCheck[]): boolean =>
+  checksKey(a) === checksKey(b);
 
 async function correctPullRequest(
   deps: WorkerDeps,
