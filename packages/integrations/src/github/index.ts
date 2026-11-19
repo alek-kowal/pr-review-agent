@@ -11,6 +11,7 @@ export {
   type CiCheck,
   type CiState,
   type CiStatus,
+  type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,
   type InstallationToken,

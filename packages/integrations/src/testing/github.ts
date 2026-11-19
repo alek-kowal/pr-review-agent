@@ -9,6 +9,7 @@ import {
   type CiCheck,
   type CiStatus,
   type GitHubGateway,
+  type GitHubCommit,
   type GitHubPullRequest,
   type InstallationToken,
   type RawPullRequest,
@@ -71,6 +72,8 @@ export class FakeGitHubGateway implements GitHubGateway {
   /** Default branch and visibility per repository, for `listAccessibleRepositories`. */
   readonly repositoryDetails = new Map<string, Partial<AccessibleRepository>>();
   readonly pullRequests = new Map<string, GitHubPullRequest>();
+  /** Commits by `owner/name@sha`; an unknown commit has one parent and no message. */
+  readonly commits = new Map<string, GitHubCommit>();
   /** CI checks by `owner/name@sha`; a commit without an entry has no checks. */
   readonly ci = new Map<string, CiCheck[]>();
   readonly #failures = new Map<Method, Error[]>();
@@ -85,6 +88,11 @@ export class FakeGitHubGateway implements GitHubGateway {
 
   addPullRequest(pr: GitHubPullRequest): this {
     this.pullRequests.set(`${pr.fullName}#${pr.number}`, pr);
+    return this;
+  }
+
+  addCommit(fullName: string, commit: GitHubCommit): this {
+    this.commits.set(`${fullName}@${commit.sha}`, commit);
     return this;
   }
 
@@ -141,6 +149,13 @@ export class FakeGitHubGateway implements GitHubGateway {
   async getCiStatus(fullName: string, sha: string): Promise<CiStatus> {
     this.#record('getCiStatus', [fullName, sha]);
     return ciStatusOf(this.ci.get(`${fullName}@${sha}`) ?? []);
+  }
+
+  async getCommit(fullName: string, sha: string): Promise<GitHubCommit> {
+    this.#record('getCommit', [fullName, sha]);
+    return (
+      this.commits.get(`${fullName}@${sha}`) ?? { sha, parents: ['0'.repeat(40)], message: '' }
+    );
   }
 
   /** Every repository in `installations`, with `repositoryDetails` over the defaults. */

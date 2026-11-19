@@ -58,6 +58,12 @@ export const pullRequests = pgTable(
     /** GitHub's dates, refreshed with every snapshot. */
     openedAt: timestamp('opened_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    /** First time the PR was ready for review (metrics 1 and 2); never moves after that. */
+    readyAt: timestamp('ready_at', { withTimezone: true }),
+    /** Set by the closed and merged events (S-19-T1); `merge_sha` is GitHub's merge commit. */
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    mergedAt: timestamp('merged_at', { withTimezone: true }),
+    mergeSha: text('merge_sha'),
   },
   (t) => [
     uniqueIndex('pull_requests_repository_number').on(t.repositoryId, t.number),

@@ -78,6 +78,13 @@
       "when": 1795067319685,
       "tag": "0010_finding_verifications",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795069500477,
+      "tag": "0011_metric_logs",
+      "breakpoints": true
     }
   ]
 }

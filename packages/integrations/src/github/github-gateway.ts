@@ -15,7 +15,11 @@ export interface GitHubGateway {
   getCiStatus(fullName: string, sha: string): Promise<CiStatus>;
   /** Every repository the App can reach, across all its installations, sorted by full name. */
   listAccessibleRepositories(): Promise<AccessibleRepository[]>;
+  /** One commit's parents and message (metric 5 tells "Update branch" merges apart). */
+  getCommit(fullName: string, sha: string): Promise<GitHubCommit>;
 }
+
+export type GitHubCommit = { sha: string; parents: string[]; message: string };
 
 /** A repository one of the App's installations can act on. */
 export type AccessibleRepository = {
@@ -102,6 +106,10 @@ export type GitHubPullRequest = {
   commitsCount: number;
   openedAt: string;
   updatedAt: string;
+  /** Set once closed; `mergedAt` and `mergeSha` only when merged. */
+  closedAt: string | null;
+  mergedAt: string | null;
+  mergeSha: string | null;
 };
 
 export const GITHUB_NOT_CONFIGURED = 'github_not_configured';
@@ -122,6 +130,8 @@ export type RawPullRequest = {
   draft?: boolean;
   merged?: boolean | null;
   merged_at?: string | null;
+  closed_at?: string | null;
+  merge_commit_sha?: string | null;
   commits?: number;
   created_at: string;
   updated_at: string;
@@ -152,6 +162,9 @@ export function toPullRequest(raw: RawPullRequest): GitHubPullRequest {
     commitsCount: raw.commits ?? 0,
     openedAt: raw.created_at,
     updatedAt: raw.updated_at,
+    closedAt: raw.closed_at ?? null,
+    mergedAt: merged ? (raw.merged_at ?? raw.closed_at ?? raw.updated_at) : null,
+    mergeSha: merged ? (raw.merge_commit_sha ?? null) : null,
   };
 }
 

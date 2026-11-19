@@ -19,3 +19,4 @@ export * from './glob.ts';
 export * from './task-id.ts';
 export * from './stepper.ts';
 export * from './time-summary.ts';
+export * from './metrics.ts';

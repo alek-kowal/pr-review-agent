@@ -107,6 +107,8 @@ export type StoreEventOptions = {
   pullRequest?: Record<string, unknown>;
   /** The head sha written into `pull_request.head.sha`. */
   headSha?: string;
+  /** Top-level payload fields merged in (for example a `synchronize`'s `before` and `sender`). */
+  payload?: Record<string, unknown>;
 };
 
 /**
@@ -130,6 +132,7 @@ export async function storeGithubEvent(
   }
   if (payload.repository) payload.repository.full_name = options.fullName;
   if (options.action) payload.action = options.action;
+  if (options.payload) Object.assign(payload, options.payload);
 
   const deliveryId = randomUUID();
   const blobKey = `github-events/${deliveryId}.json`;
