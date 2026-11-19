@@ -68,3 +68,26 @@ checks are the plan. One commit per task.
   14 files imported as version 1, a second run imported 0 and kept 14.
 - `AGENTS.md` (hot file H14) gains one command line for the seed: about 40 more tokens in every
   agent session.
+- T12 (extension point): `GET /api/prs/:repo/:number` is built from PR view sections
+  (`apps/api/src/pr-view/`). A section is `defineSection({ key, schema, build(ctx) })`, reads only,
+  and gets `{ db, repository, pullRequest }`; `PR_VIEW_SECTIONS` in `pr-view/index.ts` lists them
+  and the response schema is composed from them (one top-level key per section, duplicate keys
+  throw at start). P-04 registers `pullRequest` and `latestRound`; later packages add a file and
+  one line.
+- T12: "latest round" means the newest run of kind `round` (by `created_at`, then id), whatever
+  its status; the findings endpoint reads the newest *completed* round. Stages come from core
+  `stagesFor(level, full|fix_check)` overlaid with each stage's latest attempt, so a stage the
+  level turns off shows `off` with its `off_at_level` reason even if the worker wrote no row.
+  A failed round carries `error: { stage, code }` from its failed stage, which the web turns into
+  the "Round N failed at <stage>: <reason>" line.
+- T12: routes live in `apps/api/src/routes/api/{prs,repositories}/index.ts` (autoload prefixes
+  `/api/prs`, `/api/repositories`). Timestamps are ISO strings. `?repo=` with an unknown slug gives
+  404 `repository_not_found` (not an empty list), an unknown PR 404 `pr_not_found` with the
+  params, and a non-numeric number 400 `invalid_request`. `ApiErrorSchema` and `sendError` were
+  added to the errors plugin so 404s appear in the OpenAPI document.
+- T12: "reads never write" is proved twice: the api under test runs on a session with
+  `default_transaction_read_only=on` (so any write would fail the request; the test also checks
+  that the session refuses an update), and row counts of the file's own repositories are equal
+  before and after every GET (whole-table counts would race with other test files).
+- T12: the web cannot import `@pra/api`, so it keeps its own TypeScript types for these responses
+  (`apps/web/src/lib/api-types.ts`, T13); the Zod schemas in the api stay the source of truth.
