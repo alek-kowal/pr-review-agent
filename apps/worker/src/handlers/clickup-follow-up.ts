@@ -29,8 +29,7 @@ export const sendFollowUpJob = (
   queue: WorkerDeps['queue'],
   batchId: number,
   startAfter: number = FOLLOW_UP_DELAY_SECONDS,
-) =>
-  sendJob(queue, JOBS.clickupFollowUp, { batchId }, { singletonKey: `${batchId}`, startAfter });
+) => sendJob(queue, JOBS.clickupFollowUp, { batchId }, { singletonKey: `${batchId}`, startAfter });
 
 const RESEND_WITHIN_MS = 24 * 60 * 60_000;
 const RESEND_AFTER_MS = FOLLOW_UP_DELAY_SECONDS * 1000 + 60_000;

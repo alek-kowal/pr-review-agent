@@ -2,7 +2,12 @@ import { HAND, type Decision } from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db, Executor } from '../client.ts';
 import { findings } from '../schema/runs.ts';
-import { decisionBatches, findingDecisions, teamMembers, type FollowUpStatus } from '../schema/team.ts';
+import {
+  decisionBatches,
+  findingDecisions,
+  teamMembers,
+  type FollowUpStatus,
+} from '../schema/team.ts';
 import { recordStateChange, recordTimelineEntry } from './timeline.ts';
 
 export type DecisionBatch = typeof decisionBatches.$inferSelect;
@@ -65,7 +70,12 @@ export async function currentDecisions(
       ...decision,
       followUp:
         decision.decision === 'defer'
-          ? { status: followUpStatus, taskId: followUpTaskId, url: followUpUrl, error: followUpError }
+          ? {
+              status: followUpStatus,
+              taskId: followUpTaskId,
+              url: followUpUrl,
+              error: followUpError,
+            }
           : null,
     });
   }

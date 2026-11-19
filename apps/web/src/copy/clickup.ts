@@ -36,4 +36,16 @@ export const clickup = {
     confirm: 'Link task',
     saving: 'Checking the task…',
   },
+  /** The follow-up task of a finding deferred to ClickUp, under the open finding. */
+  followUp: {
+    deferred: 'Deferred to ClickUp',
+    open: (taskId: string) => `Open follow-up task ${taskId} in ClickUp`,
+    creating: 'creating the ClickUp task…',
+    failed: (why: string) => `no ClickUp task: ${why}`,
+    /** Why there is no follow-up task, by reason code; others use the API error copy. */
+    why: {
+      clickup_not_configured: 'ClickUp not configured for this repository',
+      follow_up_list_missing: 'no ClickUp list for follow-up tasks in the repository settings',
+    } as Record<string, string>,
+  },
 };

@@ -56,6 +56,7 @@ export const LIVE_TARGETS: Record<string, readonly QueryFamilyKey[]> = {
   agent_sessions: ['run', 'prView', 'activity', 'status'],
   findings: ['prFindings', 'prView', 'board'],
   decision_batches: ['prFindings', 'prView', 'board'],
+  finding_decisions: ['prFindings'],
   timeline_entries: ['prTimeline'],
   pr_state_changes: ['prView', 'prTimeline', 'board'],
 };

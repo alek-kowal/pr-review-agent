@@ -135,3 +135,27 @@ tasks' "Done when" checks are the plan. One commit per task, in the listed order
   already refreshes the PR view) and a hand link refreshes through its own request.
 - Also added the P-10 follow-up copy for `run_not_found`, `session_not_found` and
   `transcript_not_found`.
+
+### S-06-T5 (follow-up task for each deferred finding)
+
+- Migration `0011_decision_follow_ups` adds follow-up columns to `finding_decisions`
+  (`follow_up_status` creating/created/failed, task id, url, error as a reason code) and a
+  `pra_notify_change` trigger on status updates. No new table; the task's creation is also a
+  `follow_up_created` timeline entry by the bot.
+- One `clickup.follow-up` job per decision batch, keyed `<batchId>` (`singletonKey`), sent by
+  the decisions route on Defer with `startAfter` = `FOLLOW_UP_DELAY_SECONDS` (15 s, past the
+  10 s Undo toast), so an undone batch creates nothing.
+- Each finding is claimed under the batch row lock that Undo also takes: an undone batch stops
+  the job; a `creating` claim is never taken again (no duplicate task after a crash mid-call); a
+  `failed` one is retried.
+- The task goes to the linked task's list (`getTask(...).listId`), else the repository's
+  `followUpListId`; it is a plain task, not a subtask. Name: the finding's title; description:
+  where, scenario, suggestion and the PR link.
+- Failures are stored on the decision (`clickup_not_configured`, `follow_up_list_missing`, or
+  the gateway's code) and rethrown so pg-boss retries; `clickup_not_configured` is not retried.
+- If the API cannot send the job, it logs the failure and the decision stands; the worker's
+  recovery resends jobs for deferred decisions with no status after 75 s.
+- The decision payload carries `followUp` (`null` for other decisions). The web shows it as the
+  first `FINDING_ACTION_SLOTS` entry (`features/clickup/FollowUpLine.tsx`): "Deferred to ClickUp
+  · <task id link>", "· creating the ClickUp task…", or "· no ClickUp task: <why>".
+  `finding_decisions` changes refresh the findings (`LIVE_TARGETS`).

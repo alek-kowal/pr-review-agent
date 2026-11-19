@@ -167,6 +167,16 @@ export type DecisionView = {
   reason: string | null;
   signedBy: { id: string; name: string };
   decidedAt: string;
+  /** Defer to ClickUp only: the follow-up task, or why there is none (S-06-T5). */
+  followUp: FollowUpView | null;
+};
+
+export type FollowUpView = {
+  /** Null until the follow-up job ran. */
+  status: 'creating' | 'created' | 'failed' | null;
+  taskId: string | null;
+  url: string | null;
+  error: ReasonView | null;
 };
 
 export type FindingView = {

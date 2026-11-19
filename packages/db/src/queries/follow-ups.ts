@@ -66,7 +66,10 @@ export async function claimFollowUp(
         and(
           eq(findingDecisions.batchId, batchId),
           eq(findingDecisions.findingId, findingId),
-          or(isNull(findingDecisions.followUpStatus), eq(findingDecisions.followUpStatus, 'failed')),
+          or(
+            isNull(findingDecisions.followUpStatus),
+            eq(findingDecisions.followUpStatus, 'failed'),
+          ),
         ),
       )
       .returning({ findingId: findingDecisions.findingId });
@@ -125,9 +128,7 @@ export async function followUpsOf(
         inArray(findingDecisions.findingId, [...new Set(pairs.map((p) => p.findingId))]),
       ),
     );
-  return new Map(
-    rows.map(({ batchId, findingId, ...view }) => [`${batchId}:${findingId}`, view]),
-  );
+  return new Map(rows.map(({ batchId, findingId, ...view }) => [`${batchId}:${findingId}`, view]));
 }
 
 /**
