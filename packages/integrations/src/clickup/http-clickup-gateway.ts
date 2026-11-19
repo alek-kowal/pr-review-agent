@@ -105,11 +105,13 @@ export class HttpClickUpGateway implements ClickUpGateway {
     comment: { text: string; mentionUserId?: string | null },
   ): Promise<{ id: string }> {
     const s = required(settings);
+    // A leading "@Name:" stands for the mention: the tag takes its place.
+    const lead = /^@[^:\n]+(?=:)/.exec(comment.text)?.[0];
     const body = comment.mentionUserId
       ? {
           comment: [
             { type: 'tag', user: { id: Number(comment.mentionUserId) } },
-            { text: ` ${comment.text}` },
+            { text: lead ? comment.text.slice(lead.length) : ` ${comment.text}` },
           ],
           notify_all: false,
         }

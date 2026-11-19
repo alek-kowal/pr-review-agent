@@ -1,6 +1,8 @@
-import { HAND, type Decision } from '@pra/core';
+import { HAND, usuallyDecidedBy, type Decision, type UsualDecider } from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Db, Executor } from '../client.ts';
+import { pullRequests } from '../schema/repositories.ts';
 import { findings } from '../schema/runs.ts';
 import {
   decisionBatches,
@@ -25,6 +27,8 @@ export type CurrentDecision = {
   /** Kept after the signer leaves the team. */
   signerName: string;
   decidedAt: Date;
+  /** The PR author when it was decided (S-08-T5); null for decisions stored before that. */
+  author: UsualDecider | null;
   /** Defer to ClickUp: the follow-up task (S-06-T5); status null until its job ran. */
   followUp: {
     status: FollowUpStatus | null;
@@ -40,6 +44,7 @@ export async function currentDecisions(
   findingIds: readonly number[],
 ): Promise<Map<number, CurrentDecision>> {
   if (findingIds.length === 0) return new Map();
+  const authors = alias(teamMembers, 'authors');
   const rows = await db
     .select({
       findingId: findingDecisions.findingId,
@@ -49,6 +54,9 @@ export async function currentDecisions(
       signedBy: decisionBatches.signedBy,
       signerName: teamMembers.name,
       decidedAt: decisionBatches.createdAt,
+      authorLogin: decisionBatches.authorLogin,
+      authorMemberId: decisionBatches.authorMemberId,
+      authorName: authors.name,
       followUpStatus: findingDecisions.followUpStatus,
       followUpTaskId: findingDecisions.followUpTaskId,
       followUpUrl: findingDecisions.followUpUrl,
@@ -57,6 +65,7 @@ export async function currentDecisions(
     .from(findingDecisions)
     .innerJoin(decisionBatches, eq(decisionBatches.id, findingDecisions.batchId))
     .innerJoin(teamMembers, eq(teamMembers.id, decisionBatches.signedBy))
+    .leftJoin(authors, eq(authors.id, decisionBatches.authorMemberId))
     .where(
       and(inArray(findingDecisions.findingId, [...findingIds]), isNull(decisionBatches.undoneAt)),
     )
@@ -65,9 +74,22 @@ export async function currentDecisions(
   const current = new Map<number, CurrentDecision>();
   for (const row of rows) {
     if (current.has(row.findingId)) continue;
-    const { followUpStatus, followUpTaskId, followUpUrl, followUpError, ...decision } = row;
+    const {
+      followUpStatus,
+      followUpTaskId,
+      followUpUrl,
+      followUpError,
+      authorLogin,
+      authorMemberId,
+      authorName,
+      ...decision
+    } = row;
     current.set(row.findingId, {
       ...decision,
+      author:
+        authorLogin === null
+          ? null
+          : { login: authorLogin, memberId: authorMemberId, name: authorName },
       followUp:
         decision.decision === 'defer'
           ? {
@@ -80,6 +102,18 @@ export async function currentDecisions(
     });
   }
   return current;
+}
+
+/** Who usually decides the PR's findings (core `usuallyDecidedBy` over the active Team). */
+export async function prAuthor(db: Executor, pullRequestId: number): Promise<UsualDecider> {
+  // One after the other: inside a transaction both would share one connection.
+  const [pr] = await db
+    .select({ authorLogin: pullRequests.authorLogin })
+    .from(pullRequests)
+    .where(eq(pullRequests.id, pullRequestId));
+  if (!pr) throw new Error(`pull request ${pullRequestId} not found`);
+  const team = await db.select().from(teamMembers).where(isNull(teamMembers.removedAt));
+  return usuallyDecidedBy(pr, team);
 }
 
 export type DecideFindingsInput = {
@@ -150,6 +184,7 @@ export async function decideFindings(
       };
     }
 
+    const author = await prAuthor(tx, input.pullRequestId);
     const [batch] = await tx
       .insert(decisionBatches)
       .values({
@@ -157,6 +192,9 @@ export async function decideFindings(
         decision: input.decision,
         reason: input.reason ?? null,
         signedBy: input.signedBy,
+        // S-08-T5: the author as of now, so the label keeps naming who it was.
+        authorLogin: author.login,
+        authorMemberId: author.memberId,
       })
       .returning();
     const bumped = await bumpVersions(tx, ids);

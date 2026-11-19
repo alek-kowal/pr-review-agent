@@ -74,6 +74,18 @@ export const ApiErrorCode = {
   /** A trial of a version that is not a draft (`params.status`). */
   TrialNeedsDraft: 'trial_needs_draft',
   TrialNotFound: 'trial_not_found',
+  /** A question is not one of this PR's (S-08-T1). */
+  QuestionNotFound: 'question_not_found',
+  /** An answer names neither an option nor an own text, or both, or an option out of range. */
+  AnswerInvalid: 'answer_invalid',
+  /** Someone answered a question since the page loaded; `params.conflicts` names them. */
+  AnswerConflict: 'answer_conflict',
+  /** The review is not one of this PR's (S-08-T10). */
+  ReviewNotFound: 'review_not_found',
+  /** Notify author needs a ClickUp task linked to the PR. */
+  NoLinkedTask: 'no_linked_task',
+  /** The PR author has no ClickUp user in Team, so there is nobody to mention. */
+  AuthorHasNoClickupUser: 'author_has_no_clickup_user',
   /** `POST /api/status/pause` while PR Review Agent is already paused. */
   AlreadyPaused: 'already_paused',
   /** `POST /api/status/resume` while PR Review Agent is running. */

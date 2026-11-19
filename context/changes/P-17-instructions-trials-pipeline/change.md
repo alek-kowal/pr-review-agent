@@ -71,7 +71,7 @@ decide and record).
 - **Tests and global files.** Test files share one database, so a test that reads global
   instruction files filters to its own rows or uses its own `createTestDatabase()`.
 - **E2e trial PRs.** `instructions.spec.ts` edits the stack's global `review-rules.md`, which
-  every spec reads. The scripted reviewer reacts only for `TRIAL_PRS` (272–279) and only when the
+  every spec reads. The scripted reviewer reacts only for `TRIAL_PRS` (290–297) and only when the
   rules name that PR (`trialRule`): then the Nit gives way to one Worth fixing finding, so run B
   differs. A retry takes the next PR number and reads the draft's version number from the page.
 - **The Try dialog stops its submit.** It is portalled inside the editor's form, and React
@@ -87,6 +87,18 @@ decide and record).
   byte, and a further `db:generate` reports no change. `routeTree.gen.ts` was regenerated with
   `vite build` (same as the auto-merge). Error codes, copy, Settings registry (Budget page next to
   Instructions, Pipeline, Experiments) and the schema and query barrels keep both sides.
+- **Second merge of main (P-14 questions, signed reviews, notify author).** Main's
+  `0016_questions_and_reviews` (migration, snapshot, journal) stays untouched. This branch's
+  migrations moved up one number the same way as before: `0017_instruction_files`,
+  `0018_instruction_versions_by_file`, `0019_trials`, with the in-between schema for the first
+  generate and the hand-written data move and `activated_at` backfill added back. All three match
+  the old SQL byte for byte; a further `db:generate` reports no change. `routeTree.gen.ts`
+  regenerated with `vite build` equals the auto-merge. Error codes, error copy and the core, schema
+  and query barrels keep both sides.
+- **E2e PR numbers after P-14.** Main's `QUESTION_PRS` (270–279) covered this branch's
+  `TRIAL_PRS` (272–279), so a trial PR would have got questions. `TRIAL_PRS` moved to the free
+  290–297. In the scripted reviewer, `QUESTION_PRS` answer with questions first; every other PR
+  goes through `scriptedReview`, which reacts only in `TRIAL_PRS`.
 
 ## Verify
 

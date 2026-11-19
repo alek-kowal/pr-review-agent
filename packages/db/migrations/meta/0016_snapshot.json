@@ -1,5 +1,5 @@
 {
-  "id": "2b6950df-6119-48ff-9d65-92f40d66e925",
+  "id": "d54597c0-ad6e-4a98-b97a-6fa1e63de842",
   "prevId": "7d65c340-3c57-47f7-a6c2-a3b71fa34ae1",
   "version": "7",
   "dialect": "postgresql",
@@ -176,6 +176,146 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.instruction_versions": {
+      "name": "instruction_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "instruction_versions_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "repository_id": {
+          "name": "repository_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_key": {
+          "name": "file_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "instruction_versions_one_active": {
+          "name": "instruction_versions_one_active",
+          "columns": [
+            {
+              "expression": "scope",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "coalesce(\"repository_id\", 0)",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "file_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"instruction_versions\".\"status\" = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "instruction_versions_repository_id_repositories_id_fk": {
+          "name": "instruction_versions_repository_id_repositories_id_fk",
+          "tableFrom": "instruction_versions",
+          "tableTo": "repositories",
+          "columnsFrom": [
+            "repository_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "instruction_versions_file_version": {
+          "name": "instruction_versions_file_version",
+          "nullsNotDistinct": true,
+          "columns": [
+            "scope",
+            "repository_id",
+            "file_key",
+            "version"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "instruction_versions_scope_repository": {
+          "name": "instruction_versions_scope_repository",
+          "value": "(\"instruction_versions\".\"scope\" = 'global') = (\"instruction_versions\".\"repository_id\" is null)"
+        },
+        "instruction_versions_scope": {
+          "name": "instruction_versions_scope",
+          "value": "\"instruction_versions\".\"scope\" in ('global', 'repository')"
+        },
+        "instruction_versions_status": {
+          "name": "instruction_versions_status",
+          "value": "\"instruction_versions\".\"status\" in ('active', 'draft', 'archived')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.pull_requests": {
@@ -1732,6 +1872,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "author_login": {
+          "name": "author_login",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_member_id": {
+          "name": "author_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1789,6 +1941,19 @@
           "tableTo": "team_members",
           "columnsFrom": [
             "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "decision_batches_author_member_id_team_members_id_fk": {
+          "name": "decision_batches_author_member_id_team_members_id_fk",
+          "tableFrom": "decision_batches",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "author_member_id"
           ],
           "columnsTo": [
             "id"
@@ -2885,8 +3050,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.instruction_files": {
-      "name": "instruction_files",
+    "public.answers": {
+      "name": "answers",
       "schema": "",
       "columns": {
         "id": {
@@ -2896,7 +3061,7 @@
           "notNull": true,
           "identity": {
             "type": "always",
-            "name": "instruction_files_id_seq",
+            "name": "answers_id_seq",
             "schema": "public",
             "increment": "1",
             "startWith": "1",
@@ -2906,180 +3071,38 @@
             "cycle": false
           }
         },
-        "scope": {
-          "name": "scope",
-          "type": "text",
+        "question_id": {
+          "name": "question_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "repository_id": {
-          "name": "repository_id",
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "option": {
+          "name": "option",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "level": {
-          "name": "level",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "file_key": {
-          "name": "file_key",
+        "text": {
+          "name": "text",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "instruction_files_repository_id_repositories_id_fk": {
-          "name": "instruction_files_repository_id_repositories_id_fk",
-          "tableFrom": "instruction_files",
-          "tableTo": "repositories",
-          "columnsFrom": [
-            "repository_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "instruction_files_scope_key": {
-          "name": "instruction_files_scope_key",
-          "nullsNotDistinct": true,
-          "columns": [
-            "scope",
-            "repository_id",
-            "level",
-            "file_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "instruction_files_scope": {
-          "name": "instruction_files_scope",
-          "value": "\"instruction_files\".\"scope\" in ('global', 'repository', 'level')"
-        },
-        "instruction_files_scope_target": {
-          "name": "instruction_files_scope_target",
-          "value": "(\"instruction_files\".\"scope\" = 'repository') = (\"instruction_files\".\"repository_id\" is not null) and (\"instruction_files\".\"scope\" = 'level') = (\"instruction_files\".\"level\" is not null)"
-        },
-        "instruction_files_level": {
-          "name": "instruction_files_level",
-          "value": "\"instruction_files\".\"level\" is null or \"instruction_files\".\"level\" between 1 and 6"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.instruction_versions": {
-      "name": "instruction_versions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "instruction_versions_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "repository_id": {
-          "name": "repository_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "file_key": {
-          "name": "file_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_id": {
-          "name": "file_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'bot'"
-        },
-        "created_by_member_id": {
-          "name": "created_by_member_id",
+        "signed_by": {
+          "name": "signed_by",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "activated_by_member_id": {
-          "name": "activated_by_member_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "activated_at": {
-          "name": "activated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
+        "saved_at": {
+          "name": "saved_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -3087,120 +3110,32 @@
         }
       },
       "indexes": {
-        "instruction_versions_one_active": {
-          "name": "instruction_versions_one_active",
+        "answers_question": {
+          "name": "answers_question",
           "columns": [
             {
-              "expression": "file_id",
+              "expression": "question_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
-          "where": "\"instruction_versions\".\"status\" = 'active'",
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
-        }
-      },
-      "foreignKeys": {
-        "instruction_versions_repository_id_repositories_id_fk": {
-          "name": "instruction_versions_repository_id_repositories_id_fk",
-          "tableFrom": "instruction_versions",
-          "tableTo": "repositories",
-          "columnsFrom": [
-            "repository_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
         },
-        "instruction_versions_file_id_instruction_files_id_fk": {
-          "name": "instruction_versions_file_id_instruction_files_id_fk",
-          "tableFrom": "instruction_versions",
-          "tableTo": "instruction_files",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "instruction_versions_created_by_member_id_team_members_id_fk": {
-          "name": "instruction_versions_created_by_member_id_team_members_id_fk",
-          "tableFrom": "instruction_versions",
-          "tableTo": "team_members",
-          "columnsFrom": [
-            "created_by_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "instruction_versions_activated_by_member_id_team_members_id_fk": {
-          "name": "instruction_versions_activated_by_member_id_team_members_id_fk",
-          "tableFrom": "instruction_versions",
-          "tableTo": "team_members",
-          "columnsFrom": [
-            "activated_by_member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "instruction_versions_file_version": {
-          "name": "instruction_versions_file_version",
-          "nullsNotDistinct": false,
-          "columns": [
-            "file_id",
-            "version"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "instruction_versions_status": {
-          "name": "instruction_versions_status",
-          "value": "\"instruction_versions\".\"status\" in ('active', 'draft', 'archived')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.run_instruction_versions": {
-      "name": "run_instruction_versions",
-      "schema": "",
-      "columns": {
-        "run_id": {
-          "name": "run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version_id": {
-          "name": "version_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "run_instruction_versions_version": {
-          "name": "run_instruction_versions_version",
+        "answers_pull_request": {
+          "name": "answers_pull_request",
           "columns": [
             {
-              "expression": "version_id",
+              "expression": "pull_request_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3213,12 +3148,12 @@
         }
       },
       "foreignKeys": {
-        "run_instruction_versions_run_id_runs_id_fk": {
-          "name": "run_instruction_versions_run_id_runs_id_fk",
-          "tableFrom": "run_instruction_versions",
-          "tableTo": "runs",
+        "answers_question_id_questions_id_fk": {
+          "name": "answers_question_id_questions_id_fk",
+          "tableFrom": "answers",
+          "tableTo": "questions",
           "columnsFrom": [
-            "run_id"
+            "question_id"
           ],
           "columnsTo": [
             "id"
@@ -3226,29 +3161,349 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "run_instruction_versions_version_id_instruction_versions_id_fk": {
-          "name": "run_instruction_versions_version_id_instruction_versions_id_fk",
-          "tableFrom": "run_instruction_versions",
-          "tableTo": "instruction_versions",
+        "answers_pull_request_id_pull_requests_id_fk": {
+          "name": "answers_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "answers",
+          "tableTo": "pull_requests",
           "columnsFrom": [
-            "version_id"
+            "pull_request_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "answers_signed_by_team_members_id_fk": {
+          "name": "answers_signed_by_team_members_id_fk",
+          "tableFrom": "answers",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "run_instruction_versions_run_id_version_id_pk": {
-          "name": "run_instruction_versions_run_id_version_id_pk",
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.opinions": {
+      "name": "opinions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "opinions_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "finding_id": {
+          "name": "finding_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_by": {
+          "name": "signed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_id": {
+          "name": "review_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "from_round": {
+          "name": "from_round",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "carried_from_id": {
+          "name": "carried_from_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "opinions_finding_signer": {
+          "name": "opinions_finding_signer",
           "columns": [
-            "run_id",
-            "version_id"
-          ]
+            {
+              "expression": "finding_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "signed_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "opinions_pull_request": {
+          "name": "opinions_pull_request",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
+      "foreignKeys": {
+        "opinions_finding_id_findings_id_fk": {
+          "name": "opinions_finding_id_findings_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "findings",
+          "columnsFrom": [
+            "finding_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "opinions_pull_request_id_pull_requests_id_fk": {
+          "name": "opinions_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "opinions_signed_by_team_members_id_fk": {
+          "name": "opinions_signed_by_team_members_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "opinions_review_id_reviews_id_fk": {
+          "name": "opinions_review_id_reviews_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "reviews",
+          "columnsFrom": [
+            "review_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "opinions_carried_from_id_opinions_id_fk": {
+          "name": "opinions_carried_from_id_opinions_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "opinions",
+          "columnsFrom": [
+            "carried_from_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "opinions_value": {
+          "name": "opinions_value",
+          "value": "\"opinions\".\"value\" in ('worth', 'not_worth')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.reviews": {
+      "name": "reviews",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "reviews_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_by": {
+          "name": "signed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "worth": {
+          "name": "worth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "not_worth": {
+          "name": "not_worth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "notified_at": {
+          "name": "notified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notified_task_id": {
+          "name": "notified_task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "reviews_pull_request": {
+          "name": "reviews_pull_request",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reviews_pull_request_id_pull_requests_id_fk": {
+          "name": "reviews_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "reviews",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "reviews_signed_by_team_members_id_fk": {
+          "name": "reviews_signed_by_team_members_id_fk",
+          "tableFrom": "reviews",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

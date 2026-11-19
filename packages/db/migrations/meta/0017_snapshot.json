@@ -1,6 +1,6 @@
 {
-  "id": "b868d9fd-c957-4b8d-bc6f-152500d4fed4",
-  "prevId": "2b6950df-6119-48ff-9d65-92f40d66e925",
+  "id": "c8a2aa5b-0cc1-4b60-92f8-afd32ebd84aa",
+  "prevId": "d54597c0-ad6e-4a98-b97a-6fa1e63de842",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1732,6 +1732,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "author_login": {
+          "name": "author_login",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_member_id": {
+          "name": "author_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1789,6 +1801,19 @@
           "tableTo": "team_members",
           "columnsFrom": [
             "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "decision_batches_author_member_id_team_members_id_fk": {
+          "name": "decision_batches_author_member_id_team_members_id_fk",
+          "tableFrom": "decision_batches",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "author_member_id"
           ],
           "columnsTo": [
             "id"
@@ -3005,6 +3030,24 @@
             "cycle": false
           }
         },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "repository_id": {
+          "name": "repository_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_key": {
+          "name": "file_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "file_id": {
           "name": "file_id",
           "type": "integer",
@@ -3087,6 +3130,19 @@
         }
       },
       "foreignKeys": {
+        "instruction_versions_repository_id_repositories_id_fk": {
+          "name": "instruction_versions_repository_id_repositories_id_fk",
+          "tableFrom": "instruction_versions",
+          "tableTo": "repositories",
+          "columnsFrom": [
+            "repository_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "instruction_versions_file_id_instruction_files_id_fk": {
           "name": "instruction_versions_file_id_instruction_files_id_fk",
           "tableFrom": "instruction_versions",
@@ -3218,6 +3274,465 @@
           ]
         }
       },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.answers": {
+      "name": "answers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "answers_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "question_id": {
+          "name": "question_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "option": {
+          "name": "option",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_by": {
+          "name": "signed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "saved_at": {
+          "name": "saved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "answers_question": {
+          "name": "answers_question",
+          "columns": [
+            {
+              "expression": "question_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "answers_pull_request": {
+          "name": "answers_pull_request",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "answers_question_id_questions_id_fk": {
+          "name": "answers_question_id_questions_id_fk",
+          "tableFrom": "answers",
+          "tableTo": "questions",
+          "columnsFrom": [
+            "question_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "answers_pull_request_id_pull_requests_id_fk": {
+          "name": "answers_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "answers",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "answers_signed_by_team_members_id_fk": {
+          "name": "answers_signed_by_team_members_id_fk",
+          "tableFrom": "answers",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.opinions": {
+      "name": "opinions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "opinions_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "finding_id": {
+          "name": "finding_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_by": {
+          "name": "signed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_id": {
+          "name": "review_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "from_round": {
+          "name": "from_round",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "carried_from_id": {
+          "name": "carried_from_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "opinions_finding_signer": {
+          "name": "opinions_finding_signer",
+          "columns": [
+            {
+              "expression": "finding_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "signed_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "opinions_pull_request": {
+          "name": "opinions_pull_request",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "opinions_finding_id_findings_id_fk": {
+          "name": "opinions_finding_id_findings_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "findings",
+          "columnsFrom": [
+            "finding_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "opinions_pull_request_id_pull_requests_id_fk": {
+          "name": "opinions_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "opinions_signed_by_team_members_id_fk": {
+          "name": "opinions_signed_by_team_members_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "opinions_review_id_reviews_id_fk": {
+          "name": "opinions_review_id_reviews_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "reviews",
+          "columnsFrom": [
+            "review_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "opinions_carried_from_id_opinions_id_fk": {
+          "name": "opinions_carried_from_id_opinions_id_fk",
+          "tableFrom": "opinions",
+          "tableTo": "opinions",
+          "columnsFrom": [
+            "carried_from_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "opinions_value": {
+          "name": "opinions_value",
+          "value": "\"opinions\".\"value\" in ('worth', 'not_worth')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.reviews": {
+      "name": "reviews",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "reviews_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_by": {
+          "name": "signed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "worth": {
+          "name": "worth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "not_worth": {
+          "name": "not_worth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "notified_at": {
+          "name": "notified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notified_task_id": {
+          "name": "notified_task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "reviews_pull_request": {
+          "name": "reviews_pull_request",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reviews_pull_request_id_pull_requests_id_fk": {
+          "name": "reviews_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "reviews",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "reviews_signed_by_team_members_id_fk": {
+          "name": "reviews_signed_by_team_members_id_fk",
+          "tableFrom": "reviews",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "signed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

@@ -8,6 +8,12 @@ export const money = (usd: unknown): string => `$${n(usd).toFixed(2)}`;
 export const plural = (count: number, one: string, many = `${one}s`): string =>
   `${count} ${count === 1 ? one : many}`;
 
+/** A review's counts: "2 worth implementing, 1 not worth it" (either part left out at 0). */
+export const reviewCounts = (worth: number, notWorth: number): string =>
+  [worth > 0 && `${worth} worth implementing`, notWorth > 0 && `${notWorth} not worth it`]
+    .filter(Boolean)
+    .join(', ');
+
 /** A duration as `45 s`, `12 min`, `3 h 5 min` or `2 d 4 h`. */
 export function duration(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));

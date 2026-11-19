@@ -214,6 +214,10 @@ export type DecisionView = {
   reason: string | null;
   signedBy: { id: string; name: string };
   decidedAt: string;
+  /** The PR author when it was decided (S-08-T5). */
+  author: AuthorView;
+  /** The names its label shows; `author` is null when the author signed it. */
+  label: { signer: string; author: string | null };
   /** Defer to ClickUp only: the follow-up task, or why there is none (S-06-T5). */
   followUp: FollowUpView | null;
 };
@@ -251,6 +255,8 @@ export type FindingView = {
   /** Sent back with a decision; a decision made in between gives 409 `decision_conflict`. */
   version: number;
   decision: DecisionView | null;
+  /** Who usually decides it (the author); null when it needs no decision. */
+  usuallyDecidedBy: AuthorView | null;
   needsDecision: { needed: boolean; reason: ReasonView };
   /** The head SHA of the round that found it. */
   sourceSha: string;
@@ -258,6 +264,22 @@ export type FindingView = {
   commitsBehind: number;
   /** The newest fix check of a finding decided Implement; null before one ran. */
   fix: { resolved: boolean; reason: string; runId: number } | null;
+  /** Signed opinions, oldest first (FR-037); one per signer. */
+  opinions: OpinionView[];
+};
+
+export type OpinionValue = 'worth' | 'not_worth';
+
+export type OpinionView = {
+  id: number;
+  signedBy: { id: string; name: string };
+  value: OpinionValue;
+  comment: string | null;
+  /** The round it was given in; shown as "from round N" when carried. */
+  fromRound: number;
+  /** Copied from the matching finding of an earlier round (FR-043). */
+  carried: boolean;
+  at: string;
 };
 
 export type QuestionView = {
@@ -267,7 +289,21 @@ export type QuestionView = {
   options: string[];
   recommended: number | null;
   why: string | null;
+  /** The current answer; null while open. Its id goes back as `expectedAnswerId`. */
+  answer: AnswerView | null;
 };
+
+export type AnswerView = {
+  id: number;
+  /** The picked option; null for an own answer. */
+  option: number | null;
+  text: string;
+  signedBy: { id: string; name: string };
+  savedAt: string;
+};
+
+/** One question of a 409 `answer_conflict`, with the answer saved in the meantime. */
+export type AnswerConflict = { questionId: number; answer: AnswerView | null };
 
 export type FindingsResponse = {
   round: {
@@ -276,6 +312,8 @@ export type FindingsResponse = {
     level: { number: number; key: string };
     finishedAt: string | null;
   } | null;
+  /** The latest completed round, whose results this shows; a newer one waits behind a strip. */
+  resultsRound: { id: number; number: number | null } | null;
   findings: FindingView[];
   questions: QuestionView[];
   notChecked: string[];
@@ -303,6 +341,27 @@ export type DecisionResult = {
   findings: FindingsResponse;
 };
 export type DecideResponse = DecisionResult & { batchId: number };
+
+/** A signed review: the opinions one signer saved together (S-08-T4). */
+export type ReviewView = {
+  id: number;
+  signedBy: { id: string; name: string };
+  worth: number;
+  notWorth: number;
+  createdAt: string;
+};
+export type ReviewResponse = DecisionResult & { review: ReviewView };
+
+/** Notify author (S-08-T10): the ClickUp comment for a signed review, exactly as posted. */
+export type NotificationView = {
+  reviewId: number;
+  taskId: string;
+  author: string;
+  text: string;
+  /** When it was posted; null until then. */
+  notifiedAt: string | null;
+};
+export type NotificationResponse = { notification: NotificationView };
 
 /** One finding of a `decision_conflict` error: who decided it in the meantime. */
 export type DecisionConflict = {

@@ -171,6 +171,19 @@ describe('HttpClickUpGateway', () => {
       comment: [{ type: 'tag', user: { id: 42 } }, { text: ' Please look.' }],
       notify_all: false,
     });
+
+    // A leading "@Name:" becomes the mention.
+    await gateway().createComment(SETTINGS, 'WB-123', {
+      text: '@Kasia: Tomek marked 1 finding as not worth it in PR #272',
+      mentionUserId: '42',
+    });
+    expect(requests[2]!.body).toEqual({
+      comment: [
+        { type: 'tag', user: { id: 42 } },
+        { text: ': Tomek marked 1 finding as not worth it in PR #272' },
+      ],
+      notify_all: false,
+    });
   });
 
   test('createTask posts name, markdown description and parent to the list', async () => {
