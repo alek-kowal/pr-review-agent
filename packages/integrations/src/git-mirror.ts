@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, rm } from 'node:fs/promises';
+import { lstat, mkdir, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { execa } from 'execa';
 
@@ -23,9 +24,58 @@ export interface GitMirror {
    * included, ignored files not), each with its content at that commit (`null` when added).
    */
   worktreeChanges(worktree: string): Promise<WorktreeChange[]>;
+  /**
+   * Commits `files` on top of `baseSha` in a fresh worktree and pushes that commit to `branch`,
+   * never forced: when the branch is no longer `baseSha` (or a descendant git can fast-forward
+   * from), git refuses and the result is `head_moved` with the remote unchanged.
+   */
+  pushPatch(input: PushPatchInput): Promise<PushPatchResult>;
 }
 
 export type WorktreeChange = { path: string; base: string | null };
+
+/** A git author or committer. */
+export type GitIdentity = { name: string; email: string };
+
+export type PushPatchInput = {
+  /** `owner/name` of the repository the PR branch lives in. */
+  repo: string;
+  /** The PR branch, without `refs/heads/`. */
+  branch: string;
+  /** The commit the patch was made on; the new commit's only parent. */
+  baseSha: string;
+  /** The patch: each file's new content, or `null` to delete it. */
+  files: readonly { path: string; content: Uint8Array | string | null }[];
+  message: string;
+  /** The App's bot: author and committer of the commit. */
+  author: GitIdentity;
+  /** The person who signed the push, as a `Co-authored-by` trailer; none for autofix. */
+  coAuthor?: GitIdentity | null;
+  /**
+   * Author and committer date. The same patch always gives the same commit, so a retried push
+   * sends a commit the branch already has instead of a second one.
+   */
+  date: Date;
+  token?: string;
+};
+
+export type PushPatchResult = { ok: true; sha: string } | { ok: false; reason: 'head_moved' };
+
+/**
+ * The commit message of every pushed patch. It never names a finding, a decision or the app's
+ * address, because a public PR shows it to everyone (NFR Privacy).
+ */
+export const PUSH_COMMIT_MESSAGE = 'Apply fixes from pr-review-agent review';
+
+/** `Co-authored-by: Name <email>`, the trailer GitHub reads to credit the signer. */
+export function coAuthorTrailer(identity: GitIdentity): string {
+  return `Co-authored-by: ${identity.name} <${identity.email}>`;
+}
+
+/** GitHub's private commit address of an account: `<id>+<login>@users.noreply.github.com`. */
+export function noreplyEmail(id: number, login: string): string {
+  return `${id}+${login}@users.noreply.github.com`;
+}
 
 export type ChangedFileStatus = 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'changed';
 
@@ -69,6 +119,8 @@ const NAME_SEGMENT = /^[A-Za-z0-9_.-]+$/;
 const RUN_ID = /^[A-Za-z0-9_-]+$/;
 /** Full object ids only (SHA-1 or SHA-256): git may read a short one as a branch or tag name. */
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
+/** A branch name git accepts, without a leading `-`, `+` or `:` that argv could misread. */
+const BRANCH = /^[A-Za-z0-9_.][A-Za-z0-9_./-]*$/;
 
 const STATUS: Record<string, ChangedFileStatus> = {
   A: 'added',
@@ -197,6 +249,62 @@ export class CliGitMirror implements GitMirror {
     return changes;
   }
 
+  async pushPatch(input: PushPatchInput): Promise<PushPatchResult> {
+    assertSha(input.baseSha);
+    if (!BRANCH.test(input.branch) || input.branch.includes('..')) {
+      throw new TypeError(`Not a branch name: ${JSON.stringify(input.branch)}`);
+    }
+    const mirror = this.mirrorDir(input.repo);
+    const dir = this.worktreeDir(`push-${randomUUID()}`);
+    return this.#locked(input.repo, async () => {
+      await mkdir(path.dirname(dir), { recursive: true });
+      await this.#git(mirror, ['worktree', 'add', '--detach', dir, input.baseSha]);
+      try {
+        for (const file of input.files) await writeWorktreeFile(dir, file.path, file.content);
+        await this.#git(dir, ['add', '--all']);
+        const when = `${Math.floor(input.date.getTime() / 1000)} +0000`;
+        const identity = {
+          GIT_AUTHOR_NAME: input.author.name,
+          GIT_AUTHOR_EMAIL: input.author.email,
+          GIT_AUTHOR_DATE: when,
+          GIT_COMMITTER_NAME: input.author.name,
+          GIT_COMMITTER_EMAIL: input.author.email,
+          GIT_COMMITTER_DATE: when,
+        };
+        const message = ['-m', input.message];
+        if (input.coAuthor) message.push('-m', coAuthorTrailer(input.coAuthor));
+        await this.#git(
+          dir,
+          ['commit', '--no-verify', '--no-gpg-sign', '--cleanup=verbatim', ...message],
+          undefined,
+          identity,
+        );
+        const sha = (await this.#git(dir, ['rev-parse', 'HEAD'])).trim();
+        // To the URL, never to `origin`: the mirror's remote has `mirror = true`, which would add
+        // git's mirror and force flags. No `--force`, no `--force-with-lease`, no `+` refspec.
+        try {
+          await this.#git(
+            mirror,
+            [
+              'push',
+              '--porcelain',
+              '--no-verify',
+              this.#remoteUrl(input.repo),
+              `${sha}:refs/heads/${input.branch}`,
+            ],
+            input.token,
+          );
+        } catch (error) {
+          if (isRejectedPush(error)) return { ok: false, reason: 'head_moved' };
+          throw error;
+        }
+        return { ok: true, sha };
+      } finally {
+        await this.#removeWorktree(input.repo, dir);
+      }
+    });
+  }
+
   /** Clones the mirror if it is missing; returns whether it cloned. */
   async #ensureMirror(fullName: string, token?: string): Promise<boolean> {
     const dir = this.mirrorDir(fullName);
@@ -225,10 +333,15 @@ export class CliGitMirror implements GitMirror {
     if (existsSync(mirror)) await this.#git(mirror, ['worktree', 'prune']);
   }
 
-  async #git(gitDir: string | undefined, args: string[], token?: string): Promise<string> {
+  async #git(
+    gitDir: string | undefined,
+    args: string[],
+    token?: string,
+    env: Record<string, string> = {},
+  ): Promise<string> {
     const fullArgs = gitDir ? ['-C', gitDir, ...args] : args;
     const { stdout } = await this.#exec('git', fullArgs, {
-      env: gitAuthEnv(token),
+      env: { ...gitAuthEnv(token), ...env },
       timeout: this.#timeoutMs,
     });
     return stdout;
@@ -249,6 +362,44 @@ export class CliGitMirror implements GitMirror {
 
 function assertSha(sha: string): void {
   if (!SHA.test(sha)) throw new TypeError(`Not a commit sha: ${JSON.stringify(sha)}`);
+}
+
+/**
+ * Writes or deletes one patch file, refusing a path that leaves the worktree. The worktree holds
+ * the PR's code, so a folder on the way may be a symbolic link out of it: the write refuses to
+ * pass through one, and a link at the file itself is replaced, never followed.
+ */
+async function writeWorktreeFile(
+  worktree: string,
+  file: string,
+  content: Uint8Array | string | null,
+): Promise<void> {
+  const target = path.resolve(worktree, file);
+  if (path.isAbsolute(file) || !target.startsWith(worktree + path.sep)) {
+    throw new TypeError(`Not a path inside the repository: ${JSON.stringify(file)}`);
+  }
+  const folders = path.relative(worktree, path.dirname(target)).split(path.sep).filter(Boolean);
+  let dir = worktree;
+  for (const folder of folders) {
+    dir = path.join(dir, folder);
+    const stat = await lstat(dir).catch(() => null);
+    if (!stat) break;
+    if (!stat.isDirectory()) {
+      throw new TypeError(`Not a path inside the repository: ${JSON.stringify(file)}`);
+    }
+  }
+  // rm on a link removes the link only.
+  await rm(target, { force: true });
+  if (content === null) return;
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, content, { flag: 'wx' });
+}
+
+/** Git refused the update (non-fast-forward or fetch first): the branch moved. */
+function isRejectedPush(error: unknown): boolean {
+  const output = error as { stdout?: unknown; stderr?: unknown };
+  const text = `${String(output.stdout ?? '')}\n${String(output.stderr ?? '')}`;
+  return /\[rejected\]|\(non-fast-forward\)|\(fetch first\)/.test(text);
 }
 
 /** Joins `--name-status -z` and `--numstat -z` output; both list files in the same order. */

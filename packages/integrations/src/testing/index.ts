@@ -1,6 +1,7 @@
 export { blobStoreContract } from './blob-store-contract.ts';
 export { FakeClickUpGateway, type ClickUpCall } from './clickup.ts';
 export {
+  FAKE_BOT,
   FakeGitHubGateway,
   fixturePullRequest,
   GITHUB_FIXTURES,

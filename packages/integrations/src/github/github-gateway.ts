@@ -39,7 +39,13 @@ export interface GitHubGateway {
    * GitHub's status and message; any other failure throws.
    */
   squashMerge(merge: SquashMerge): Promise<MergeResult>;
+  /** A GitHub account by login, for a signer's `Co-authored-by` address; null when unknown. */
+  getUser(login: string): Promise<GitHubUser | null>;
+  /** The App's bot account (`<slug>[bot]`) as the author of the commits it pushes. */
+  getBotIdentity(): Promise<{ name: string; email: string }>;
 }
+
+export type GitHubUser = { id: number; login: string };
 
 export type PullRequestFreshState = {
   headSha: string;
