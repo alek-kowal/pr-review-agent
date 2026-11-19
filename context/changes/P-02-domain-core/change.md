@@ -72,3 +72,11 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
 - `freezeLevel` returns a deep-frozen JSON copy (origins included, so Run detail can show them).
 - Fix-check rounds plan `checks`, `fix_diff`, `check_fixes`, `reproductions` (prototype
   `stepsFor('fixcheck')`); only Checks can be off (below level 2).
+- T7: `roundStartForEvent` takes a GitHub `pull_request` action and checks, in order: closed,
+  `synchronize` (`push_never_starts`), draft (also `converted_to_draft`), other actions
+  (`event_ignored`), fork, an active round or implementer run (`run_active`; trials and the
+  analyst do not block). Only `opened` (not draft) and `ready_for_review` start round 1.
+  `reopened` starts nothing. `chainState` takes runs in start order; a retried run is one record
+  that keeps its round number. A round 1 is `newChain` when any earlier round exists.
+- Reason codes share one namespace, so codes are unique across families: the round rules own
+  `draft`, `fork`, `pr_closed`; the PR state banners and autofix holds use their own codes.
