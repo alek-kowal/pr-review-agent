@@ -130,7 +130,8 @@ test('a SIGKILL during Review leaves nothing running after the restart', async (
       });
       expect((await getRun(db, waiting.id))?.status).not.toBe('queued');
     },
-    { timeout: 10_000, interval: 200 },
+    // A child worker starts slowly under `pnpm verify`'s parallel load.
+    { timeout: 30_000, interval: 200 },
   );
 
   expect(await getRun(db, blocked.id)).toMatchObject({
@@ -144,7 +145,7 @@ test('a SIGKILL during Review leaves nothing running after the restart', async (
   expect(session?.status).not.toBe('running');
   // The round queued before the kill runs to its end; no row is left running.
   await vi.waitFor(async () => expect((await getRun(db, waiting.id))?.status).toBe('completed'), {
-    timeout: 10_000,
+    timeout: 20_000,
     interval: 200,
   });
   const stillRunning = await db

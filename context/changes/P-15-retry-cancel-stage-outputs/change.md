@@ -1,7 +1,7 @@
 ---
 change_id: P-15
 title: Retry, cancel and stage outputs (S-09-T1–T7, S-03-T14, S-04-T6, S-04-T7)
-status: planned
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -104,7 +104,12 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   `{checks}` and writes `change_type_forced` (`{from, to}`, by hand) only when the value changes.
   Outputs render in Run detail through `STAGE_OUTPUTS` (the stepper has no output view).
 - **Load timeouts in `pnpm verify`.** Testing Library's `asyncUtilTimeout` is 4 s in the web test
-  setup, and `reads-never-write` gets 30 s: they failed only under verify's parallel load.
+  setup, and `reads-never-write` gets 30 s: they failed only under verify's parallel load. For the
+  same reason `durability.test.ts` waits 30 s for the restarted child worker and 20 s for the
+  queued round to finish (it passed alone and failed once under verify after merging main).
+- **Merge with main (P-19).** Main's `0014_pr_checks` is kept; ours is regenerated as
+  `0015_retry_cancel` (the same statements as the old 0014 and 0015). The PR page's main actions
+  hold retry, cancel and P-19's merge side by side.
 - **Retry is keyed by run id** (`POST /api/runs/:id/retry`, 201 `{run: {id, fromStage}}`); the
   banner retries `view.latestRound.id`, which is the failed round while the state is Stage failed.
   The stage a retry starts from is stored (`runs.retry_from`) rather than re-derived, so the PR

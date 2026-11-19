@@ -141,7 +141,8 @@ async function verifierAnswer(cwd: string) {
  * with the code its script ends with (see `reproduction`).
  */
 const sandbox = new FakeSandbox(async (spec) => {
-  if (spec.command[0] === 'sh') return { exitCode: 0, output: 'installed', outputTail: 'installed' };
+  if (spec.command[0] === 'sh')
+    return { exitCode: 0, output: 'installed', outputTail: 'installed' };
   const [mount] = spec.mounts;
   const script = spec.command[1];
   if (!mount || !script) return { exitCode: 1, output: 'no script' };

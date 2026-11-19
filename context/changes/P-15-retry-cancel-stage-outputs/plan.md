@@ -194,4 +194,4 @@ the durability test uses a child process. API tests use `apps/api/test/helper.ts
 ### Phase 10: End-to-end Checks and change type
 
 - [x] 10.1 `pnpm test:e2e checks-change-type.spec.ts` passes
-- [ ] 10.2 `git merge main`, then `pnpm verify` and `pnpm test:e2e` pass
+- [x] 10.2 `git merge main`, then `pnpm verify` and `pnpm test:e2e` pass
