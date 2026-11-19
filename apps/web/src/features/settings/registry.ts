@@ -3,12 +3,15 @@
 // its route file `routes/settings.<id>.tsx` and one entry to `settingsPages`.
 import {
   Cpu,
+  FileText,
+  FlaskConical,
   FolderGit2,
   Gauge,
   Layers,
   Plug,
   ScrollText,
   Users,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -41,6 +44,9 @@ export const settingsPages: readonly SettingsPageEntry[] = [
   { id: 'integrations', to: '/settings/integrations', icon: Plug },
   { id: 'repositories', to: '/settings/repositories', icon: FolderGit2 },
   { id: 'review-levels', to: '/settings/review-levels', icon: Layers },
+  { id: 'instructions', to: '/settings/instructions', icon: FileText },
+  { id: 'pipeline', to: '/settings/pipeline', icon: Workflow },
+  { id: 'experiments', to: '/settings/experiments', icon: FlaskConical },
   { id: 'audit', to: '/settings/audit', icon: ScrollText },
 ];
 

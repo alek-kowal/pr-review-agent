@@ -33,6 +33,10 @@ tech stack); design notes in `docs/`; the static UI prototype in `prototype/`.
   file (shape: `packages/db/src/testing/fixtures/workflowbuilder.json`) and imports its
   instruction files as version 1. It is for bootstrapping a database; connect repositories in
   Settings (below).
+- `pnpm instructions:import --from <dir> [--map <file>]` creates version 1 of each instruction
+  file from a copy of the old knowledge folder (default map:
+  `packages/db/src/testing/fixtures/instructions-import.json`). Safe to run again; it never
+  writes to `<dir>`.
 - `pnpm --filter @pra/worker dev`; api and worker read the root `.env`.
 
 ## Connect a repository

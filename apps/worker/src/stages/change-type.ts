@@ -11,8 +11,8 @@ import {
   type ChangeType,
   type Reason,
 } from '@pra/core';
-import { activeInstructions, readRepositoryConfig, succeededStageOutput, type Db } from '@pra/db';
-import { effectiveInstructions } from './review/prompt.ts';
+import { readRepositoryConfig, succeededStageOutput, type Db } from '@pra/db';
+import { stageInstructions } from './instructions.ts';
 import type { SessionRecord, StageContext, StageExecutor, StageResult } from './stage.ts';
 import { taskOfRun, taskText } from './task.ts';
 import { runWorktree } from './worktree.ts';
@@ -72,7 +72,7 @@ async function runChangeType(context: StageContext): Promise<StageResult> {
   } else if (floor.changeType === 'one_way_door') {
     judgeSkipped = { code: 'floor_is_highest', params: {} };
   } else {
-    const instructions = effectiveInstructions(await activeInstructions(deps.db, repository.id));
+    const instructions = await stageInstructions({ deps, run, repository });
     const prompt = instructions.get(JUDGE_PROMPT_FILE)?.trim();
     const rules = instructions.get(JUDGE_RULES_FILE)?.trim();
     if (!prompt || !rules) {

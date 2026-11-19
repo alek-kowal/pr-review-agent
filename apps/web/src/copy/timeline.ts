@@ -1,4 +1,5 @@
 // Copy for the PR Timeline tab: the time summary and one sentence per entry kind.
+import { checks } from './checks.ts';
 import { shortSha } from './nextStep.ts';
 import { money, plural, reviewCounts } from './format.ts';
 
@@ -36,6 +37,24 @@ const DECISIONS: Record<string, string> = {
   defer: 'defer to ClickUp',
 };
 
+/** What the reconcile poll corrected (S-03-T14), as the sentence names it. */
+const CORRECTIONS: Record<string, (p: Params) => string> = {
+  head: (p) => (p.headSha ? `head ${shortSha(p.headSha)}` : 'head'),
+  draft: () => 'draft',
+  ready: () => 'ready for review',
+  closed: () => 'closed',
+  merged: () => 'merged',
+  reopened: () => 'reopened',
+  ci: () => 'CI',
+};
+
+function reconciled(p: Params): string {
+  const corrections = Array.isArray(p.corrections) ? p.corrections.map(String) : [];
+  if (corrections.includes('imported')) return 'Imported from GitHub';
+  const parts = corrections.map((c) => CORRECTIONS[c]?.(p) ?? c.replaceAll('_', ' '));
+  return parts.length ? `Corrected from GitHub: ${parts.join(', ')}` : 'Corrected from GitHub';
+}
+
 /** Helpers an entry sentence may need: stage and failure names. */
 export interface TimelineContext {
   stage: (key: string) => string;
@@ -67,6 +86,11 @@ export const timeline = {
   entries: {
     pr_ready: () => 'PR marked ready for review',
     pr_pushed: (p) => (p.headSha ? `Pushed ${shortSha(p.headSha)}` : 'Pushed new commits'),
+    pr_reconciled: reconciled,
+    change_type_forced: (p) =>
+      p.to
+        ? `Change type forced to ${checks.changeType(String(p.to))}`
+        : 'Change type back to automatic',
     pr_closed: () => 'PR closed',
     pr_merged: (p) =>
       p.via === 'app' && p.sha ? `Squash-merged at ${shortSha(p.sha)}` : 'PR merged',
@@ -78,7 +102,10 @@ export const timeline = {
       p.stage
         ? `${runShort(p)} failed at ${c.stage(String(p.stage))}: ${c.reason(String(p.errorCode ?? 'stage_error'))}`
         : `${runShort(p)} failed`,
-    run_cancelled: (p) => `${runShort(p)} cancelled`,
+    run_cancelled: (p) =>
+      p.reason === 'pr_closed' ? 'Run cancelled: PR closed' : `${runShort(p)} cancelled`,
+    run_retried: (p, c) =>
+      p.stage ? `Retry from ${c.stage(String(p.stage))} started` : `${runShort(p)} retried`,
     github_comment_posted: (p) => `GitHub comment posted: "${String(p.body ?? '')}"`,
     findings_decided: (p) =>
       `Decided ${plural(n(p.count), 'finding')}: ${DECISIONS[String(p.decision)] ?? String(p.decision)}${

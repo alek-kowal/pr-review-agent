@@ -10,7 +10,8 @@ import {
   type FrozenLevel,
 } from '@pra/core';
 import { fixStatuses } from '@pra/agents';
-import { activeInstructions, fixTargetsOfRun, readRepositoryConfig } from '@pra/db';
+import { fixTargetsOfRun, readRepositoryConfig } from '@pra/db';
+import { stageInstructions } from '../instructions.ts';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { changeTypeOfRun, changeTypeWhy } from '../change-type.ts';
@@ -26,7 +27,6 @@ import type {
 import { runWorktree } from '../worktree.ts';
 import { buildBrief, documentsFor, touchedWorkspaces } from './brief.ts';
 import {
-  effectiveInstructions,
   materialiseInstructions,
   removeTree,
   renderReviewerPrompt,
@@ -80,7 +80,7 @@ async function runReview(context: StageContext): Promise<StageResult> {
   await mkdir(sessionDir, { recursive: true });
   await writeFile(path.join(sessionDir, 'brief.md'), brief);
   await writeFile(path.join(sessionDir, 'diff.patch'), diff.patch);
-  const instructions = effectiveInstructions(await activeInstructions(deps.db, repository.id));
+  const instructions = await stageInstructions(context);
   await materialiseInstructions(knowledgeDir, instructions);
 
   const prompt = renderReviewerPrompt(instructions.get(REVIEWER_PROMPT_FILE), {

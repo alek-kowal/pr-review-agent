@@ -2,6 +2,7 @@ import './reasons/run.ts';
 import { stagesFor, type FixCheckStageKey } from './levels.ts';
 import type { RoundKind, RunStatus } from './model.ts';
 import { reason, type Reason } from './reason.ts';
+import { TRIAL_OFF_STAGES } from './trial.ts';
 import type { LevelNumber, RunKind, StageKey } from './vocabulary.ts';
 
 export const IMPLEMENTER_STAGE_KEYS = ['worktree', 'implement', 'reproductions'] as const;
@@ -15,7 +16,13 @@ export type RunStageKey =
 export type StageStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'off' | 'reused';
 
 /** Error codes the machine itself sets; stages fail with any code (for example `timeout`). */
-export const STAGE_ERROR = { interrupted: 'interrupted', cancelled: 'cancelled' } as const;
+export const STAGE_ERROR = {
+  /** No handler runs the stage any more (its handler threw after the start). */
+  interrupted: 'interrupted',
+  /** The worker stopped while the stage ran; found at the next worker start (S-09-T6). */
+  interruptedByRestart: 'interrupted_by_restart',
+  cancelled: 'cancelled',
+} as const;
 
 export interface StageState {
   key: RunStageKey;
@@ -61,7 +68,12 @@ export interface PlanRunInput {
 export function planRun({ kind, level, roundKind, roundNumber = null }: PlanRunInput): RunState {
   const isRound = kind === 'round' || kind === 'trial';
   const stages = isRound
-    ? stagesFor(level, roundKind ?? 'full').map((s) => stage(s.key, s.off, s.reason))
+    ? stagesFor(level, roundKind ?? 'full').map((s) =>
+        // A trial skips the stages that call GitHub or ClickUp (S-22-T6).
+        kind === 'trial' && !s.off && (TRIAL_OFF_STAGES as readonly string[]).includes(s.key)
+          ? stage(s.key, true, reason('off_in_trial', { stage: s.key }))
+          : stage(s.key, s.off, s.reason),
+      )
     : (kind === 'implementer' ? IMPLEMENTER_STAGE_KEYS : ANALYST_STAGE_KEYS).map((k) => stage(k));
   return {
     kind,
@@ -175,12 +187,15 @@ export function retryFromStage(run: RunState): Transition {
  * After a restart nothing stays running forever: a running stage fails with `interrupted` (so it
  * can be retried), and queued runs stay queued.
  */
-export function recoverAfterRestart(run: RunState): RunState {
+export function recoverAfterRestart(
+  run: RunState,
+  code: string = STAGE_ERROR.interrupted,
+): RunState {
   const interrupted = run.stages.find((s) => s.status === 'running');
   if (run.status !== 'running' || !interrupted) return run;
   return {
-    ...withStage(run, interrupted.key, { status: 'failed', errorCode: STAGE_ERROR.interrupted }),
+    ...withStage(run, interrupted.key, { status: 'failed', errorCode: code }),
     status: 'failed',
-    error: { stage: interrupted.key, code: STAGE_ERROR.interrupted },
+    error: { stage: interrupted.key, code },
   };
 }

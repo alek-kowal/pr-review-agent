@@ -37,12 +37,33 @@ type Logger = { info: (data: Record<string, unknown>, message: string) => void }
 
 export type RunStartDeps = { db: Db; queue: Queue; logger?: Logger };
 
+/** A stage job expires after the run's stage timeout plus this margin (the backstop, S-09-T6). */
+const STAGE_JOB_EXPIRY_MARGIN_SECONDS = 10 * 60;
+
+/** Seconds a stage job of this run may stay active before pg-boss expires it. */
+export const stageJobExpirySeconds = (run: Pick<Run, 'level'>): number =>
+  run.level.settings.stageTimeoutMinutes * 60 + STAGE_JOB_EXPIRY_MARGIN_SECONDS;
+
 /**
  * Queues one stage of one run. The `run.stage` queue is `exclusive` on the key, so a second send
- * while the first job is queued or active is dropped.
+ * while the first job is queued or active is dropped. Pass the run to expire the job at its stage
+ * timeout (the queue default is the longest timeout allowed).
  */
-export function sendStageJob(queue: Queue, runId: number, stage: string): Promise<string | null> {
-  return sendJob(queue, JOBS.runStage, { runId, stage }, { singletonKey: `${runId}:${stage}` });
+export function sendStageJob(
+  queue: Queue,
+  runId: number,
+  stage: string,
+  run?: Pick<Run, 'level'>,
+): Promise<string | null> {
+  return sendJob(
+    queue,
+    JOBS.runStage,
+    { runId, stage },
+    {
+      singletonKey: `${runId}:${stage}`,
+      ...(run ? { expireInSeconds: stageJobExpirySeconds(run) } : {}),
+    },
+  );
 }
 
 export type CreateRunInput = {
@@ -105,7 +126,7 @@ export async function createRun(
   const firstStage = (
     input.plan.stages.find((s) => s.status === 'pending') ?? input.plan.stages[0]!
   ).key;
-  await sendStageJob(deps.queue, run.id, firstStage);
+  await sendStageJob(deps.queue, run.id, firstStage, run);
   deps.logger?.info(
     { runId: run.id, pullRequestId: pullRequest.id, kind: run.kind, stage: firstStage },
     'run queued',

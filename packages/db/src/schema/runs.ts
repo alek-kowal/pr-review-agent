@@ -50,6 +50,10 @@ export const STAGE_STATUSES = [
   'reused',
 ] as const satisfies readonly StageStatus[];
 
+/** Why a run was cancelled (S-09): by hand from the app, or because its PR closed. */
+export const CANCEL_REASONS = ['by_hand', 'pr_closed'] as const;
+export type CancelReason = (typeof CANCEL_REASONS)[number];
+
 export const COST_SOURCES = ['reported', 'computed'] as const;
 export type CostSource = (typeof COST_SOURCES)[number];
 
@@ -62,12 +66,16 @@ const inList = (column: AnyPgColumn, values: readonly string[]): SQL =>
     sql`, `,
   )})`;
 
-/** One active instruction file version, as a run recorded it. */
+/** One instruction file version, as a run recorded it (`run_instruction_versions` holds the ids). */
 export type RunInstructionVersion = {
   id: number;
-  scope: 'global' | 'repository';
+  scope: 'global' | 'repository' | 'level';
   fileKey: string;
   version: number;
+  /** The level of a level copy. */
+  level?: number | null;
+  /** The file, for a link to its editor. */
+  fileId?: number;
 };
 
 /** One run on a PR: a review round, an implementer run, a trial or the analyst. */
@@ -117,6 +125,18 @@ export const runs = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /** The failed run this run retries (S-09-T1): same chain, round, level and head. */
+    retryOf: integer('retry_of').references((): AnyPgColumn => runs.id),
+    /** The stage a retry starts from (the failed run's failed stage). */
+    retryFrom: text('retry_from'),
+    /**
+     * A cancel was asked for (S-09-T3); the run stays queued or running until the worker has
+     * stopped its work and set `cancelled`. Who asked and why stay for the timeline.
+     */
+    cancelRequestedAt: timestamp('cancel_requested_at', { withTimezone: true }),
+    cancelledBy: text('cancelled_by', { enum: ACTOR_KINDS }),
+    cancelledByMemberId: text('cancelled_by_member_id'),
+    cancelReason: text('cancel_reason', { enum: CANCEL_REASONS }),
   },
   (t) => [
     uniqueIndex('runs_one_active_per_pr')
@@ -128,6 +148,8 @@ export const runs = pgTable(
     check('runs_kind', inList(t.kind, RUN_KINDS)),
     check('runs_status', inList(t.status, RUN_STATUSES)),
     check('runs_started_by', inList(t.startedBy, ACTOR_KINDS)),
+    check('runs_cancelled_by', inList(t.cancelledBy, ACTOR_KINDS)),
+    check('runs_cancel_reason', inList(t.cancelReason, CANCEL_REASONS)),
     check(
       'runs_started_by_member',
       sql`(${t.startedBy} = 'member') = (${t.startedByMemberId} is not null)`,
@@ -151,6 +173,10 @@ export const stageExecutions = pgTable(
     output: jsonb().$type<unknown>(),
     errorCode: text('error_code'),
     errorDetail: text('error_detail'),
+    /** A retry's copy of a stage the failed run finished (`reused`), and where it came from. */
+    reusedFromStageId: integer('reused_from_stage_id').references(
+      (): AnyPgColumn => stageExecutions.id,
+    ),
   },
   (t) => [
     unique('stage_executions_run_stage_attempt').on(t.runId, t.stage, t.attempt),

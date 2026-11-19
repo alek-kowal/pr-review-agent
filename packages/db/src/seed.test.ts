@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { RepositoryConfigSchema } from '@pra/core';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import {
+  activeInstructions,
   closeDb,
   createDb,
   eq,
@@ -56,7 +57,14 @@ describe('the workflowbuilder seed', () => {
     const first = await run();
     const second = await run();
 
-    expect(first.stdout).toContain('11 imported as version 1');
+    // Test files share a database: the instructions import test may create the global reviewer
+    // prompt first, so the first run counts 11 files in all, not 11 imported.
+    const [firstImported, firstKept] = (
+      first.stdout.match(/(\d+) imported as version 1, (\d+) already/) ?? []
+    )
+      .slice(1)
+      .map(Number);
+    expect(firstImported! + firstKept!).toBe(11);
     expect(second.stdout).toContain('0 imported as version 1, 11 already had version 1');
     const rows = await db
       .select()
@@ -73,9 +81,9 @@ describe('the workflowbuilder seed', () => {
     });
     expect(config.sensitivePatterns).toHaveLength(8);
 
-    const versions = await db.select().from(schema.instructionVersions);
+    const versions = await activeInstructions(db, rows[0]!.id);
     const imported = versions
-      .filter((v) => v.scope === 'global' || v.repositoryId === rows[0]!.id)
+      .filter((v) => v.scope !== 'level')
       // Other test files add global versions under `test-only/`.
       .filter((v) => !v.fileKey.startsWith('test-only/'))
       .map((v) => [v.scope, v.fileKey, v.version, v.status])

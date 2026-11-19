@@ -56,9 +56,12 @@ import {
   CLICKUP_REPOSITORY,
   CLICKUP_TASKS,
   commentsFile,
+  FAIL_ONCE_PRS,
   FAILING_PR_FROM,
+  FIXTURE_CI,
   GLOBAL_LEVEL_REPOSITORY,
   HELD_PRS,
+  LARGE_PR_REPOSITORY,
   HELD_TURN_COST_USD,
   LEVEL_TWO_REPOSITORY,
   MERGE_REFUSAL,
@@ -70,6 +73,9 @@ import {
   SECOND_REPOSITORY,
   SENSITIVE_REPOSITORY,
   STATE_FILE,
+  TRIAL_PRS,
+  TRIAL_RULE_FINDING,
+  trialRule,
   VERIFIED_REPOSITORY,
   type StackState,
 } from './env.ts';
@@ -187,8 +193,13 @@ async function verifierAnswer(cwd: string) {
   };
 }
 
-/** Exits with the code the reproduction script ends with (see `reproduction`). */
+/**
+ * A Checks install step (`sh -c ...`, checks-change-type.spec.ts) succeeds; a reproduction exits
+ * with the code its script ends with (see `reproduction`).
+ */
 const sandbox = new FakeSandbox(async (spec) => {
+  if (spec.command[0] === 'sh')
+    return { exitCode: 0, output: 'installed', outputTail: 'installed' };
   const [mount] = spec.mounts;
   const script = spec.command[1];
   if (!mount || !script) return { exitCode: 1, output: 'no script' };
@@ -198,10 +209,34 @@ const sandbox = new FakeSandbox(async (spec) => {
   return { exitCode, output, outputTail: output };
 });
 
-/** Waits until `file` exists, at most `ms` (a held reviewer never blocks the stack for good). */
-async function waitForFile(file: string, ms: number): Promise<void> {
+/**
+ * The scripted review of PR `number`. In `TRIAL_PRS`, when the `review-rules.md` the reviewer
+ * reads holds `trialRule(number)`, the Nit gives way to `TRIAL_RULE_FINDING` (instructions.spec.ts).
+ */
+async function scriptedReview(number: number, readDirs: readonly string[] = []) {
+  if (number < TRIAL_PRS.from || number > TRIAL_PRS.to) return SCRIPTED_REVIEW;
+  for (const dir of readDirs) {
+    const rules = await readFile(path.join(dir, 'review-rules.md'), 'utf8').catch(() => '');
+    if (rules.includes(trialRule(number))) {
+      return {
+        ...SCRIPTED_REVIEW,
+        findings: [
+          ...SCRIPTED_REVIEW.findings.filter((f) => f.severity !== 'nit'),
+          TRIAL_RULE_FINDING,
+        ],
+      };
+    }
+  }
+  return SCRIPTED_REVIEW;
+}
+
+/**
+ * Waits until `file` exists, at most `ms` (a held reviewer never blocks the stack for good), or
+ * until the session is aborted (a cancel).
+ */
+async function waitForFile(file: string, ms: number, signal?: AbortSignal): Promise<void> {
   const until = Date.now() + ms;
-  while (Date.now() < until) {
+  while (Date.now() < until && !signal?.aborted) {
     if (
       await access(file).then(
         () => true,
@@ -218,9 +253,10 @@ const FIX_NOT_RESOLVED_AT = 1;
 
 /**
  * Answers per session kind. A full review keeps its brief (`briefFile`) and reads the PR number
- * from it: from `FAILING_PR_FROM`, invalid; in `HELD_PRS`, one reported turn, then the review once
- * the spec releases it; in `QUESTION_PRS`, questions until the brief has the team's answers;
- * while `hold-<number>` exists in `holdDir` it waits. A fix check (no brief,
+ * from it: from `FAILING_PR_FROM`, invalid; in `FAIL_ONCE_PRS`, invalid the first time only; in
+ * `HELD_PRS`, one reported turn, then the review once the spec releases it or cancels the run; in
+ * `QUESTION_PRS`, questions until the brief has the team's answers; while `hold-<number>` exists
+ * in `holdDir` it waits. A fix check (no brief,
  * `findings.json`) resolves every finding, except at `fixShas[FIX_NOT_RESOLVED_AT]`, where the
  * first stays unresolved. The verifier answers per finding title.
  */
@@ -228,6 +264,7 @@ class ScriptedAgents implements AgentRunner {
   readonly #holdDir: string;
   readonly #fixShas: readonly string[];
   readonly #callLog: string;
+  readonly #failedOnce = new Set<number>();
   /** Full reviews per PR number so far. */
   readonly #reviews = new Map<number, number>();
 
@@ -254,17 +291,26 @@ class ScriptedAgents implements AgentRunner {
     const k = (this.#reviews.get(number) ?? 0) + 1;
     this.#reviews.set(number, k);
     await writeFile(briefFile(this.#holdDir, number, k), brief);
-    if (number >= HELD_PRS.from && number <= HELD_PRS.to) {
+    const held = number >= HELD_PRS.from && number <= HELD_PRS.to;
+    if (held) {
       input.onProgress?.({ turns: 1, costUsd: HELD_TURN_COST_USD, usage: NO_USAGE });
-      await waitForFile(releaseFile(number), 120_000);
+      await waitForFile(releaseFile(number), 120_000, input.signal);
     }
     await this.#whileHeld(number, input.signal);
+    // A cancelled session ends with what it spent so far, as the real adapter does.
+    if (input.signal?.aborted) {
+      const spent = held ? { costUsd: HELD_TURN_COST_USD, turns: 1 } : { turns: 0 };
+      return new FakeAgentRunner([{ fail: 'cancelled', ...spent }]).run(input);
+    }
+    const failOnce =
+      number >= FAIL_ONCE_PRS.from && number <= FAIL_ONCE_PRS.to && !this.#failedOnce.has(number);
+    if (failOnce) this.#failedOnce.add(number);
     const output =
       number >= QUESTION_PRS.from && number <= QUESTION_PRS.to
         ? questionsReview(brief.includes(TEAM_ANSWERS_TITLE))
-        : SCRIPTED_REVIEW;
+        : await scriptedReview(number, input.readDirs);
     const step =
-      number >= FAILING_PR_FROM
+      number >= FAILING_PR_FROM || failOnce
         ? { output: { summary: 'not a review' }, costUsd: 0.04 }
         : { output, costUsd: 0.31, turns: 6 };
     return new FakeAgentRunner([step]).run(input);
@@ -361,6 +407,7 @@ const github = new StackGitHub(db, {
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
     [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
     [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
+    [LARGE_PR_REPOSITORY.fullName]: LARGE_PR_REPOSITORY.installationId,
     [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
     [GLOBAL_LEVEL_REPOSITORY.fullName]: GLOBAL_LEVEL_REPOSITORY.installationId,
     [CLICKUP_REPOSITORY.fullName]: CLICKUP_REPOSITORY.installationId,
@@ -413,9 +460,24 @@ await upsertRepository(
     slug: LEVEL_TWO_REPOSITORY.slug,
     githubFullName: LEVEL_TWO_REPOSITORY.fullName,
     defaultLevel: 2,
+    fetchCommand: 'pnpm fetch',
+    installCommand: 'pnpm install --offline',
   },
   { installationId: LEVEL_TWO_REPOSITORY.installationId },
 );
+await upsertRepository(
+  db,
+  {
+    slug: LARGE_PR_REPOSITORY.slug,
+    githubFullName: LARGE_PR_REPOSITORY.fullName,
+    defaultLevel: 2,
+    largePrLines: 1,
+  },
+  { installationId: LARGE_PR_REPOSITORY.installationId },
+);
+for (const fullName of [LEVEL_TWO_REPOSITORY.fullName, LARGE_PR_REPOSITORY.fullName]) {
+  github.setCiChecks(fullName, fixture.headSha, [...FIXTURE_CI]);
+}
 await upsertRepository(
   db,
   {

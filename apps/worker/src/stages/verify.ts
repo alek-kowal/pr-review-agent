@@ -20,20 +20,14 @@ import {
   type Verdict,
   type VerifierCheck,
 } from '@pra/core';
-import {
-  activeInstructions,
-  findingsOfRun,
-  saveVerifications,
-  type FindingRow,
-  type VerificationWrite,
-} from '@pra/db';
+import { findingsOfRun, saveVerifications, type FindingRow, type VerificationWrite } from '@pra/db';
 import { DEFAULT_SANDBOX_IMAGE, type SandboxLimits, type SandboxResult } from '@pra/integrations';
 import { randomUUID } from 'node:crypto';
 import { constants, readFileSync, realpathSync } from 'node:fs';
 import { open, rm } from 'node:fs/promises';
 import * as path from 'node:path';
 import { changeTypeOfRun } from './change-type.ts';
-import { effectiveInstructions } from './review/prompt.ts';
+import { stageInstructions } from './instructions.ts';
 import type {
   SessionRecord,
   StageContext,
@@ -103,7 +97,7 @@ export const verifyStage: StageExecutor = {
 async function runVerify(context: StageContext): Promise<StageResult> {
   const { deps, run, pullRequest, repository, level, signal } = context;
 
-  const instructions = effectiveInstructions(await activeInstructions(deps.db, repository.id));
+  const instructions = await stageInstructions(context);
   const prompt = instructions.get(VERIFIER_PROMPT_FILE)?.trim();
   const rules = instructions.get(VERIFIER_RULES_FILE)?.trim();
   if (!prompt || !rules) {

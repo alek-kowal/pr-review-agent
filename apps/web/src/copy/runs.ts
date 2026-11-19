@@ -39,6 +39,19 @@ export const runs = {
     completed: (at: string, usd: number) => `finished ${at} · ${money(usd)}`,
   },
   roundLabelFallback: (number: number | null) => (number === null ? 'Round' : `Round ${number}`),
+  /** Cancel, the banner's main action while a run is queued or running, and in Activity (S-09-T4). */
+  cancel: {
+    action: 'Cancel',
+    rowLabel: (run: string) => `Cancel ${run}`,
+    hint: 'Stops the run now. What it spent so far stays recorded, and the round is not counted.',
+    requested: 'Cancelling: the agent stops in a moment',
+  },
+  /** The Stage failed banner's main action (S-09-T2). */
+  retry: {
+    action: (stage: string) => `Retry from ${stage}`,
+    hint: 'Earlier stages are reused. The failed attempt is not counted.',
+    started: (stage: string) => `Retry from ${stage} started`,
+  },
   outputs: {
     risk: 'Risk',
     reported: 'Reported',
@@ -87,6 +100,14 @@ export const runs = {
       done: (usd: number) => money(usd),
     },
     failedAt: (stage: string, why: string) => `Failed at ${stage}: ${why}.`,
+    /** S-09-T2: a retry links the failed run it repeats, and the failed run links its retry. */
+    retryOf: (stage: string) => `Retry from ${stage} of`,
+    failedRun: (id: number) => `failed run #${id}`,
+    failedRunCost: (usd: number) => `${money(usd)} spent up to the failure`,
+    retriedBy: 'Retried in',
+    retryRun: (id: number) => `run #${id}`,
+    reused: 'reused from the failed round',
+    stageReused: 'Reused from the failed round: this stage did not run again.',
     tabsLabel: 'Run sections',
     tabs: { stages: 'Stages', transcript: 'Agent transcript' },
     stageCode: 'code',
@@ -114,8 +135,12 @@ export const runs = {
     instructionVersions: 'Instruction versions',
     instructionVersionsHint: 'Frozen when the round starts.',
     noInstructionVersions: 'No instruction files were recorded for this run.',
-    instructionVersion: (scope: string, version: number) =>
-      scope === 'global' ? `v${version}` : `${scope} · v${version}`,
+    instructionVersion: (scope: string, version: number, level?: number | null) =>
+      scope === 'global'
+        ? `v${version}`
+        : scope === 'level'
+          ? `level ${level} copy · v${version}`
+          : `${scope} · v${version}`,
     notChecked: 'Not checked',
     models: 'Models',
     modelsHint: 'Frozen when the run was created.',

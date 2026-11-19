@@ -111,7 +111,8 @@ async function checksums(): Promise<Record<string, string>> {
   return sums;
 }
 
-test('no GET route changes any table', async () => {
+// It calls every GET route in turn; under `pnpm verify`'s load that outlasts the default 5 s.
+test('no GET route changes any table', { timeout: 30_000 }, async () => {
   const params = await seed();
   const routes: RouteOptions[] = [];
   const server = Fastify({ logger: false });
@@ -169,5 +170,4 @@ test('no GET route changes any table', async () => {
   expect(answered['/api/prs/:repo/:number/timeline']).toBe(200);
   expect(answered['/api/settings/levels/:n']).toBe(200);
   expect(await checksums()).toEqual(before);
-  // Every GET route of the app and two checksums of every table: well over the default 5 s.
-}, 30_000);
+});

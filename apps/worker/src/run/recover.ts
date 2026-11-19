@@ -2,8 +2,9 @@
 // `interrupted`. At start and then every few minutes, jobs a lost send left missing are sent
 // again: the next stage of queued or running runs (the `run.stage` queue drops a duplicate while
 // one is queued or active) and stored GitHub events nobody processed (fixed job id per delivery).
-import { nextStage } from '@pra/core';
+import { nextStage, STAGE_ERROR } from '@pra/core';
 import {
+  cancelRequested,
   getRunContext,
   githubEventJobId,
   JOBS,
@@ -16,6 +17,7 @@ import {
 } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { resendLostFollowUps } from '../handlers/clickup-follow-up.ts';
+import { finishCancel, finishRequestedCancels } from './cancel.ts';
 import { afterTransition } from './execute-stage.ts';
 import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
@@ -32,12 +34,21 @@ export type RecoveryResult = ResendResult & { interrupted: number[] };
 export async function recoverRuns(deps: WorkerDeps): Promise<RecoveryResult> {
   const { db, logger } = deps;
   const interrupted: number[] = [];
+  // A run with a cancel request is cancelled, not interrupted (nothing of ours runs yet).
+  const cancelled = await finishRequestedCancels(deps);
+  if (cancelled.length) logger.info({ cancelled }, 'requested cancels finished after start');
 
   for (const candidate of await runsWithStatus(db, ['running'])) {
     const state = await db.transaction(async (tx) => {
       const run = await lockRun(tx, candidate.id);
       if (!run || run.status !== 'running') return null;
-      return interruptRunningStage(tx, run, await stageExecutionsOfRun(tx, run.id));
+      // One worker process: at its start no stage of ours is live (S-09-T6).
+      return interruptRunningStage(
+        tx,
+        run,
+        await stageExecutionsOfRun(tx, run.id),
+        STAGE_ERROR.interruptedByRestart,
+      );
     });
     if (!state) continue;
     interrupted.push(candidate.id);
@@ -67,7 +78,7 @@ export async function sendPendingStageJob(
       ? (state.stages.find((s) => s.status === 'pending')?.key ?? null)
       : nextStage(state);
   if (!next) return false;
-  await sendStageJob(deps.queue, run.id, next);
+  await sendStageJob(deps.queue, run.id, next, run);
   return true;
 }
 
@@ -80,6 +91,11 @@ export async function resendLostJobs(
   const result: ResendResult = { resent: [], events: [], followUps: [] };
 
   for (const run of await runsWithStatus(db, ['queued', 'running'])) {
+    // A cancel the listener missed is finished here instead (S-09-T3 backstop).
+    if (cancelRequested(run)) {
+      await finishCancel(deps, run.id);
+      continue;
+    }
     if (await sendPendingStageJob(deps, run)) result.resent.push(run.id);
   }
 

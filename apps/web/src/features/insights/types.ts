@@ -72,7 +72,7 @@ export type QualityResponse = {
   versions: ({
     instruction: {
       id: number;
-      scope: 'global' | 'repository';
+      scope: 'global' | 'repository' | 'level';
       repository: string | null;
       fileKey: string;
       version: number;

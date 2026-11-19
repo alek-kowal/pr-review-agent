@@ -139,4 +139,15 @@ describe('PR Timeline tab', () => {
       entries.sensitive_sent_back!({ count: 1, files: ['a'], comment: 'Split it' }, context),
     ).toBe('Sent back 1 sensitive file: "Split it"');
   });
+
+  it('reconcile poll entries name what GitHub corrected', () => {
+    const { entries } = copy.timeline;
+    const context = { stage: String, reason: String };
+    expect(entries.pr_reconciled!({ corrections: ['imported'] }, context)).toBe(
+      'Imported from GitHub',
+    );
+    expect(
+      entries.pr_reconciled!({ corrections: ['head', 'closed'], headSha: 'b'.repeat(40) }, context),
+    ).toBe('Corrected from GitHub: head bbbbbbb, closed');
+  });
 });

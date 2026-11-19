@@ -14,6 +14,44 @@ import { StageList } from './StageList.tsx';
 import { RUN_TABS, type RunTab } from './tabs.ts';
 import { TranscriptTab } from './TranscriptTab.tsx';
 
+/**
+ * S-09-T2: a retry links the failed run it repeats, with what that run spent up to the failure;
+ * a failed run links the retry that repeated it.
+ */
+function RetryLinks({ detail }: { detail: RunDetail }) {
+  const d = copy.runs.detail;
+  const { retryOf, retryFrom, retriedBy } = detail.run;
+  return (
+    <>
+      {retryOf && (
+        <p data-testid="run-retry-of" className="text-[13px] text-text-2">
+          {d.retryOf(stageName(retryFrom ?? ''))}{' '}
+          <Link
+            to="/runs/$runId"
+            params={{ runId: String(retryOf.id) }}
+            className="text-brand-text"
+          >
+            {d.failedRun(retryOf.id)}
+          </Link>{' '}
+          · <span className="tabular-nums">{d.failedRunCost(retryOf.costUsd)}</span>
+        </p>
+      )}
+      {retriedBy && (
+        <p data-testid="run-retried-by" className="text-[13px] text-text-2">
+          {d.retriedBy}{' '}
+          <Link
+            to="/runs/$runId"
+            params={{ runId: String(retriedBy.id) }}
+            className="text-brand-text"
+          >
+            {d.retryRun(retriedBy.id)}
+          </Link>
+        </p>
+      )}
+    </>
+  );
+}
+
 function totalCost(detail: RunDetail): string {
   const { status } = detail.run;
   if (status === 'queued' || status === 'running') {
@@ -101,6 +139,7 @@ export function RunPage({
             {copy.runs.detail.failedAt(stageName(run.error.stage), reasonText(run.error.code))}
           </p>
         )}
+        <RetryLinks detail={detail} />
       </header>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -140,7 +179,7 @@ export function RunPage({
                   <li key={v.id} className="flex justify-between gap-2 px-3.5 py-2 text-sm">
                     <span className="font-mono text-[13px]">{v.fileKey}</span>
                     <span className="text-xs text-text-3">
-                      {copy.runs.detail.instructionVersion(v.scope, v.version)}
+                      {copy.runs.detail.instructionVersion(v.scope, v.version, v.level)}
                     </span>
                   </li>
                 ))}

@@ -23,6 +23,7 @@ import {
   type GitHubPullRequest,
   type InstallationToken,
   type MergeResult,
+  type OpenPullRequestSummary,
   type PullRequestFreshState,
   type PullRequestReview,
   type RawPullRequest,
@@ -101,6 +102,30 @@ export class OctokitGitHubGateway implements GitHubGateway {
         pull_number: number,
       });
       return toPullRequest(data as RawPullRequest);
+    });
+  }
+
+  async listOpenPullRequests(fullName: string): Promise<OpenPullRequestSummary[]> {
+    return this.#withInstallation(fullName, async (octokit) => {
+      const open: OpenPullRequestSummary[] = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls', {
+          ...splitFullName(fullName),
+          state: 'open',
+          per_page: PER_PAGE,
+          page,
+        });
+        for (const pr of data) {
+          open.push({
+            number: pr.number,
+            headSha: pr.head.sha,
+            isDraft: pr.draft === true,
+            updatedAt: pr.updated_at,
+          });
+        }
+        if (data.length < PER_PAGE) break;
+      }
+      return open;
     });
   }
 
@@ -330,6 +355,9 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     return this.#fail();
   }
   getPullRequest(): Promise<GitHubPullRequest> {
+    return this.#fail();
+  }
+  listOpenPullRequests(): Promise<OpenPullRequestSummary[]> {
     return this.#fail();
   }
   postIssueComment(): Promise<{ id: number }> {

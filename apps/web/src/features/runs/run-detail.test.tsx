@@ -42,6 +42,9 @@ const FAILED_RUN: RunDetail = {
       { role: 'reviewer', model: 'claude-opus-5-5', source: 'level', level: 2 },
       { role: 'verifier', model: 'claude-haiku-5-5', source: 'settings', level: null },
     ],
+    retryOf: null,
+    retryFrom: null,
+    retriedBy: null,
   },
   pullRequest: { repository: { slug: 'wb' }, number: 12, title: 'Add node grouping' },
   label: {
@@ -67,6 +70,7 @@ const FAILED_RUN: RunDetail = {
       finishedAt: at(2),
       output: { summary: 'checks done' },
       sessions: [],
+      reused: false,
     },
     {
       key: 'task',
@@ -90,6 +94,7 @@ const FAILED_RUN: RunDetail = {
         },
       },
       sessions: [session({ id: 1, costUsd: 0.1 })],
+      reused: false,
     },
     {
       key: 'review',
@@ -113,6 +118,7 @@ const FAILED_RUN: RunDetail = {
           hasTranscript: true,
         }),
       ],
+      reused: false,
     },
     {
       key: 'verify',
@@ -125,6 +131,7 @@ const FAILED_RUN: RunDetail = {
       finishedAt: null,
       output: null,
       sessions: [],
+      reused: false,
     },
   ],
   totalCostUsd: 0.4,

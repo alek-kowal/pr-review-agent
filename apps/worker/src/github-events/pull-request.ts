@@ -105,7 +105,8 @@ export async function handlePullRequestEvent({
   return outcome;
 }
 
-function toSnapshotRow(repositoryId: number, pr: GitHubPullRequest): PullRequestSnapshot {
+/** GitHub's PR as the stored snapshot row (the webhook and the reconcile poll alike). */
+export function toSnapshotRow(repositoryId: number, pr: GitHubPullRequest): PullRequestSnapshot {
   return {
     repositoryId,
     number: pr.number,

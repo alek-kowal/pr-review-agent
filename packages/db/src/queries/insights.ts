@@ -4,7 +4,8 @@ import type { Decision, LevelNumber, PrHistory, RunKind, Verdict } from '@pra/co
 import { and, asc, eq, gte, inArray, sql, type SQL } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { headChanges } from '../schema/metrics.ts';
-import { instructionVersions, pullRequests, repositories } from '../schema/repositories.ts';
+import { instructionFiles, instructionVersions } from '../schema/instructions.ts';
+import { pullRequests, repositories } from '../schema/repositories.ts';
 import {
   agentSessions,
   findings,
@@ -258,7 +259,7 @@ export async function qualityInputs(
 
 export type InstructionVersionLabel = {
   id: number;
-  scope: 'global' | 'repository';
+  scope: 'global' | 'repository' | 'level';
   fileKey: string;
   version: number;
   status: string;
@@ -274,14 +275,15 @@ export function instructionVersionLabels(
   return db
     .select({
       id: instructionVersions.id,
-      scope: instructionVersions.scope,
-      fileKey: instructionVersions.fileKey,
+      scope: instructionFiles.scope,
+      fileKey: instructionFiles.fileKey,
       version: instructionVersions.version,
       status: instructionVersions.status,
       repositorySlug: repositories.slug,
     })
     .from(instructionVersions)
-    .leftJoin(repositories, eq(repositories.id, instructionVersions.repositoryId))
+    .innerJoin(instructionFiles, eq(instructionFiles.id, instructionVersions.fileId))
+    .leftJoin(repositories, eq(repositories.id, instructionFiles.repositoryId))
     .where(inArray(instructionVersions.id, [...ids]));
 }
 

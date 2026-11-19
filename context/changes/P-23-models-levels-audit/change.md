@@ -186,3 +186,31 @@ Work package P-23 from `context/foundation/work-packages.md`, wave 8. Plan: no; 
 - `routeTree.gen.ts` merged without a conflict; `vite build` regenerates it unchanged.
 - No main code picks a model or level from live settings, so the per-run snapshot (S-21-T2)
   needs no change.
+
+### Merge of main (P-15, P-17: retry and cancel, instructions, trials, pipeline)
+
+- Migrations: main brought `0017_instruction_files` to `0020_retry_cancel`. Main's files, snapshots
+  and journal are kept; this package's migration is regenerated on top as
+  `0021_level_model_settings`. The generated SQL matches the old `0017_level_model_settings` line
+  for line; with the hand-written default rows copied back, the file is identical to the old one.
+- Barrels (`schema/index.ts`, `queries/index.ts`), `copy/index.ts`, the Settings registry,
+  `api-types.ts`, the run detail schema (`models` plus `retryOf`, `retryFrom`, `retriedBy`) and
+  `e2e/a11y-routes.ts` keep both sides. `e2e/support/stack.ts` keeps the agent call log and main's
+  fail-once set. `routeTree.gen.ts` is regenerated with `vite build` (both sides' routes).
+- Stages read main's frozen instruction set (`stageInstructions`) and this package's frozen models
+  (`runModel`); neither reads `getAppSettings` any more. `runExecutor` checks a cancelled run
+  first, then an invalid snapshot model, both before any spend.
+- A retry copies the failed run's `models` snapshot as it copies its frozen `level`; without it the
+  retry would run the default models.
+- Trials (`startTrial`) use `prLevel` with the global default level, like a round.
+- `GET /api/pipeline` reads Settings → Models (`model_settings`) and the level overrides
+  (`level_settings`), the sources `createRun` snapshots, instead of `app_settings.models`. Its test
+  writes model rows; every role has a row from migration 0021, so the source is `settings`, not
+  `default`. A new test checks that a level's own model and timeout win.
+- `packages/db/seeds/instructions-import.json` (main) moved to
+  `packages/db/src/testing/fixtures/` (it names one repository; S-20-T5 retired `seeds/`). The
+  `instructions:import` default map points there; AGENTS.md lists both commands.
+- Two main comments that named the repository (`core/instructions.ts`,
+  `seed/instructions-import.ts`) now say "another repository", for the repo-agnostic lint.
+- `reads-never-write.test.ts`: both sides raised the timeout; main's `{ timeout: 30_000 }` stays.
+- Web tests from main that build a `RunDetail` get `models: []`.

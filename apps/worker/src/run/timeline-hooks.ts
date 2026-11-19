@@ -3,6 +3,7 @@
 // each writer then logs the PR's state when it changed.
 import { BOT, HAND, type Actor } from '@pra/core';
 import {
+  cancelActor,
   getGithubEvent,
   recordStateChange,
   recordTimelineEntry,
@@ -76,6 +77,8 @@ export async function recordRunStarted(
 
 function runEnded(kind: 'run_finished' | 'run_failed' | 'run_cancelled'): RunHook {
   return async ({ deps, run }) => {
+    // A trial leaves the PR untouched; its cost is reported with the trial (S-22-T6).
+    if (run.kind === 'trial') return;
     const at = run.finishedAt ?? new Date();
     let failure = {};
     if (kind === 'run_failed') {
@@ -84,11 +87,17 @@ function runEnded(kind: 'run_finished' | 'run_failed' | 'run_cancelled'): RunHoo
         .at(-1);
       failure = { stage: failed?.stage ?? null, errorCode: failed?.errorCode ?? null };
     }
+    // A cancel is recorded as whoever asked for it ("Cancelled by hand", "PR closed" as the bot).
+    const cancelled = kind === 'run_cancelled';
     await recordTimelineEntry(deps.db, {
       pullRequestId: run.pullRequestId,
-      actor: BOT,
+      actor: cancelled ? cancelActor(run) : BOT,
       kind,
-      params: { ...runParams(run), ...failure },
+      params: {
+        ...runParams(run),
+        ...failure,
+        ...(cancelled ? { reason: run.cancelReason ?? 'by_hand' } : {}),
+      },
       runId: run.id,
       costUsd: run.costUsd,
       at,

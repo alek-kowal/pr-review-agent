@@ -9,7 +9,6 @@ import {
   pgTable,
   text,
   timestamp,
-  unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
@@ -114,45 +113,4 @@ export const appSettings = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [check('app_settings_single_row', sql`${t.id} = 1`)],
-);
-
-export const INSTRUCTION_SCOPES = ['global', 'repository'] as const;
-export type InstructionScope = (typeof INSTRUCTION_SCOPES)[number];
-export const INSTRUCTION_STATUSES = ['active', 'draft', 'archived'] as const;
-export type InstructionStatus = (typeof INSTRUCTION_STATUSES)[number];
-
-/**
- * Versions of the files the agents read (reviewer prompt, rules, lessons, feature map). A file is
- * global or belongs to one repository; at most one version of a file is active. S-22 builds on it.
- */
-export const instructionVersions = pgTable(
-  'instruction_versions',
-  {
-    id: integer().primaryKey().generatedAlwaysAsIdentity(),
-    scope: text({ enum: INSTRUCTION_SCOPES }).notNull(),
-    repositoryId: integer('repository_id').references(() => repositories.id, {
-      onDelete: 'cascade',
-    }),
-    /** Path inside the instructions directory, for example `review-rules.md` or `feature-map/sdk.md`. */
-    fileKey: text('file_key').notNull(),
-    version: integer().notNull(),
-    status: text({ enum: INSTRUCTION_STATUSES }).notNull(),
-    content: text().notNull(),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    unique('instruction_versions_file_version')
-      .on(t.scope, t.repositoryId, t.fileKey, t.version)
-      .nullsNotDistinct(),
-    // Global files have no repository; coalesce makes them collide with each other too.
-    uniqueIndex('instruction_versions_one_active')
-      .on(t.scope, sql`coalesce(${t.repositoryId}, 0)`, t.fileKey)
-      .where(sql`${t.status} = 'active'`),
-    check(
-      'instruction_versions_scope_repository',
-      sql`(${t.scope} = 'global') = (${t.repositoryId} is null)`,
-    ),
-    check('instruction_versions_scope', sql`${t.scope} in ('global', 'repository')`),
-    check('instruction_versions_status', sql`${t.status} in ('active', 'draft', 'archived')`),
-  ],
 );

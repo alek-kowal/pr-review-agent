@@ -3,10 +3,12 @@ import { activity } from './activity.ts';
 import { board } from './board.ts';
 import { budget } from './budget.ts';
 import { checklist } from './checklist.ts';
+import { checks } from './checks.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
 import { audit } from './audit.ts';
+import { instructions } from './instructions.ts';
 import { integrations } from './integrations.ts';
 import { levels } from './levels.ts';
 import { merge } from './merge.ts';
@@ -18,7 +20,9 @@ import { questions } from './questions.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
 import { status } from './status.ts';
+import { pipeline } from './pipeline.ts';
 import { timeline } from './timeline.ts';
+import { trials } from './trials.ts';
 
 export const copy = {
   app: {
@@ -41,6 +45,7 @@ export const copy = {
   status,
   runs,
   clickup,
+  checks,
   timeline,
   models,
   levels,
@@ -214,6 +219,7 @@ export const copy = {
     stage_timeout: 'the stage ran out of time',
     model_invalid: 'a model name in Settings → Models or Review levels is not valid',
     interrupted: 'the app restarted while it ran',
+    interrupted_by_restart: 'the app restarted while it ran',
     stage_error: 'an unexpected error stopped it',
     cancelled: 'it was cancelled',
     review_output_invalid: "the reviewer's answer was not valid",
@@ -246,6 +252,9 @@ export const copy = {
     repository_already_connected: 'This repository is already connected.',
     clickup_not_configured: 'ClickUp is not configured on this server.',
     run_active: 'A round is already queued or running for this PR.',
+    run_not_failed: 'Only a failed round can be retried. Reload the page.',
+    run_not_retryable: 'A trial is not retried. Start it again from Experiments.',
+    run_finished: 'This run already ended. Reload the page.',
     pr_closed: 'This pull request is closed.',
     comment_required:
       'A comment is required to send files back, so the author knows what to change.',
@@ -263,6 +272,14 @@ export const copy = {
     run_not_found: 'This run does not exist.',
     session_not_found: 'This agent session does not exist.',
     transcript_not_found: 'The transcript of this session is not stored.',
+    instruction_file_not_found: 'This instruction file does not exist.',
+    instruction_version_not_found: 'This version is not one of the file’s versions.',
+    instruction_version_status:
+      'This version changed in the meantime. Reload the page to see the current versions.',
+    instruction_copy_exists: 'This copy already exists.',
+    instruction_no_active: 'The file has no active version to copy.',
+    trial_needs_draft: 'Only a draft version can be tried. Save a draft first.',
+    trial_not_found: 'This trial does not exist.',
     question_not_found: 'A question is no longer on this pull request. Reload the page.',
     answer_invalid: 'Pick an option or write an answer for every question.',
     answer_conflict: 'Someone answered in the meantime.',
@@ -274,6 +291,9 @@ export const copy = {
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity,
   insights,
+  instructions,
+  trials,
+  pipeline,
   merge,
   settings: {
     title: 'Settings',

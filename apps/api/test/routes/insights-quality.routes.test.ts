@@ -1,5 +1,12 @@
 // S-19-T4: Insights Quality. Own database: rates read every round and finding.
-import { closeDb, createDb, schema, upsertRepository, type Db } from '@pra/db';
+import {
+  closeDb,
+  createDb,
+  ensureInstructionFile,
+  schema,
+  upsertRepository,
+  type Db,
+} from '@pra/db';
 import {
   aRepositoryConfig,
   createTestDatabase,
@@ -46,11 +53,15 @@ async function seed() {
   const repository = await upsertRepository(db, aRepositoryConfig());
   slug = repository.slug;
   const version = async (fileKey: string, n: number, status: 'active' | 'archived') => {
+    const file = await ensureInstructionFile(db, {
+      scope: 'global',
+      fileKey: `${fileKey}-${slug}`,
+    });
     const [row] = await db
       .insert(schema.instructionVersions)
-      .values({ scope: 'global', fileKey: `${fileKey}-${slug}`, version: n, status, content: '' })
+      .values({ fileId: file.id, version: n, status, content: '' })
       .returning();
-    return { id: row!.id, scope: 'global' as const, fileKey: row!.fileKey, version: n };
+    return { id: row!.id, scope: 'global' as const, fileKey: file.fileKey, version: n };
   };
   const reviewV1 = await version('review-rules.md', 1, 'archived');
   const reviewV2 = await version('review-rules.md', 2, 'active');

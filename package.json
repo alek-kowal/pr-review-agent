@@ -16,7 +16,8 @@
     "verify": "pnpm run \"/^(lint|typecheck|test)$/\"",
     "db:generate": "pnpm --filter @pra/db db:generate",
     "db:migrate": "node --env-file-if-exists=.env packages/db/src/cli/migrate.ts",
-    "db:seed-repo": "node --env-file-if-exists=.env packages/db/src/cli/seed-repo.ts"
+    "db:seed-repo": "node --env-file-if-exists=.env packages/db/src/cli/seed-repo.ts",
+    "instructions:import": "node --env-file-if-exists=.env packages/db/src/cli/instructions-import.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

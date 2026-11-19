@@ -10,18 +10,14 @@ import {
   type Repository,
   type Run,
 } from '@pra/db';
-import { aPullRequest, aRun, uniqueId } from '@pra/db/testing';
+import { aPullRequest, aRun } from '@pra/db/testing';
 import { CliGitMirror } from '@pra/integrations';
 import { createGitFixture, isolatedGitExec, type GitFixture } from '@pra/integrations/testing';
 import { access, constants, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { buildBrief, documentsFor } from '../src/stages/review/brief.ts';
-import {
-  BUILT_IN_REVIEWER_PROMPT,
-  effectiveInstructions,
-  renderReviewerPrompt,
-} from '../src/stages/review/prompt.ts';
+import { BUILT_IN_REVIEWER_PROMPT, renderReviewerPrompt } from '../src/stages/review/prompt.ts';
 import { reviewStage } from '../src/stages/review/index.ts';
 import type { StageResult } from '../src/stages/stage.ts';
 import { connectRepository, createTestWorkerDeps, type TestWorkerDeps } from './support.ts';
@@ -307,19 +303,6 @@ describe('reviewer prompt', () => {
     expect(renderReviewerPrompt('Use {{knowledgeDir}} and {{repoDir}}.', values)).toBe(
       'Use /k and /r.',
     );
-  });
-
-  test('a repository file wins over a global one with the same key', () => {
-    const key = `rules-${uniqueId()}.md`;
-    const version = (scope: 'global' | 'repository', content: string) =>
-      ({ scope, fileKey: key, content }) as Parameters<typeof effectiveInstructions>[0][number];
-
-    const files = effectiveInstructions([
-      version('repository', 'own'),
-      version('global', 'shared'),
-    ]);
-
-    expect(files.get(key)).toBe('own');
   });
 });
 
