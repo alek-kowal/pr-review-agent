@@ -174,3 +174,29 @@ test('unknown runs, sessions of another run and missing transcripts are 404', as
   expect(missing.statusCode).toBe(404);
   expect(missing.json()).toMatchObject({ error: { code: 'transcript_not_found' } });
 });
+
+// S-03-T9: the PR page's stepper reads the same steps and cost from the PR view.
+test('the PR view carries the latest round progress: label, steps with cost, cost so far', async () => {
+  const response = await get(`/api/prs/${seeded.slug}/${seeded.number}`);
+  expect(response.statusCode).toBe(200);
+  const { roundProgress } = response.json<{
+    roundProgress: {
+      runId: number;
+      label: { code: string };
+      steps: { key: string; status: string; costUsd: number }[];
+      current: string | null;
+      costUsd: number;
+    };
+  }>();
+  expect(roundProgress.runId).toBe(seeded.runId);
+  expect(roundProgress.label.code).toBe('round_label');
+  expect(roundProgress.steps.map((s) => [s.key, s.status, s.costUsd])).toEqual([
+    ['checks', 'done', 0],
+    ['task', 'done', 0.1],
+    ['change_type', 'done', 0.05],
+    ['review', 'failed', 0.3],
+    ['verify', 'off', 0],
+  ]);
+  expect(roundProgress.current).toBeNull();
+  expect(roundProgress.costUsd).toBeCloseTo(0.45);
+});

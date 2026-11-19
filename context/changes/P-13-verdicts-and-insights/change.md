@@ -67,8 +67,7 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
   BlobStore) through the same writers; command `pnpm --filter @pra/worker metrics:backfill`
   (worker package script, not root, to stay off the H14 hot file). `pr_state_changes` is not
   backfilled: states depend on runs and decisions, which raw GitHub events do not hold.
-- Migration `0011_metric_logs.sql`. If another migration lands first, delete it and run
-  `pnpm db:generate` again (`--name metric_logs`).
+- Migration `0012_metric_logs.sql` (first `0011`; renumbered in the merge of `main`, see below).
 
 ### S-19-T2 (metric calculations in core)
 
@@ -180,3 +179,20 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
 - `e2e/a11y-routes.ts` exists neither here nor on `main`, so the Insights routes were not added to
   it; whoever adds that file lists `/insights`, `/insights/cost`, `/insights/quality` and
   `/insights/trust`.
+
+### Merge of `main` (P-12: S-03 live progress, S-06 ClickUp follow-ups)
+
+- Migrations: `main`'s `0011_decision_follow_ups` and its journal and snapshot are kept untouched.
+  This branch's `0011_metric_logs.sql` and `0011_snapshot.json` were deleted and regenerated on top
+  with `pnpm db:generate --name metric_logs` as `0012_metric_logs.sql`; its SQL is byte-identical
+  to the old file.
+- `routeTree.gen.ts` was regenerated with `vite build` (Insights routes from here, Activity and
+  Run detail from `main`), not hand-merged.
+- `apps/api/src/pr-view/findings.ts`: both imports kept (`FOLLOW_UP_STATUSES` from `main`,
+  `verificationsOfRun`, `Executor`, `FindingVerification` from here).
+- `apps/web/src/copy/index.ts`: both sides' copy modules win over the other side's placeholders:
+  `activity` from `main`'s `activity.ts`, `insights` from this branch's `insights.ts`.
+- `e2e/support/stack.ts`: one `ScriptedAgents` runner keeps both behaviours: `main`'s held
+  reviewer (`HELD_PRS`, `waitForFile`, one reported turn) and this branch's verifier answers and
+  `FakeSandbox`; the imports from `env.ts` are the union. `HELD_PRS` (350–399) overlaps no PR
+  number used by this branch's specs (31, 32; Insights seeds its own repositories).

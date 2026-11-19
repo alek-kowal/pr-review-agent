@@ -18,6 +18,7 @@ import { Route as InsightsIndexRouteImport } from './routes/insights.index.tsx'
 import { Route as InsightsCostRouteImport } from './routes/insights.cost.tsx'
 import { Route as InsightsQualityRouteImport } from './routes/insights.quality.tsx'
 import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
+import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
@@ -71,6 +72,11 @@ const InsightsTrustRoute = InsightsTrustRouteImport.update({
   path: '/trust',
   getParentRoute: () => InsightsRoute,
 } as any)
+const RunsRunIdRoute = RunsRunIdRouteImport.update({
+  id: '/runs/$runId',
+  path: '/runs/$runId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/insights/cost': typeof InsightsCostRoute
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
+  '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/insights/cost': typeof InsightsCostRoute
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
+  '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights': typeof InsightsIndexRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/insights/cost': typeof InsightsCostRoute
   '/insights/quality': typeof InsightsQualityRoute
   '/insights/trust': typeof InsightsTrustRoute
+  '/runs/$runId': typeof RunsRunIdRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/insights/cost'
     | '/insights/quality'
     | '/insights/trust'
+    | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
     | '/insights/'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/insights/cost'
     | '/insights/quality'
     | '/insights/trust'
+    | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
     | '/insights'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/insights/cost'
     | '/insights/quality'
     | '/insights/trust'
+    | '/runs/$runId'
     | '/settings/integrations'
     | '/settings/team'
     | '/insights/'
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   InsightsRoute: typeof InsightsRouteWithChildren
   PrsRoute: typeof PrsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
+  RunsRunIdRoute: typeof RunsRunIdRoute
   PrRepoNumberRoute: typeof PrRepoNumberRoute
 }
 
@@ -290,6 +303,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/insights/trust'
       preLoaderRoute: typeof InsightsTrustRouteImport
       parentRoute: typeof InsightsRoute
+    }
+    '/runs/$runId': {
+      id: '/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/runs/$runId'
+      preLoaderRoute: typeof RunsRunIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/settings/': {
       id: '/settings/'
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   InsightsRoute: InsightsRouteWithChildren,
   PrsRoute: PrsRoute,
   SettingsRoute: SettingsRouteWithChildren,
+  RunsRunIdRoute: RunsRunIdRoute,
   PrRepoNumberRoute: PrRepoNumberRoute,
 }
 export const routeTree = rootRouteImport

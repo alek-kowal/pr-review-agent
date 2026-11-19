@@ -21,6 +21,7 @@ export { migrateDatabase, type MigrationResult } from './migrate.ts';
 export * as schema from './schema/index.ts';
 export {
   createQueue,
+  FOLLOW_UP_DELAY_SECONDS,
   githubEventJobId,
   JOBS,
   QUEUE_SCHEMA,
@@ -52,3 +53,4 @@ export {
   type CostSource,
 } from './schema/runs.ts';
 export { TASK_LINK_HOWS, type TaskLinkHow } from './schema/clickup.ts';
+export { FOLLOW_UP_STATUSES, type FollowUpStatus } from './schema/team.ts';

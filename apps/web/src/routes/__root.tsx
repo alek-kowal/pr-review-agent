@@ -1,6 +1,7 @@
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner.tsx';
 import { TopBar } from '@/features/shell/TopBar.tsx';
+import { useLiveUpdates } from '@/live/useLiveUpdates.ts';
 import type { RouterContext } from '../router.ts';
 
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -8,6 +9,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 function RootLayout() {
+  useLiveUpdates();
   return (
     <div className="min-h-svh">
       <TopBar />

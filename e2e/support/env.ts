@@ -25,6 +25,15 @@ export type StackState = {
 /** PR numbers from this one up get a failing reviewer. */
 export const FAILING_PR_FROM = 400;
 
+/**
+ * PR numbers in this range get a held reviewer: it reports one turn costing `HELD_TURN_COST_USD`,
+ * then waits until the spec creates `releaseFile(number)` before it answers (live-progress.spec.ts).
+ */
+export const HELD_PRS = { from: 350, to: 399 };
+export const HELD_TURN_COST_USD = 0.12;
+export const releaseFile = (number: number): string =>
+  path.join(tmpdir(), `pra-e2e-${WEB_PORT}-release-${number}`);
+
 /** A repository the GitHub App double reaches that no seed connects. */
 export const SECOND_REPOSITORY = { fullName: 'acme/second-repo', installationId: 55500002 };
 

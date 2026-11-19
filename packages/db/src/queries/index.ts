@@ -7,6 +7,7 @@ export * from './pr-views.ts';
 export * from './run-engine.ts';
 export * from './team.ts';
 export * from './decisions.ts';
+export * from './follow-ups.ts';
 export * from './settings-changes.ts';
 export * from './task-links.ts';
 export * from './stage-outputs.ts';

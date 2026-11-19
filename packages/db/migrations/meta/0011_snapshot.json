@@ -1,5 +1,5 @@
 {
-  "id": "cc45cbc3-ec60-4ca0-bb2e-072676ef34b3",
+  "id": "c15b0f29-5edb-4859-8c75-d70e9a41f7e0",
   "prevId": "ddd343f1-e217-496f-ab52-cdd958ec7236",
   "version": "7",
   "dialect": "postgresql",
@@ -435,30 +435,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
-        },
-        "ready_at": {
-          "name": "ready_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "merged_at": {
-          "name": "merged_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "merge_sha": {
-          "name": "merge_sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -1918,6 +1894,30 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "follow_up_status": {
+          "name": "follow_up_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_task_id": {
+          "name": "follow_up_task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_url": {
+          "name": "follow_up_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_error": {
+          "name": "follow_up_error",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1976,7 +1976,12 @@
       },
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "finding_decisions_follow_up_status": {
+          "name": "finding_decisions_follow_up_status",
+          "value": "follow_up_status in ('creating', 'created', 'failed')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.team_members": {
@@ -2476,148 +2481,6 @@
           "value": "(\"timeline_entries\".\"actor\" = 'member') = (\"timeline_entries\".\"member_id\" is not null)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.head_changes": {
-      "name": "head_changes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "head_changes_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "pull_request_id": {
-          "name": "pull_request_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "github_event_id": {
-          "name": "github_event_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "before_sha": {
-          "name": "before_sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "after_sha": {
-          "name": "after_sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pusher": {
-          "name": "pusher",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "by_bot": {
-          "name": "by_bot",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_base_merge": {
-          "name": "is_base_merge",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "at": {
-          "name": "at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "head_changes_pull_request": {
-          "name": "head_changes_pull_request",
-          "columns": [
-            {
-              "expression": "pull_request_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "head_changes_pull_request_id_pull_requests_id_fk": {
-          "name": "head_changes_pull_request_id_pull_requests_id_fk",
-          "tableFrom": "head_changes",
-          "tableTo": "pull_requests",
-          "columnsFrom": [
-            "pull_request_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "head_changes_github_event_id_github_events_id_fk": {
-          "name": "head_changes_github_event_id_github_events_id_fk",
-          "tableFrom": "head_changes",
-          "tableTo": "github_events",
-          "columnsFrom": [
-            "github_event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "head_changes_github_event": {
-          "name": "head_changes_github_event",
-          "nullsNotDistinct": false,
-          "columns": [
-            "github_event_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

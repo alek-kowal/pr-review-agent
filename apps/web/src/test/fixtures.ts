@@ -1,5 +1,6 @@
 // Response builders for web tests. Shapes follow `@/lib/api-types.ts`.
 import type {
+  TaskSectionView,
   AuthorView,
   BoardCard,
   BoardResponse,
@@ -9,6 +10,7 @@ import type {
   NextStepView,
   PrView,
   RepositoryRef,
+  RoundProgressView,
   RoundView,
 } from '@/lib/api-types.ts';
 
@@ -102,9 +104,12 @@ export const aPrView = (
     nextStep?: NextStepView;
     checklist?: ChecklistView;
     author?: AuthorView;
+    roundProgress?: RoundProgressView | null;
+    task?: TaskSectionView;
   } = {},
 ): PrView => ({
   pullRequest: {
+    id: 7,
     repository: aRepository(),
     number: over.number ?? 12,
     title: 'Add node grouping',
@@ -124,6 +129,8 @@ export const aPrView = (
   nextStep: over.nextStep ?? aNextStep(),
   checklist: over.checklist ?? aChecklist(),
   author: over.author ?? anAuthor(),
+  roundProgress: over.roundProgress ?? null,
+  task: over.task ?? { configured: true, link: null },
 });
 
 let nextFindingId = 1;
