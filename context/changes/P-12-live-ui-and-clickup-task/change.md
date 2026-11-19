@@ -87,3 +87,16 @@ tasks' "Done when" checks are the plan. One commit per task, in the listed order
 - One sentence per entry kind in `copy/timeline.ts` `entries` (extension point: a package that
   adds a kind adds one line); an unknown kind shows its name with spaces. Finished runs show their
   final cost and the shared `RunDetailsLink`.
+
+### S-03-T12 (Activity)
+
+- `/activity` (`features/activity/ActivityPage.tsx`) shows one In progress table from P-10's
+  `GET /api/activity/in-progress`: PR (links to the PR page), run name (links to Run detail
+  through `RunDetailsLink`, which now takes optional children), current stage ("Queued" for
+  queued runs, "Starting" between stages), start time ("Not started" while queued), cost so far.
+  Empty state: "No agent is working and nothing is queued."
+- Live: run, stage and session changes already invalidate the `activity` family (T8); the
+  table stays mounted and only its rows change.
+- Extension points in `features/activity/slots.ts`: `ACTIVITY_SECTIONS` above or below In
+  progress (S-18's Alerts and Finished today) and `IN_PROGRESS_ROW_ACTIONS` at the row end
+  (S-09's Cancel). Activity copy moved to `copy/activity.ts`.

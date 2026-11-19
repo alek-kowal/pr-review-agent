@@ -1,4 +1,5 @@
 // UI copy (English). Components read strings from here, never inline them.
+import { activity } from './activity.ts';
 import { board } from './board.ts';
 import { checklist } from './checklist.ts';
 import { clickup } from './clickup.ts';
@@ -166,10 +167,7 @@ export const copy = {
     github_error: 'GitHub did not answer as expected.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
-  activity: {
-    title: 'Activity',
-    placeholder: 'The activity feed arrives in a later slice.',
-  },
+  activity,
   insights: {
     title: 'Insights',
     placeholder: 'Cost, quality and trust insights arrive in a later slice.',
