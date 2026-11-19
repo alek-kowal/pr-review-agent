@@ -220,7 +220,7 @@ describe('push job', () => {
   });
 
   test('a moved head records head_moved on the patch and pushes nothing', async () => {
-    const { repository, patch, bare } = await readyPatch();
+    const { repository, pullRequest, patch, bare } = await readyPatch();
     const moved = 'f'.repeat(40);
     deps.github.addPullRequest({
       ...deps.github.pullRequests.get(`${repository.githubFullName}#${NUMBER}`)!,
@@ -240,6 +240,19 @@ describe('push job', () => {
       status: 'ready',
       pushRefusal: { code: 'head_moved', params: { headSha: moved } },
     });
+    const refused = (await timelineOf(deps.db, pullRequest.id)).filter(
+      (entry) => entry.kind === 'patch_push_refused',
+    );
+    expect(refused).toEqual([
+      expect.objectContaining({
+        actor: 'member',
+        memberId: signer.id,
+        params: {
+          reason: { code: 'head_moved', params: { headSha: moved } },
+          patchId: patch.id,
+        },
+      }),
+    ]);
   });
 
   test('a push GitHub declines is recorded as push_rejected, not lost', async () => {
