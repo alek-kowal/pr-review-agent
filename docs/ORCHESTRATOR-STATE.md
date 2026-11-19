@@ -30,18 +30,29 @@ This file is the resume point for the orchestrator, the main Claude session in H
 | --- | --- | --- | --- |
 | Analysis | done | factory-arch (closed) | `docs/01-analysis.md` |
 | Design and prototype | done, approved by Alek 19 Nov | factory-design (tab w2:t4) | `prototype/`, `docs/03…06` |
-| PRD | in progress | factory-prd (tab w2:t6, pane w2:p9) | `context/foundation/source-notes.md`, `prd.md` |
-| tech-stack.md | todo | new session | `context/foundation/tech-stack.md` |
+| PRD | done 02:05 (88 FRs, 19 open questions; provisional answers in `08-orchestrator-log.md`) | factory-prd (closed) | `context/foundation/source-notes.md`, `prd.md` |
+| tech-stack.md | in progress | ra-stack (tab w2:t7 "pr-review-agent: tasks", pane w2:pA) | `context/foundation/tech-stack.md` |
 | Roadmap and tasks | todo | new session | `context/foundation/roadmap.md` (+ `roadmap-tasks.md`) |
-| Folder rename and repo | todo | orchestrator | `~/Projects/pr-review-agent`, `alek-kowal/pr-review-agent` |
+| Folder rename and repo | local done (folder renamed, symlink `wb-factory-prod` kept, git init with company email, 2 commits); GitHub remote todo after roadmap | orchestrator | `~/Projects/pr-review-agent`, `alek-kowal/pr-review-agent` |
 | Bootstrap | todo | new session | scaffold |
 | Slices | todo | new sessions per task | – |
 
 ## Next step
 
-Wait for the factory-prd watcher (`brremg8xq`).
-- If prd.md is done: close that session and start the tech-stack session.
-- If it stopped at the context limit: start a fresh session from `context/foundation/HANDOFF.md`.
+Wait for the ra-stack watcher. When it is done, exit the session (`herdr agent prompt <name> /exit`) and start `ra-roadmap` in the same pane (w2:pA), with `--disallowedTools AskUserQuestion`. Then:
+1. `gh auth switch --user alek-kowal`
+2. `gh repo create alek-kowal/pr-review-agent --private --source . --push`
+3. Switch gh back to `aleksandrio`
+
+## How to start a task session
+
+```
+herdr agent start <name> --kind claude --pane w2:pA -- --disallowedTools AskUserQuestion -n <name>
+herdr agent prompt <name> "<task: inputs, the decided things, no questions unless blocking (plain text), stop before 28% with HANDOFF, commit, reply in Polish in at most 8 lines>"
+watch-agent.sh <name> 28 30   (run in background)
+```
+
+The first start in a new folder shows a trust dialog. Answer it with `herdr agent send-keys <name> down enter`.
 
 ## Environment notes
 
