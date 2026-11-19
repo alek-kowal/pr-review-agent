@@ -5,6 +5,7 @@ import {
   ciStatusOf,
   GITHUB_APP_NOT_INSTALLED,
   toPullRequest,
+  type AccessibleRepository,
   type CiCheck,
   type CiStatus,
   type GitHubGateway,
@@ -66,6 +67,8 @@ export class FakeGitHubGateway implements GitHubGateway {
   readonly calls: GitHubCall[] = [];
   readonly comments: Array<{ fullName: string; number: number; body: string; id: number }> = [];
   readonly installations = new Map<string, number>();
+  /** Default branch and visibility per repository, for `listAccessibleRepositories`. */
+  readonly repositoryDetails = new Map<string, Partial<AccessibleRepository>>();
   readonly pullRequests = new Map<string, GitHubPullRequest>();
   /** CI checks by `owner/name@sha`; a commit without an entry has no checks. */
   readonly ci = new Map<string, CiCheck[]>();
@@ -137,6 +140,21 @@ export class FakeGitHubGateway implements GitHubGateway {
   async getCiStatus(fullName: string, sha: string): Promise<CiStatus> {
     this.#record('getCiStatus', [fullName, sha]);
     return ciStatusOf(this.ci.get(`${fullName}@${sha}`) ?? []);
+  }
+
+  /** Every repository in `installations`, with `repositoryDetails` over the defaults. */
+  async listAccessibleRepositories(): Promise<AccessibleRepository[]> {
+    this.#record('listAccessibleRepositories', []);
+    return [...this.installations]
+      .map(([fullName, installationId]) => ({
+        fullName,
+        installationId,
+        account: fullName.split('/')[0]!,
+        defaultBranch: 'main',
+        private: false,
+        ...this.repositoryDetails.get(fullName),
+      }))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName));
   }
 
   #record(method: Method, args: unknown[]): void {

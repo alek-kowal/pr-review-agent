@@ -66,6 +66,46 @@ export async function upsertRepository(
   return row!;
 }
 
+/** A repository row by id, locked until the transaction ends; null when there is none. */
+export async function lockRepository(db: Executor, id: number): Promise<Repository | null> {
+  const [row] = await db.select().from(repositories).where(eq(repositories.id, id)).for('update');
+  return row ?? null;
+}
+
+export async function getRepository(db: Executor, id: number): Promise<Repository | null> {
+  const [row] = await db.select().from(repositories).where(eq(repositories.id, id));
+  return row ?? null;
+}
+
+/** Connects a new repository; a taken slug or full name is a unique violation. */
+export async function insertRepository(
+  db: Executor,
+  rawConfig: unknown,
+  installationId: number | null,
+): Promise<Repository> {
+  const config = parseRepositoryConfig(rawConfig);
+  const [row] = await db
+    .insert(repositories)
+    .values({ slug: config.slug, githubFullName: config.githubFullName, config, installationId })
+    .returning();
+  return row!;
+}
+
+/** Replaces a repository's config; slug and full name stay as stored. */
+export async function updateRepositoryConfig(
+  db: Executor,
+  id: number,
+  rawConfig: unknown,
+): Promise<Repository | null> {
+  const config = parseRepositoryConfig(rawConfig);
+  const [row] = await db
+    .update(repositories)
+    .set({ config, updatedAt: sql`now()` })
+    .where(eq(repositories.id, id))
+    .returning();
+  return row ?? null;
+}
+
 export async function listRepositories(db: Executor): Promise<Repository[]> {
   return db.select().from(repositories).orderBy(asc(repositories.slug));
 }

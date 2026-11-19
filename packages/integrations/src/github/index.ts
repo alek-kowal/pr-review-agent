@@ -7,6 +7,7 @@ export {
   GITHUB_NOT_CONFIGURED,
   splitFullName,
   toPullRequest,
+  type AccessibleRepository,
   type CiCheck,
   type CiState,
   type CiStatus,

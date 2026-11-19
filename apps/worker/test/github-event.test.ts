@@ -5,6 +5,7 @@ import {
   getGithubEvent,
   getPullRequest,
   getRepositoryByFullName,
+  insertRepository,
   JOBS,
   schema,
   sql,
@@ -46,6 +47,28 @@ async function runsOf(prNumber: number) {
   if (!pr) return [];
   return deps.db.select().from(schema.runs).where(eq(schema.runs.pullRequestId, pr.id));
 }
+
+describe('a repository connected in Settings', () => {
+  test('gets its PR row from the next webhook, with no worker restart', async () => {
+    const fullName = `acme-${repository.id}/second-repo`;
+    expect(await deliver('pull_request.ready_for_review', { fullName })).toBe(
+      'repository_not_connected',
+    );
+
+    // What `POST /api/settings/repositories` writes, while these deps (the worker) keep running.
+    const connected = await insertRepository(
+      deps.db,
+      { slug: `second-repo-${repository.id}`, githubFullName: fullName, defaultLevel: 2 },
+      2,
+    );
+
+    expect(await deliver('pull_request.ready_for_review', { fullName })).toBe('round_started');
+    expect(await getPullRequest(deps.db, connected.id, 312)).toMatchObject({
+      repositoryId: connected.id,
+      number: 312,
+    });
+  });
+});
 
 describe('round 1 from a webhook', () => {
   test('ready_for_review on a PR that is not a fork gives one queued run and one stage job', async () => {

@@ -12,6 +12,7 @@ import {
   GITHUB_NOT_CONFIGURED,
   splitFullName,
   toPullRequest,
+  type AccessibleRepository,
   type CiCheck,
   type CiStatus,
   type GitHubGateway,
@@ -140,6 +141,40 @@ export class OctokitGitHubGateway implements GitHubGateway {
     });
   }
 
+  async listAccessibleRepositories(): Promise<AccessibleRepository[]> {
+    const repositories: AccessibleRepository[] = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const { data: installations } = await this.#app.octokit.request('GET /app/installations', {
+        per_page: PER_PAGE,
+        page,
+      });
+      for (const installation of installations) {
+        const account = accountName(installation.account);
+        const { token } = await this.getInstallationToken(installation.id);
+        const octokit = new Octokit({ auth: token });
+        for (let repoPage = 1; repoPage <= MAX_PAGES; repoPage++) {
+          const { data } = await octokit.request('GET /installation/repositories', {
+            per_page: PER_PAGE,
+            page: repoPage,
+          });
+          for (const repo of data.repositories) {
+            this.#installations.set(repo.full_name, installation.id);
+            repositories.push({
+              fullName: repo.full_name,
+              installationId: installation.id,
+              account,
+              defaultBranch: repo.default_branch,
+              private: repo.private,
+            });
+          }
+          if (data.repositories.length < PER_PAGE) break;
+        }
+      }
+      if (installations.length < PER_PAGE) break;
+    }
+    return repositories.sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }
+
   /**
    * Runs `call` with the repository's installation client. A cached installation goes stale when
    * the App is reinstalled (new id, old tokens revoked) or the repository leaves it; GitHub then
@@ -214,6 +249,9 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
   getCiStatus(): Promise<CiStatus> {
     return this.#fail();
   }
+  listAccessibleRepositories(): Promise<AccessibleRepository[]> {
+    return this.#fail();
+  }
 
   #fail(): Promise<never> {
     return Promise.reject(new IntegrationNotConfiguredError(GITHUB_NOT_CONFIGURED, this.missing));
@@ -249,6 +287,12 @@ function readKey(path: string): string {
   } catch {
     return '';
   }
+}
+
+/** An installation's account: a user or organization login, or an enterprise slug. */
+function accountName(account: unknown): string {
+  const { login, slug } = (account ?? {}) as { login?: unknown; slug?: unknown };
+  return typeof login === 'string' ? login : typeof slug === 'string' ? slug : '';
 }
 
 function statusOf(error: unknown): number | undefined {

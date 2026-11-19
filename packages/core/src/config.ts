@@ -1,6 +1,7 @@
 import './reasons/config.ts';
 import { z } from 'zod/v4';
 import { DEFAULT_MODELS, type ResolvedLevel } from './levels.ts';
+import { isValidGlob } from './glob.ts';
 import { isValidTaskIdPattern } from './task-id.ts';
 import { MAX_FINDINGS } from './limits.ts';
 import { reason, type Reason } from './reason.ts';
@@ -14,7 +15,8 @@ const MODEL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:@[\]-]{0,99}$/;
 export const validModelName = (name: string): boolean => MODEL_NAME.test(name);
 
 const levelNumber = z.union(LEVEL_NUMBERS.map((n) => z.literal(n)));
-const pattern = z.string().trim().min(1);
+/** A path pattern (glob.ts); `invalid_glob` when the matcher would not read it as meant. */
+const pattern = z.string().trim().min(1).refine(isValidGlob, { message: 'invalid_glob' });
 /** A model per role; an empty value means "not set here" and falls back. */
 const modelName = z
   .string()

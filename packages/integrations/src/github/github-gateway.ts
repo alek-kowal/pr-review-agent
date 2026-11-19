@@ -11,7 +11,19 @@ export interface GitHubGateway {
   postIssueComment(fullName: string, number: number, body: string): Promise<{ id: number }>;
   /** CI on one commit: its check runs plus its combined commit status, counted. */
   getCiStatus(fullName: string, sha: string): Promise<CiStatus>;
+  /** Every repository the App can reach, across all its installations, sorted by full name. */
+  listAccessibleRepositories(): Promise<AccessibleRepository[]>;
 }
+
+/** A repository one of the App's installations can act on. */
+export type AccessibleRepository = {
+  fullName: string;
+  installationId: number;
+  /** The account the installation belongs to (user or organization login). */
+  account: string;
+  defaultBranch: string;
+  private: boolean;
+};
 
 export type CiState = 'passed' | 'failed' | 'pending';
 
