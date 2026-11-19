@@ -282,13 +282,13 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Automated
 
-- [x] 7.1 `pnpm test:e2e smoke.spec.ts` passes locally
+- [x] 7.1 `pnpm test:e2e smoke.spec.ts` passes locally — eed3534
 
 ### Phase 8: CI workflow
 
 #### Automated
 
-- [ ] 8.1 actionlint reports nothing
+- [x] 8.1 actionlint reports nothing
 
 #### Manual
 
