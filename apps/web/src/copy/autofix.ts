@@ -32,6 +32,7 @@ const reasons: Record<string, (p: Params) => string> = {
   run_active: () => 'another run is active',
   patch_not_ready: () => 'the patch is no longer ready',
   patch_empty: () => 'the patch changes no file',
+  push_rejected: () => 'GitHub declined the push (branch protection or a ruleset)',
   no_implement_decisions: () => 'no finding to implement',
   implement_below_level: () => 'the implementer is off at this level',
 };

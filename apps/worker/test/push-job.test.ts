@@ -23,6 +23,7 @@ import {
   type GitFixture,
 } from '@pra/integrations/testing';
 import { execFile } from 'node:child_process';
+import { writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
@@ -239,6 +240,27 @@ describe('push job', () => {
       status: 'ready',
       pushRefusal: { code: 'head_moved', params: { headSha: moved } },
     });
+  });
+
+  test('a push GitHub declines is recorded as push_rejected, not lost', async () => {
+    const { pullRequest, patch, bare } = await readyPatch();
+    await writeFile(path.join(bare, 'hooks', 'pre-receive'), '#!/bin/sh\nexit 1\n', {
+      mode: 0o755,
+    });
+
+    const outcome = await handlePatchPush(deps, { patchId: patch.id, signedBy: signer.id });
+
+    expect(outcome).toEqual({ pushed: false, reason: { code: 'push_rejected', params: {} } });
+    expect(await getPatch(deps.db, patch.id)).toMatchObject({
+      status: 'ready',
+      pushRefusal: { code: 'push_rejected' },
+    });
+    const refused = (await timelineOf(deps.db, pullRequest.id)).filter(
+      (entry) => entry.kind === 'patch_push_refused',
+    );
+    expect(refused).toEqual([
+      expect.objectContaining({ params: expect.objectContaining({ patchId: patch.id }) }),
+    ]);
   });
 
   test('the synchronize of the pushed commit starts round 2 of 3 as a fix check', async () => {

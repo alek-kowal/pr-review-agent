@@ -93,6 +93,9 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
       branch: pullRequest.headRef,
       token,
     });
+    if (!result.ok && result.reason === 'remote_rejected') {
+      return refuse(deps, job, patch, actor, reason('push_rejected'));
+    }
     if (!result.ok) {
       const now = await deps.github.getPullRequestState(
         repository.githubFullName,

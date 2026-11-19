@@ -29,7 +29,8 @@ export interface GitMirror {
   /**
    * Commits `files` on top of `baseSha` in a fresh worktree and pushes that commit to `branch`,
    * never forced: when the branch is no longer `baseSha` (or a descendant git can fast-forward
-   * from), git refuses and the result is `head_moved` with the remote unchanged.
+   * from), git refuses and the result is `head_moved` with the remote unchanged. A remote that
+   * declines the update (branch protection, rulesets, hooks) gives `remote_rejected`.
    */
   pushPatch(input: PushPatchInput): Promise<PushPatchResult>;
   /**
@@ -69,7 +70,8 @@ export type PushPatchInput = {
 /** What builds the commit: the push input without its target branch and token. */
 export type PatchCommitInput = Omit<PushPatchInput, 'branch' | 'token'>;
 
-export type PushPatchResult = { ok: true; sha: string } | { ok: false; reason: 'head_moved' };
+export type PushPatchResult =
+  { ok: true; sha: string } | { ok: false; reason: 'head_moved' | 'remote_rejected' };
 
 /**
  * The commit message of every pushed patch. It never names a finding, a decision or the app's
@@ -280,7 +282,8 @@ export class CliGitMirror implements GitMirror {
           input.token,
         );
       } catch (error) {
-        if (isRejectedPush(error)) return { ok: false, reason: 'head_moved' };
+        const rejection = rejectionOf(error);
+        if (rejection) return { ok: false, reason: rejection };
         throw error;
       }
       return { ok: true, sha };
@@ -447,11 +450,17 @@ async function writeWorktreeFile(
   await writeFile(target, content, { flag: 'wx' });
 }
 
-/** Git refused the update (non-fast-forward or fetch first): the branch moved. */
-function isRejectedPush(error: unknown): boolean {
+/**
+ * Why git refused the update, if it did: `head_moved` when the branch moved (non-fast-forward or
+ * fetch first); `remote_rejected` when the remote declined it (a protected branch, a ruleset that
+ * asks for signed commits, a pre-receive hook). A retry would be declined again.
+ */
+function rejectionOf(error: unknown): 'head_moved' | 'remote_rejected' | null {
   const output = error as { stdout?: unknown; stderr?: unknown };
   const text = `${String(output.stdout ?? '')}\n${String(output.stderr ?? '')}`;
-  return /\[rejected\]|\(non-fast-forward\)|\(fetch first\)/.test(text);
+  if (/\[rejected\]|\(non-fast-forward\)|\(fetch first\)/.test(text)) return 'head_moved';
+  if (/\[remote rejected\]/.test(text)) return 'remote_rejected';
+  return null;
 }
 
 /** Joins `--name-status -z` and `--numstat -z` output; both list files in the same order. */
