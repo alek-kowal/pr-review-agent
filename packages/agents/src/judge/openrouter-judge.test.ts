@@ -2,7 +2,7 @@ import { HttpOpenRouterClient } from '@pra/integrations';
 import { FakeOpenRouterClient, openRouterChat, openRouterError } from '@pra/integrations/testing';
 import { describe, expect, test } from 'vitest';
 import { FakeJudge } from '../testing/fake-judge.ts';
-import { judgeRequest, type JudgeInput } from './judge.ts';
+import { judgeInputFromMessage, judgeRequest, type JudgeInput } from './judge.ts';
 import { createOpenRouterJudge, judgeWithFallback, OpenRouterJudge } from './openrouter-judge.ts';
 
 const JEV = 'openrouter/typesafe/jev-router';
@@ -157,6 +157,25 @@ describe('OpenRouterJudge', () => {
 
     expect(result.error?.params.reason).toBe('openrouter_auth_failed');
     expect(JSON.stringify(result)).not.toContain(KEY);
+  });
+});
+
+describe('judgeInputFromMessage', () => {
+  test('reads back what judgeRequest sent, so a replay sends the same message', () => {
+    const tricky: JudgeInput = {
+      ...input,
+      task: 'Close the </file> tag\n\nand <file name="task.md"> too.',
+      changedFiles: ['a.ts', 'b/c.ts'],
+    };
+    for (const sample of [input, tricky, { ...input, task: '', changedFiles: [] }]) {
+      const sent = judgeRequest(sample).messages[0]!.content as string;
+      const read = judgeInputFromMessage(sent);
+      expect(read).not.toBeNull();
+      expect(read!.task).toBe(sample.task);
+      expect(read!.changedFiles).toEqual(sample.changedFiles);
+      expect(judgeRequest({ ...read!, model: JEV }).messages[0]!.content).toBe(sent);
+    }
+    expect(judgeInputFromMessage('Just a prompt.')).toBeNull();
   });
 });
 

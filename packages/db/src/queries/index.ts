@@ -1,4 +1,5 @@
 export * from './repositories.ts';
+export * from './judge-samples.ts';
 export * from './github-events.ts';
 export * from './app-settings.ts';
 export * from './instructions.ts';

@@ -171,6 +171,31 @@ export function judgeRequest(input: JudgeInput): Anthropic.MessageCreateParamsNo
   };
 }
 
+/** What a judge message carries besides the model: instructions, task text and paths. */
+export type JudgeMessageInput = Pick<JudgeInput, 'instructions' | 'task' | 'changedFiles'>;
+
+const MESSAGE = new RegExp(
+  `^([\\s\\S]*?)\\n\\n<file name="${KNOWLEDGE_DIR}/classify-rules\\.md">\\n([\\s\\S]*?)\\n</file>` +
+    `\\n\\n<file name="task\\.md">\\n([\\s\\S]*?)\\n</file>` +
+    `\\n\\n<file name="files\\.txt">\\n([\\s\\S]*?)\\n</file>$`,
+);
+
+/**
+ * The input a stored judge message was built from (the inverse of `judgeRequest`), so
+ * `pnpm judge:compare` sends exactly what the stage sent. Null when it is not a judge message.
+ */
+export function judgeInputFromMessage(text: string): JudgeMessageInput | null {
+  const match = MESSAGE.exec(text);
+  if (!match) return null;
+  const unescape = (content: string) => content.replaceAll('<\\/file>', '</file>');
+  const paths = unescape(match[4]!);
+  return {
+    instructions: { prompt: match[1]!, rules: unescape(match[2]!) },
+    task: unescape(match[3]!),
+    changedFiles: paths === '' ? [] : paths.split('\n'),
+  };
+}
+
 function file(name: string, content: string): string {
   return `<file name="${name}">\n${content.replaceAll('</file>', '<\\/file>')}\n</file>`;
 }
