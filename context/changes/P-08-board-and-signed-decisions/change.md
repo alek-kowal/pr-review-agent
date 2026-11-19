@@ -49,3 +49,20 @@ when" checks are the plan. One commit per task.
 - T2 (extension point): board card badges are reason codes from `CARD_BADGES`
   (`apps/api/src/board/card-badges.ts`, empty for now); a later package adds a function there and
   copy for its code.
+- T4: `POST /api/prs/:repo/:number/decisions` and `POST /api/decision-batches/:id/undo` live in
+  `apps/api/src/routes/api/decisions/index.ts` with `autoPrefix = '/api'`, because their paths
+  sit under two other folders. Checks in order: no `signedBy` → 400 `signature_required`; Reject
+  with an empty or blank reason → 400 `reason_required`; unknown PR → 404 `pr_not_found`; then
+  one transaction locks the signer (400 `signer_unknown` when not an active member) and calls
+  `decideFindings` (a savepoint). A finding of another PR → 404 `finding_not_found` with
+  `missing`; a moved version → 409 `decision_conflict` with `params.conflicts[]` = `{ findingId,
+  version, decision }`, where `decision` (or null after an undo) names the signer. A finding id
+  without an expected version counts as moved.
+- T4: both endpoints answer with the refreshed PR view `{ nextStep, checklist, findings }`; the
+  decision also returns `batchId` for Undo. Undo needs no signature (the task gives it none; the
+  batch keeps its signer and `undone_at`). Undo errors: 404 `decision_batch_not_found`, 409
+  `decision_already_undone`, 409 `decision_changed_since` with `findingIds`.
+- T4: the findings response (`GET .../findings` and the decision results) gains per finding
+  `version`, `decision` (`batchId`, decision, reason, `signedBy: { id, name }`, `decidedAt`) and
+  core's `needsDecision`. Its schemas moved to `apps/api/src/pr-view/findings.ts`, and it is now
+  built from `loadPrStateInput`, so the tab and the state table read the same round.
