@@ -5,6 +5,7 @@ import type { BlobStore, ClickUpGateway, GitHubGateway } from '@pra/integrations
 import { type FastifyPluginAsync } from 'fastify';
 import { fileURLToPath } from 'node:url';
 import { SignatureFailures } from './integrations/signature-failures.ts';
+import type { LiveHub } from './live/hub.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +24,8 @@ export type AppDeps = {
   blobStore: BlobStore;
   /** Settings → Integrations checks the key with it (`whoAmI`). */
   clickup: ClickUpGateway;
+  /** SSE clients of `GET /api/live`; a new hub by default (tests pass one to inspect it). */
+  live?: LiveHub;
 };
 
 export type AppOptions = AppDeps & Partial<AutoloadPluginOptions>;
@@ -36,9 +39,9 @@ declare module 'fastify' {
 }
 
 const app: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
-  const { db, queue, github, blobStore, clickup, ...autoloadOptions } = opts;
+  const { db, queue, github, blobStore, clickup, live, ...autoloadOptions } = opts;
   // Decorated before the plugins and routes load, so all of them see it.
-  fastify.decorate('deps', { db, queue, github, blobStore, clickup });
+  fastify.decorate('deps', { db, queue, github, blobStore, clickup, live });
   fastify.decorate('signatureFailures', new SignatureFailures());
 
   // Support plugins reused across the application.

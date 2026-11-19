@@ -141,11 +141,12 @@ describe('after-round comment', () => {
 
   test('a posted comment is never repeated when recording it fails', async () => {
     const run = await aRound();
-    // The post goes out, then the next database update fails once (a dropped connection).
+    // The post goes out, then the next database write fails once (a dropped connection). The
+    // `posted` update and its timeline entry share one transaction.
     let failNextUpdate = false;
     const db = new Proxy(deps.db, {
       get(target, key, receiver) {
-        if (key === 'update' && failNextUpdate) {
+        if ((key === 'update' || key === 'transaction') && failNextUpdate) {
           failNextUpdate = false;
           throw new Error('connection reset');
         }

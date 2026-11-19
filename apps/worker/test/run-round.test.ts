@@ -8,6 +8,7 @@ import {
   eq,
   getGithubEvent,
   getRun,
+  insertAgentSession,
   insertRun,
   insertStageExecution,
   schema,
@@ -275,21 +276,35 @@ describe('run.stage', () => {
     const { pullRequest } = await upsertPullRequest(deps.db, aPullRequest(repository.id));
     const run = await insertRun(
       deps.db,
-      aRun(pullRequest.id, { status: 'running', startedAt: new Date() }),
+      aRun(pullRequest.id, { status: 'running', startedAt: new Date(), currentStage: 'review' }),
     );
-    await insertStageExecution(deps.db, {
+    const execution = await insertStageExecution(deps.db, {
       runId: run.id,
       stage: 'review',
       attempt: 1,
       status: 'running',
       startedAt: new Date(),
     });
+    // The live runner's row of the session the lost attempt started (S-03-T3).
+    await insertAgentSession(deps.db, {
+      stageExecutionId: execution.id,
+      role: 'reviewer',
+      model: 'claude-test',
+      costUsd: 0.25,
+      costSource: 'reported',
+      status: 'running',
+    });
 
     expect(await executeStage(deps, run.id, 'review')).toBe('interrupted');
 
-    expect(await getRun(deps.db, run.id)).toMatchObject({ status: 'failed' });
+    expect(await getRun(deps.db, run.id)).toMatchObject({ status: 'failed', currentStage: null });
     const [review] = await stagesOf(run.id);
     expect(review).toMatchObject({ status: 'failed', errorCode: 'interrupted' });
+    const sessions = await deps.db
+      .select()
+      .from(schema.agentSessions)
+      .where(eq(schema.agentSessions.stageExecutionId, execution.id));
+    expect(sessions).toEqual([expect.objectContaining({ status: 'interrupted', costUsd: 0.25 })]);
   });
 
   test('a repeated job for a finished stage sends the next stage job again', async () => {

@@ -8,6 +8,15 @@ export {
   type Executor,
   type Schema,
 } from './client.ts';
+export {
+  CHANGE_CHANNEL,
+  listenChanges,
+  LISTENER_APPLICATION_NAME,
+  parseChange,
+  type ChangeEvent,
+  type ChangeListener,
+  type ListenOptions,
+} from './live.ts';
 export { migrateDatabase, type MigrationResult } from './migrate.ts';
 export * as schema from './schema/index.ts';
 export {

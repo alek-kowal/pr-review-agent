@@ -1,0 +1,1 @@
+ALTER TABLE "runs" ADD COLUMN "current_stage" text;

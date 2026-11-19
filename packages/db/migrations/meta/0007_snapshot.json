@@ -1,6 +1,6 @@
 {
-  "id": "cf863e46-b7f3-4c7b-8c7a-2122b5d9252b",
-  "prevId": "1da29725-29ee-4ac4-b23d-ebc5be6ac9e9",
+  "id": "0155a855-e9fe-4bc2-8dd8-52f390b9308a",
+  "prevId": "4f9266ed-c766-409b-96b1-1311429dc7de",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -418,12 +418,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "forced_change_type": {
-          "name": "forced_change_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "opened_at": {
           "name": "opened_at",
           "type": "timestamp with time zone",
@@ -482,10 +476,6 @@
         "pull_requests_state": {
           "name": "pull_requests_state",
           "value": "\"pull_requests\".\"state\" in ('open', 'closed', 'merged')"
-        },
-        "pull_requests_forced_change_type": {
-          "name": "pull_requests_forced_change_type",
-          "value": "\"pull_requests\".\"forced_change_type\" in ('uses_existing', 'changes_behaviour', 'one_way_door')"
         }
       },
       "isRLSEnabled": false
@@ -736,193 +726,6 @@
         "agent_sessions_cost_source": {
           "name": "agent_sessions_cost_source",
           "value": "\"agent_sessions\".\"cost_source\" in ('reported', 'computed')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.finding_verifications": {
-      "name": "finding_verifications",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "finding_verifications_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "finding_id": {
-          "name": "finding_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "run_id": {
-          "name": "run_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "verdict": {
-          "name": "verdict",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "verifier_verdict": {
-          "name": "verifier_verdict",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "verifier_reason": {
-          "name": "verifier_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "dropped_quotes": {
-          "name": "dropped_quotes",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "remedy": {
-          "name": "remedy",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "script": {
-          "name": "script",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "exit_code": {
-          "name": "exit_code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "timed_out": {
-          "name": "timed_out",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "output_tail": {
-          "name": "output_tail",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "output_blob_key": {
-          "name": "output_blob_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "repaired": {
-          "name": "repaired",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "sandbox_runs": {
-          "name": "sandbox_runs",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "finding_verifications_run": {
-          "name": "finding_verifications_run",
-          "columns": [
-            {
-              "expression": "run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "finding_verifications_finding_id_findings_id_fk": {
-          "name": "finding_verifications_finding_id_findings_id_fk",
-          "tableFrom": "finding_verifications",
-          "tableTo": "findings",
-          "columnsFrom": [
-            "finding_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "finding_verifications_run_id_runs_id_fk": {
-          "name": "finding_verifications_run_id_runs_id_fk",
-          "tableFrom": "finding_verifications",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "finding_verifications_finding": {
-          "name": "finding_verifications_finding",
-          "nullsNotDistinct": false,
-          "columns": [
-            "finding_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "finding_verifications_verdict": {
-          "name": "finding_verifications_verdict",
-          "value": "\"finding_verifications\".\"verdict\" in ('confirmed', 'refuted', 'not_proven', 'unchecked')"
         }
       },
       "isRLSEnabled": false
@@ -1425,6 +1228,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "current_stage": {
+          "name": "current_stage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "not_checked": {
           "name": "not_checked",

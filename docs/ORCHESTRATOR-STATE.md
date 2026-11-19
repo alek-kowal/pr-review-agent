@@ -48,7 +48,9 @@ Execution runs by **work packages** (`context/foundation/work-packages.md`: 24 p
 
 A package that stops at its context budget leaves `context/changes/<id>-handoff.md`, and a continuation session (`prompts/continue.txt`, adapted) picks up from it.
 
-Done and merged: F-01, P-01, P-02, P-02b (parity with P's tests), P-04, P-03 (main bfaa4ea). Running (05:05): P-05, P-06, P-07 (wave 3) and P-03r (impl-review of P-03).
+Done and merged (06:35): F-01, P-01..P-08, P-10, plus P-02b (parity), P-03r and P-05r (impl-reviews), P-06f (stable tests, Vitest worker cap). Running: P-09 (wave 4). Waves 5+ wait for P-09.
+
+Preferred loop (06:00): `supervise.sh <agents…>` in the background does handoffs and continuations by itself, and exits only on FINISHED, BLOCKED or GONE. Merge with `merge-when-calm.sh <id>`: it waits for load < 16 and retries once. On a code conflict, `git merge --abort` and start a fresh session in the worktree with `prompts/merge-fix.txt` (it merges main into the branch).
 
 Agents cannot see their own context meter. The watcher fires at 26%. Then:
 1. `handoff.sh <agent> <id> [note]` interrupts the agent and asks for `context/changes/<id>-handoff.md`.

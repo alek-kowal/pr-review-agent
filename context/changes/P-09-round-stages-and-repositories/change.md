@@ -264,3 +264,21 @@ listed order.
 - `e2e/a11y-routes.ts` does not exist yet (its a11y spec comes with a later package). When it is
   created, add `/settings/repositories`, `/settings/repositories/connect`,
   `/settings/repositories/$id` and `/settings/integrations`.
+
+### Merge of `main` (P-10 live backend and timeline, P-06f stable sandbox tests)
+
+- Migrations: main's `0006_live_notify`, `0007_run_current_stage` and `0008_timeline` stay as they
+  are. Our `0006_forced_change_type` and `0007_finding_verifications` (SQL and snapshots) were
+  deleted and generated again on top with `pnpm db:generate --name …`, one at a time (the
+  `finding_verifications` table was taken out of the schema for the first run), so they are now
+  `0009_forced_change_type` and `0010_finding_verifications`. Their SQL is byte-for-byte the old
+  SQL. The note in the earlier merge ("ours are 0006–0007") no longer holds.
+- `app.ts`: `AppDeps` keeps both `clickup` (ours, Settings → Integrations) and `live?` (main, SSE
+  hub); both go into `deps`, and `signatureFailures` stays decorated.
+- `queries/index.ts`: exports both sides' modules (`timeline.ts` from main next to ours).
+- `sandbox.docker.test.ts`: main's version. Our only change there was a stopgap 30 s `describe`
+  timeout; P-06f's `ONE_RUN_PER_TEST` (run limit plus 15 s) solves the same flakiness.
+- `routeTree.gen.ts`: regenerated with `vite build`, not hand-merged; it adds our four
+  `settings.repositories.*`/`settings.integrations` routes to main's tree.
+- P-10's stepper and `runs.current_stage` work from `stagesFor(level)` and the stage key, so our
+  Checks, Task, Change type and Verify stages show in the live stepper with no extra code.

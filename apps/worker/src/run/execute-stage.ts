@@ -17,12 +17,15 @@ import {
   insertAgentSession,
   insertFindings,
   insertQuestions,
+  activeInstructions,
   insertStageExecution,
   lockRun,
   stageExecutionsOfRun,
+  updateAgentSession,
   updateRun,
   updateStageExecution,
   type Executor,
+  type Transactor,
   type PullRequest,
   type QueueJob,
   type Repository,
@@ -35,6 +38,8 @@ import { passGates } from './gates.ts';
 import { fireHooks, type RunHookContext } from './hooks.ts';
 import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
+import { liveSessions, type LiveSessions } from './live-sessions.ts';
+import { recordRunStarted } from './timeline-hooks.ts';
 import { latestAttempt, runStateOf } from './state.ts';
 
 /** After the timeout aborts a session, how long the executor gets to return its costs. */
@@ -106,7 +111,7 @@ export async function executeStage(
     }
   }
 
-  const started = await db.transaction((tx) => startStageInTx(tx, runId, stage));
+  const started = await db.transaction((tx) => startStageInTx(tx, runId, repository.id, stage));
   if ('next' in started) {
     // A repeated job for a finished stage: the send of the next stage's job may have been lost
     // (the handler threw after its commit). The queue drops it while one is queued or active.
@@ -114,8 +119,10 @@ export async function executeStage(
     return 'not_next';
   }
   const { run, executionId, attempt } = started;
+  // Sessions get their row when they start and their cost per turn (S-03-T3).
+  const live = liveSessions(deps, { runId, stageExecutionId: executionId });
 
-  const result = await runExecutor(deps, executor, {
+  const result = await runExecutor({ ...deps, agentRunner: live.runner }, executor, {
     run,
     pullRequest,
     repository,
@@ -131,6 +138,7 @@ export async function executeStage(
     executionId,
     result,
     pullRequest,
+    live,
   });
   if (!stored) {
     logger.warn({ runId, stage }, 'stage result dropped: the run changed while it ran');
@@ -199,8 +207,9 @@ async function interruptIfLeftRunning(
 }
 
 async function startStageInTx(
-  tx: Executor,
+  tx: Executor & Transactor,
   runId: number,
+  repositoryId: number,
   stage: string,
 ): Promise<Started | NotStarted> {
   const notStarted: NotStarted = { next: null };
@@ -214,8 +223,22 @@ async function startStageInTx(
     if (!begun.ok) return notStarted;
     state = begun.run;
     const now = new Date();
-    await updateRun(tx, runId, { status: 'running', startedAt: now });
-    run = { ...run, status: 'running', startedAt: now };
+    // The instruction files this run reads, for Run detail (S-03-T5).
+    const instructionVersions = (await activeInstructions(tx, repositoryId)).map((v) => ({
+      id: v.id,
+      scope: v.scope,
+      fileKey: v.fileKey,
+      version: v.version,
+    }));
+    const patch = {
+      status: 'running' as const,
+      startedAt: now,
+      currentStage: stage,
+      instructionVersions,
+    };
+    await updateRun(tx, runId, patch);
+    run = { ...run, ...patch };
+    await recordRunStarted(tx, run, now);
     // Stages this level turns off get a row, so the run's history is complete.
     for (const off of state.stages.filter((s) => s.status === 'off')) {
       if (latestAttempt(executions, off.key)) continue;
@@ -243,6 +266,10 @@ async function startStageInTx(
     status: 'running',
     startedAt: new Date(),
   });
+  if (run.currentStage !== stage) {
+    await updateRun(tx, runId, { currentStage: stage });
+    run = { ...run, currentStage: stage };
+  }
   return { run, executionId: execution.id, attempt };
 }
 
@@ -360,6 +387,7 @@ type StoreInput = {
   result: StageResult;
   blobKeys: BlobKeys;
   pullRequest: PullRequest;
+  live: Pick<LiveSessions, 'sessionIdOf'>;
 };
 
 type StoredResult = { run: Run; state: RunState; sessionIds: number[] };
@@ -389,16 +417,32 @@ async function storeResult(
 
 async function storeResultInTx(
   tx: Executor,
-  { runId, stage, executionId, result, blobKeys, pullRequest }: StoreInput,
+  { runId, stage, executionId, result, blobKeys, pullRequest, live }: StoreInput,
 ): Promise<StoredResult | null> {
   const locked = await lockRun(tx, runId);
   if (!locked) return null;
   const state = runStateOf(locked, await stageExecutionsOfRun(tx, runId));
 
-  // Sessions and their cost are recorded even when the run moved on (cost truth).
+  // Sessions and their cost are recorded even when the run moved on (cost truth). Sessions run
+  // through the live runner already have their row and cost; they only get their blob keys.
   const sessionIds: number[] = [];
+  let unrecordedCost = 0;
   for (const [index, session] of result.sessions.entries()) {
     const { result: agent } = session;
+    const liveId = live.sessionIdOf(agent);
+    if (liveId !== undefined) {
+      // No keys when the blobs could not be written (the stage then fails `stage_error`).
+      const keys = blobKeys[index];
+      if (keys) {
+        await updateAgentSession(tx, liveId, {
+          promptBlobKey: keys.prompt,
+          transcriptBlobKey: keys.transcript,
+        });
+      }
+      sessionIds.push(liveId);
+      continue;
+    }
+    unrecordedCost += agent.costUsd;
     const row = await insertAgentSession(tx, {
       stageExecutionId: executionId,
       role: session.role,
@@ -418,11 +462,7 @@ async function storeResultInTx(
     });
     sessionIds.push(row.id);
   }
-  await addRunCost(
-    tx,
-    runId,
-    result.sessions.reduce((sum, s) => sum + s.result.costUsd, 0),
-  );
+  await addRunCost(tx, runId, unrecordedCost);
 
   const transition: Transition =
     result.status === 'succeeded'
@@ -468,6 +508,7 @@ async function storeResultInTx(
   const finished = next.status !== 'running';
   const patch: Partial<Run> = {
     status: next.status,
+    currentStage: finished ? null : (nextStage(next) ?? null),
     ...(finished ? { finishedAt: now } : {}),
     ...(result.status === 'succeeded' && result.notChecked.length
       ? { notChecked: result.notChecked }

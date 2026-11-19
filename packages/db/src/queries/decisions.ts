@@ -1,8 +1,9 @@
-import type { Decision } from '@pra/core';
+import { HAND, type Decision } from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db, Executor } from '../client.ts';
 import { findings } from '../schema/runs.ts';
 import { decisionBatches, findingDecisions, teamMembers } from '../schema/team.ts';
+import { recordStateChange, recordTimelineEntry } from './timeline.ts';
 
 export type DecisionBatch = typeof decisionBatches.$inferSelect;
 
@@ -133,6 +134,21 @@ export async function decideFindings(
       .values(
         bumped.map((row) => ({ findingId: row.id, batchId: batch!.id, version: row.version })),
       );
+    // S-03-T5: the signed decision on the Timeline, and the state it leaves the PR in.
+    await recordTimelineEntry(tx, {
+      pullRequestId: input.pullRequestId,
+      actor: { kind: 'member', memberId: input.signedBy },
+      kind: 'findings_decided',
+      params: { decision: input.decision, count: ids.length, reason: input.reason ?? null },
+      at: batch!.createdAt,
+      sourceKey: `decision_batch:${batch!.id}`,
+    });
+    await recordStateChange(
+      tx,
+      input.pullRequestId,
+      { code: 'findings_decided' },
+      { at: batch!.createdAt },
+    );
 
     return {
       ok: true,
@@ -186,6 +202,15 @@ export async function undoDecisionBatch(
       tx,
       rows.map((row) => row.id),
     );
+    await recordTimelineEntry(tx, {
+      pullRequestId: batch.pullRequestId,
+      actor: HAND,
+      kind: 'decision_undone',
+      params: { decision: batch.decision, count: rows.length },
+      at,
+      sourceKey: `decision_batch:${batch.id}:undone`,
+    });
+    await recordStateChange(tx, batch.pullRequestId, { code: 'decision_undone' }, { at });
     return {
       ok: true,
       batch: undone!,
