@@ -127,7 +127,13 @@ export function DecisionForm({
         </div>
       )}
       {decision === 'implement' && implementer && (
-        <WithAgentField block={agentBlock} checked={withAgent} onChange={setWithAgent} />
+        <WithAgentField
+          repo={repo}
+          number={number}
+          block={agentBlock}
+          checked={withAgent}
+          onChange={setWithAgent}
+        />
       )}
       <SignatureField
         signature={{

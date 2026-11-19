@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { Bot, TrendingUp } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
-import { FEATURE_ON_FROM } from '@pra/core';
 import { Button } from '@/components/ui/button.tsx';
 import {
   Dialog,
@@ -20,7 +19,8 @@ import { useSignature } from '@/features/signature/use-signature.ts';
 import { ApiError } from '@/lib/api.ts';
 import type { PrView } from '@/lib/api-types.ts';
 import { errorText } from '@/lib/reasons.ts';
-import { useImplement, useSetPrLevel } from './implement.ts';
+import { useImplement } from './implement.ts';
+import { RaiseLevelButton } from './RaiseLevelButton.tsx';
 
 const t = copy.implementer;
 const errorOf = (error: unknown) =>
@@ -33,29 +33,14 @@ const errorOf = (error: unknown) =>
  */
 export function ImplementAction({ repo, number, view, action }: MainActionProps) {
   const [open, setOpen] = useState(false);
-  const setLevel = useSetPrLevel(repo, number);
   const reasonId = useId();
   const block = action.disabled;
-  const need = FEATURE_ON_FROM.implement;
 
   return (
     <div className="grid justify-items-end gap-1">
       <div className="flex flex-wrap items-center justify-end gap-2">
         {block?.code === 'implement_below_level' && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={setLevel.isPending}
-            onClick={() =>
-              setLevel.mutate(need, {
-                onSuccess: () => toast.success(t.raised(need)),
-                onError: (error) => toast.error(errorOf(error)),
-              })
-            }
-          >
-            <TrendingUp aria-hidden="true" className="size-[13px]" />
-            {t.raiseLevel(need)}
-          </Button>
+          <RaiseLevelButton repo={repo} number={number} />
         )}
         <Button
           size="sm"

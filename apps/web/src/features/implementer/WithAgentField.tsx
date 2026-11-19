@@ -3,6 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { copy } from '@/copy/index.ts';
 import type { ReasonView } from '@/lib/api-types.ts';
+import { RaiseLevelButton } from './RaiseLevelButton.tsx';
 
 const t = copy.implementer;
 
@@ -12,10 +13,14 @@ const t = copy.implementer;
  * reason is visible text under it, tied with `aria-describedby`.
  */
 export function WithAgentField({
+  repo,
+  number,
   block,
   checked,
   onChange,
 }: {
+  repo: string;
+  number: string;
   block: ReasonView | null;
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -39,6 +44,11 @@ export function WithAgentField({
       <p id={hintId} className="text-xs text-text-3">
         {block ? t.blockText(block) : t.withAgentHint}
       </p>
+      {block?.code === 'implement_below_level' && (
+        <div>
+          <RaiseLevelButton repo={repo} number={number} />
+        </div>
+      )}
     </div>
   );
 }

@@ -22,7 +22,7 @@ import {
   writeAppSettings,
   type Db,
 } from '@pra/db';
-import type { PullRequestFreshState } from '@pra/integrations';
+import type { GitHubPullRequest, PullRequestFreshState } from '@pra/integrations';
 import { createTestDatabase } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
@@ -61,6 +61,8 @@ import {
   FIXTURE_CI,
   GLOBAL_LEVEL_REPOSITORY,
   HELD_PRS,
+  IMPLEMENTER_HOLD,
+  IMPLEMENTER_REPOSITORY,
   LARGE_PR_REPOSITORY,
   HELD_TURN_COST_USD,
   LEVEL_TWO_REPOSITORY,
@@ -390,7 +392,8 @@ class ScriptedAgents implements AgentRunner {
 
 /**
  * The GitHub double, plus fresh PR state for PRs the specs only delivered as webhooks: GitHub
- * would answer what those webhooks said, which is the stored row (merge.spec.ts).
+ * would answer what those webhooks said, which is the stored row (merge.spec.ts, and the
+ * implementer's fresh fork check in implement-patch.spec.ts).
  */
 class StackGitHub extends FakeGitHubGateway {
   readonly #db: Db;
@@ -398,6 +401,38 @@ class StackGitHub extends FakeGitHubGateway {
   constructor(db: Db, options: ConstructorParameters<typeof FakeGitHubGateway>[0]) {
     super(options);
     this.#db = db;
+  }
+
+  override async getPullRequest(fullName: string, number: number): Promise<GitHubPullRequest> {
+    if (this.pullRequests.has(`${fullName}#${number}`)) {
+      return super.getPullRequest(fullName, number);
+    }
+    const repository = await getRepositoryByFullName(this.#db, fullName);
+    const pr = repository && (await getPullRequest(this.#db, repository.id, number));
+    if (!pr) return super.getPullRequest(fullName, number);
+    const iso = (date: Date | null) => date?.toISOString() ?? null;
+    return {
+      fullName,
+      number,
+      title: pr.title,
+      body: pr.body ?? '',
+      authorLogin: pr.authorLogin,
+      htmlUrl: `https://github.com/${fullName}/pull/${number}`,
+      headSha: pr.headSha,
+      headRef: pr.headRef,
+      headRepoFullName: pr.isFork ? `fork-owner/${fullName.split('/')[1]}` : fullName,
+      baseSha: pr.baseSha,
+      baseRef: pr.baseRef,
+      isDraft: pr.isDraft,
+      isFork: pr.isFork,
+      state: pr.state,
+      commitsCount: pr.commitsCount,
+      openedAt: pr.openedAt.toISOString(),
+      updatedAt: pr.updatedAt.toISOString(),
+      closedAt: iso(pr.closedAt),
+      mergedAt: iso(pr.mergedAt),
+      mergeSha: pr.mergeSha,
+    };
   }
 
   override async getPullRequestState(
@@ -456,6 +491,7 @@ const github = new StackGitHub(db, {
     // Reachable but not connected: Settings → Repositories connects it (connect-repo.spec.ts).
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
     [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
+    [IMPLEMENTER_REPOSITORY.fullName]: IMPLEMENTER_REPOSITORY.installationId,
     [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
     [LARGE_PR_REPOSITORY.fullName]: LARGE_PR_REPOSITORY.installationId,
     [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
@@ -503,6 +539,16 @@ await upsertRepository(
     sensitivePatterns: [{ pattern: 'db/migrations/**', reason: 'Migrations cannot be undone.' }],
   },
   { installationId: VERIFIED_REPOSITORY.installationId },
+);
+// implement-patch.spec.ts: level 3 without sensitive files, raised to level 4 per PR.
+await upsertRepository(
+  db,
+  {
+    slug: IMPLEMENTER_REPOSITORY.slug,
+    githubFullName: IMPLEMENTER_REPOSITORY.fullName,
+    defaultLevel: 3,
+  },
+  { installationId: IMPLEMENTER_REPOSITORY.installationId },
 );
 await upsertRepository(
   db,
@@ -577,6 +623,11 @@ await upsertRepository(
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
   ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
+  [
+    'prompt-implementer.md',
+    'Fix the findings in {{runDir}}/findings.json. Rules: {{knowledgeDir}}.\n',
+  ],
+  ['implement-rules.md', '# Implement rules\n\nChange only what a finding needs.\n'],
 ] as const) {
   await importInstructionV1(db, { scope: 'global', fileKey, content });
 }

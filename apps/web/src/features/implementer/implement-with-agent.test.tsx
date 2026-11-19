@@ -204,7 +204,7 @@ test('Fixing shows who started it and Cancel cancels the implementer run', async
 
   const banner = await screen.findByTestId('next-step');
   expect(
-    await within(banner).findByText(/Implementer is fixing 2 findings · started by/),
+    await within(banner).findByText('Implementer is fixing 2 findings · started by Kasia'),
   ).toBeVisible();
   await user.click(within(banner).getByRole('button', { name: copy.runs.cancel.action }));
   await waitFor(() =>
