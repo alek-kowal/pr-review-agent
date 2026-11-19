@@ -59,3 +59,22 @@ Plan: no. The tasks' "Done when" checks are the plan; one commit per task.
   `start` = `node dist/main.js`), because the composition root (T5) builds dependencies from env
   before Fastify starts. Request ids: a caller's `X-Request-Id` is kept, otherwise a UUID.
 - The worker's entry is `apps/worker/src/main.ts` (the empty `src/index.ts` is gone).
+- pg-boss 12 (`PgBoss` named export) in `@pra/db/src/queue.ts`: `createQueue(url)` forces
+  `schema: 'pgboss'` and `migrate: false`, so `start()` throws "pg-boss is not installed" on a
+  database `pnpm db:migrate` has not touched (tested). `JOBS` holds the names, `JobPayloads` the
+  data per name, `sendJob` sends with that type, `QueueJob<N>` is what a handler gets.
+- `migrateDatabase` = Drizzle migrations, then `migrateQueue`: a short-lived pg-boss with
+  `migrate: true` (no supervision, schedule or instance row) installs or upgrades the schema and
+  **creates every queue in `JOBS`** (pg-boss 12 needs a queue before `send`/`work`). So a new job
+  name needs `pnpm db:migrate`, like a new table; nothing creates queues on start.
+- `@pra/db` re-exports the common Drizzle operators (`eq`, `and`, `sql`, ...) so apps use the same
+  drizzle-orm instance as the schema and need no own drizzle-orm or pg-boss dependency.
+- Worker: `startWorker(deps, options)` in `apps/worker/src/worker.ts` (deps: db, queue, logger)
+  starts the queue, subscribes handlers from `src/handlers/` and returns `stop()` (graceful
+  `queue.stop`, then logs `worker stopped`). `main.ts` builds deps from env, exits with a fatal log
+  when DATABASE_URL is missing or the queue is not installed, and on SIGINT/SIGTERM stops the
+  worker and closes the pool. The test passes `pollingIntervalSeconds: 0.5`; production keeps
+  pg-boss's 2 s.
+- Ctrl-C was checked in a real pseudo-terminal (`pnpm --filter @pra/worker dev`, then `^C`): it
+  logs `worker stopping` and `worker stopped` and leaves no process. A plain `kill -INT` on the pnpm
+  process does not reach Node, because pnpm 12 runs scripts in their own process group.

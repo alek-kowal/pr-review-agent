@@ -8,8 +8,9 @@ if (!url) {
 }
 
 try {
-  const { applied, total } = await migrateDatabase(url);
+  const { applied, total, queueSchemaVersion } = await migrateDatabase(url);
   console.log(`db:migrate: ${applied} new Drizzle migration(s) applied, ${total} in total.`);
+  console.log(`db:migrate: pg-boss schema "pgboss" at version ${queueSchemaVersion}.`);
 } catch (error) {
   console.error('db:migrate failed:', error);
   process.exit(1);

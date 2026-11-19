@@ -18,14 +18,22 @@ export function withDatabase(url: string, database: string): string {
   return parsed.toString();
 }
 
+export type CreateTestDatabaseOptions = {
+  /** Defaults to DATABASE_URL, then the local compose db. */
+  baseUrl?: string;
+  /** Run `migrateDatabase` on it (default true). */
+  migrate?: boolean;
+};
+
 /**
  * Creates and migrates a database that belongs to one test run, so runs from several worktrees
  * share one Postgres without touching each other's data. The URL is DATABASE_URL (or the local
  * compose db) with the database name changed.
  */
-export async function createTestDatabase(
-  baseUrl: string = process.env.DATABASE_URL || LOCAL_DATABASE_URL,
-): Promise<TestDatabase> {
+export async function createTestDatabase({
+  baseUrl = process.env.DATABASE_URL || LOCAL_DATABASE_URL,
+  migrate = true,
+}: CreateTestDatabaseOptions = {}): Promise<TestDatabase> {
   const maintenanceUrl = withDatabase(baseUrl, MAINTENANCE_DATABASE);
   const name = `pra_test_${Date.now().toString(36)}_${randomBytes(4).toString('hex')}`;
 
@@ -41,7 +49,7 @@ export async function createTestDatabase(
     });
 
   try {
-    await migrateDatabase(url);
+    if (migrate) await migrateDatabase(url);
   } catch (error) {
     await drop();
     throw error;

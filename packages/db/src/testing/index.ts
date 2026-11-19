@@ -3,6 +3,7 @@ import './provided-context.ts';
 
 export {
   createTestDatabase,
+  type CreateTestDatabaseOptions,
   LOCAL_DATABASE_URL,
   type TestDatabase,
   withDatabase,

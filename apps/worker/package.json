@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch --env-file-if-exists=../../.env src/main.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
+    "@pra/db": "workspace:*",
     "@pra/integrations": "workspace:*"
   }
 }

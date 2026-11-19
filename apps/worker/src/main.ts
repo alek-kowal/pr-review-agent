@@ -1,15 +1,39 @@
-// Worker entry (`pnpm dev`): logs with the shared pino options and stops on SIGTERM or SIGINT.
+// Worker entry (`pnpm dev`): builds dependencies from env, starts the job handlers and stops
+// gracefully on SIGTERM or SIGINT.
+import { closeDb, createDb, createQueue } from '@pra/db';
 import { createLogger } from '@pra/integrations/logging';
+import { startWorker } from './worker.ts';
 
 const logger = createLogger('worker');
-logger.info('worker started');
-
-for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.once(signal, () => {
-    logger.info({ signal }, 'worker stopped');
-    process.exit(0);
-  });
+const url = process.env.DATABASE_URL;
+if (!url) {
+  logger.fatal('DATABASE_URL is not set (see .env.example)');
+  process.exit(1);
 }
 
-// Keeps the process alive until a signal arrives; F-02-T4 replaces this with the job queue.
-setInterval(() => {}, 1 << 30);
+const db = createDb(url, {
+  onPoolError: (error) => logger.warn({ err: error }, 'idle database connection failed'),
+});
+const queue = createQueue(url);
+
+let worker: Awaited<ReturnType<typeof startWorker>>;
+try {
+  worker = await startWorker({ db, queue, logger });
+} catch (error) {
+  logger.fatal({ err: error }, 'worker failed to start (has `pnpm db:migrate` run?)');
+  await closeDb(db);
+  process.exit(1);
+}
+
+let stopping = false;
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    if (stopping) return;
+    stopping = true;
+    logger.info({ signal }, 'worker stopping');
+    void worker
+      .stop()
+      .then(() => closeDb(db))
+      .then(() => process.exit(0));
+  });
+}
