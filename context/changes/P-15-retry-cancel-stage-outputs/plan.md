@@ -181,7 +181,7 @@ the durability test uses a child process. API tests use `apps/api/test/helper.ts
 
 ### Phase 7: End-to-end retry and cancel
 
-- [ ] 7.1 `pnpm test:e2e retry-cancel.spec.ts` passes
+- [x] 7.1 `pnpm test:e2e retry-cancel.spec.ts` passes
 
 ### Phase 8: Reconcile poll
 

@@ -25,6 +25,7 @@ import { startWorker } from '../../apps/worker/src/worker.ts';
 import {
   API_PORT,
   API_URL,
+  FAIL_ONCE_PRS,
   FAILING_PR_FROM,
   HELD_PRS,
   HELD_TURN_COST_USD,
@@ -129,10 +130,13 @@ const sandbox = new FakeSandbox(async (spec) => {
   return { exitCode, output, outputTail: output };
 });
 
-/** Waits until `file` exists, at most `ms` (a held reviewer never blocks the stack for good). */
-async function waitForFile(file: string, ms: number): Promise<void> {
+/**
+ * Waits until `file` exists, at most `ms` (a held reviewer never blocks the stack for good), or
+ * until the session is aborted (a cancel).
+ */
+async function waitForFile(file: string, ms: number, signal?: AbortSignal): Promise<void> {
   const until = Date.now() + ms;
-  while (Date.now() < until) {
+  while (Date.now() < until && !signal?.aborted) {
     if (
       await access(file).then(
         () => true,
@@ -149,14 +153,16 @@ const FIX_NOT_RESOLVED_AT = 1;
 
 /**
  * Answers per session kind. A full review reads the PR number from the brief: from
- * `FAILING_PR_FROM`, invalid; in `HELD_PRS`, one reported turn, then the review once the spec
- * releases it; while `hold-<number>` exists in `holdDir` it waits. A fix check (no brief,
+ * `FAILING_PR_FROM`, invalid; in `FAIL_ONCE_PRS`, invalid the first time only; in `HELD_PRS`, one
+ * reported turn, then the review once the spec releases it or cancels the run; while
+ * `hold-<number>` exists in `holdDir` it waits. A fix check (no brief,
  * `findings.json`) resolves every finding, except at `fixShas[FIX_NOT_RESOLVED_AT]`, where the
  * first stays unresolved. The verifier answers per finding title.
  */
 class ScriptedAgents implements AgentRunner {
   readonly #holdDir: string;
   readonly #fixShas: readonly string[];
+  readonly #failedOnce = new Set<number>();
 
   constructor(holdDir: string, fixShas: readonly string[]) {
     this.#holdDir = holdDir;
@@ -172,13 +178,22 @@ class ScriptedAgents implements AgentRunner {
     if (brief === null) return this.#checkFixes(input);
 
     const number = Number(/PR #(\d+)/.exec(brief)?.[1]);
-    if (number >= HELD_PRS.from && number <= HELD_PRS.to) {
+    const held = number >= HELD_PRS.from && number <= HELD_PRS.to;
+    if (held) {
       input.onProgress?.({ turns: 1, costUsd: HELD_TURN_COST_USD, usage: NO_USAGE });
-      await waitForFile(releaseFile(number), 120_000);
+      await waitForFile(releaseFile(number), 120_000, input.signal);
     }
     await this.#whileHeld(number, input.signal);
+    // A cancelled session ends with what it spent so far, as the real adapter does.
+    if (input.signal?.aborted) {
+      const spent = held ? { costUsd: HELD_TURN_COST_USD, turns: 1 } : { turns: 0 };
+      return new FakeAgentRunner([{ fail: 'cancelled', ...spent }]).run(input);
+    }
+    const failOnce =
+      number >= FAIL_ONCE_PRS.from && number <= FAIL_ONCE_PRS.to && !this.#failedOnce.has(number);
+    if (failOnce) this.#failedOnce.add(number);
     const step =
-      number >= FAILING_PR_FROM
+      number >= FAILING_PR_FROM || failOnce
         ? { output: { summary: 'not a review' }, costUsd: 0.04 }
         : { output: SCRIPTED_REVIEW, costUsd: 0.31, turns: 6 };
     return new FakeAgentRunner([step]).run(input);

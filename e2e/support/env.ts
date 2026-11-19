@@ -29,6 +29,9 @@ export type StackState = {
 /** PR numbers from this one up get a failing reviewer. */
 export const FAILING_PR_FROM = 400;
 
+/** PR numbers in this range get a reviewer that fails its first session only (retry-cancel.spec.ts). */
+export const FAIL_ONCE_PRS = { from: 150, to: 159 };
+
 /**
  * PR numbers in this range get a held reviewer: it reports one turn costing `HELD_TURN_COST_USD`,
  * then waits until the spec creates `releaseFile(number)` before it answers (live-progress.spec.ts).

@@ -10,7 +10,7 @@ export const stackState = (): StackState =>
 /** The GitHub login of the fixtures' PR author. */
 export const AUTHOR_LOGIN = 'wb-dev';
 
-type Fixture = 'ready_for_review' | 'opened-draft' | 'synchronize';
+type Fixture = 'ready_for_review' | 'opened-draft' | 'synchronize' | 'closed';
 
 type Repo = { full_name: string; name: string; owner: { login: string } };
 type Payload = {

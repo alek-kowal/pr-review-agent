@@ -63,6 +63,11 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   `STAGE_ERROR.interruptedByRestart`); the in-process "left running" path keeps `interrupted`. A
   running run with a cancel request is cancelled instead. One worker process is assumed: at start,
   no stage of ours is live.
+- **E2e retry and cancel (T7).** The stack's scripted reviewer gains `FAIL_ONCE_PRS` (150–159):
+  the first session of such a PR is invalid, the next answers. The retry runs on the level-two
+  repository, so Checks, Task and Change type are there to be reused. Held reviewers now stop on
+  the session's abort and answer `cancelled` with the $0.12 turn spent, as the real adapter
+  does; the cancel specs use held PRs 360+, 370+ and 380+ (live-progress keeps 350+).
 - **Reconcile never starts a review**, also not on its first run after a repository is connected
   (an empty board does not auto-review everything). So no "first poll" marker is stored. It
   corrects the PR snapshot (new PRs, head, draft, closed, merged), writes a `pr_reconciled`
