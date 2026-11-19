@@ -19,35 +19,50 @@ const REPO_DEFAULTS: RepositoryConfig = RepositoryConfigSchema.parse({
 });
 
 describe('config resilience', () => {
-  it('a broken repository field falls back alone, with a warning naming it (P classify.test.ts:100)', () => {
+  it('a broken field falls back alone, the good ones around it are kept, and the warning names it (P classify.test.ts:112)', () => {
     const raw = {
       ...WB_REPOSITORY_CONFIG,
+      largePrLines: 'big',
       changeTypeRules: { usesExistingPaths: ['**/*.md'], oneWayPaths: 'deploy/**', sizeLines: 800 },
     };
     const { value, warnings } = parseWithFallback(RepositoryConfigSchema, REPO_DEFAULTS, raw);
-    expect(value.changeTypeRules).toEqual(REPO_DEFAULTS.changeTypeRules);
+    expect(value.changeTypeRules).toEqual({
+      usesExistingPaths: ['**/*.md'],
+      oneWayPaths: [],
+      sizeLines: 800,
+    });
+    expect(value.largePrLines).toBe(REPO_DEFAULTS.largePrLines);
     expect(value.sensitivePatterns).toEqual(WB_REPOSITORY_CONFIG.sensitivePatterns);
     expect(value.slug).toBe('workflowbuilder');
-    expect(warnings).toEqual([
-      { code: 'config_field_invalid', params: { field: 'changeTypeRules', issue: 'invalid_type' } },
+    expect(warnings.map((w) => w.params)).toEqual([
+      { field: 'changeTypeRules.oneWayPaths', issue: 'invalid_type' },
+      { field: 'largePrLines', issue: 'invalid_type' },
+    ]);
+    // A nested object that is not an object at all falls back whole.
+    const whole = parseWithFallback(RepositoryConfigSchema, REPO_DEFAULTS, {
+      ...WB_REPOSITORY_CONFIG,
+      changeTypeRules: 'none',
+    });
+    expect(whole.value.changeTypeRules).toEqual(REPO_DEFAULTS.changeTypeRules);
+    expect(whole.warnings.map((w) => w.params)).toEqual([
+      { field: 'changeTypeRules', issue: 'invalid_type' },
     ]);
   });
 
-  it('a missing or unreadable settings value gives the defaults (P classify.test.ts:104)', () => {
-    const { value, warnings } = parseWithFallback(
-      AppSettingsSchema,
-      DEFAULT_APP_SETTINGS,
-      'not json',
-    );
-    expect(value).toEqual(DEFAULT_APP_SETTINGS);
-    expect(warnings).toEqual([{ code: 'config_not_object', params: {} }]);
+  it('a missing or unreadable settings value gives the defaults and says so once (P classify.test.ts:104, control.test.ts:37)', () => {
+    for (const raw of ['not json', '', [], null, undefined]) {
+      expect(parseWithFallback(AppSettingsSchema, DEFAULT_APP_SETTINGS, raw)).toEqual({
+        value: DEFAULT_APP_SETTINGS,
+        warnings: [{ code: 'config_not_object', params: {} }],
+      });
+    }
     expect(parseWithFallback(AppSettingsSchema, DEFAULT_APP_SETTINGS, {})).toEqual({
       value: DEFAULT_APP_SETTINGS,
       warnings: [],
     });
   });
 
-  it('a valid file parses with no warnings, unknown keys dropped (P classify.test.ts:112)', () => {
+  it('a valid file parses with no warnings, unknown keys dropped (P classify.test.ts:100)', () => {
     const { value, warnings } = parseWithFallback(RepositoryConfigSchema, REPO_DEFAULTS, {
       ...WB_REPOSITORY_CONFIG,
       legacyTier: 'composes',
@@ -68,26 +83,39 @@ describe('config resilience', () => {
     expect(validModelName('')).toBe(false);
   });
 
-  it('a broken level falls back on its own, the others keep their overrides (P levels.test.ts:66)', () => {
+  it('a broken level field falls back on its own, its siblings and the other levels stay (P levels.test.ts:66)', () => {
     const { value, warnings } = parseWithFallback(
       LevelOverridesSchema,
       {},
-      { 1: { maxFindings: 'four' }, 2: { maxQuestions: 1 }, 5: { autofixMaxPatches: 1 } },
+      {
+        1: { maxFindings: 'four', maxQuestions: 1 },
+        2: { models: { reviewer: '--dangerous', verifier: 'claude-haiku-5-5' } },
+        3: 'yes',
+        5: { autofixMaxPatches: 1 },
+      },
     );
-    expect(value).toEqual({ 2: { maxQuestions: 1 }, 5: { autofixMaxPatches: 1 } });
-    expect(warnings).toEqual([
-      { code: 'config_field_invalid', params: { field: '1', issue: 'invalid_type' } },
+    expect(value).toEqual({
+      1: { maxQuestions: 1 },
+      2: { models: { verifier: 'claude-haiku-5-5' } },
+      5: { autofixMaxPatches: 1 },
+    });
+    expect(warnings.map((w) => w.params)).toEqual([
+      { field: '1.maxFindings', issue: 'invalid_type' },
+      { field: '2.models.reviewer', issue: 'custom' },
+      { field: '3', issue: 'invalid_type' },
     ]);
-    expect(resolveLevel(3, value).settings.maxQuestions).toBe(1);
+    expect(resolveLevel(3, value).settings.maxQuestions).toBe(3);
+    expect(resolveLevel(1, value).settings.maxQuestions).toBe(1);
     expect(resolveLevel(1, value).settings.maxFindings).toBe(4);
   });
 
-  it('paused holds every review (P control.test.ts:30)', () => {
+  it('paused holds every review, even with the budget spent (P control.test.ts:53)', () => {
     const settings = { ...DEFAULT_APP_SETTINGS, paused: true, pausedReason: 'release freeze' };
     expect(holdReason(settings, 0)).toEqual({ code: 'paused', params: { note: 'release freeze' } });
+    expect(holdReason({ ...settings, dailyBudgetUsd: 1 }, 5)?.code).toBe('paused');
   });
 
-  it('a reached daily budget holds reviews (P control.test.ts:37)', () => {
+  it('a reached daily budget holds reviews (P control.test.ts:53)', () => {
     const settings = { ...DEFAULT_APP_SETTINGS, dailyBudgetUsd: 50 };
     expect(holdReason(settings, 49.99)).toBeNull();
     expect(holdReason(settings, 50)).toEqual({
@@ -96,12 +124,18 @@ describe('config resilience', () => {
     });
   });
 
-  it('no budget set never holds (P control.test.ts:45)', () => {
+  it('no budget or a zero budget never holds, and the defaults are not paused (P control.test.ts:53, control.test.ts:30)', () => {
     expect(DEFAULT_APP_SETTINGS.dailyBudgetUsd).toBeNull();
+    expect(DEFAULT_APP_SETTINGS.paused).toBe(false);
     expect(holdReason(DEFAULT_APP_SETTINGS, 1_000_000)).toBeNull();
+    expect(holdReason({ ...DEFAULT_APP_SETTINGS, dailyBudgetUsd: 0 }, 7.2)).toBeNull();
+    const stored = parseWithFallback(AppSettingsSchema, DEFAULT_APP_SETTINGS, {
+      dailyBudgetUsd: 0,
+    });
+    expect(stored.value.dailyBudgetUsd).toBeNull();
   });
 
-  it('the model comes from the level override, then settings, then the default (P control.test.ts:53)', () => {
+  it('the model comes from the level override, then settings, then the default (P control.test.ts:105)', () => {
     const settings = { models: { reviewer: 'claude-sonnet-5-5', verifier: 'claude-haiku-5-5' } };
     const level = resolveLevel(3, { 2: { models: { reviewer: 'claude-haiku-5-5' } } });
     expect(modelFor(settings, level, 'reviewer')).toEqual({
@@ -122,20 +156,34 @@ describe('config resilience', () => {
     expect(modelFor({ models: {} }, null, 'reviewer').model).toBe('claude-opus-5-5');
   });
 
-  it('an empty model value falls back, and broken settings fall back field by field (P control.test.ts:105)', () => {
+  it('an empty model value falls back (P control.test.ts:105)', () => {
     expect(modelFor({ models: { reviewer: '  ' } }, null, 'reviewer')).toMatchObject({
       model: 'claude-opus-5-5',
       source: 'default',
     });
+  });
+
+  it('a settings field of the wrong type falls back alone, the good fields stay (P control.test.ts:45)', () => {
     const { value, warnings } = parseWithFallback(AppSettingsSchema, DEFAULT_APP_SETTINGS, {
-      paused: true,
-      agentSlots: 0,
-      models: { reviewer: '--dangerously-skip-permissions' },
+      paused: 'yes',
+      dailyBudgetUsd: '5',
+      agentSlots: 3,
+      models: {
+        reviewer: 'claude-opus-5-5',
+        verifier: 7,
+        implementer: '--dangerously-skip-permissions',
+      },
     });
-    expect(value).toEqual({ ...DEFAULT_APP_SETTINGS, paused: true });
+    expect(value).toEqual({
+      ...DEFAULT_APP_SETTINGS,
+      agentSlots: 3,
+      models: { reviewer: 'claude-opus-5-5' },
+    });
     expect(warnings.map((w) => w.params)).toEqual([
-      { field: 'agentSlots', issue: 'too_small' },
-      { field: 'models', issue: 'custom' },
+      { field: 'paused', issue: 'invalid_type' },
+      { field: 'dailyBudgetUsd', issue: 'invalid_type' },
+      { field: 'models.verifier', issue: 'invalid_type' },
+      { field: 'models.implementer', issue: 'custom' },
     ]);
   });
 
