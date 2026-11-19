@@ -288,7 +288,7 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Automated
 
-- [x] 8.1 actionlint reports nothing
+- [x] 8.1 actionlint reports nothing — 81a27a1
 
 #### Manual
 
@@ -298,5 +298,5 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Automated
 
-- [ ] 9.1 `AGENTS.md` under 100 lines and passes `prettier --check`
-- [ ] 9.2 Report states its size in lines and approximate tokens
+- [x] 9.1 `AGENTS.md` under 100 lines and passes `prettier --check`
+- [x] 9.2 Report states its size in lines and approximate tokens
