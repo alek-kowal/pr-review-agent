@@ -1,7 +1,7 @@
 ---
 change_id: P-14
 title: Questions and signed reviews (S-08-T1–T11)
-status: in_progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -10,7 +10,10 @@ archived_at: null
 ## Notes
 
 Work package P-14 from `context/foundation/work-packages.md`. Plan: no; the tasks' "Done when"
-checks are the plan. One commit per task.
+checks are the plan. One commit per task. Main was merged at the start of both sessions; the
+second merge kept main's move of sensitive files out of the run-completed hooks (the opinion
+carry hook stays after chains). Final check: `pnpm verify` (975 tests) and `pnpm test:e2e`
+(20 specs) pass.
 
 ## Decisions
 
