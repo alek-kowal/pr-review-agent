@@ -29,7 +29,8 @@ const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /**
  * `Sandbox` on Docker through its CLI. Each run is `docker create` (labelled, no network unless
  * asked, read-only root, no capabilities, resource limits) then `docker start -a`; a time limit
- * or an aborted signal removes the container. gVisor (`runsc`) is used when the daemon has it.
+ * or an aborted signal removes the container, and every run removes it at the end (no `--rm`, so
+ * the removal is awaited, not raced). gVisor (`runsc`) is used when the daemon has it.
  */
 export class DockerSandbox implements Sandbox {
   readonly #dockerHost: string | undefined;
@@ -54,12 +55,18 @@ export class DockerSandbox implements Sandbox {
     const created = await this.#cli(dockerCreateArgs(spec, { name, runtime, user: this.#user }));
     if (created.exitCode !== 0) {
       await this.#remove(name);
-      throw new IntegrationError(SANDBOX_FAILED, { step: 'create', detail: tail(created.all, 500) });
+      throw new IntegrationError(SANDBOX_FAILED, {
+        step: 'create',
+        detail: tail(created.all, 500),
+      });
     }
 
     let timedOut = false;
     let aborted = false;
-    const stop = () => void this.#remove(name);
+    let stopping: Promise<void> | undefined;
+    const stop = () => {
+      stopping ??= this.#remove(name);
+    };
     const timer = setTimeout(() => {
       timedOut = true;
       stop();
@@ -94,6 +101,8 @@ export class DockerSandbox implements Sandbox {
     } finally {
       clearTimeout(timer);
       spec.signal?.removeEventListener('abort', onAbort);
+      // One removal at a time: `docker rm -f` returns early while another removal is running.
+      await stopping;
       await this.#remove(name);
     }
   }
@@ -161,7 +170,6 @@ export function dockerCreateArgs(
     '--label',
     `${SANDBOX_LABEL}=1`,
     ...Object.entries(spec.labels ?? {}).flatMap(([key, value]) => ['--label', `${key}=${value}`]),
-    '--rm',
     '--init',
     '--network',
     spec.network === 'egress' ? 'bridge' : 'none',

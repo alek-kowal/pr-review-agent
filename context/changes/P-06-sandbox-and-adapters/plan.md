@@ -223,9 +223,9 @@ the guard. Every role also gets the guard as a PreToolUse hook.
 
 #### Automated
 
-- [ ] 1.1 sandbox.docker.test.ts passes with Docker, skips with a reason without it
-- [ ] 1.2 sandbox.test.ts passes
-- [ ] 1.3 pnpm verify passes
+- [x] 1.1 sandbox.docker.test.ts passes with Docker, skips with a reason without it
+- [x] 1.2 sandbox.test.ts passes
+- [x] 1.3 pnpm verify passes
 
 ### Phase 2: Offline install
 

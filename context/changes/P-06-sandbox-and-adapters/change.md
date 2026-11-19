@@ -1,7 +1,7 @@
 ---
 change_id: P-06
 title: Sandbox and adapters (S-04-T1, S-04-T2, S-04-T4, S-05-T1, S-06-T1, S-06-T2, S-13-T1)
-status: planned
+status: in_progress
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -59,3 +59,13 @@ The planning step ran without questions (orchestrator rule: decide and record).
   as the GitHub App key and write them into a branch that gets pushed.
 - **Session env** keeps `PATH` and a throwaway `HOME` next to `ANTHROPIC_API_KEY` (the CLI needs
   them); nothing else from the worker's environment.
+
+### Implementation
+
+- **S-04-T1: no `docker create --rm`.** The adapter removes every container itself with an awaited
+  `docker rm -f` (one removal at a time). With `--rm` the daemon's auto-removal races ours and
+  `docker rm -f` returns early ("removal already in progress"), so "no container left" was not
+  deterministic. A worker crash mid-run can leave an exited container; it carries `pra.sandbox=1`,
+  so it can be swept by that label.
+- **S-04-T1 Docker test** labels its containers `pra.sandbox.test=<uuid>`, pulls `node:24-slim`
+  when missing, and skips with a printed reason when `docker version` fails.
