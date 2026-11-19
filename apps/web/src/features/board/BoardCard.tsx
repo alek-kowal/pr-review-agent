@@ -3,6 +3,7 @@ import { CircleAlert, CircleCheck, CircleDashed, Loader, UserRound } from 'lucid
 import type { Tone } from '@pra/core';
 import { cn } from 'cn';
 import { copy } from '@/copy/index.ts';
+import { usePauseNames } from '@/features/budget/wait-text.ts';
 import type { BoardCard as Card } from '@/lib/api-types.ts';
 import { authorName, shortText, stepContext, whoText } from '@/lib/next-step.ts';
 import { CARD_BADGE_SLOTS } from './slots.ts';
@@ -114,7 +115,8 @@ export function BoardCard({
   now: number;
 }) {
   const step = card.nextStep;
-  const context = stepContext(card.author);
+  // A card queued by a pause names who paused (S-10).
+  const context = stepContext(card.author, usePauseNames());
   const who = copy.nextStep.quietOnCards.includes(step.who.code) ? '' : whoText(step, context);
   const Icon = TONE_ICON[step.tone];
   const twoLines = step.lane === 'ready_to_merge';

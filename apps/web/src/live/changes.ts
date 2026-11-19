@@ -62,6 +62,9 @@ export const LIVE_TARGETS: Record<string, readonly QueryFamilyKey[]> = {
   answers: ['prFindings', 'prView', 'board'],
   opinions: ['prFindings', 'prView'],
   reviews: ['prView'],
+  // S-10: pause, budget and slots, and why a run waits.
+  app_settings: ['status', 'board', 'prView', 'activity'],
+  run_waits: ['prView', 'board', 'activity', 'status'],
 };
 
 const DEFAULT_TARGETS: readonly QueryFamilyKey[] = ['pr', 'board'];

@@ -13,6 +13,8 @@ export const checklist = {
   passes: 'Passes',
   fails: 'Fails',
   progress: (ok: number, total: number) => `${ok} of ${total}`,
+  /** The all-green line. */
+  green: (headSha: string) => `Checklist green at ${sha(headSha)}`,
   showAll: (total: number) => `Show all ${total}`,
   showFailing: 'Show failing only',
   items: {

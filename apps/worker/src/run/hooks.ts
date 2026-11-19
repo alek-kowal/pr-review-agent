@@ -7,6 +7,7 @@ import { enqueueAfterRoundComment } from '../handlers/github-comment.ts';
 import type { SessionRecord } from '../stages/stage.ts';
 import { carryOpinionsOnRunCompleted } from './carry-opinions.ts';
 import { chainsOnRunCompleted } from './chains.ts';
+import { wakeQueueOnRunEnd } from './queue-hooks.ts';
 import {
   timelineOnRunCancelled,
   timelineOnRunCompleted,
@@ -46,9 +47,10 @@ export const RUN_HOOKS: RunHooks = {
     carryOpinionsOnRunCompleted,
     timelineOnRunCompleted,
     enqueueAfterRoundComment,
+    wakeQueueOnRunEnd,
   ],
-  runFailed: [timelineOnRunFailed],
-  runCancelled: [timelineOnRunCancelled],
+  runFailed: [timelineOnRunFailed, wakeQueueOnRunEnd],
+  runCancelled: [timelineOnRunCancelled, wakeQueueOnRunEnd],
   sessionCostRecorded: [],
 };
 

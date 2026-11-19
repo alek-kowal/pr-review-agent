@@ -15,7 +15,20 @@ export default defineConfig({
     baseURL: WEB_URL,
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    // pause-budget.spec.ts pauses the whole factory: it runs first, alone, and restores the state.
+    {
+      name: 'pause-budget',
+      testMatch: 'pause-budget.spec.ts',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'chromium',
+      testIgnore: 'pause-budget.spec.ts',
+      dependencies: ['pause-budget'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
   webServer: [
     {
       command: 'node e2e/support/stack.ts',

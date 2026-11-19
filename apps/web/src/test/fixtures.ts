@@ -16,6 +16,7 @@ import type {
   RoundProgressView,
   RoundView,
   SensitiveView,
+  StatusResponse,
 } from '@/lib/api-types.ts';
 
 export const aRepository = (over: Partial<RepositoryRef> = {}): RepositoryRef => ({
@@ -234,5 +235,20 @@ export const aQuestion = (over: Partial<QuestionView> = {}): QuestionView => ({
   recommended: 0,
   why: 'Restarts are frequent.',
   answer: null,
+  ...over,
+});
+
+/** `GET /api/status`: running, no budget, two slots. */
+export const aStatus = (over: Partial<StatusResponse> = {}): StatusResponse => ({
+  state: 'running',
+  pausedBy: null,
+  pausedReason: null,
+  pausedAt: null,
+  dailyBudgetUsd: null,
+  agentSlots: 2,
+  timeZone: 'Europe/Warsaw',
+  todaySpendUsd: 1.84,
+  since: '2026-11-18T23:00:00.000Z',
+  queuedCount: 0,
   ...over,
 });

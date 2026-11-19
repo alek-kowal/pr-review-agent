@@ -1,22 +1,25 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, test } from 'vitest';
 import { copy } from '@/copy/index.ts';
-import type { NextStepView } from '@/lib/api-types.ts';
-import {
-  aChecklist,
-  aFinding,
-  aFindingsResponse,
-  aNextStep,
-  anAuthor,
-  aPrView,
-} from '@/test/fixtures.ts';
+import type { NextStepView, PrView } from '@/lib/api-types.ts';
+import { aFinding, aFindingsResponse, aNextStep, anAuthor, aPrView } from '@/test/fixtures.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
 import { renderApp } from '@/test/renderApp.tsx';
-import { Checklist } from './Checklist.tsx';
 import { NextStepBanner } from './NextStepBanner.tsx';
 
 afterEach(restoreFetch);
+
+/** The banner reads the status (who paused) through a query. */
+function renderBanner(view: PrView) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <NextStepBanner repo="wb" number="12" view={view} />
+    </QueryClientProvider>,
+  );
+}
 
 const action = (code: NonNullable<NextStepView['mainAction']>['action'], signed = false) => ({
   action: code,
@@ -99,7 +102,7 @@ const FIXTURES: {
     title: 'Ready to merge at abc1234',
     meta: 'Next step · usually Kasia (author)',
     tone: 'bg-ok-bg',
-    button: null,
+    button: 'Merge #12…',
   },
 ];
 
@@ -108,7 +111,7 @@ describe('the Next step banner', () => {
     '$name: copy, tone and main action',
     ({ step, title, meta, tone, button }) => {
       const view = aPrView({ nextStep: step, author: anAuthor({ name: 'Kasia', memberId: 'm1' }) });
-      render(<NextStepBanner repo="wb" number="12" view={view} />);
+      renderBanner(view);
 
       const banner = screen.getByRole('region', { name: copy.nextStep.label });
       expect(within(banner).getByRole('heading', { level: 2 })).toHaveTextContent(title);
@@ -129,7 +132,7 @@ describe('the Next step banner', () => {
       who: { code: 'who_nobody', params: {} },
       mainAction: null,
     });
-    render(<NextStepBanner repo="wb" number="12" view={aPrView({ nextStep: step })} />);
+    renderBanner(aPrView({ nextStep: step }));
 
     const banner = screen.getByRole('region', { name: copy.nextStep.stateLabel });
     expect(banner).toHaveTextContent('Merged');
@@ -158,36 +161,5 @@ describe('the Next step banner', () => {
     const line = await screen.findByRole('button', { name: /Undo loses the group/ });
     await waitFor(() => expect(line).toHaveFocus());
     expect(line).toHaveAttribute('aria-expanded', 'true');
-  });
-});
-
-describe('the merge checklist', () => {
-  const items = aChecklist().items;
-
-  test('shows failing rows only, and every row behind "Show all N"', async () => {
-    const user = userEvent.setup();
-    render(<Checklist repo="wb" number="12" view={aPrView({ checklist: aChecklist() })} />);
-
-    const list = screen.getByRole('list');
-    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
-    expect(list).toHaveTextContent('3 findings to decide.');
-    expect(screen.getByText('1 of 2')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Show all 2' }));
-    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    expect(list).toHaveTextContent('The review covers abc1234, the head commit.');
-  });
-
-  test('all green is one line that opens the list', async () => {
-    const green = { ok: true, items: items.map((i) => ({ ...i, ok: true })) };
-    const user = userEvent.setup();
-    render(<Checklist repo="wb" number="12" view={aPrView({ checklist: green })} />);
-
-    const line = screen.getByRole('button', { name: /Merge checklist/ });
-    expect(line).toHaveTextContent('2 of 2');
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
-
-    await user.click(line);
-    expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(2);
   });
 });

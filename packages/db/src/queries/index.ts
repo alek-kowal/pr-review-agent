@@ -23,3 +23,5 @@ export * from './metric-logs.ts';
 export * from './insights.ts';
 export * from './answers.ts';
 export * from './reviews.ts';
+export * from './status.ts';
+export * from './merge.ts';

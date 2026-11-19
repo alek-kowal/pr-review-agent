@@ -74,6 +74,20 @@ export const ApiErrorCode = {
   NoLinkedTask: 'no_linked_task',
   /** The PR author has no ClickUp user in Team, so there is nobody to mention. */
   AuthorHasNoClickupUser: 'author_has_no_clickup_user',
+  /** `POST /api/status/pause` while PR Review Agent is already paused. */
+  AlreadyPaused: 'already_paused',
+  /** `POST /api/status/resume` while PR Review Agent is running. */
+  NotPaused: 'not_paused',
+  /** The typed PR number is not this PR's number. */
+  MergeNumberMismatch: 'merge_number_mismatch',
+  /** The PR's head is not the reviewed commit (`params.reviewedSha`, `params.headSha`). */
+  HeadMoved: 'head_moved',
+  /** A checklist row fails on fresh GitHub state (`params.items`: the failing rows). */
+  MergeNotReady: 'merge_not_ready',
+  /** GitHub refused the merge (`params.status`, `params.message` verbatim). */
+  MergeRefused: 'merge_refused',
+  /** GitHub did not answer as expected (`params.status` when it answered). */
+  GithubError: 'github_error',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

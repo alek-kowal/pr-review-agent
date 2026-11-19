@@ -1,12 +1,12 @@
 // S-08-T11: the Notify author card after a signed review, on the S-01 stack with a ClickUp double
-// (`CLICKUP_REPOSITORY`, task WB-123). The double writes each comment to `commentsFile`.
+// (`NOTIFY_REPOSITORY`, task WB-123). The double writes each comment to `commentsFile`.
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { bannerTitle, onPrPage, teamMember, writeHeaders } from './support/api.ts';
-import { CLICKUP_REPOSITORY, commentsFile } from './support/env.ts';
+import { commentsFile, NOTIFY_REPOSITORY } from './support/env.ts';
 import { AUTHOR_LOGIN, deliverPullRequest, stackState } from './support/github.ts';
 
-const REPOSITORY = CLICKUP_REPOSITORY;
+const REPOSITORY = NOTIFY_REPOSITORY;
 const KASIA_CLICKUP_USER = '4242';
 
 /** Kasia (the fixtures' PR author) with a ClickUp user, and Tomek to sign the review. */

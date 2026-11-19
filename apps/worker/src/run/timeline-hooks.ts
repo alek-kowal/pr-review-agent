@@ -27,6 +27,8 @@ const PR_EVENT_ENTRY: Record<PrEventKind, string> = {
 
 function prEventEntry(kind: PrEventKind): PrEventHook {
   return async ({ deps, pullRequest, previous, snapshot, action, eventId }: PrEventContext) => {
+    // A merge from the app already wrote "merged" with its signer (S-12).
+    if (kind === 'merged' && previous?.state === 'merged') return;
     const event = await getGithubEvent(deps.db, eventId);
     const at = event?.receivedAt ?? new Date();
     await recordTimelineEntry(deps.db, {

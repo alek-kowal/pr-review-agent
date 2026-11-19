@@ -1,0 +1,26 @@
+{
+  "action": "completed",
+  "check_suite": {
+    "id": 31000001,
+    "head_branch": "feature/edge-labels",
+    "head_sha": "2222222222222222222222222222222222222222",
+    "status": "completed",
+    "conclusion": "failure",
+    "pull_requests": [
+      {
+        "number": 312,
+        "head": { "ref": "feature/edge-labels", "sha": "2222222222222222222222222222222222222222" },
+        "base": { "ref": "main", "sha": "1111111111111111111111111111111111111111" }
+      }
+    ],
+    "app": { "slug": "github-actions" }
+  },
+  "repository": {
+    "id": 700000001,
+    "name": "workflowbuilder",
+    "full_name": "synergycodes/workflowbuilder",
+    "private": false
+  },
+  "sender": { "login": "github-actions[bot]", "type": "Bot" },
+  "installation": { "id": 55500001 }
+}

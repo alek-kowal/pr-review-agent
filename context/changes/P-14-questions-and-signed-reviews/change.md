@@ -95,3 +95,25 @@ carry hook stays after chains). Final check: `pnpm verify` (975 tests) and `pnpm
   copy with Not now only. e2e: a new level-1 `CLICKUP_REPOSITORY` with ClickUp settings, a
   ClickUp double that knows WB-123, and a subclass that appends each `createComment` call to
   `commentsFile(holdDir)` so the spec can count calls made in the stack process.
+- Merge of main (P-16 pause/budget/queue, P-19 merge from the app, S-06 task link):
+  - Migrations: main's `0014_pr_checks` and `0015_pause_budget_queue` stay untouched. This
+    branch's `0014_questions_and_reviews` is regenerated on top as `0016_questions_and_reviews`
+    (`pnpm db:generate --name questions_and_reviews`); the generated SQL is the same as before,
+    and the hand-added `pra_notify_change` triggers for `answers`, `opinions` and `reviews` are
+    put back at its end.
+  - `loadPrStateInputs`: `reviewers` counts the distinct signers of opinions (this branch), `ci`
+    and `changesRequestedBy` come from the stored GitHub state (main).
+  - Run hooks: `carryOpinionsOnRunCompleted` stays after chains; `wakeQueueOnRunEnd` stays last
+    on completed, failed and cancelled. Barrels, error codes, main-action slots, live targets
+    and web fixtures keep both sides. `routeTree.gen.ts` regenerated with `vite build` (same as
+    main's).
+  - e2e: both sides added a `CLICKUP_REPOSITORY`. Main's (level 2, `CLICKUP_TASKS`, used by
+    clickup-link.spec.ts) keeps the name; this branch's level-1 repository for notify-author.spec.ts
+    becomes `NOTIFY_REPOSITORY` (`acme/notify-repo`, installation 55500008, since main's
+    `MERGE_REPOSITORY` took 55500006). One `RecordingClickUp` double knows `CLICKUP_TASKS` and
+    WB-123. `QUESTION_PRS` moves from 260–269 to 270–279: pause-budget.spec.ts uses 260 and 265,
+    and the stack picks the reviewer by PR number.
+  - merge.spec.ts (main) runs its tests in order (`test.describe.configure({ mode: 'default' })`):
+    all its PRs share the fixture head, and a `check_suite` refreshes every open PR at that head,
+    so in parallel one test's green CI turned another's checklist green before it was asserted
+    open.

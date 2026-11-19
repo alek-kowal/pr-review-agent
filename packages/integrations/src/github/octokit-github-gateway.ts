@@ -4,12 +4,14 @@ import { Octokit } from '@octokit/core';
 import { Webhooks } from '@octokit/webhooks';
 import { IntegrationError, IntegrationNotConfiguredError } from '../errors.ts';
 import {
+  changesRequestedBy,
   checkRunState,
   ciStatusOf,
   commitStatusState,
   GITHUB_APP_NOT_INSTALLED,
   GITHUB_ENV,
   GITHUB_NOT_CONFIGURED,
+  MERGE_REFUSAL_STATUSES,
   splitFullName,
   toPullRequest,
   type AccessibleRepository,
@@ -20,7 +22,11 @@ import {
   type GitHubGateway,
   type GitHubPullRequest,
   type InstallationToken,
+  type MergeResult,
+  type PullRequestFreshState,
+  type PullRequestReview,
   type RawPullRequest,
+  type SquashMerge,
 } from './github-gateway.ts';
 
 /** GitHub's largest page; check runs are read for at most `MAX_PAGES` pages. */
@@ -170,6 +176,57 @@ export class OctokitGitHubGateway implements GitHubGateway {
     });
   }
 
+  async getPullRequestState(fullName: string, number: number): Promise<PullRequestFreshState> {
+    return this.#withInstallation(fullName, async (octokit) => {
+      const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+        ...splitFullName(fullName),
+        pull_number: number,
+      });
+      const pr = toPullRequest(data as RawPullRequest);
+      return { headSha: pr.headSha, state: pr.state, mergeableState: data.mergeable_state };
+    });
+  }
+
+  async listChangesRequested(fullName: string, number: number): Promise<string[]> {
+    return this.#withInstallation(fullName, async (octokit) => {
+      const reviews: PullRequestReview[] = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data } = await octokit.request(
+          'GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews',
+          { ...splitFullName(fullName), pull_number: number, per_page: PER_PAGE, page },
+        );
+        for (const review of data) {
+          if (review.user) reviews.push({ login: review.user.login, state: review.state });
+        }
+        if (data.length < PER_PAGE) break;
+      }
+      return changesRequestedBy(reviews);
+    });
+  }
+
+  async squashMerge(merge: SquashMerge): Promise<MergeResult> {
+    return this.#withInstallation(merge.fullName, async (octokit) => {
+      try {
+        const { data } = await octokit.request(
+          'PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge',
+          {
+            ...splitFullName(merge.fullName),
+            pull_number: merge.number,
+            sha: merge.sha,
+            merge_method: 'squash',
+            commit_title: merge.title,
+            commit_message: merge.message,
+          },
+        );
+        return { merged: true, sha: data.sha };
+      } catch (error) {
+        const status = statusOf(error);
+        if (status === undefined || !MERGE_REFUSAL_STATUSES.has(status)) throw error;
+        return { merged: false, status, message: githubMessage(error) };
+      }
+    });
+  }
+
   async listAccessibleRepositories(): Promise<AccessibleRepository[]> {
     const repositories: AccessibleRepository[] = [];
     for (let page = 1; page <= MAX_PAGES; page++) {
@@ -290,6 +347,15 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
   getCommit(): Promise<GitHubCommit> {
     return this.#fail();
   }
+  getPullRequestState(): Promise<PullRequestFreshState> {
+    return this.#fail();
+  }
+  listChangesRequested(): Promise<string[]> {
+    return this.#fail();
+  }
+  squashMerge(): Promise<MergeResult> {
+    return this.#fail();
+  }
 
   #fail(): Promise<never> {
     return Promise.reject(new IntegrationNotConfiguredError(GITHUB_NOT_CONFIGURED, this.missing));
@@ -335,4 +401,12 @@ function accountName(account: unknown): string {
 
 function statusOf(error: unknown): number | undefined {
   return (error as { status?: number } | null)?.status;
+}
+
+/** GitHub's own `message` from an error answer, kept verbatim. */
+function githubMessage(error: unknown): string {
+  const data = (error as { response?: { data?: unknown } } | null)?.response?.data;
+  const message = (data as { message?: unknown } | null | undefined)?.message;
+  if (typeof message === 'string') return message;
+  return error instanceof Error ? error.message : String(error);
 }

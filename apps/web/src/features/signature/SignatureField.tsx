@@ -20,6 +20,8 @@ type Props = {
   signature: Signature;
   /** Shown under the field, for example "Pick your name to sign." */
   error?: string | null;
+  /** Replaces the default hint, for example what the signature is recorded as. */
+  hint?: string;
   className?: string;
 };
 
@@ -27,7 +29,7 @@ type Props = {
  * "Signed by": a Combobox of active Team members inside a signed action's own form (FR-087). It
  * starts with this browser's last signer; the form calls `signature.remember()` after it succeeds.
  */
-export function SignatureField({ signature, error, className }: Props) {
+export function SignatureField({ signature, error, hint, className }: Props) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const { members, signedBy, setSignedBy, isLoading } = signature;
@@ -110,7 +112,7 @@ export function SignatureField({ signature, error, className }: Props) {
         </PopoverContent>
       </Popover>
       <p id={hintId} className="text-xs text-text-3">
-        {copy.signature.hint}
+        {hint ?? copy.signature.hint}
       </p>
       {error && (
         <p id={errorId} role="alert" className="text-sm text-bad">
