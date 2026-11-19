@@ -34,11 +34,11 @@ export type ChangedFile = {
 
 export type GitDiff = { patch: string; files: ChangedFile[] };
 
-/** Runs a command; the default is `execa`. Tests pass a spy. */
+/** Runs a command and kills it after `timeout` ms; the default is `execa`. Tests pass a spy. */
 export type GitExec = (
   file: string,
   args: string[],
-  options: { cwd?: string; env: Record<string, string> },
+  options: { cwd?: string; env: Record<string, string>; timeout: number },
 ) => Promise<{ stdout: string }>;
 
 export type CliGitMirrorOptions = {
@@ -47,9 +47,16 @@ export type CliGitMirrorOptions = {
   /** Where to clone from; default `https://github.com/<fullName>.git`. */
   remoteUrl?: (fullName: string) => string;
   exec?: GitExec;
+  /** Per git command, default `DEFAULT_GIT_TIMEOUT_MS`. */
+  timeoutMs?: number;
 };
 
 export const DEFAULT_GIT_DIR = '.data/git';
+/**
+ * A stalled clone or fetch never ends by itself (git has no network timeout by default) and would
+ * hold its repository's lock until the worker restarts, so every git command has a deadline.
+ */
+export const DEFAULT_GIT_TIMEOUT_MS = 15 * 60_000;
 
 const NAME_SEGMENT = /^[A-Za-z0-9_.-]+$/;
 const RUN_ID = /^[A-Za-z0-9_-]+$/;
@@ -65,7 +72,11 @@ const STATUS: Record<string, ChangedFileStatus> = {
 };
 
 const defaultExec: GitExec = async (file, args, options) => {
-  const { stdout } = await execa(file, args, { ...options, stripFinalNewline: false });
+  const { stdout } = await execa(file, args, {
+    ...options,
+    stripFinalNewline: false,
+    forceKillAfterDelay: 5_000,
+  });
   return { stdout };
 };
 
@@ -89,6 +100,7 @@ export class CliGitMirror implements GitMirror {
   readonly rootDir: string;
   readonly #remoteUrl: (fullName: string) => string;
   readonly #exec: GitExec;
+  readonly #timeoutMs: number;
   /** Git takes file locks per repository; operations on one mirror run one at a time. */
   readonly #locks = new Map<string, Promise<unknown>>();
 
@@ -96,6 +108,7 @@ export class CliGitMirror implements GitMirror {
     this.rootDir = path.resolve(options.rootDir);
     this.#remoteUrl = options.remoteUrl ?? ((fullName) => `https://github.com/${fullName}.git`);
     this.#exec = options.exec ?? defaultExec;
+    this.#timeoutMs = options.timeoutMs ?? DEFAULT_GIT_TIMEOUT_MS;
   }
 
   mirrorDir(fullName: string): string {
@@ -185,7 +198,10 @@ export class CliGitMirror implements GitMirror {
 
   async #git(gitDir: string | undefined, args: string[], token?: string): Promise<string> {
     const fullArgs = gitDir ? ['-C', gitDir, ...args] : args;
-    const { stdout } = await this.#exec('git', fullArgs, { env: gitAuthEnv(token) });
+    const { stdout } = await this.#exec('git', fullArgs, {
+      env: gitAuthEnv(token),
+      timeout: this.#timeoutMs,
+    });
     return stdout;
   }
 

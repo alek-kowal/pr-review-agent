@@ -57,7 +57,7 @@ beforeAll(async () => {
 afterAll(() => rm(root, { recursive: true, force: true }));
 
 /** A mirror cloning from the local source repository, with every command recorded. */
-function mirrorWithSpy(dir: string) {
+function mirrorWithSpy(dir: string, timeoutMs?: number) {
   const exec = vi.fn<GitExec>(async (file, args, options) => {
     const { stdout } = await execa(file, args, {
       ...options,
@@ -66,7 +66,12 @@ function mirrorWithSpy(dir: string) {
     });
     return { stdout };
   });
-  const mirror = new CliGitMirror({ rootDir: path.join(root, dir), remoteUrl: () => source, exec });
+  const mirror = new CliGitMirror({
+    rootDir: path.join(root, dir),
+    remoteUrl: () => source,
+    exec,
+    timeoutMs,
+  });
   return { mirror, exec };
 }
 
@@ -180,6 +185,15 @@ describe('CliGitMirror', () => {
     await expect(mirror.addWorktree(REPO, 'run-6', '--upload-pack=x')).rejects.toThrow(
       'Not a commit sha',
     );
+  });
+
+  test('a git command past the timeout is killed and frees the repository for the next one', async () => {
+    const { mirror, exec } = mirrorWithSpy('timeout', 1);
+    await expect(mirror.ensureMirror(REPO)).rejects.toMatchObject({ timedOut: true });
+    expect(exec.mock.calls[0]![2]).toMatchObject({ timeout: 1 });
+
+    const { mirror: patient } = mirrorWithSpy('timeout');
+    await expect(patient.ensureMirror(REPO)).resolves.toBeUndefined();
   });
 });
 
