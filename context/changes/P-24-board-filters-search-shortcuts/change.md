@@ -72,3 +72,15 @@ when" checks are the plan. One commit per task, in the listed order.
   or `a` within 1.5 s goes to Pull requests or Activity. The palette's "Show keyboard
   shortcuts" opens it through a window event (`open-shortcuts.ts`). Key names come from the
   same maps the buttons use (`DECISION_KEYS`, `OPINION_KEYS`).
+- **T7 the theme is a class on `<html>`**: `dark` or `light` (`features/theme/theme.ts`). The
+  CSS keeps a `prefers-color-scheme` block for `:root:not(.light)`, so the system theme shows
+  even before the script runs; `data-theme` is gone. The dark values were already in
+  `index.css` (copied from `prototype/styles.css` in P-01); the shadcn variables only point at
+  WB tokens, so they need no dark block. `theme.test.tsx` checks both points against the file.
+- **T7 storage** key `pra:theme`; reads and writes are in try/catch. When storage fails, the
+  choice holds in memory until reload. `main.tsx` applies the theme before the first render; no
+  inline script in `index.html`, so a stored choice that differs from the system can flash for
+  one frame on load. With no stored choice, a change of the system theme follows live.
+- **T7 toggle** is an icon button between Search and the status chip (Moon → dark, Sun →
+  light, named "Switch to the dark/light theme"); the palette action "Toggle theme" does the
+  same. Sonner gets the app's theme instead of `system`.

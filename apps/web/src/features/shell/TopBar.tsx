@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { Activity, ChartColumn, GitPullRequest, Settings, type LucideIcon } from 'lucide-react';
 import { copy } from '@/copy/index.ts';
 import { CommandPalette } from '@/features/palette/CommandPalette.tsx';
+import { ThemeToggle } from '@/features/theme/ThemeToggle.tsx';
 import { StatusChip } from './StatusChip.tsx';
 
 type NavPath = '/prs' | '/activity' | '/insights' | '/settings';
@@ -14,7 +15,7 @@ const NAV: ReadonlyArray<{ to: NavPath; label: string; icon: LucideIcon }> = [
 ];
 
 // Approved structure (docs/03-design-decisions.md): product name, the four sections, search (the
-// command palette, S-17-T5), the status chip, no account menu.
+// command palette, S-17-T5), the theme toggle (S-17-T7), the status chip, no account menu.
 export function TopBar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-surface">
@@ -40,6 +41,7 @@ export function TopBar() {
         </nav>
         <div className="ml-auto flex min-w-0 shrink items-center gap-2">
           <CommandPalette />
+          <ThemeToggle />
           <StatusChip />
         </div>
       </div>

@@ -2,6 +2,7 @@ import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner.tsx';
 import { TopBar } from '@/features/shell/TopBar.tsx';
 import { ShortcutsDialog } from '@/features/shortcuts/ShortcutsDialog.tsx';
+import { useTheme } from '@/features/theme/theme.ts';
 import { useLiveUpdates } from '@/live/useLiveUpdates.ts';
 import type { RouterContext } from '../router.ts';
 
@@ -11,6 +12,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootLayout() {
   useLiveUpdates();
+  const theme = useTheme();
   return (
     <div className="min-h-svh">
       <TopBar />
@@ -18,7 +20,7 @@ function RootLayout() {
         <Outlet />
       </main>
       <ShortcutsDialog />
-      <Toaster />
+      <Toaster theme={theme} />
     </div>
   );
 }
