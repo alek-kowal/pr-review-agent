@@ -56,3 +56,8 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
 - Agents cannot see their own context meter, so they don't stop at 25% by themselves. The orchestrator now interrupts them at 26% (`handoff.sh`) and starts a fresh session from the handoff file (`continue-task.sh`).
 - 05:40: P-03 merged (bfaa4ea, conflict in `errors.ts` and the lockfile resolved by the orchestrator). Its impl-review P-03r found 10 issues, none critical, all fixed (1dff52e). Report: `context/changes/P-03-integrations-and-deploy/reviews/impl-review.md`. The worst one: missing model prices made the cost guard undercount by up to half. **For Alek:** on the VM, the GitHub App key file must be readable by uid 1000 (the containers do not run as root).
 - e2e now uses one dev-server port per checkout (a8e5406). Before that, parallel worktrees could test each other's code on 5173.
+- 05:50: P-07 (644d09c), P-05 (a65a490) and P-06 (997c309) merged. Wave 3 done.
+  - P-06 and P-07 both added migration 0003. The orchestrator kept main's and regenerated P-06's as 0005; the SQL was identical.
+  - After merging main, P-06 failed typecheck: the P-03 review had made `timeoutMs` required in `AgentRunInput`. A short fix session now passes the stage timeout from the frozen level config.
+  - Continuation sessions now start with `git merge main`.
+- Running: P-08, P-09, P-10 (wave 4) and P-05r (impl-review of the review pipeline).
