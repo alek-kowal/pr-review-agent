@@ -1,7 +1,7 @@
 ---
 change_id: P-08
 title: Board and signed decisions (S-02-T2, S-02-T4, S-02-T6, S-02-T7, S-02-T9, S-02-T10)
-status: in_progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -114,3 +114,23 @@ when" checks are the plan. One commit per task.
 - T9: `sonner` is added to the web app with shadcn's `Toaster` (without `next-themes`; it follows
   the system scheme), mounted once in `__root.tsx`. Tests polyfill `matchMedia` and dismiss toasts
   after each test, because sonner keeps toasts in module state.
+- T10: the reviewer double answers 2 Blocking, 1 Worth fixing and 1 Nit (one more Blocking
+  finding in `SCRIPTED_REVIEW`; S-01's spec still finds its titles). Kasia's GitHub login is the
+  fixtures' author `wb-dev`. Team lives in the stack's database, so `ensureMember` skips a member
+  a retry already added. PR numbers: board 320/325, decide 330/335, plus the retry number.
+- T10: after step 2 (Implement on the two Blocking findings) the banner reads "Decide 1 finding",
+  not "2 findings to implement": the Worth fixing finding still waits, and core puts
+  `findings_to_decide` before `waiting_for_fix`. The spec checks "2 findings to implement" after
+  step 3 instead, and "Decide 1 finding" again after Undo.
+- T10: in step 6 the second browser decides first (Implement, signed by Kasia); the first browser
+  submits its open Defer form with the old version and shows "Kasia decided this in the meantime."
+- T10: `e2e/support/github.ts` (`deliverPullRequest`) posts any `pull_request.*` fixture as PR N.
+  S-01's failed-round check now looks inside `round-failed`, because the banner says the same
+  sentence.
+- T10 (fix): the Vite proxy keeps the browser's Host (`changeOrigin: false`). Vite's string form
+  rewrote it to the api's host, so the CSRF guard answered 403 `csrf_rejected` to every write
+  through Vite, in dev and in e2e. The decide spec is the first e2e that writes through the api.
+- Decision toasts last 10 s, so Undo stays reachable.
+- Verify: `pnpm lint`, `pnpm typecheck`, `pnpm test` (602) and `pnpm test:e2e` (6) pass. Under
+  heavy load from other worktrees, `pnpm verify` twice hit 5 s test timeouts in other packages'
+  tests (`sandbox.docker.test.ts`, worker `run-round.test.ts`); both pass when rerun.

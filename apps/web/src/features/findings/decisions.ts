@@ -93,6 +93,8 @@ export function useDecide(repo: string, number: string) {
       applyResult(queryClient, repo, number, result);
       toast(copy.decisions.toast.decided(input.decision, input.findings.length), {
         description: copy.decisions.toast.signed(input.signerName),
+        // Long enough to notice a wrong decision and undo it.
+        duration: 10_000,
         action: {
           label: copy.decisions.toast.undo,
           onClick: () => void undoDecision(queryClient, repo, number, result.batchId),

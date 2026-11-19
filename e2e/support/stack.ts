@@ -20,7 +20,7 @@ import { API_PORT, API_URL, FAILING_PR_FROM, STATE_FILE, type StackState } from 
 const FULL_NAME = 'synergycodes/workflowbuilder';
 const INSTALLATION_ID = 55500001;
 
-/** What the reviewer answers for a PR that does not fail. */
+/** What the reviewer answers for a PR that does not fail: 2 Blocking, 1 Worth fixing, 1 Nit. */
 export const SCRIPTED_REVIEW = {
   summary: 'Adds inline renaming of edge labels.',
   risk: 'medium',
@@ -32,6 +32,14 @@ export const SCRIPTED_REVIEW = {
       line: 1,
       scenario: 'When a label is only spaces, trim() leaves nothing and the edge shows no text.',
       suggestion: 'Fall back to the edge id when the trimmed label is empty.',
+    },
+    {
+      title: 'Renaming drops the undo history',
+      severity: 'blocker',
+      file: 'packages/sdk/src/index.ts',
+      line: 1,
+      scenario: 'After renaming a label, Undo restores the whole diagram instead of the label.',
+      suggestion: 'Record the rename as one history step.',
     },
     {
       title: 'SDK entry exports an internal type',
