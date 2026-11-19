@@ -1,4 +1,4 @@
-import { AGENT_ROLES, validModelName, type AgentRole } from '@pra/core';
+import { AGENT_ROLES, isOpenRouterModel, validModelNameFor, type AgentRole } from '@pra/core';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Info } from 'lucide-react';
@@ -69,9 +69,14 @@ function ModelsForm({ data }: { data: ModelsResponse }) {
   const [tried, setTried] = useState(false);
   // Roles whose model is typed rather than picked from the defaults.
   const [typed, setTyped] = useState<ReadonlySet<AgentRole>>(new Set());
-  const options = useMemo(() => [...new Set(Object.values(data.defaults))], [data.defaults]);
+  const claudeOptions = useMemo(() => [...new Set(Object.values(data.defaults))], [data.defaults]);
+  // The judge also gets the suggested OpenRouter models (P-26).
+  const optionsFor = (role: AgentRole): string[] =>
+    data.openRouter.roles.includes(role)
+      ? [...claudeOptions, ...data.openRouter.suggested]
+      : claudeOptions;
 
-  const invalid = AGENT_ROLES.filter((role) => !validModelName(form.draft[role].trim()));
+  const invalid = AGENT_ROLES.filter((role) => !validModelNameFor(role, form.draft[role].trim()));
   const showErrors = (role: AgentRole) => invalid.includes(role) && (tried || typed.has(role));
 
   const pick = (role: AgentRole, value: string) => {
@@ -111,6 +116,9 @@ function ModelsForm({ data }: { data: ModelsResponse }) {
           <TableBody>
             {AGENT_ROLES.map((role) => {
               const value = form.draft[role];
+              const options = optionsFor(role);
+              const openRouterRole = data.openRouter.roles.includes(role);
+              const onOpenRouter = openRouterRole && isOpenRouterModel(value.trim());
               const custom = typed.has(role) || !options.includes(value);
               const error = showErrors(role);
               const overrides = data.overrides.filter((o) => o.role === role);
@@ -137,7 +145,11 @@ function ModelsForm({ data }: { data: ModelsResponse }) {
                         <SelectContent>
                           {options.map((model) => (
                             <SelectItem key={model} value={model} className="font-mono">
-                              {model === data.defaults[role] ? t.defaultOption(model) : model}
+                              {model === data.defaults[role]
+                                ? t.defaultOption(model)
+                                : isOpenRouterModel(model)
+                                  ? t.openRouterOption(model)
+                                  : model}
                             </SelectItem>
                           ))}
                           <SelectItem value={OTHER}>{t.other}</SelectItem>
@@ -150,16 +162,31 @@ function ModelsForm({ data }: { data: ModelsResponse }) {
                             aria-invalid={error || undefined}
                             aria-describedby={error ? `model-error-${role}` : undefined}
                             className="w-full font-mono text-[13px] sm:w-64"
-                            placeholder={t.customPlaceholder}
+                            placeholder={
+                              openRouterRole ? t.customPlaceholderOpenRouter : t.customPlaceholder
+                            }
                             value={value}
                             onChange={(event) => form.set(role, event.target.value)}
                           />
                           {error && (
                             <p id={`model-error-${role}`} className="text-xs text-bad">
-                              {t.invalid}
+                              {openRouterRole ? t.invalidOpenRouter : t.invalid}
                             </p>
                           )}
                         </>
+                      )}
+                      {onOpenRouter && !error && (
+                        <p className="max-w-[44ch] text-xs whitespace-normal text-text-3">
+                          {t.openRouterNote}
+                        </p>
+                      )}
+                      {onOpenRouter && !error && !data.openRouter.configured && (
+                        <p
+                          role="status"
+                          className="max-w-[44ch] text-xs whitespace-normal text-warn"
+                        >
+                          {t.openRouterKeyMissing}
+                        </p>
                       )}
                     </div>
                   </TableCell>

@@ -37,6 +37,11 @@ describe('models and levels API (S-21-T3)', () => {
       models: DEFAULT_MODELS,
       defaults: DEFAULT_MODELS,
       overrides: [],
+      openRouter: {
+        roles: ['judge'],
+        suggested: ['openrouter/typesafe/jev-router'],
+        configured: false,
+      },
     });
 
     const response = await put('/api/settings/models', {
@@ -184,5 +189,47 @@ describe('models and levels API (S-21-T3)', () => {
     expect(await listSettingsChanges(db, { area: 'levels', entity: 'default' })).toEqual([
       expect.objectContaining({ before: { defaultLevel: 1 }, after: { defaultLevel: 2 } }),
     ]);
+  });
+});
+
+describe('an OpenRouter judge in Settings → Models (P-26)', () => {
+  const JEV = 'openrouter/typesafe/jev-router';
+
+  test('the judge may pick an OpenRouter model, signed; no other role may', async () => {
+    app = await build({ db, openRouterConfigured: true });
+    const before = (await get('/api/settings/models')).models;
+    expect((await get('/api/settings/models')).openRouter.configured).toBe(true);
+
+    const reviewer = await put('/api/settings/models', {
+      models: { ...before, reviewer: JEV },
+      signedBy: signer.id,
+    });
+    expect(reviewer.statusCode).toBe(400);
+    expect(reviewer.json().error.params.issues).toEqual([
+      { path: '/models/reviewer', code: 'invalid_model_name' },
+    ]);
+
+    const judge = await put('/api/settings/models', {
+      models: { ...before, judge: JEV },
+      before,
+      signedBy: signer.id,
+    });
+    expect(judge.statusCode).toBe(200);
+    expect(judge.json().models.judge).toBe(JEV);
+    const changes = await listSettingsChanges(db, { area: 'models' });
+    const change = changes.find((c) => (c.after as { judge?: string } | null)?.judge === JEV);
+    expect(change).toMatchObject({
+      signerId: signer.id,
+      before: { judge: 'claude-haiku-5-5' },
+      after: { judge: JEV },
+    });
+
+    // Put it back: the settings are global to this file's database.
+    const back = await put('/api/settings/models', {
+      models: before,
+      before: { ...before, judge: JEV },
+      signedBy: signer.id,
+    });
+    expect(back.statusCode).toBe(200);
   });
 });

@@ -757,6 +757,8 @@ export type ModelsResponse = {
   defaults: Record<AgentRole, string>;
   /** Levels that set their own model for a role ("Level 6 uses claude-opus-5-5"). */
   overrides: { level: LevelNumber; role: AgentRole; model: string }[];
+  /** OpenRouter models (P-26): roles that may pick one, suggested ids, whether the key is set. */
+  openRouter: { roles: AgentRole[]; suggested: string[]; configured: boolean };
 };
 
 /** The settings a review level resolves to (core `LevelSettings`). */

@@ -3,7 +3,8 @@ import {
   LEVEL_NUMBERS,
   LevelSettingsPatchSchema,
   resolveLevelSettings,
-  validModelName,
+  validModelNameFor,
+  type AgentRole,
   type LevelNumber,
   type LevelOverrides,
 } from '@pra/core';
@@ -52,7 +53,9 @@ function toDraft(own: LevelView['own']): Draft {
 
 function invalidValue(key: string, value: string | null): boolean {
   if (value === null || key === 'brief') return false;
-  if (key.startsWith('model.')) return !validModelName(value.trim());
+  if (key.startsWith('model.')) {
+    return !validModelNameFor(key.slice('model.'.length) as AgentRole, value.trim());
+  }
   if (!/^\d+$/.test(value.trim())) return true;
   return !LevelSettingsPatchSchema.shape[key as FieldKey].safeParse(Number(value)).success;
 }

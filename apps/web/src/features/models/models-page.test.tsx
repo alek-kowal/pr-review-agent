@@ -29,8 +29,10 @@ const response = (over: Partial<ModelsResponse> = {}): ModelsResponse => ({
   models: { ...DEFAULTS },
   defaults: { ...DEFAULTS },
   overrides: [],
+  openRouter: { roles: ['judge'], suggested: [JEV], configured: true },
   ...over,
 });
+const JEV = 'openrouter/typesafe/jev-router';
 
 beforeEach(() => window.localStorage.setItem(LAST_SIGNER_KEY, tomek.id));
 afterEach(() => {
@@ -133,5 +135,62 @@ describe('Settings → Models', () => {
       before: DEFAULTS,
       signedBy: tomek.id,
     });
+  });
+
+  test('the judge can pick Jev Router on OpenRouter, saved signed (P-26)', async () => {
+    const { calls } = stubFetch({
+      [PATH]: response(),
+      '/api/team': { members: [tomek] },
+      [`PUT ${PATH}`]: response({ models: { ...DEFAULTS, judge: JEV } }),
+    });
+    renderApp('/settings/models');
+    const user = userEvent.setup();
+
+    // Only the judge is offered an OpenRouter model.
+    await user.click(await screen.findByRole('combobox', { name: t.modelLabel('reviewer') }));
+    expect(screen.queryByRole('option', { name: t.openRouterOption(JEV) })).toBeNull();
+    await user.keyboard('{Escape}');
+
+    await user.click(await screen.findByRole('combobox', { name: t.modelLabel('judge') }));
+    await user.click(await screen.findByRole('option', { name: t.openRouterOption(JEV) }));
+    expect(await roleRow('judge')).toHaveTextContent(t.openRouterNote);
+    expect(screen.queryByText(t.openRouterKeyMissing)).toBeNull();
+    await user.click(screen.getByRole('button', { name: copy.settings.saveBar.save }));
+    const dialog = await screen.findByRole('alertdialog', { name: t.saveTitle });
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('combobox', { name: copy.signature.label }),
+      ).toHaveTextContent('Tomek'),
+    );
+    await user.click(
+      within(dialog).getByRole('button', { name: copy.settings.saveDialog.confirm }),
+    );
+
+    await waitFor(() => expect(puts(calls)).toHaveLength(1));
+    expect(puts(calls)[0]?.body).toMatchObject({
+      models: { ...DEFAULTS, judge: JEV },
+      signedBy: tomek.id,
+    });
+  });
+
+  test('an OpenRouter judge without the key says so; a typed OpenRouter reviewer is refused', async () => {
+    stubFetch({
+      [PATH]: response({
+        models: { ...DEFAULTS, judge: JEV },
+        openRouter: { roles: ['judge'], suggested: [JEV], configured: false },
+      }),
+    });
+    renderApp('/settings/models');
+    const user = userEvent.setup();
+
+    expect(await roleRow('judge')).toHaveTextContent(t.openRouterKeyMissing);
+
+    await user.click(await screen.findByRole('combobox', { name: t.modelLabel('reviewer') }));
+    await user.click(await screen.findByRole('option', { name: t.other }));
+    const input = screen.getByRole('textbox', { name: t.customLabel('reviewer') });
+    await user.clear(input);
+    await user.type(input, JEV);
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText(t.invalid)).toBeInTheDocument();
   });
 });
