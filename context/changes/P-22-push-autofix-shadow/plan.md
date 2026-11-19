@@ -348,8 +348,8 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 8.1 autofix-banner.test.tsx passes
-- [ ] 8.2 timeline-autofix.test.ts passes
+- [x] 8.1 autofix-banner.test.tsx passes
+- [x] 8.2 timeline-autofix.test.ts passes
 
 ### Phase 9: S-15-T5
 

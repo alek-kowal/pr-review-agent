@@ -130,6 +130,19 @@ questions (orchestrator rule: decide and record).
   patch pushed, and a `waiting` attempt with the refusal when GitHub's state refuses the push.
 - Shadow push (levels 3–4, a person's patch) counts no automatic patches: a person made them all.
 
+### S-15-T3 (autofix and shadow on the PR page)
+
+- One banner code `state_autofix_waiting { reason }` replaces `state_autofix_waiting_sensitive`:
+  core `Patch.waiting` is the held `Reason` (null when nothing holds), and db `statePatch` reads
+  the latest `waiting` attempt of the patch. The state stays `patch_ready` with the signed Push.
+- The web maps each reason code to a phrase after "Autofix waiting: " (`copy/autofix.ts`); the
+  push job's and the implementer start's refusals (`head_moved`, `run_active`, …) have phrases
+  too. An unknown code reads as its words, never as the raw code.
+- The timeline API needs no join: the writers already add `autofix_*` entries (actor bot), so the
+  task's "PR payload" change is the banner reason only. The shadow row reads "Level 5 would have
+  fixed F of T" (start), "… and pushed" (push) or "Level 5 would have waited: <reason>".
+- `patch_pushed` and `patch_push_refused` (S-14) got their Timeline sentences here as well.
+
 ### P-18 review observations applied here
 
 - O3: `canPush` refuses a closed or merged PR (`pr_closed`, from GitHub's fresh state), after the
