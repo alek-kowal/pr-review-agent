@@ -1,17 +1,12 @@
 import './reasons/findings.ts';
 import type { Finding, Question, RoundResult } from './model.ts';
-import { reason, type Reason } from './reason.ts';
-
-export interface FindingNeed {
-  needed: boolean;
-  reason: Reason;
-}
+import { reason, type Need, type Reason } from './reason.ts';
 
 /**
  * Whether a finding waits for a person's decision. Only Blocking and Worth fixing findings that are
  * not refuted need one; nits are optional and never block.
  */
-export function needsDecision(finding: Finding): FindingNeed {
+export function needsDecision(finding: Finding): Need {
   if (finding.resolved === true) return { needed: false, reason: reason('fix_resolved') };
   if (finding.decision) {
     return { needed: false, reason: reason('decided', { decision: finding.decision }) };

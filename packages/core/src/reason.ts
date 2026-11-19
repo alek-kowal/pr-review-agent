@@ -34,3 +34,9 @@ export function reason<C extends ReasonCode>(code: C, ...args: ParamsArg<C>): Re
 
 /** The result of a rule that allows or refuses something. */
 export type Check = { ok: true; reason: Reason } | { ok: false; reason: Reason };
+
+/** Whether something needs a person (or a step), and why. */
+export interface Need {
+  needed: boolean;
+  reason: Reason;
+}
