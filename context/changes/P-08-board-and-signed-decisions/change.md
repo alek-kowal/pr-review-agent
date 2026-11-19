@@ -81,3 +81,36 @@ when" checks are the plan. One commit per task.
   cards are two lines; the merged-or-closed table shows the banner text as the outcome.
 - T6 (extension point): `CARD_BADGE_SLOTS` (`features/board/slots.ts`) for badges that need more
   than a reason code; reason-code badges from the api render with `copy.board.badges[code]`.
+- T7: the banner is a shadcn Alert with `role="region"` named "Next step" ("State" on a merged or
+  closed PR), not `role="alert"`: it is always on the page and should not interrupt a screen
+  reader on every load. Tone sets border and fill (`features/pr/tone.ts`) and `data-tone`. The
+  grey line is "Next step · <who>"; the title comes from `bannerText`.
+- T7 (extension points, `features/pr/slots.ts`): `MAIN_ACTIONS` by core's main action code (only
+  `decide` now; a code without an entry shows no button), `BANNER_LINES` under the title,
+  `PR_PANELS` for the side column (each with `shows(view)`; the column and its grid track appear
+  only when one shows; the checklist shows on open PRs), `PR_HEADER_ACTIONS` before the GitHub
+  link. The side column comes before the tabs in reading order (under the banner on narrow
+  screens) and is the sticky right column from `lg`.
+- T7: Decide switches to the Findings tab and asks it, through `DecideFocusContext`, to open and
+  focus the first finding that needs a decision (in shown order). The request is a growing number;
+  a tab change drops it. The list handles it by adjusting state during render (no effect with
+  setState), then an effect only moves focus.
+- T7: the PR view also polls while `nextStep.lane` is `agents_working` (a queued round is not
+  active yet but the banner should follow it).
+- T9: `findings/filters.ts` uses core's `needsDecision.needed` and `decision` from the api; the
+  test fixture mirrors core's rule (decided, refuted and nit findings need none).
+- T9: single-finding actions live in the open finding (`FINDING_ACTION_SLOTS`: `DecideRow`); the
+  decision badge is a `FINDING_LINE_SLOTS` entry with "Rejected by Tomek (author: Kasia)" as its
+  title. All three decisions open the same small form (`DecisionForm`), so all three buttons end
+  in "…", in the bulk bar too. Implement has no text field (its submit button takes focus, so
+  Enter confirms); Reject's reason is required and checked before any request; Defer takes an
+  optional note. Enter in the text field submits; Shift+Enter adds a line.
+- T9: the bulk form opens inside the sticky bulk bar, not in a dialog: one request with every
+  selected id, their versions and one signer. Selection needs an open PR (the board has it).
+- T9: Undo is a plain function, not a mutation hook, so the toast's button works after the form
+  that made the decision is gone. Decide and Undo put the returned findings, banner and checklist
+  in the cache at once, then invalidate `['pr', repo, number]` and `['board']`. A conflict shows
+  "<names> decided this in the meantime" in the form and refetches the PR.
+- T9: `sonner` is added to the web app with shadcn's `Toaster` (without `next-themes`; it follows
+  the system scheme), mounted once in `__root.tsx`. Tests polyfill `matchMedia` and dismiss toasts
+  after each test, because sonner keeps toasts in module state.

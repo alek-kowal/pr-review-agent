@@ -1,6 +1,7 @@
 // UI copy (English). Components read strings from here, never inline them.
 import { board } from './board.ts';
 import { checklist } from './checklist.ts';
+import { decisions } from './decisions.ts';
 import { nextStep } from './nextStep.ts';
 
 export const copy = {
@@ -17,6 +18,7 @@ export const copy = {
   board,
   nextStep,
   checklist,
+  decisions,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',
@@ -136,6 +138,13 @@ export const copy = {
     team_member_not_found: 'This person is no longer in Team.',
     github_login_taken: 'Someone in Team already has this GitHub login.',
     invalid_request: 'Some fields are not valid. Check them and try again.',
+    reason_required: 'A reason is required to reject, so the author knows why.',
+    decision_conflict: 'Someone decided this finding in the meantime.',
+    finding_not_found: 'A finding is no longer in this round. Reload the page.',
+    decision_batch_not_found: 'This decision no longer exists.',
+    decision_already_undone: 'This decision was already undone.',
+    decision_changed_since:
+      'Someone decided these findings again since. Undo is no longer possible.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity: {

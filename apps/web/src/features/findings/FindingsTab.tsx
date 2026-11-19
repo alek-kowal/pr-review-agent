@@ -15,6 +15,8 @@ import { useDecideFocus } from '@/features/pr/decide-focus.ts';
 import { findingsQuery } from '@/features/pr/queries.ts';
 import type { PrTabProps } from '@/features/pr/tabs.ts';
 import { EmptyTab } from '@/features/pr/EmptyTab.tsx';
+import { BulkBar } from './BulkBar.tsx';
+import { canDecide } from './decision-ui.ts';
 import { Finding } from './Finding.tsx';
 import { FILTER_FROM, FINDING_FILTERS, needsDecision, type FindingFilterKey } from './filters.ts';
 import { SeverityMark } from './SeverityMark.tsx';
@@ -99,6 +101,8 @@ const inShownOrder = (findings: FindingView[]) =>
 function FindingList({ findings, slotProps }: { findings: FindingView[]; slotProps: SlotContext }) {
   const [filter, setFilter] = useState<FindingFilterKey>('all');
   const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set());
+  const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
+  const decidable = canDecide(slotProps.view);
   const focus = useFocusOnDecide(findings, (id) => {
     setFilter('all');
     setOpen((prev) => new Set(prev).add(id));
@@ -115,12 +119,14 @@ function FindingList({ findings, slotProps }: { findings: FindingView[]; slotPro
 
   const ids = groups.flatMap((g) => g.items.map((f) => f.id));
   const allOpen = ids.length > 0 && ids.every((id) => open.has(id));
-  const toggle = (id: number) =>
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+  const flip = (id: number) => (prev: ReadonlySet<number>) => {
+    const next = new Set(prev);
+    if (!next.delete(id)) next.add(id);
+    return next;
+  };
+  const toggle = (id: number) => setOpen(flip(id));
+  // Selected findings, in the order shown; a finding that left the list drops out.
+  const selectedFindings = inShownOrder(findings).filter((f) => selected.has(f.id));
   const expandToggle = (
     <button
       type="button"
@@ -177,11 +183,24 @@ function FindingList({ findings, slotProps }: { findings: FindingView[]; slotPro
                 {...slotProps}
                 open={open.has(f.id)}
                 onToggle={() => toggle(f.id)}
+                selection={
+                  decidable
+                    ? { checked: selected.has(f.id), onChange: () => setSelected(flip(f.id)) }
+                    : undefined
+                }
               />
             ))}
           </section>
         );
       })}
+      {decidable && selectedFindings.length > 0 && (
+        <BulkBar
+          repo={slotProps.repo}
+          number={slotProps.number}
+          selected={selectedFindings}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
     </div>
   );
 }
