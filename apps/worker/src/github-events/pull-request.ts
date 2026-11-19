@@ -7,6 +7,7 @@ import {
   getRepositoryByFullName,
   readRepositoryConfig,
   roundCreatedSince,
+  setGithubEventOutcome,
   setRepositoryInstallationId,
   upsertPullRequest,
   type PullRequest,
@@ -57,7 +58,10 @@ export async function handlePullRequestEvent({
   );
 
   let outcome: string = decision.reason.code;
-  if (
+  if (event.outcome === 'round_started') {
+    // A retry of this event (a hook threw, or the worker stopped): its round already exists.
+    outcome = 'round_started';
+  } else if (
     decision.start &&
     stale &&
     (await roundCreatedSince(db, pullRequest.id, new Date(snapshot.updatedAt)))
@@ -71,6 +75,7 @@ export async function handlePullRequestEvent({
       trigger: decision.trigger,
       startedBy: decision.startedBy,
       roundNumber: decision.roundNumber,
+      inTransaction: (tx) => setGithubEventOutcome(tx, event.id, 'round_started'),
     });
     outcome = result.started ? 'round_started' : result.reason;
   }

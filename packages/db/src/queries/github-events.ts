@@ -34,6 +34,18 @@ export async function getGithubEvent(db: Executor, id: number): Promise<GithubEv
   return row ?? null;
 }
 
+/**
+ * Records an outcome before the event is fully processed, in the transaction that made it true
+ * (`round_started` with the run), so a retried job of the event does not repeat it.
+ */
+export async function setGithubEventOutcome(
+  db: Executor,
+  id: number,
+  outcome: string,
+): Promise<void> {
+  await db.update(githubEvents).set({ outcome }).where(eq(githubEvents.id, id));
+}
+
 /** Records the worker's outcome code for an event. */
 export async function markGithubEventProcessed(
   db: Executor,
