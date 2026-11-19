@@ -79,6 +79,16 @@ export async function writeFiles(
     ) {
       throw new Error(`patch path outside the worktree: ${file.path}`);
     }
+    // The checked-out commit may hold symlinks: a write or a delete never goes through one, or it
+    // lands outside the worktree. Deleting a symlink itself is fine; writing to it is not.
+    const segments = relative.split(path.sep);
+    const checked = file.content === null ? segments.length - 1 : segments.length;
+    for (let i = 1; i <= checked; i++) {
+      const entry = path.join(worktree, ...segments.slice(0, i));
+      if ((await lstat(entry).catch(() => null))?.isSymbolicLink()) {
+        throw new Error(`patch path goes through a symlink: ${file.path}`);
+      }
+    }
     if (file.content === null) {
       await rm(full, { force: true });
     } else {

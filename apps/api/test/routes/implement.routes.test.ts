@@ -263,4 +263,18 @@ describe('patch routes', () => {
     const entry = (await timelineOf(db, pr.id)).find((e) => e.kind === 'patch_revise_requested');
     expect(entry).toMatchObject({ actor: 'hand', params: { note: 'Keep the old name.' } });
   });
+
+  test('revise on a patch built before the latest reviewed commit returns 409 patch_stale', async () => {
+    const { pr, patch } = await readyPatch();
+    // The author pushed and a round reviewed the new head: the patch's whole files would undo it.
+    await seedRound(db, pr, { run: { roundNo: 2, headSha: 'c'.repeat(40) } });
+
+    const revised = await post(`/api/patches/${patch.id}/revise`, { note: 'Keep the old name.' });
+
+    expect(revised.statusCode).toBe(409);
+    expect(revised.json()).toEqual({
+      error: { code: 'patch_stale', params: { revision: patch.revision } },
+    });
+    expect((await runsOf(pr)).filter((r) => r.trigger === 'revise')).toEqual([]);
+  });
 });
