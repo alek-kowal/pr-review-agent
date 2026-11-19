@@ -119,7 +119,7 @@ test('a level 3 PR raised to level 4 gets a patch that the team edits, reverts a
   await expect(edges.getByText('edited by hand')).toBeVisible();
 
   // Revert the other: it leaves the list.
-  await page.getByRole('button', { name: `Revert ${SDK}` }).click();
+  await page.getByRole('button', { name: `Revert file ${SDK}` }).click();
   await expect(page.getByRole('region', { name: SDK })).toHaveCount(0);
   await expect(page.getByTestId('patch-file')).toHaveCount(1);
 
