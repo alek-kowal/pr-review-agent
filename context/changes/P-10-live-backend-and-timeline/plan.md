@@ -145,15 +145,15 @@ run is required; the existing e2e spec is rerun once at the end because the stag
 
 ### Phase 1: Change notifications
 
-- [ ] 1.1 `pnpm --filter @pra/db test notify.test.ts` passes; `pnpm verify` green
+- [x] 1.1 `pnpm --filter @pra/db test notify.test.ts` passes; `pnpm verify` green
 
 ### Phase 2: SSE
 
-- [ ] 2.1 `pnpm --filter @pra/api test live.test.ts` passes; `pnpm verify` green
+- [x] 2.1 `pnpm --filter @pra/api test live.test.ts` passes; `pnpm verify` green
 
 ### Phase 3: Live cost and current stage
 
-- [ ] 3.1 `pnpm --filter @pra/worker test live-cost.test.ts` passes; `pnpm verify` green
+- [x] 3.1 `pnpm --filter @pra/worker test live-cost.test.ts` passes; `pnpm verify` green
 
 ### Phase 4: Core rules
 

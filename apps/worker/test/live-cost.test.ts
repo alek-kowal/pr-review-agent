@@ -37,7 +37,13 @@ afterAll(async () => {
   await Promise.all([database?.drop(), fixture?.remove()]);
 });
 
-const ANSWER = { summary: 'Adds inline renaming.', risk: 'low', findings: [], questions: [] };
+const ANSWER = {
+  summary: 'Adds inline renaming.',
+  risk: 'low',
+  findings: [],
+  questions: [],
+  notChecked: [],
+};
 
 const turn = (turns: number, costUsd: number): AgentProgress => ({
   turns,
