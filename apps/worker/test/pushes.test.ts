@@ -153,6 +153,19 @@ describe('pushes', () => {
     expect((await runsOfPr())[0]).toMatchObject({ commitsSince: 2, commitsSinceHead: sha('b') });
   });
 
+  test('a push during the last stage is measured against the new head, not the stage start', async () => {
+    await deliver('pull_request.ready_for_review', sha('a'));
+    const [running] = await runsOfPr();
+    // The hook context's PR was read when the last stage started, before the push.
+    const atStageStart = await pr();
+    deps.github.setComparison(repository.githubFullName, sha('a'), sha('b'), 2);
+    await deliver('pull_request.synchronize', sha('b'));
+
+    const done = await complete(running!);
+    await chainsOnRunCompleted({ deps, run: done, pullRequest: atStageStart, repository });
+    expect((await runsOfPr())[0]).toMatchObject({ commitsSince: 2, commitsSinceHead: sha('b') });
+  });
+
   test('a moved head is never 0 new commits, whatever the count says (force push)', async () => {
     const round = await reviewedRound();
     // An amended commit force-pushed: same commit count, and the compare fails (no comparison set).

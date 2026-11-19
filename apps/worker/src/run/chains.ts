@@ -5,6 +5,7 @@ import { BOT } from '@pra/core';
 import {
   and,
   eq,
+  getPullRequest,
   schema,
   latestChainOf,
   type PullRequest,
@@ -68,10 +69,15 @@ export const chainsOnHeadChanged: PrEventHook = async ({ deps, repository, pullR
   }
 };
 
-/** A round that ends on a moved head records the commits since its reviewed SHA (FR-020). */
+/**
+ * A round that ends on a moved head records the commits since its reviewed SHA (FR-020). The hook's
+ * PR was read when the last stage started, so a push during that stage needs the stored PR.
+ */
 export const chainsOnRunCompleted: RunHook = async ({ deps, run, pullRequest, repository }) => {
   if (run.kind !== 'round') return;
-  await measureCommitsSince(deps, repository, pullRequest, run);
+  const current =
+    (await getPullRequest(deps.db, pullRequest.repositoryId, pullRequest.number)) ?? pullRequest;
+  await measureCommitsSince(deps, repository, current, run);
 };
 
 /**
