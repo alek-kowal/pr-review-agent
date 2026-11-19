@@ -11,6 +11,10 @@ export const ApiErrorCode = {
   PrNotFound: 'pr_not_found',
   /** A state-changing request without `X-PRA-Request: 1` and a same-host `Origin` (csrf.ts). */
   CsrfRejected: 'csrf_rejected',
+  /** `POST /webhooks/github` without a valid `X-Hub-Signature-256`. */
+  WebhookSignatureInvalid: 'webhook_signature_invalid',
+  /** The GitHub App env vars are missing (`params.missing` names them). */
+  GithubNotConfigured: 'github_not_configured',
   /** A signed action without `signedBy`. */
   SignatureRequired: 'signature_required',
   /** `signedBy` is not an active Team member. */

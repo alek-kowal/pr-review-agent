@@ -1,7 +1,11 @@
 // Worker entry (`pnpm dev`): builds dependencies from env, starts the job handlers and stops
 // gracefully on SIGTERM or SIGINT.
+import { createClaudeAgentRunner } from '@pra/agents';
 import { closeDb, createDb, createQueue } from '@pra/db';
+import { CliGitMirror, createBlobStore, createGitHubGateway } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { startHeartbeat, type Heartbeat } from './health/heartbeat.ts';
 import { startWorker } from './worker.ts';
 
@@ -16,10 +20,26 @@ const db = createDb(url, {
   onPoolError: (error) => logger.warn({ err: error }, 'idle database connection failed'),
 });
 const queue = createQueue(url);
+// Git mirrors and session files; relative values count from the repo root, like BLOB_DIR.
+const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+const dataDir = path.resolve(repoRoot, process.env.DATA_DIR || '.data');
+// Names only, never the value.
+logger.info(
+  process.env.ANTHROPIC_API_KEY ? 'model access configured' : 'model access not configured',
+);
 
 let worker: Awaited<ReturnType<typeof startWorker>>;
 try {
-  worker = await startWorker({ db, queue, logger });
+  worker = await startWorker({
+    db,
+    queue,
+    logger,
+    dataDir,
+    blobStore: createBlobStore(),
+    github: createGitHubGateway(),
+    gitMirror: new CliGitMirror({ rootDir: path.join(dataDir, 'git') }),
+    agentRunner: createClaudeAgentRunner(),
+  });
 } catch (error) {
   logger.fatal({ err: error }, 'worker failed to start (has `pnpm db:migrate` run?)');
   await closeDb(db);

@@ -17,7 +17,10 @@
     "vitest": "catalog:"
   },
   "dependencies": {
+    "@pra/agents": "workspace:*",
+    "@pra/core": "workspace:*",
     "@pra/db": "workspace:*",
-    "@pra/integrations": "workspace:*"
+    "@pra/integrations": "workspace:*",
+    "zod": "^4.6.7"
   }
 }

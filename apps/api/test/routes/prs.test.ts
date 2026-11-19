@@ -24,6 +24,7 @@ import { FindingsResponse, PrListResponse } from '../../src/routes/api/prs/index
 import { RepositoriesResponse } from '../../src/routes/api/repositories/index.ts';
 import { PrViewSchema } from '../../src/pr-view/index.ts';
 import { buildServer } from '../../src/server.ts';
+import { testDoubles } from '../helper.ts';
 
 const writer = createDb(testDatabaseUrl(), { max: 2 });
 // The api under test reads through a read-only session: any write would fail the request.
@@ -93,7 +94,10 @@ beforeAll(async () => {
   await upsertPullRequest(writer, aPullRequest(b.id, { number: 4, title: 'chore: beta' }));
 
   // Built once for the file (the helper's `build` closes its app after each test).
-  app = await buildServer({ db: reader, queue: createQueue(testDatabaseUrl()) }, { logger: false });
+  app = await buildServer(
+    { ...testDoubles(), db: reader, queue: createQueue(testDatabaseUrl()) },
+    { logger: false },
+  );
   await app.ready();
 });
 

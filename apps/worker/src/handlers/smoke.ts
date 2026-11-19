@@ -1,5 +1,5 @@
 import { schema, type QueueJob } from '@pra/db';
-import type { WorkerDeps } from '../worker.ts';
+import type { WorkerDeps } from '../deps.ts';
 
 /** Proves the queue end to end: each `smoke` job writes one `smoke` row. */
 export async function handleSmoke(

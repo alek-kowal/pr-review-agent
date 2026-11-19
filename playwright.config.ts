@@ -1,16 +1,10 @@
-import { createHash } from 'node:crypto';
-
 import { defineConfig, devices } from '@playwright/test';
+import { API_PORT, API_URL, WEB_PORT, WEB_URL } from './e2e/support/env.ts';
 
 const isCI = Boolean(process.env.CI);
-// One port per checkout, so e2e runs from several worktrees never share (or reuse) a dev server.
-const port = Number(
-  process.env.E2E_PORT ??
-    5200 + (createHash('sha1').update(process.cwd()).digest().readUInt16BE(0) % 700),
-);
-const webURL = `http://localhost:${port}`;
 
-// E2E against the web dev server. S-01 adds the api and worker test stack (doubles in e2e/support/).
+// E2E through the web dev server against the test stack (e2e/support/stack.ts: api and worker
+// on doubles, its own database). Ports come from the checkout path (e2e/support/env.ts).
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
@@ -18,16 +12,28 @@ export default defineConfig({
   retries: isCI ? 2 : 0,
   reporter: isCI ? 'github' : 'list',
   use: {
-    baseURL: webURL,
+    baseURL: WEB_URL,
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
-    // The web `dev` script, minus pnpm: pnpm 12 runs scripts in their own process
-    // group, so Playwright's stop would kill pnpm and leave Vite running.
-    command: `node_modules/.bin/vite --port ${port} --strictPort`,
-    cwd: 'apps/web',
-    url: webURL,
-    reuseExistingServer: false,
-  },
+  webServer: [
+    {
+      command: 'node e2e/support/stack.ts',
+      url: `${API_URL}/health`,
+      env: { E2E_PORT: String(WEB_PORT), E2E_API_PORT: String(API_PORT) },
+      reuseExistingServer: false,
+      timeout: 60_000,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
+      stdout: 'pipe',
+    },
+    {
+      // The web `dev` script, minus pnpm: pnpm 12 runs scripts in their own process
+      // group, so Playwright's stop would kill pnpm and leave Vite running.
+      command: `node_modules/.bin/vite --port ${WEB_PORT} --strictPort`,
+      cwd: 'apps/web',
+      url: WEB_URL,
+      env: { API_PROXY_TARGET: API_URL },
+      reuseExistingServer: false,
+    },
+  ],
 });

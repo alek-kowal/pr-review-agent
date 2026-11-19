@@ -59,3 +59,39 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm db:migrate
       - run: pnpm test
+
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pra
+          POSTGRES_PASSWORD: pra
+          POSTGRES_DB: pra_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pra -d pra_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      # CI-only throwaway credentials. The e2e stack creates and drops its own `pra_test_<run>`
+      # database through `pra_test` (e2e/support/stack.ts).
+      DATABASE_URL: postgres://pra:pra@localhost:5432/pra_test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e

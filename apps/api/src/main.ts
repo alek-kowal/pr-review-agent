@@ -2,6 +2,7 @@
 // env, then the server, and listens. Postgres may be down: the pool connects lazily and the queue
 // keeps retrying in the background, so `/health` can report it.
 import { closeDb, createDb, createQueue } from '@pra/db';
+import { createBlobStore, createGitHubGateway } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
 import { buildServer } from './server.ts';
 
@@ -16,7 +17,13 @@ const db = createDb(url, {
 });
 // Sending only: the worker runs supervision and schedules.
 const queue = createQueue(url, { supervise: false, schedule: false });
-const server = await buildServer({ db, queue });
+// Without the GitHub App env vars the gateway answers every call with `github_not_configured`.
+const server = await buildServer({
+  db,
+  queue,
+  github: createGitHubGateway(),
+  blobStore: createBlobStore(),
+});
 
 let stopping = false;
 

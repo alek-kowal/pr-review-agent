@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import AutoLoad, { type AutoloadPluginOptions } from '@fastify/autoload';
 import type { Db, Queue } from '@pra/db';
+import type { BlobStore, GitHubGateway } from '@pra/integrations';
 import { type FastifyPluginAsync } from 'fastify';
 import { fileURLToPath } from 'node:url';
 
@@ -9,12 +10,16 @@ const __dirname = path.dirname(__filename);
 
 /**
  * What the api needs from outside. `src/main.ts` builds these from env; tests pass test instances
- * or doubles. S-01 adds the blob store and GitHub.
+ * or doubles.
  */
 export type AppDeps = {
   db: Db;
   /** Used to send jobs; the composition root starts and stops it. */
   queue: Queue;
+  /** Verifies webhook signatures (and, later, everything else the app asks of GitHub). */
+  github: GitHubGateway;
+  /** Raw webhook payloads. */
+  blobStore: BlobStore;
 };
 
 export type AppOptions = AppDeps & Partial<AutoloadPluginOptions>;
@@ -26,9 +31,9 @@ declare module 'fastify' {
 }
 
 const app: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
-  const { db, queue, ...autoloadOptions } = opts;
+  const { db, queue, github, blobStore, ...autoloadOptions } = opts;
   // Decorated before the plugins and routes load, so all of them see it.
-  fastify.decorate('deps', { db, queue });
+  fastify.decorate('deps', { db, queue, github, blobStore });
 
   // Support plugins reused across the application.
   void fastify.register(AutoLoad, {
