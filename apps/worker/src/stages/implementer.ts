@@ -9,7 +9,7 @@ import {
   type AgentRunResult,
   type ImplementerFinding,
 } from '@pra/agents';
-import { REPRO_EXIT, runModel, type PatchReproduction } from '@pra/core';
+import { REPRO_EXIT, runModel, runPolicy, type PatchReproduction } from '@pra/core';
 import {
   answersOfPullRequest,
   getPatch,
@@ -150,7 +150,9 @@ export const implementerWorktreeStage: StageExecutor = {
     // Defense in depth next to the gate: a fork stays read-only even when a job was queued
     // directly, so read the fork flag fresh from GitHub.
     const fresh = await deps.github.getPullRequest(repository.githubFullName, pullRequest.number);
-    if (fresh.isFork || pullRequest.isFork) return failed('fork_read_only');
+    if (!runPolicy({ fork: fresh.isFork || pullRequest.isFork }).implement) {
+      return failed('fork_read_only');
+    }
     const request = await requestOf(context);
     await baseWorktree(context, request);
     return succeeded({ baseSha: context.run.headSha, revisesPatchId: request.revisesPatchId });

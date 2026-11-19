@@ -3,7 +3,7 @@
 // reviewer in fix-check mode whether each is resolved, and `reproductions` reruns the scripts
 // Verify kept for them. None of them writes new findings.
 import { checkFixes, type FixCheckFinding, type FixStatus } from '@pra/agents';
-import { runModel } from '@pra/core';
+import { runModel, runPolicy } from '@pra/core';
 import { fixChecksOfRun, fixTargetsOfRun, reproductionScripts, type FindingRow } from '@pra/db';
 import type { ChangedFile } from '@pra/integrations';
 import type { SessionRecord, StageContext, StageExecutor, StageResult } from './stage.ts';
@@ -140,7 +140,7 @@ export const reproductionsStage: StageExecutor = {
       deps.db,
       findings.map((finding) => finding.id),
     );
-    const runScripts = !pullRequest.isFork;
+    const runScripts = runPolicy({ fork: pullRequest.isFork }).scripts;
     const output: ReproductionsOutput = { runScripts, scripts: scripts.size, reruns: [] };
     if (!runScripts || scripts.size === 0) return succeeded(output);
 

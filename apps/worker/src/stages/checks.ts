@@ -1,7 +1,8 @@
 // The Checks stage (S-04-T3), first in a round from level 2: CI counts from GitHub and the PR's
 // dependencies installed in the sandbox. A failed install is a result, not a stage failure; an
 // unreachable sandbox or a GitHub error fails the stage with a reason code.
-import { readRepositoryConfig } from '@pra/db';
+import { stepOff, type Reason } from '@pra/core';
+import { readRepositoryConfig, runPlanOf } from '@pra/db';
 import {
   installDependencies,
   IntegrationError,
@@ -33,6 +34,8 @@ export type ChecksOutput = {
     install: InstallStep | null;
     /** Both steps' whole output in BlobStore; null when skipped. */
     logBlobKey: string | null;
+    /** Why the plan turned the install off (`fork_read_only`); absent in older outputs. */
+    offReason?: Reason | null;
   };
 };
 
@@ -58,14 +61,17 @@ async function runChecks(context: StageContext): Promise<StageResult> {
     };
   }
 
+  // A fork's plan turns the install off (S-16): its code never runs, CI status is still read.
+  const installOff = stepOff(runPlanOf(run, context.pullRequest), 'checks', 'install');
   const config = readRepositoryConfig(repository).value;
-  const worktree = await runWorktree(context);
-  const result = await installDependencies(deps.sandbox, {
-    worktree,
-    config,
-    cacheDir: path.join(deps.dataDir, 'cache', repository.slug),
-    signal,
-  });
+  const result: InstallResult = installOff
+    ? { status: 'skipped', fetch: null, install: null }
+    : await installDependencies(deps.sandbox, {
+        worktree: await runWorktree(context),
+        config,
+        cacheDir: path.join(deps.dataDir, 'cache', repository.slug),
+        signal,
+      });
 
   let logBlobKey: string | null = null;
   if (result.status !== 'skipped') {
@@ -83,6 +89,7 @@ async function runChecks(context: StageContext): Promise<StageResult> {
       fetch: step(result.fetch),
       install: step(result.install),
       logBlobKey,
+      offReason: installOff,
     },
   };
   return { status: 'succeeded', output, sessions: [], findings: [], questions: [], notChecked: [] };

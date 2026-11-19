@@ -8,16 +8,29 @@ export const roundKindOf = (run: Pick<Run, 'roundNo'>) =>
   (run.roundNo ?? 1) > 1 ? ('fix_check' as const) : ('full' as const);
 
 /**
- * The run's plan from its frozen level, with each stage's latest attempt applied. A stage with no
- * row keeps its planned status (`pending`, or `off` at this level).
+ * The run's plan from its frozen level; on a fork PR, the steps that run PR code are off
+ * (`fork_read_only`, S-16). A PR's fork flag never changes, so the plan is the same every time.
  */
-export function runStateOf(run: Run, executions: readonly StageExecution[]): RunState {
-  const plan = planRun({
+export function runPlanOf(run: Run, pullRequest?: { isFork: boolean }): RunState {
+  return planRun({
     kind: run.kind,
     level: run.level.number,
     roundKind: roundKindOf(run),
     roundNumber: run.roundNo,
+    fork: pullRequest?.isFork ?? false,
   });
+}
+
+/**
+ * The run's plan from its frozen level, with each stage's latest attempt applied. A stage with no
+ * row keeps its planned status (`pending`, or `off` at this level).
+ */
+export function runStateOf(
+  run: Run,
+  executions: readonly StageExecution[],
+  pullRequest?: { isFork: boolean },
+): RunState {
+  const plan = runPlanOf(run, pullRequest);
   const latest = new Map<string, StageExecution>();
   for (const execution of executions) {
     const seen = latest.get(execution.stage);

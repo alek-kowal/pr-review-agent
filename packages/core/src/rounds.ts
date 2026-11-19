@@ -1,4 +1,5 @@
 import './reasons/rounds.ts';
+import { runPolicy } from './fork-policy.ts';
 import type { PrSnapshot, RoundTrigger, RunRecord, RunStatus } from './model.ts';
 import { reason, type Reason } from './reason.ts';
 import { BOT, type Actor, type LevelNumber, type RunKind } from './vocabulary.ts';
@@ -46,7 +47,7 @@ export function roundStartForEvent(
   if (!STARTING_ACTIONS.includes(event.action)) {
     return no(reason('event_ignored', { action: event.action }));
   }
-  if (pr.fork) return no(reason('fork'));
+  if (!runPolicy(pr).autoStart) return no(reason('fork'));
   if (activeRun && blocksStart(activeRun)) {
     return no(reason('run_active', { kind: activeRun.kind, status: activeRun.status }));
   }
