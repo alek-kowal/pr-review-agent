@@ -44,6 +44,19 @@ questions (orchestrator rule: decide and record).
   The status route and Insights' "today" use it, so both show the same number.
 - **Worker test deps run without gates by default**: the shared test database keeps runs of other
   tests that would fill the slots. Gate tests use their own database.
+- **Pause and resume conflicts** are checked against the stored state before the signed change and
+  again when `applySignedSettingsChange` reports `settings_stale` (someone paused in between), so
+  a race also answers 409 `already_paused` / `not_paused`, not `settings_stale`.
+- **Every status route answers with the new status** (the `GET /api/status` shape); the web sets
+  it into the chip's query and refetches only after an error. `app_settings` and `run_waits`
+  changes reach the web through live updates (`LIVE_TARGETS`).
+- **Insights' "today" uses `spentToday`** (local midnight), the same number as the chip; the
+  Insights day ranges stay whole UTC days.
+- **Budget & status saves budget and slots as two signed changes** (two `settings_changes` rows,
+  one signature in the dialog). Agent slots is a number input from 1 to 20 (the prototype's
+  select had 1–4; the schema allows 20).
+- **Settings opens on Budget & status** now, the first page of General in the approved order; the
+  Team unit test and `settings-team.spec.ts` open `/settings/team` directly.
 - **E2E:** `pause-budget.spec.ts` changes global state, so it runs in its own Playwright project
   that the main project depends on (it runs first, alone) and it restores the state. The e2e
   stack sets agent slots to 20 so parallel specs never wait for a slot.

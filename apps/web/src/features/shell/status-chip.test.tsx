@@ -2,10 +2,10 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
-import { aFindingsResponse, anEmptyBoard, aPrView } from '@/test/fixtures.ts';
+import { aFindingsResponse, anEmptyBoard, aPrView, aStatus } from '@/test/fixtures.ts';
 import { renderApp } from '@/test/renderApp.tsx';
 
-const STATUS = { state: 'running', todaySpendUsd: 1.84, since: '2026-11-19T00:00:00.000Z' };
+const STATUS = aStatus();
 
 function stubAll() {
   stubFetch({

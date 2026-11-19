@@ -174,7 +174,7 @@ web component tests with `stubFetch`, one Playwright spec.
 
 ### Phase 5: Chip controls and Budget & status page
 
-- [ ] 5.1 `pnpm --filter @pra/web test status-chip-controls.test.tsx budget-settings.test.tsx`
+- [x] 5.1 `pnpm --filter @pra/web test status-chip-controls.test.tsx budget-settings.test.tsx`
 
 ### Phase 6: Queued with the reason everywhere
 
