@@ -11,6 +11,7 @@ import { handleSmoke } from './handlers/smoke.ts';
 import { listenForCancels } from './run/cancel.ts';
 import { drainQueue } from './run/drain.ts';
 import { handlePatchCheck } from './run/patches.ts';
+import { handlePatchPush } from './run/push.ts';
 import { handleRunStages } from './run/execute-stage.ts';
 import { recoverRuns, resendLostJobs } from './run/recover.ts';
 
@@ -72,6 +73,9 @@ export async function startWorker(
   });
   await queue.work<JobPayloads['patch.check']>(JOBS.patchCheck, work, async (jobs) => {
     for (const job of jobs) await handlePatchCheck(deps, job.data.patchId);
+  });
+  await queue.work<JobPayloads['patch.push']>(JOBS.patchPush, work, async (jobs) => {
+    for (const job of jobs) await handlePatchPush(deps, job.data);
   });
   // Every minute: a budget that resets at local midnight and a lost wake-up start runs anyway.
   await queue.schedule(JOBS.runDrain, '* * * * *', {});

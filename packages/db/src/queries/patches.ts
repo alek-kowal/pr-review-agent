@@ -6,10 +6,13 @@ import {
   type Actor,
   type Patch as CorePatch,
   type PatchReproduction,
+  type Reason,
+  type RunKind,
 } from '@pra/core';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { implementerRequests, patchFiles, patches } from '../schema/patches.ts';
+import { runs } from '../schema/runs.ts';
 import type { Transactor } from './decisions.ts';
 
 export type PatchRow = typeof patches.$inferSelect;
@@ -211,6 +214,62 @@ export function editPatchFile(
 /** Reverts a file to its base content: status `reverted`, the base blob as its content. */
 export function revertPatchFile(db: Transactor, target: FileTarget): Promise<PatchFileChange> {
   return changeFile(db, target, (file) => ({ blobKey: file.baseBlobKey, status: 'reverted' }));
+}
+
+/**
+ * Marks a ready patch pushed as `sha` (S-14-T2). Returns false when the patch was no longer
+ * ready, so a second delivery of the push job records nothing twice.
+ */
+export async function markPatchPushed(
+  db: Executor,
+  patchId: number,
+  sha: string,
+  at = new Date(),
+): Promise<PatchRow | undefined> {
+  const [row] = await db
+    .update(patches)
+    .set({ status: 'pushed', pushedSha: sha, pushedAt: at, pushRefusal: null, updatedAt: at })
+    .where(and(eq(patches.id, patchId), eq(patches.status, 'ready')))
+    .returning();
+  return row;
+}
+
+/**
+ * Records why the push job pushed nothing; the patch stays ready. `updatedAt` stays, so a patch
+ * check running meanwhile still stores its result.
+ */
+export async function markPushRefused(
+  db: Executor,
+  patchId: number,
+  refusal: Reason,
+): Promise<void> {
+  await db.update(patches).set({ pushRefusal: refusal }).where(eq(patches.id, patchId));
+}
+
+/** The PR's queued or running round or implementer run (at most one), as the push rule reads it. */
+export async function activeRunOfPr(
+  db: Executor,
+  pullRequestId: number,
+): Promise<{ kind: RunKind; status: 'queued' | 'running' } | null> {
+  const [row] = await db
+    .select({ kind: runs.kind, status: runs.status })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.pullRequestId, pullRequestId),
+        inArray(runs.status, ['queued', 'running']),
+        inArray(runs.kind, ['round', 'implementer']),
+      ),
+    )
+    .limit(1);
+  return row ? { kind: row.kind, status: row.status as 'queued' | 'running' } : null;
+}
+
+/** The files a push writes: every file that is not reverted, with its content's blob key. */
+export function filesToPush(patch: PatchWithFiles): { path: string; blobKey: string | null }[] {
+  return patch.files
+    .filter((file) => file.status !== 'reverted')
+    .map((file) => ({ path: file.path, blobKey: file.blobKey }));
 }
 
 /**
