@@ -1,7 +1,7 @@
 ---
 change_id: P-03
 title: Integrations and deploy (S-01-T4, S-01-T7, S-01-T8, F-04-T1 to F-04-T5)
-status: implemented
+status: impl_reviewed
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -129,3 +129,14 @@ observability). Implementation-time decisions, per task:
   `observability.shutdown()` in the stop paths when traces matter (P-10 or later).
 - Checked by hand: the api with a local OTLP stub exported `GET /health`, Fastify and `pg.query`
   spans; the api and worker images start with `--import ./dist/instrument.js`.
+
+### Recorded at review (P-03r)
+
+Drift from the plan found by the implementation review (`reviews/impl-review.md`, F10):
+
+- `pnpm-workspace.yaml` `minimumReleaseAgeExclude` lists the agent SDK 0.3.328 platform packages
+  (exact pin, newer than the release-age policy). Remove the entries once that version is aged.
+- `AgentRunInput` also has `readDirs` and `systemPrompt` (and, since P-03r, a required
+  `timeoutMs`).
+- File names differ from the plan: `testing/github.ts`, `testing/s3.ts`, `health/heartbeat.ts`.
+- `GitHubPullRequest.state` folds `merged` in: `'open' | 'closed' | 'merged'`.
