@@ -1,5 +1,5 @@
 // S-21-T1: the level ladder as Settings shows it, and the models a run snapshots.
-import { modelFor, validModelName, type ModelChoice, type RoleModels } from './config.ts';
+import { modelFor, validModelNameFor, type ModelChoice, type RoleModels } from './config.ts';
 import {
   FEATURE_ON_FROM,
   LEVEL_KEYS,
@@ -103,7 +103,7 @@ export function runModel(
 export function invalidRunModel(models: Partial<Record<AgentRole, ModelChoice>>): Reason | null {
   for (const role of AGENT_ROLES) {
     const choice = models[role];
-    if (choice && !validModelName(choice.model)) {
+    if (choice && !validModelNameFor(role, choice.model)) {
       return reason('model_invalid', { role, model: choice.model });
     }
   }

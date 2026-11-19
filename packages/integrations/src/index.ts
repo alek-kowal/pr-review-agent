@@ -2,6 +2,7 @@ export * from './blob-store/index.ts';
 export * from './clickup/index.ts';
 export * from './errors.ts';
 export * from './github/index.ts';
+export * from './openrouter/index.ts';
 export * from './sandbox/index.ts';
 export {
   CliGitMirror,

@@ -39,7 +39,7 @@ export type JudgeInput = {
 export type JudgeOutput = { changeType: ChangeType; reason: string };
 
 /** The tiers as the v1 instruction files name them, mapped to core's change types. */
-const TIERS = {
+export const TIERS = {
   composes: 'uses_existing',
   extends: 'changes_behaviour',
   'one-way': 'one_way_door',
