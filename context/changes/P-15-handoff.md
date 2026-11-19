@@ -1,10 +1,14 @@
 # P-15 handoff
 
 - Plan and decisions: `context/changes/P-15-retry-cancel-stage-outputs/` (plan.md, change.md). Read change.md first.
-- Done: S-09-T1 (ceb14cb): `retryRun` in `packages/db/src/queries/retry.ts`, `runStateOf` moved to `@pra/db` (`queries/run-state.ts`), migrations 0014 (retry/cancel columns) and 0015 (`runs.retry_from`); `run.stage` jobs `retryLimit: 0`, expiry per stage timeout via `sendStageJob(..., run)`.
-- Session 2: `git merge main` done (e6a32cd, clean, no new migrations on main). Fixed the api typecheck error (`RetryRunOptions.inTransaction` now returns `Promise<unknown>`); `pnpm --filter @pra/db --filter @pra/api typecheck` passes. Lint and tests still not run for T2.
-- Partial S-09-T2 (e14733e): `POST /api/runs/:id/retry` and Run detail fields (`stages[].reused`, `run.retryOf/retryFrom/retriedBy`) in `apps/api/src/routes/api/runs/index.ts`; `ApiErrorCode.RunNotFailed/RunFinished`; PR-state loader sets `activeRun.retryFrom` and `failedRound.timeoutMinutes`.
-- Left for T2: `apps/api/test/routes/retry-route.test.ts` (use `seedRound(..., {failedAt})` + started queue, as `start-review.test.ts`); web: `retry` entry in `MAIN_ACTIONS` (`apps/web/src/features/pr/slots.ts`, run id = `view.latestRound.id`), reused mark and failed-run cost in `features/runs/StageList.tsx`/`RunPage.tsx`, copy (timeline `run_retried`, errors `run_not_failed`/`run_finished`, `interrupted_by_restart`), api-types; tests `retry-banner.test.tsx`, `run-detail-reused.test.tsx`. Then `pnpm verify`, squash nothing, commit T2.
-- Left: S-09-T3–T7, S-03-T14, S-04-T6, S-04-T7 as planned in plan.md (cancel columns already exist: `cancel_requested_at`, `cancelled_by`, `cancelled_by_member_id`, `cancel_reason`).
-- Know: `pnpm install` was needed in this worktree. Edit files only with Edit/Write (sed -i is blocked). `stageExecutionsOfRun` is not in plan order. Reviewer test severities are `blocker|should|nit`.
-- At the end: `git merge main`; if main has a 0014/0015 migration, delete ours (0014_retry_cancel, 0015_retry_from + snapshots/journal entries) and run `pnpm db:generate --name retry_cancel` once.
+- Done: `git merge main` (e6a32cd); S-09-T1 ceb14cb, T2 b32f4e0, T3 771b3b5, T4 1812bdc, T5 a3217fb (each passed `pnpm verify`).
+- Partial S-09-T6 (3a346f7): core `STAGE_ERROR.interruptedByRestart` and `recoverAfterRestart(run, code)`; `recoverRuns` uses `interrupted_by_restart`; `apps/worker/test/durability.test.ts` and `durability-worker.ts` (child process) pass.
+- To finish T6: the last `pnpm verify` had 2 worker failures from this work.
+  1. `apps/worker/test/run-round.test.ts:432` still expects `errorCode: 'interrupted'` after `recoverRuns`; change it to `'interrupted_by_restart'`.
+  2. `apps/worker/test/cancel.test.ts` "jobs are gone": wrap `expect(await queuedJobs(run.id)).toHaveLength(0)` in `vi.waitFor` (jobs are deleted after the status commit).
+  The 2 web failures in that run (insights-overview, FindingDecisions) pass when run alone; they are load timeouts.
+  Then tick 6.1 in plan.md, add the T6 decision (worker start = `interrupted_by_restart`, in-process left-running = `interrupted`) to change.md, and commit `feat(S-09): nothing stuck after a restart (T6)`.
+- Left: S-09-T7 (e2e `retry-cancel.spec.ts`), S-03-T14 (reconcile poll), S-04-T6, S-04-T7, as planned in plan.md.
+- Not yet run: `pnpm test:e2e`. T2 changed the Stage failed banner text (it now ends ". This round is not counted"); `e2e/first-round.spec.ts:113` matches by substring, so it should still pass.
+- Know: cancel = `requestRunCancel` (db) plus the worker's `finishCancel` and `listenForCancels` (`apps/worker/src/run/cancel.ts`); `WorkerDeps.cancellation` is set by `withDefaults`. Edit files only with Edit/Write.
+- At the end: `git merge main`; if main has a 0014/0015 migration, delete ours (0014_retry_cancel, 0015_retry_from plus snapshots and journal entries) and run `pnpm db:generate --name retry_cancel` once. In the last commit, delete this file.
