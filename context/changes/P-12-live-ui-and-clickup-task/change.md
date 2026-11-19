@@ -1,7 +1,7 @@
 ---
 change_id: P-12
 title: Live UI and ClickUp task (S-03-T8–T13, S-06-T4, S-06-T5)
-status: in_progress
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
