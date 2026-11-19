@@ -1,6 +1,7 @@
 export * from './blob-store/index.ts';
 export * from './errors.ts';
 export * from './github/index.ts';
+export * from './sandbox/index.ts';
 export {
   CliGitMirror,
   DEFAULT_GIT_DIR,
