@@ -41,3 +41,23 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   core tests may not import Node APIs (lint). `vite` is a core dev dependency for its client types.
 - Empty family test files hold one `it.todo`, because Vitest fails a file with no tests.
 - `zod` (^4.6.7, same as `apps/api`) is a core dependency for the F-03-T10 config schemas.
+- T2: `needsDecision` gives an unchecked Blocking or Worth fixing finding its own code
+  (`unchecked_needs_person`), so "below level 3 every unchecked finding waits" needs no level
+  argument. `findingsOutcome` returns every reason in the order a person acts (questions,
+  decisions, sensitive files, fixes) and the first one as `reason`.
+- T3: `checkQuotes` takes a synchronous reader (`path => string | null`); the worker reads the
+  files at the reviewed commit first. Whitespace-insensitive means runs of whitespace collapse to
+  one space on both sides. `currentFindings` takes rounds in start order and ignores rounds that
+  did not complete.
+- T4: the size rule raises a docs-and-tests-only change to Changes behaviour; code outside the
+  "uses existing" paths is Changes behaviour by default; one-way paths, then sensitive patterns,
+  win over both. `classifyChange` takes `sensitivePatterns` next to `rules`, because RepositoryConfig
+  keeps them in their own list (they also drive sensitive-file approval).
+- Glob syntax (`src/glob.ts`): gitignore anchoring (a pattern with a `/` at the start or middle is
+  rooted, otherwise it matches at any depth; a trailing `/` is a directory), `*`, `?`, `**`,
+  `{a,b}` and `(a|b)`. The WB fixture writes the prototype's `**/*.spec.ts(x)` as
+  `**/*.spec.{ts,tsx}`, because `(x)` is a required group, not an optional `x`.
+- T5: the per-change-type caps (`CHANGE_TYPE_LIMITS`) are built-in defaults, not P's
+  `review-profiles.json` (not read): Uses existing 3 findings, 1 question, no nits, no Verify;
+  Changes behaviour and One-way door 7 and 3. `limitsFor` takes an optional table so S-04 can
+  seed a repository's own caps. A level only narrows (minimum, or severity intersection).
