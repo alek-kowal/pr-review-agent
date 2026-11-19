@@ -10,6 +10,7 @@ import {
   type CiCheck,
   type CommitComparison,
   type CiStatus,
+  type GitHubComment,
   type GitHubGateway,
   type GitHubCommit,
   type GitHubPullRequest,
@@ -91,6 +92,8 @@ export class FakeGitHubGateway implements GitHubGateway {
   readonly comparisons = new Map<string, CommitComparison>();
   /** Reviews by `owner/name#number`, oldest first. */
   readonly reviews = new Map<string, PullRequestReview[]>();
+  /** People's comments by `owner/name#number`, oldest first (`addComment`). */
+  readonly prComments = new Map<string, GitHubComment[]>();
   /** Merges GitHub refuses, by `owner/name#number`. */
   readonly mergeRefusals = new Map<string, { status: number; message: string }>();
   /** Every squash merge that went through. */
@@ -221,6 +224,35 @@ export class FakeGitHubGateway implements GitHubGateway {
   async listChangesRequested(fullName: string, number: number): Promise<string[]> {
     this.#record('listChangesRequested', [fullName, number]);
     return changesRequestedBy(this.reviews.get(`${fullName}#${number}`) ?? []);
+  }
+
+  /** A comment by `login` on the PR (a line comment when `place` names a path). */
+  addComment(
+    fullName: string,
+    number: number,
+    login: string,
+    body: string,
+    place: { path?: string; line?: number } = {},
+  ): this {
+    const key = `${fullName}#${number}`;
+    const id = this.#nextId++;
+    this.prComments.set(key, [
+      ...(this.prComments.get(key) ?? []),
+      {
+        id: `${place.path ? 'review_comment' : 'issue_comment'}:${id}`,
+        author: login,
+        body,
+        path: place.path ?? null,
+        line: place.line ?? null,
+        createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, id)).toISOString(),
+      },
+    ]);
+    return this;
+  }
+
+  async listReviewComments(fullName: string, number: number): Promise<GitHubComment[]> {
+    this.#record('listReviewComments', [fullName, number]);
+    return [...(this.prComments.get(`${fullName}#${number}`) ?? [])];
   }
 
   /**

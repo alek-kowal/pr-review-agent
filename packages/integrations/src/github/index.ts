@@ -18,6 +18,7 @@ export {
   type CiState,
   type CiStatus,
   type CommitComparison,
+  type GitHubComment,
   type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,

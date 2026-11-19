@@ -3,6 +3,7 @@ import type { PullRequest, Repository } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { metricsOnClosed, metricsOnHeadChanged, metricsOnReady } from '../metrics/metric-logs.ts';
 import { chainsOnHeadChanged } from '../run/chains.ts';
+import { learningOnClosed } from '../run/learning-hooks.ts';
 import { sensitiveOnHeadChanged } from '../run/sensitive-files.ts';
 import {
   timelineOnClosed,
@@ -51,8 +52,8 @@ export const PR_EVENT_HOOKS: PrEventHooks = {
     timelineOnHeadChanged,
     metricsOnHeadChanged,
   ],
-  closed: [timelineOnClosed, metricsOnClosed],
-  merged: [timelineOnMerged, metricsOnClosed],
+  closed: [timelineOnClosed, metricsOnClosed, learningOnClosed],
+  merged: [timelineOnMerged, metricsOnClosed, learningOnClosed],
 };
 
 /** Which hook lists an event fires, in this order. */
