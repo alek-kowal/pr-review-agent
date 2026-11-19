@@ -136,6 +136,20 @@ describe('Implement with agent', () => {
     expect(decided).toMatchObject({ actor: 'member', memberId: kasia.id });
   });
 
+  test('decisions that started the implementer cannot be undone while it runs', async () => {
+    const { pr, findings } = await reviewedPr();
+    const body = DecideResponse.parse((await decideWithAgent(pr, findings)).json());
+
+    const undo = await post(`/api/decision-batches/${body.batchId}/undo`);
+
+    expect(undo.statusCode).toBe(409);
+    expect(undo.json()).toEqual({
+      error: { code: 'run_active', params: { kind: 'implementer', status: 'queued' } },
+    });
+    const decisions = (await timelineOf(db, pr.id)).filter((e) => e.kind === 'decision_undone');
+    expect(decisions).toEqual([]);
+  });
+
   test('a level 3 PR returns 409 implement_below_level and keeps no decision', async () => {
     const { pr, findings } = await reviewedPr(3);
 

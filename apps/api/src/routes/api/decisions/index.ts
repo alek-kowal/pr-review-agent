@@ -217,6 +217,11 @@ const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
             return sendError(reply, 409, ApiErrorCode.DecisionChangedSince, {
               findingIds: result.findingIds,
             });
+          case 'implementer_active':
+            return sendError(reply, 409, ApiErrorCode.RunActive, {
+              kind: 'implementer',
+              status: result.status,
+            });
         }
       }
       return refreshedView(db, batch.pullRequestId);
