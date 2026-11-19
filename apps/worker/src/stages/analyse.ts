@@ -42,7 +42,9 @@ async function runAnalyse(context: StageContext): Promise<StageResult> {
   const prompt = instructions.get(ANALYST_PROMPT_FILE)?.trim();
   const rules = instructions.get(ANALYST_RULES_FILE)?.trim();
   if (!prompt || !rules) {
-    const missing = [ANALYST_PROMPT_FILE, ANALYST_RULES_FILE].filter((key) => !instructions.get(key));
+    const missing = [ANALYST_PROMPT_FILE, ANALYST_RULES_FILE].filter(
+      (key) => !instructions.get(key),
+    );
     return {
       status: 'failed',
       error: { code: 'analyst_instructions_missing', params: { missing } },
@@ -115,12 +117,10 @@ async function findingsOfPullRequest(
   pullRequestId: number,
 ): Promise<AnalystInput['findings']> {
   const rows: FindingRow[] = [];
-  for (const round of await roundsOf(db, pullRequestId)) rows.push(...(await findingsOf(db, round.id)));
+  for (const round of await roundsOf(db, pullRequestId))
+    rows.push(...(await findingsOf(db, round.id)));
   const ids = rows.map((f) => f.id);
-  const [decisions, opinions] = await Promise.all([
-    currentDecisions(db, ids),
-    opinionsOf(db, ids),
-  ]);
+  const [decisions, opinions] = await Promise.all([currentDecisions(db, ids), opinionsOf(db, ids)]);
   return rows.map((f) => {
     const decision = decisions.get(f.id);
     return {

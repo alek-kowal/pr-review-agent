@@ -9,7 +9,7 @@ import {
   type AgentRunner,
   type AgentRunResult,
 } from '@pra/agents';
-import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
+import { FakeAgentRunner, FakeAnalyst, FakeJudge } from '@pra/agents/testing';
 import {
   closeDb,
   createDb,
@@ -561,6 +561,7 @@ const worker = await startWorker(
     }),
     agentRunner: new ScriptedAgents(holdDir, fixture.fixShas),
     judge: new FakeJudge(),
+    analyst: new FakeAnalyst([], () => ({ candidates: [] })),
     sandbox,
     clickup,
     dataDir: path.join(root, 'data'),

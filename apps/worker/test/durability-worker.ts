@@ -3,7 +3,7 @@
 // reviewer reports one turn, then never answers, so the test can SIGKILL the worker mid-session)
 // or `answer` (the reviewer answers at once).
 import type { AgentRunInput, AgentRunResult } from '@pra/agents';
-import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
+import { FakeAgentRunner, FakeAnalyst, FakeJudge } from '@pra/agents/testing';
 import { createDb, createQueue } from '@pra/db';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
@@ -60,6 +60,7 @@ await startWorker(
     }),
     agentRunner,
     judge: new FakeJudge(),
+    analyst: new FakeAnalyst(),
     sandbox: new FakeSandbox(),
     clickup: new FakeClickUpGateway(),
   },

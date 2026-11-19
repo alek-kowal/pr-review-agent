@@ -22,3 +22,26 @@ tries, rejects (signed) or accepts (signed) them, and an accepted lesson becomes
   `started_by = 'bot'`. Analyses by hand are not limited.
 - Candidates of one repository merge under a transaction advisory lock, so two analyses finishing
   together never create the same candidate twice.
+- After merging `main` (P-15 took migration 0020), the learning migration was regenerated as
+  `0021_learning`.
+
+### S-23-T2 (adapter)
+
+- The analyst is one Messages API call with structured output (no tools, no sandbox), like the
+  judge: `createAnthropicAnalyst()` in the worker, `FakeAnalyst` in tests and e2e.
+
+### S-23-T3 (job)
+
+- **The job is the run engine, not a separate pg-boss queue**: an analysis is a run of kind
+  `analyst` with one stage `analyse`, created by `createRun` under one transaction with its
+  `analyses` row. So pause, budget and slots apply through the usual gates, and its cost sits in
+  the run kind `analyst` (Insights' analyst bucket, outside PR cost).
+- The bot starts it from both the `closed` and the `merged` PR hooks, after `cancelOnClosed`; the
+  bot's unique index makes the second call a no-op.
+- The analyst reads people's GitHub comments through `GitHubGateway.listReviewComments`; core
+  `buildCases` drops the PR author's own comments by login. The stage stores only counts of what it
+  read; the input itself is the session's prompt.
+- The analyst's prompt and rules are instruction files (`prompt-analyst.md`, `analyst-rules.md`).
+  There is no built-in default: without them the stage fails `analyst_instructions_missing`.
+- The candidates merge in the `runCompleted` hook (status "finished", count); `runFailed` and
+  `runCancelled` end the analysis "failed".
