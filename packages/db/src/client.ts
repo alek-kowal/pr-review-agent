@@ -32,3 +32,6 @@ export function createDb(url: string, options: CreateDbOptions = {}): Db {
 export async function closeDb(db: Db): Promise<void> {
   await db.$client.end();
 }
+
+/** What queries need: the client or a transaction (`db.transaction(async (tx) => ...)`). */
+export type Executor = Pick<Db, 'insert' | 'select' | 'update' | 'delete' | 'execute'>;

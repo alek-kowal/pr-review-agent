@@ -1,4 +1,3 @@
-import type { NoParams } from '../reason.ts';
 import type { Actor, LevelNumber } from '../vocabulary.ts';
 
 // Next step banners (`state_*`) and who usually acts (`who_*`), one per PR state variant.

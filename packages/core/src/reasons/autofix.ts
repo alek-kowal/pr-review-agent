@@ -1,5 +1,3 @@
-import type { NoParams } from '../reason.ts';
-
 declare module '../reason.ts' {
   interface ReasonParams {
     autofix_conditions_met: { count: number };

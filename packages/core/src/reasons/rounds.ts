@@ -1,4 +1,3 @@
-import type { NoParams } from '../reason.ts';
 import type { Actor, RunKind } from '../vocabulary.ts';
 import type { RoundTrigger, RunStatus } from '../model.ts';
 

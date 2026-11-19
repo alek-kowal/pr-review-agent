@@ -1,4 +1,3 @@
-import type { NoParams } from '../reason.ts';
 import type { Actor } from '../vocabulary.ts';
 
 // Merge checklist items. Every code has a `checklist_` prefix, because codes share one namespace.

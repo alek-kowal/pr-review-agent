@@ -1,10 +1,13 @@
 import fp from 'fastify-plugin';
-import type { FastifyError } from 'fastify';
+import type { FastifyError, FastifyReply } from 'fastify';
+import { z } from 'zod/v4';
 
 /** Reason codes the API returns. Clients map them to copy; the API sends no prose. */
 export const ApiErrorCode = {
   InvalidRequest: 'invalid_request',
   InternalError: 'internal_error',
+  RepositoryNotFound: 'repository_not_found',
+  PrNotFound: 'pr_not_found',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
@@ -16,8 +19,26 @@ export type ApiErrorBody = {
   };
 };
 
+/** The error shape for route schemas (OpenAPI), for example `{ 404: ApiErrorSchema }`. */
+export const ApiErrorSchema = z.object({
+  error: z.object({
+    code: z.enum(Object.values(ApiErrorCode) as [ApiErrorCode, ...ApiErrorCode[]]),
+    params: z.record(z.string(), z.unknown()),
+  }),
+});
+
 function errorBody(code: ApiErrorCode, params: Record<string, unknown> = {}): ApiErrorBody {
   return { error: { code, params } };
+}
+
+/** Sends `{ error: { code, params } }` with the given status. */
+export function sendError(
+  reply: FastifyReply,
+  statusCode: number,
+  code: ApiErrorCode,
+  params: Record<string, unknown> = {},
+) {
+  return reply.code(statusCode).send(errorBody(code, params));
 }
 
 /**

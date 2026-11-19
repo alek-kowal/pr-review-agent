@@ -1,5 +1,4 @@
 import type { ChangeType } from '../vocabulary.ts';
-import type { NoParams } from '../reason.ts';
 
 declare module '../reason.ts' {
   interface ReasonParams {
