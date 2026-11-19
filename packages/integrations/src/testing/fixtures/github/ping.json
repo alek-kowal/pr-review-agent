@@ -1,0 +1,21 @@
+{
+  "zen": "Keep it logically awesome.",
+  "hook_id": 480000001,
+  "hook": {
+    "type": "App",
+    "id": 480000001,
+    "app_id": 1000001,
+    "active": true,
+    "events": ["pull_request", "check_suite"],
+    "config": {
+      "content_type": "json",
+      "insecure_ssl": "0",
+      "url": "https://pra.example.invalid/webhooks/github"
+    }
+  },
+  "sender": {
+    "login": "wb-dev",
+    "id": 9000002,
+    "type": "User"
+  }
+}
