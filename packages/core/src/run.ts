@@ -1,4 +1,5 @@
 import './reasons/run.ts';
+import { forkOffSteps, type OffStep } from './fork-policy.ts';
 import { stagesFor, type FixCheckStageKey } from './levels.ts';
 import type { RoundKind, RunStatus } from './model.ts';
 import { reason, type Reason } from './reason.ts';
@@ -43,6 +44,8 @@ export interface RunState {
   attempt: number;
   retryFrom: RunStageKey | null;
   stages: StageState[];
+  /** Steps that run PR code, off inside their running stage (a fork PR, S-16). */
+  offSteps: OffStep[];
   error: { stage: RunStageKey; code: string } | null;
 }
 
@@ -62,19 +65,37 @@ export interface PlanRunInput {
   level: LevelNumber;
   roundKind?: RoundKind;
   roundNumber?: number | null;
+  /** A fork PR: the steps that run PR code are off with `fork_read_only` (S-16-T1). */
+  fork?: boolean;
 }
 
-/** A new queued run with its stage plan: the level turns stages off with `off_at_level`. */
-export function planRun({ kind, level, roundKind, roundNumber = null }: PlanRunInput): RunState {
+/**
+ * A new queued run with its stage plan: the level turns stages off with `off_at_level`. On a
+ * fork, install (Checks) and reproductions (Verify) are off steps, and the fix check's
+ * Reproductions stage is off; reading CI status stays on.
+ */
+export function planRun({
+  kind,
+  level,
+  roundKind,
+  roundNumber = null,
+  fork = false,
+}: PlanRunInput): RunState {
   const isRound = kind === 'round' || kind === 'trial';
   const stages = isRound
-    ? stagesFor(level, roundKind ?? 'full').map((s) =>
+    ? stagesFor(level, roundKind ?? 'full').map((s) => {
         // A trial skips the stages that call GitHub or ClickUp (S-22-T6).
-        kind === 'trial' && !s.off && (TRIAL_OFF_STAGES as readonly string[]).includes(s.key)
-          ? stage(s.key, true, reason('off_in_trial', { stage: s.key }))
-          : stage(s.key, s.off, s.reason),
-      )
+        if (kind === 'trial' && !s.off && (TRIAL_OFF_STAGES as readonly string[]).includes(s.key)) {
+          return stage(s.key, true, reason('off_in_trial', { stage: s.key }));
+        }
+        if (fork && !s.off && s.key === 'reproductions') {
+          return stage(s.key, true, reason('fork_read_only'));
+        }
+        return stage(s.key, s.off, s.reason);
+      })
     : (kind === 'implementer' ? IMPLEMENTER_STAGE_KEYS : ANALYST_STAGE_KEYS).map((k) => stage(k));
+  const offSteps =
+    fork && isRound ? forkOffSteps(stages.filter((s) => s.status !== 'off').map((s) => s.key)) : [];
   return {
     kind,
     status: 'queued',
@@ -84,6 +105,7 @@ export function planRun({ kind, level, roundKind, roundNumber = null }: PlanRunI
     attempt: 1,
     retryFrom: null,
     stages,
+    offSteps,
     error: null,
   };
 }
