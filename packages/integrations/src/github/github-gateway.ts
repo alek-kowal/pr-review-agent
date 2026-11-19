@@ -29,6 +29,11 @@ export interface GitHubGateway {
   /** GitHub logins whose latest review on the PR requests changes. */
   listChangesRequested(fullName: string, number: number): Promise<string[]>;
   /**
+   * What people wrote on the PR (the analyst's input): line comments, conversation comments and
+   * review bodies, oldest first. Comments by bots (the App's own included) are left out.
+   */
+  listReviewComments(fullName: string, number: number): Promise<GitHubComment[]>;
+  /**
    * Squash-merges the PR as the App, pinned to `sha`: GitHub refuses when the head moved. Branch
    * protection applies; nothing here bypasses it. A refusal (405, 409, 422) is an answer with
    * GitHub's status and message; any other failure throws.
@@ -60,6 +65,18 @@ export const MERGE_REFUSAL_STATUSES: ReadonlySet<number> = new Set([405, 409, 42
 
 /** One review as GitHub lists it (`GET /pulls/{n}/reviews`, oldest first). */
 export type PullRequestReview = { login: string; state: string };
+
+/** One comment by a person on a PR; `path` and `line` only for a line comment. */
+export type GitHubComment = {
+  /** `review_comment:<id>`, `issue_comment:<id>` or `review:<id>`. */
+  id: string;
+  /** The author's GitHub login. */
+  author: string;
+  body: string;
+  path: string | null;
+  line: number | null;
+  createdAt: string;
+};
 
 /**
  * Logins whose latest review requests changes. A later approval or dismissal replaces an earlier

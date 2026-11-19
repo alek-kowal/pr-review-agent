@@ -8,6 +8,7 @@ import { checks } from './checks.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
+import { learning } from './learning.ts';
 import { audit } from './audit.ts';
 import { instructions } from './instructions.ts';
 import { integrations } from './integrations.ts';
@@ -219,6 +220,8 @@ export const copy = {
     model_access_not_configured: 'model access is not configured',
     stage_not_available: 'this stage is not available yet',
     stage_timeout: 'the stage ran out of time',
+    analyst_instructions_missing: 'the analyst prompt or rules file is missing',
+    analyst_output_invalid: 'the analyst answered in a shape it may not use',
     model_invalid: 'a model name in Settings → Models or Review levels is not valid',
     interrupted: 'the app restarted while it ran',
     interrupted_by_restart: 'the app restarted while it ran',
@@ -289,6 +292,10 @@ export const copy = {
     no_linked_task: 'This pull request has no linked ClickUp task.',
     author_has_no_clickup_user:
       'The author has no ClickUp user in Team. Add it in Settings → Team, then notify.',
+    lesson_candidate_not_found: 'This lesson candidate no longer exists.',
+    candidate_not_open: 'Someone decided this candidate in the meantime. Reload the page.',
+    needs_more_prs: 'This lesson needs one more PR before it can be accepted.',
+    pr_open: 'The analyst runs only on a closed pull request.',
     alert_not_found: 'This alert no longer exists. Reload the page.',
     alert_not_active: 'This alert has already cleared or been dismissed.',
   } as Record<string, string>,
@@ -298,6 +305,7 @@ export const copy = {
   insights,
   instructions,
   trials,
+  learning,
   pipeline,
   merge,
   palette,

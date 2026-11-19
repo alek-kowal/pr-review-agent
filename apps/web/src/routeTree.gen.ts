@@ -24,6 +24,7 @@ import { Route as SettingsAlertsRouteImport } from './routes/settings.alerts.tsx
 import { Route as SettingsAuditRouteImport } from './routes/settings.audit.tsx'
 import { Route as SettingsBudgetRouteImport } from './routes/settings.budget.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
+import { Route as SettingsLearningRouteImport } from './routes/settings.learning.tsx'
 import { Route as SettingsModelsRouteImport } from './routes/settings.models.tsx'
 import { Route as SettingsPipelineRouteImport } from './routes/settings.pipeline.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
@@ -113,6 +114,11 @@ const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
   path: '/integrations',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsLearningRoute = SettingsLearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsModelsRoute = SettingsModelsRouteImport.update({
   id: '/models',
   path: '/models',
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -258,6 +266,7 @@ export interface FileRoutesById {
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
   '/settings/models': typeof SettingsModelsRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -290,6 +299,7 @@ export interface FileRouteTypes {
     | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
+    | '/settings/learning'
     | '/settings/models'
     | '/settings/pipeline'
     | '/settings/team'
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
+    | '/settings/learning'
     | '/settings/models'
     | '/settings/pipeline'
     | '/settings/team'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/settings/audit'
     | '/settings/budget'
     | '/settings/integrations'
+    | '/settings/learning'
     | '/settings/models'
     | '/settings/pipeline'
     | '/settings/team'
@@ -482,6 +494,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIntegrationsRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/learning': {
+      id: '/settings/learning'
+      path: '/learning'
+      fullPath: '/settings/learning'
+      preLoaderRoute: typeof SettingsLearningRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/models': {
       id: '/settings/models'
       path: '/models'
@@ -599,6 +618,7 @@ interface SettingsRouteChildren {
   SettingsAuditRoute: typeof SettingsAuditRoute
   SettingsBudgetRoute: typeof SettingsBudgetRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
+  SettingsLearningRoute: typeof SettingsLearningRoute
   SettingsModelsRoute: typeof SettingsModelsRoute
   SettingsPipelineRoute: typeof SettingsPipelineRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
@@ -619,6 +639,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAuditRoute: SettingsAuditRoute,
   SettingsBudgetRoute: SettingsBudgetRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
+  SettingsLearningRoute: SettingsLearningRoute,
   SettingsModelsRoute: SettingsModelsRoute,
   SettingsPipelineRoute: SettingsPipelineRoute,
   SettingsTeamRoute: SettingsTeamRoute,

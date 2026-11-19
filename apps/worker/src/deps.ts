@@ -1,4 +1,4 @@
-import type { AgentRunner, Judge } from '@pra/agents';
+import type { AgentRunner, Analyst, Judge } from '@pra/agents';
 import type { Db, Queue } from '@pra/db';
 import type {
   BlobStore,
@@ -22,6 +22,8 @@ export type WorkerDeps = {
   agentRunner: AgentRunner;
   /** The change-type judge (one Messages API call, no tools). */
   judge: Judge;
+  /** The analyst after a PR closes (one Messages API call, no tools). */
+  analyst: Analyst;
   /** Throwaway containers for the Checks install and Verify's reproductions. */
   sandbox: Sandbox;
   clickup: ClickUpGateway;
