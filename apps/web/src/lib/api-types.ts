@@ -489,3 +489,52 @@ export type TimelineEntryView = {
   /** A finished run's final cost. */
   costUsd: number | null;
 };
+
+// Instructions (apps/api/src/routes/api/instructions).
+export type InstructionScope = 'global' | 'repository' | 'level';
+export type InstructionVersionStatus = 'active' | 'draft' | 'archived';
+
+export type InstructionFileView = {
+  id: number;
+  scope: InstructionScope;
+  repository: { id: number; slug: string } | null;
+  level: LevelNumber | null;
+  fileKey: string;
+};
+
+export type InstructionVersionRef = {
+  id: number;
+  version: number;
+  note: string | null;
+  createdAt: string;
+  activatedAt: string | null;
+};
+
+export type InstructionsListResponse = {
+  files: (InstructionFileView & {
+    active: InstructionVersionRef | null;
+    draft: InstructionVersionRef | null;
+  })[];
+};
+
+export type InstructionVersionView = InstructionVersionRef & {
+  status: InstructionVersionStatus;
+  content: string;
+  author: 'member' | 'bot' | 'hand';
+  authorName: string | null;
+  signerName: string | null;
+  runCount: number;
+  runs: {
+    runId: number;
+    kind: string;
+    repositorySlug: string;
+    prNumber: number;
+    createdAt: string;
+  }[];
+};
+
+export type InstructionDetailResponse = {
+  file: InstructionFileView;
+  /** Newest first. */
+  versions: InstructionVersionView[];
+};

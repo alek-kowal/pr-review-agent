@@ -5,6 +5,7 @@ import { checklist } from './checklist.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
+import { instructions } from './instructions.ts';
 import { integrations } from './integrations.ts';
 import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
@@ -237,10 +238,17 @@ export const copy = {
     run_not_found: 'This run does not exist.',
     session_not_found: 'This agent session does not exist.',
     transcript_not_found: 'The transcript of this session is not stored.',
+    instruction_file_not_found: 'This instruction file does not exist.',
+    instruction_version_not_found: 'This version is not one of the file’s versions.',
+    instruction_version_status:
+      'This version changed in the meantime. Reload the page to see the current versions.',
+    instruction_copy_exists: 'This copy already exists.',
+    instruction_no_active: 'The file has no active version to copy.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity,
   insights,
+  instructions,
   settings: {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',
