@@ -149,7 +149,7 @@ function DailyChart({ data }: { data: CostResponse }) {
             width={48}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(usd: number) => t.money(usd)}
+            tickFormatter={(usd: number) => t.tick(usd)}
           />
           <ChartTooltip
             content={

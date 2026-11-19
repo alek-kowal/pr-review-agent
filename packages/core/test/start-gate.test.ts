@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_APP_SETTINGS, queueCauseOf, startGate, type GateStatus } from '../src/index.ts';
+import {
+  activeUsageLimit,
+  DEFAULT_APP_SETTINGS,
+  queueCauseOf,
+  startGate,
+  USAGE_LIMIT_FALLBACK_MS,
+  USAGE_LIMIT_MARGIN_MS,
+  usageLimitHold,
+  type GateStatus,
+} from '../src/index.ts';
 
 const TOMEK = '6f1c2a54-0000-4000-8000-000000000001';
 const running: GateStatus = { ...DEFAULT_APP_SETTINGS, dailyBudgetUsd: 50 };
@@ -109,5 +118,50 @@ describe('queueCauseOf', () => {
     });
     expect(queueCauseOf(wait(running, 0))).toEqual({ cause: 'slot' });
     expect(queueCauseOf(null)).toEqual({ cause: 'slot' });
+    const limited = startGate({
+      status: running,
+      spentToday: 0,
+      activeRuns: [],
+      kind: 'round',
+      usageLimit: { until: '2026-11-19T15:01:00.000Z', resetsAt: null },
+      now: Date.parse('2026-11-19T14:00:00Z'),
+    });
+    expect(queueCauseOf(limited.start ? null : limited.reason)).toEqual({
+      cause: 'usage_limit',
+      until: '2026-11-19T15:01:00.000Z',
+    });
+  });
+});
+
+describe('the Claude usage limit (P-25)', () => {
+  const now = Date.parse('2026-11-19T14:00:00Z');
+  const hold = { until: '2026-11-19T15:01:00.000Z', resetsAt: '2026-11-19T15:00:00.000Z' };
+  const gate = (kind: 'round' | 'session', at: number, status = running) =>
+    startGate({ status, spentToday: 0, activeRuns: [], kind, usageLimit: hold, now: at });
+
+  it('holds new rounds and every session until the hold passes', () => {
+    const waits = { start: false, reason: { code: 'usage_limit_reached', params: hold } };
+    expect(gate('round', now)).toEqual(waits);
+    expect(gate('session', now)).toEqual(waits);
+    expect(gate('session', Date.parse(hold.until))).toEqual({ start: true });
+    expect(gate('round', Date.parse(hold.until) + 1)).toEqual({ start: true });
+  });
+
+  it('lets a pause and the budget speak first', () => {
+    expect(gate('round', now, paused)).toMatchObject({ reason: { code: 'paused' } });
+  });
+
+  it('ends the hold just after the reported reset, or after the fallback', () => {
+    expect(usageLimitHold('2026-11-19T15:00:00.000Z', now)).toEqual(hold);
+    expect(usageLimitHold(null, now)).toEqual({
+      until: new Date(now + USAGE_LIMIT_FALLBACK_MS).toISOString(),
+      resetsAt: null,
+    });
+    // A reset already past (clock skew) waits the margin only.
+    expect(usageLimitHold('2026-11-19T13:00:00.000Z', now).until).toBe(
+      new Date(now + USAGE_LIMIT_MARGIN_MS).toISOString(),
+    );
+    expect(activeUsageLimit(null, now)).toBeNull();
+    expect(activeUsageLimit(hold, Date.parse(hold.until))).toBeNull();
   });
 });

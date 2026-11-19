@@ -612,6 +612,8 @@ export type StatusResponse = {
   queuedCount: number;
   /** Active alerts (S-18). */
   activeAlertCount: number;
+  /** How the agents reach the model (P-25), a name only; `subscription` labels costs. */
+  modelAuth: 'subscription' | 'api_key' | 'none';
 };
 
 /** `GET /api/activity/in-progress`: queued and running runs, oldest first. */
@@ -625,7 +627,10 @@ export type InProgressRun = {
   currentStage: string | null;
   /** Grows per agent turn while a session runs. */
   costUsd: number;
-  /** Why the run waits: `paused`, `budget_reached` or `slots_busy`; null when it does not. */
+  /**
+   * Why the run waits: `paused`, `budget_reached`, `slots_busy` or `usage_limit_reached`; null
+   * when it does not.
+   */
   wait: ReasonView | null;
   createdAt: string;
   startedAt: string | null;

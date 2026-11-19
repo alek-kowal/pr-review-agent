@@ -11,5 +11,10 @@ declare module '../reason.ts' {
     budget_reached: { spentUsd: number; budgetUsd: number };
     /** A round waits: every agent slot is taken, by the runs of these PR numbers. */
     slots_busy: { slots: number; prs: number[] };
+    /**
+     * Reviews wait (P-25): the Claude subscription's usage limit was reached. `until`: when the
+     * runs go on (just after the reset); `resetsAt`: the reset the SDK reported, null if unknown.
+     */
+    usage_limit_reached: { until: string; resetsAt: string | null };
   }
 }

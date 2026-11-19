@@ -1,15 +1,28 @@
 // The status chip in the top bar: the factory's state, today's spend, pause and budget.
 import type { StatusResponse } from '@/lib/api-types.ts';
-import { money, plural } from './format.ts';
+import { money, moneyOf, plural, spendHint } from './format.ts';
 
 /** "$12.40 of $50.00", or "$12.40" without a budget. */
 const spentOf = (s: Pick<StatusResponse, 'todaySpendUsd' | 'dailyBudgetUsd'>) =>
-  s.dailyBudgetUsd === null
-    ? money(s.todaySpendUsd)
-    : `${money(s.todaySpendUsd)} of ${money(s.dailyBudgetUsd)}`;
+  s.dailyBudgetUsd === null ? money(s.todaySpendUsd) : moneyOf(s.todaySpendUsd, s.dailyBudgetUsd);
 
 export const status = {
   label: 'Factory status',
+  /** How the agents reach the model (P-25): names only, never a value. */
+  modelAuth: {
+    label: 'Model access',
+    modes: {
+      subscription: 'Claude subscription',
+      api_key: 'API key',
+      none: 'Not configured',
+    } satisfies Record<StatusResponse['modelAuth'], string>,
+    hints: {
+      subscription:
+        'Agents run on CLAUDE_CODE_OAUTH_TOKEN. Costs are API-equivalent; the daily budget guards that number.',
+      api_key: 'Agents run on ANTHROPIC_API_KEY, billed per token.',
+      none: 'Set CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in .env and restart the api and the worker.',
+    } satisfies Record<StatusResponse['modelAuth'], string>,
+  },
   spentOf,
   /** The chip's text by status state. */
   states: {
@@ -21,7 +34,9 @@ export const status = {
     budget_reached: (s: StatusResponse) => `Daily budget reached · ${spentOf(s)}`,
   } satisfies Record<StatusResponse['state'], (s: StatusResponse) => string>,
   spentToday: 'Spent today',
-  spentHint: 'Real spend only: what agent sessions cost since midnight.',
+  get spentHint() {
+    return spendHint('Real spend only: what agent sessions cost since midnight.');
+  },
   spentPercent: 'Share of the daily budget spent today',
   queued: (count: number) => `${plural(count, 'round')} queued`,
   openActivity: 'Open Activity',

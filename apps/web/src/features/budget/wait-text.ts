@@ -32,6 +32,8 @@ export function waitText(wait: ReasonView | null, names: ReadonlyMap<string, str
         slots: Number(p.slots),
         prs: Array.isArray(p.prs) ? (p.prs as number[]) : [],
       });
+    case 'usage_limit_reached':
+      return t.waits.usage_limit_reached({ until: String(p.until) });
     default:
       return t.queued;
   }

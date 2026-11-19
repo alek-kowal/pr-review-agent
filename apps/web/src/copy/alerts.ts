@@ -1,6 +1,6 @@
 // Copy for alerts (S-18): Activity → Alerts, the board strip and card bell, the PR banner line,
 // the status chip and the timeline. Title, next step and end note arrive as reason codes.
-import { duration, money, plural } from './format.ts';
+import { API_EQUIVALENT, duration, isApiEquivalent, money, moneyOf, plural } from './format.ts';
 
 type Params = Record<string, unknown>;
 /** Stage and failure names, passed in by the caller (they live in `copy.stages` and `copy.reasons`). */
@@ -21,8 +21,8 @@ const titles: Record<string, (p: Params, c: AlertNames) => string> = {
     `#${n(p.prNumber)} has cost ${money(p.spentUsd)}, above the ${money(p.maxUsd)} alert threshold`,
   alert_budget: (p) =>
     n(p.percent) >= 100
-      ? `Daily budget reached: ${money(p.spentUsd)} of ${money(p.budgetUsd)}`
-      : `Daily budget ${n(p.percent)}% used: ${money(p.spentUsd)} of ${money(p.budgetUsd)}`,
+      ? `Daily budget reached: ${moneyOf(p.spentUsd, p.budgetUsd)}`
+      : `Daily budget ${n(p.percent)}% used: ${moneyOf(p.spentUsd, p.budgetUsd)}`,
 };
 
 /** A short name for a pill on the board strip. */
@@ -126,7 +126,9 @@ export const alerts = {
     },
     cost: {
       label: 'Cost of one PR',
-      hint: 'Real spend on the PR: every round, fix and retry. Trials and the analyst do not count. A warning, not a limit: rounds keep running.',
+      get hint() {
+        return `${isApiEquivalent() ? `${API_EQUIVALENT} cost` : 'Real spend'} on the PR: every round, fix and retry. Trials and the analyst do not count. A warning, not a limit: rounds keep running.`;
+      },
       toggle: 'Alert when one PR costs too much',
       above: 'above',
       currency: '$',

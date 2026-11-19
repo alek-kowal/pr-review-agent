@@ -1,10 +1,10 @@
 // S-10: today's spend in the configured time zone and the agent queue (`run_waits`).
-import type { Reason } from '@pra/core';
+import type { Reason, UsageLimitHold } from '@pra/core';
 import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests } from '../schema/repositories.ts';
 import { runs } from '../schema/runs.ts';
-import { runWaits } from '../schema/status.ts';
+import { runWaits, usageLimitHolds } from '../schema/status.ts';
 import { spendSince } from './pr-views.ts';
 
 /** Local midnight of `now`'s day in `timeZone`, computed by Postgres. */
@@ -166,4 +166,33 @@ export async function runWaitsOf(db: Executor, runIds: number[]): Promise<Map<nu
   if (runIds.length === 0) return new Map();
   const rows = await db.select().from(runWaits).where(inArray(runWaits.runId, runIds));
   return new Map(rows.map((row) => [row.runId, row]));
+}
+
+/** The stored Claude usage limit hold (P-25), past or not; null when none was ever stored. */
+export async function getUsageLimitHold(db: Executor): Promise<UsageLimitHold | null> {
+  const [row] = await db.select().from(usageLimitHolds).where(eq(usageLimitHolds.id, 1));
+  return row
+    ? { until: row.until.toISOString(), resetsAt: row.resetsAt?.toISOString() ?? null }
+    : null;
+}
+
+/**
+ * Stores a usage limit hold. A hold that still lasts longer wins (parallel sessions report the
+ * same reset, a weekly limit outlasts a 5-hour one); returns the hold now stored.
+ */
+export async function holdForUsageLimit(
+  db: Executor,
+  hold: UsageLimitHold,
+): Promise<UsageLimitHold> {
+  const until = new Date(hold.until);
+  const resetsAt = hold.resetsAt ? new Date(hold.resetsAt) : null;
+  await db
+    .insert(usageLimitHolds)
+    .values({ id: 1, until, resetsAt })
+    .onConflictDoUpdate({
+      target: usageLimitHolds.id,
+      set: { until, resetsAt, updatedAt: sql`now()` },
+      setWhere: sql`${usageLimitHolds.until} < ${until}`,
+    });
+  return (await getUsageLimitHold(db))!;
 }

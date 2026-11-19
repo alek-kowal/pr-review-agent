@@ -149,6 +149,15 @@ export async function updateAgentSession(
   await db.update(agentSessions).set(patch).where(eq(agentSessions.id, id));
 }
 
+/** How many sessions a stage execution has (a parked attempt goes on numbering them, P-25). */
+export async function sessionCountOf(db: Executor, stageExecutionId: number): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(agentSessions)
+    .where(eq(agentSessions.stageExecutionId, stageExecutionId));
+  return row?.count ?? 0;
+}
+
 /** Sessions of a stage execution still marked running get `status` (after a restart). */
 export async function endRunningSessions(
   db: Executor,

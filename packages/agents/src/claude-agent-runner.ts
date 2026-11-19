@@ -17,8 +17,16 @@ import {
   toUsage,
   type ApiUsage,
 } from './agent-result.ts';
+import {
+  credentialsFrom,
+  modelAccessOf,
+  withoutSecret,
+  type ModelAccess,
+  type ModelCredentials,
+} from './model-access.ts';
 import { pathGuard } from './path-guard.ts';
 import { costOf } from './prices.ts';
+import { usageLimitOf } from './usage-limit.ts';
 import {
   NO_USAGE,
   type AgentErrorCode,
@@ -48,23 +56,31 @@ export const ROLE_TOOLS: Partial<Record<AgentRole, readonly string[]>> = Object.
  */
 const GUARDED_EACH_CALL: ReadonlySet<AgentRole> = new Set(['implementer']);
 
-export type ClaudeAgentRunnerOptions = {
-  /** `ANTHROPIC_API_KEY`; without it every run fails with `model_access_not_configured`. */
-  apiKey: string | undefined;
+/**
+ * `oauthToken` (`CLAUDE_CODE_OAUTH_TOKEN`, a Claude subscription) or `apiKey`
+ * (`ANTHROPIC_API_KEY`); the subscription wins. Without either every run fails with
+ * `model_access_not_configured`.
+ */
+export type ClaudeAgentRunnerOptions = ModelCredentials & {
   query?: QueryFn;
   now?: () => number;
 };
 
 /** `AgentRunner` on the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). */
 export class ClaudeAgentRunner implements AgentRunner {
-  readonly #apiKey: string | undefined;
+  readonly #access: ModelAccess;
   readonly #query: QueryFn;
   readonly #now: () => number;
 
   constructor(options: ClaudeAgentRunnerOptions) {
-    this.#apiKey = options.apiKey || undefined;
+    this.#access = modelAccessOf(options);
     this.#query = options.query ?? sdkQuery;
     this.#now = options.now ?? Date.now;
+  }
+
+  /** Which way sessions reach the model (names only). */
+  get authMode(): ModelAccess['mode'] {
+    return this.#access.mode;
   }
 
   async run<T>(input: AgentRunInput<T>): Promise<AgentRunResult<T>> {
@@ -72,7 +88,8 @@ export class ClaudeAgentRunner implements AgentRunner {
     const notStarted = (code: AgentErrorCode, params: Record<string, unknown> = {}) =>
       result<T>({ status: code === 'cancelled' ? 'cancelled' : 'failed', error: { code, params } });
 
-    if (!this.#apiKey) return notStarted('model_access_not_configured');
+    const access = this.#access;
+    if (access.mode === 'none') return notStarted('model_access_not_configured');
     const tools = ROLE_TOOLS[input.role];
     if (!tools) return notStarted('role_not_supported', { role: input.role });
     if (input.signal?.aborted) return notStarted('cancelled');
@@ -99,7 +116,7 @@ export class ClaudeAgentRunner implements AgentRunner {
       if (abort.signal.aborted) throw new Error('aborted before the session started');
       const messages = this.#query({
         prompt: input.prompt,
-        options: this.#options(input, tools, home, abort),
+        options: this.#options(input, tools, home, abort, access.env),
       });
       for await (const message of messages) {
         transcript.push(message);
@@ -123,12 +140,6 @@ export class ClaudeAgentRunner implements AgentRunner {
       if (home) await rm(home, { recursive: true, force: true });
     }
 
-    // A session that finished keeps its result. One we stopped (cost, timeout, cancel) is
-    // explained by why we stopped it, even if the SDK still sent an error result.
-    if (final && (final.subtype === 'success' || !abort.signal.aborted)) {
-      return fromResult(final, input, transcript);
-    }
-
     const spent = final
       ? reportedSpend(final, transcript)
       : {
@@ -139,6 +150,22 @@ export class ClaudeAgentRunner implements AgentRunner {
           durationMs: this.#now() - startedAt,
           transcript,
         };
+    // The subscription's usage limit (P-25): the worker parks the stage until the reset.
+    const limit = abort.signal.aborted ? null : usageLimitOf(transcript, thrown);
+    if (limit) {
+      return result<T>({
+        ...spent,
+        status: 'failed',
+        error: error('usage_limit_reached', { resetsAt: limit.resetsAt }),
+      });
+    }
+
+    // A session that finished keeps its result. One we stopped (cost, timeout, cancel) is
+    // explained by why we stopped it, even if the SDK still sent an error result.
+    if (final && (final.subtype === 'success' || !abort.signal.aborted)) {
+      return fromResult(final, input, transcript);
+    }
+
     if (costStopped) {
       return result<T>({
         ...spent,
@@ -162,7 +189,10 @@ export class ClaudeAgentRunner implements AgentRunner {
     return result<T>({
       ...spent,
       status: 'failed',
-      error: error('agent_failed', thrown ? { detail: detailOf(thrown) } : { detail: 'no_result' }),
+      error: error(
+        'agent_failed',
+        thrown ? { detail: withoutSecret(detailOf(thrown), access) } : { detail: 'no_result' },
+      ),
     });
   }
 
@@ -171,6 +201,7 @@ export class ClaudeAgentRunner implements AgentRunner {
     tools: readonly string[],
     home: string,
     abort: AbortController,
+    secretEnv: Record<string, string>,
   ): Options {
     const guard = pathGuard({ cwd: input.cwd, readDirs: input.readDirs ?? [] });
     const permissions: Partial<Options> = GUARDED_EACH_CALL.has(input.role)
@@ -193,12 +224,7 @@ export class ClaudeAgentRunner implements AgentRunner {
       mcpServers: {},
       strictMcpConfig: true,
       persistSession: false,
-      // Replaces the whole environment: the agent sees the model key and nothing else.
-      env: {
-        ANTHROPIC_API_KEY: this.#apiKey,
-        PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin`,
-        HOME: home,
-      },
+      env: sessionEnv(secretEnv, home),
       maxTurns: input.maxTurns,
       maxBudgetUsd: input.maxCostUsd,
       abortController: abort,
@@ -207,9 +233,22 @@ export class ClaudeAgentRunner implements AgentRunner {
   }
 }
 
-/** `ClaudeAgentRunner` with the key from `ANTHROPIC_API_KEY`. */
+/**
+ * The SDK process's whole environment: the active mode's one secret, `PATH` and a throwaway
+ * `HOME`. Nothing else of the worker's env, so a key set next to the subscription token never
+ * takes precedence, and the agent sees no other secret.
+ */
+export function sessionEnv(secretEnv: Record<string, string>, home: string): Options['env'] {
+  return {
+    ...secretEnv,
+    PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin`,
+    HOME: home,
+  };
+}
+
+/** `ClaudeAgentRunner` with `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` from `env`. */
 export function createClaudeAgentRunner(env: NodeJS.ProcessEnv = process.env): ClaudeAgentRunner {
-  return new ClaudeAgentRunner({ apiKey: env.ANTHROPIC_API_KEY });
+  return new ClaudeAgentRunner(credentialsFrom(env));
 }
 
 /** Sums usage over assistant messages; the SDK repeats a message (same id) once per content block. */
@@ -273,8 +312,12 @@ function fromResult<T>(
   transcript: unknown[],
 ): AgentRunResult<T> {
   const reported = reportedSpend(final, transcript);
-  if (final.subtype !== 'success') {
-    const code = RESULT_ERRORS[final.subtype] ?? 'agent_failed';
+  // A `success` result can still be an error (`is_error`, e.g. an API error the SDK gave up on).
+  if (final.subtype !== 'success' || final.is_error) {
+    const code =
+      final.subtype === 'success'
+        ? 'agent_failed'
+        : (RESULT_ERRORS[final.subtype] ?? 'agent_failed');
     return result<T>({
       ...reported,
       status: 'failed',

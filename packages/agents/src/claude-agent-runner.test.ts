@@ -117,6 +117,33 @@ describe('ClaudeAgentRunner', () => {
     expect(existsSync(options.env!.HOME!)).toBe(false);
   });
 
+  it('passes only the subscription token when both the token and an API key are set', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-from-env');
+    vi.stubEnv('CLAUDE_CODE_OAUTH_TOKEN', 'oat-from-env');
+    const { query, calls } = fakeQuery([success(VALID)]);
+    const runner = new ClaudeAgentRunner({ oauthToken: 'oat-test', apiKey: 'sk-test', query });
+    expect(runner.authMode).toBe('subscription');
+    await runner.run(input());
+
+    const env = calls[0]!.env!;
+    expect(Object.keys(env).sort()).toEqual(['CLAUDE_CODE_OAUTH_TOKEN', 'HOME', 'PATH']);
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe('oat-test');
+    expect(JSON.stringify(env)).not.toContain('sk-');
+  });
+
+  it('keeps the secret out of a stored error detail', async () => {
+    const query: QueryFn = () => ({
+      [Symbol.asyncIterator]: () => ({
+        next: () => Promise.reject(new Error('spawn failed with token oat-secret-value')),
+      }),
+    });
+    const result = await new ClaudeAgentRunner({ oauthToken: 'oat-secret-value', query }).run(
+      input(),
+    );
+    expect(result.error?.code).toBe('agent_failed');
+    expect(JSON.stringify(result)).not.toContain('oat-secret-value');
+  });
+
   it('returns the parsed answer with the cost reported by the SDK', async () => {
     const { query } = fakeQuery([
       assistant('m1', { input_tokens: 1, output_tokens: 1 }),

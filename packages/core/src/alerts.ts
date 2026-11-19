@@ -254,8 +254,14 @@ const STAGE_NAME: Record<StageKey, string> = {
 
 const usd = (value: number) => `$${value.toFixed(2)}`;
 
-/** The problem, in one sentence. */
-export function alertTitleText(title: AlertTitle): string {
+/**
+ * The problem, in one sentence. `apiEquivalent`: the agents run on a Claude subscription, so an
+ * amount is the API price of the usage, not spend (P-25).
+ */
+export function alertTitleText(title: AlertTitle, apiEquivalent = false): string {
+  const label = apiEquivalent ? ' API-equivalent' : '';
+  const usdOne = (value: number) => `${usd(value)}${label}`;
+  const usdOf = (part: number, whole: number) => `${usd(part)} of ${usd(whole)}${label}`;
   switch (title.code) {
     case 'alert_failed': {
       const { stage, errorCode, timeoutMinutes } = title.params;
@@ -266,12 +272,12 @@ export function alertTitleText(title: AlertTitle): string {
     case 'alert_rounds':
       return `Automatic rounds used (${title.params.max} of ${title.params.max}) and a fix is still open`;
     case 'alert_cost':
-      return `PR #${title.params.prNumber} has cost ${usd(title.params.spentUsd)}, above the ${usd(title.params.maxUsd)} alert threshold`;
+      return `PR #${title.params.prNumber} has cost ${usdOne(title.params.spentUsd)}, above the ${usdOne(title.params.maxUsd)} alert threshold`;
     case 'alert_budget': {
       const { percent, spentUsd, budgetUsd } = title.params;
       return percent >= 100
-        ? `Daily budget reached: ${usd(spentUsd)} of ${usd(budgetUsd)}`
-        : `Daily budget ${percent}% used: ${usd(spentUsd)} of ${usd(budgetUsd)}`;
+        ? `Daily budget reached: ${usdOf(spentUsd, budgetUsd)}`
+        : `Daily budget ${percent}% used: ${usdOf(spentUsd, budgetUsd)}`;
     }
   }
 }
@@ -298,6 +304,8 @@ export interface AlertCommentInput {
   prNumber: number | null;
   /** `${APP_BASE_URL}/pr/<repo>/<number>`, or Activity for the daily budget. */
   link: string;
+  /** Amounts read "API-equivalent" (the agents run on a Claude subscription). */
+  apiEquivalent?: boolean;
 }
 
 /** The ClickUp comment: the problem, the next step, a link to the app, and the bot's signature. */
@@ -308,7 +316,7 @@ export function alertCommentText(input: AlertCommentInput): string {
       : `PR Review Agent alert · PR #${input.prNumber}`;
   return [
     head,
-    `${alertTitleText(input.title)}.`,
+    `${alertTitleText(input.title, input.apiEquivalent)}.`,
     `Next step: ${alertNextStepText(input.nextStep)}.`,
     `Open in PR Review Agent: ${input.link}`,
     `— ${BOT_SIGNATURE}`,

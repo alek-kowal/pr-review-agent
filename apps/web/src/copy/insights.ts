@@ -1,6 +1,7 @@
 // Copy for Insights (S-19). Numbers always carry their sample size; nothing compares periods.
 
 import { autofix } from './autofix.ts';
+import { amount, money } from './format.ts';
 import { levelNames } from './repositories.ts';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -25,7 +26,9 @@ export const insights = {
   },
   loading: 'Loading Insights…',
   failed: 'Insights could not be loaded. Try again in a moment.',
-  money: (usd: number) => `$${usd.toFixed(2)}`,
+  money: (usd: number) => money(usd),
+  /** A chart tick: the axis title carries the label. */
+  tick: (usd: number) => amount(usd),
   percent: (share: number) => `${Math.round(share * 100)}%`,
   /** Milliseconds as "2 h 30 min", "45 min" or "under a minute". */
   duration: (ms: number) => {

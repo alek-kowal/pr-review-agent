@@ -10,9 +10,12 @@ import {
   toUsage,
 } from '../agent-result.ts';
 import type { MessagesClient } from '../judge/judge.ts';
+import { credentialsFrom } from '../model-access.ts';
 import { costOf } from '../prices.ts';
+import { messagesClientFor, type MessagesClientOptions } from '../sdk-messages.ts';
 import { renderPrompt } from '../prompt.ts';
 import type { AgentRunResult } from '../runner.ts';
+import { UsageLimitError } from '../usage-limit.ts';
 
 /**
  * Reads what happened on a closed PR and proposes at most 5 lesson candidates for the reviewer.
@@ -95,12 +98,11 @@ export type AnalystCandidate = {
 };
 export type AnalystOutput = { candidates: AnalystCandidate[]; summary: string };
 
-export type AnthropicAnalystOptions = {
-  /** `ANTHROPIC_API_KEY`; without it every call fails with `model_access_not_configured`. */
-  apiKey: string | undefined;
-  client?: MessagesClient;
-  now?: () => number;
-};
+/**
+ * `oauthToken` (a Claude subscription: the call runs through the Agent SDK) or `apiKey` (the
+ * Messages API); without either every call fails with `model_access_not_configured`.
+ */
+export type AnthropicAnalystOptions = MessagesClientOptions & { now?: () => number };
 
 const MAX_TOKENS = 4096;
 /** Where the v1 prompt expects its files; here they travel inline under these names. */
@@ -112,8 +114,7 @@ export class AnthropicAnalyst implements Analyst {
   readonly #now: () => number;
 
   constructor(options: AnthropicAnalystOptions) {
-    const apiKey = options.apiKey || undefined;
-    this.#client = apiKey ? (options.client ?? new Anthropic({ apiKey })) : null;
+    this.#client = messagesClientFor(options);
     this.#now = options.now ?? Date.now;
   }
 
@@ -133,6 +134,11 @@ export class AnthropicAnalyst implements Analyst {
       transcript.push({ type: 'error', detail: detailOf(thrown) });
       if (thrown instanceof APIUserAbortError || input.signal?.aborted) {
         return result({ status: 'cancelled', error: error('cancelled'), durationMs, transcript });
+      }
+      if (thrown instanceof UsageLimitError) {
+        const params = { resetsAt: thrown.resetsAt };
+        const failed = error('usage_limit_reached', params);
+        return result({ status: 'failed', error: failed, durationMs, transcript });
       }
       const status = thrown instanceof APIError ? thrown.status : undefined;
       return result({
@@ -177,9 +183,9 @@ export class AnthropicAnalyst implements Analyst {
   }
 }
 
-/** `AnthropicAnalyst` with the key from `ANTHROPIC_API_KEY`. */
+/** `AnthropicAnalyst` with `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` from `env`. */
 export function createAnthropicAnalyst(env: NodeJS.ProcessEnv = process.env): AnthropicAnalyst {
-  return new AnthropicAnalyst({ apiKey: env.ANTHROPIC_API_KEY });
+  return new AnthropicAnalyst(credentialsFrom(env));
 }
 
 /** What happened on the PR, as `cases.json` holds it for the v1 prompt. */

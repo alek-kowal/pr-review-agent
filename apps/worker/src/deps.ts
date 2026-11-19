@@ -1,4 +1,5 @@
 import type { AgentRunner, Analyst, Judge } from '@pra/agents';
+import type { ModelAuthMode } from '@pra/core';
 import type { Db, Queue } from '@pra/db';
 import type {
   BlobStore,
@@ -32,6 +33,8 @@ export type WorkerDeps = {
    * an alert is not posted ("Not sent: ClickUp not configured").
    */
   appBaseUrl?: string | null;
+  /** How the agents reach the model (core `modelAuthModeOf`); a subscription labels costs. */
+  modelAuth?: ModelAuthMode;
   /** Session files (brief, diff, instruction copies) live under `<dataDir>/sessions`. */
   dataDir: string;
   /** The registries later packages extend; `DEFAULT_EXTENSIONS` unless a test replaces some. */

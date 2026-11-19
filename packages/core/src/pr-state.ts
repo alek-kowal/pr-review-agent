@@ -185,6 +185,13 @@ export function nextStep(input: PrStateInput): NextStep {
           action('cancel', false),
         );
       }
+      if (queue.cause === 'usage_limit') {
+        return step(
+          reason('state_queued_usage_limit', { until: queue.until }),
+          reason('who_starts_by_itself'),
+          action('cancel', false),
+        );
+      }
       const banner =
         queue.cause === 'paused'
           ? reason('state_queued_paused', { by: queue.by, note: queue.note })

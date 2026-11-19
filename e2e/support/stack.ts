@@ -74,6 +74,8 @@ import {
   CLICKUP_TASKS,
   commentsFile,
   FAIL_ONCE_PRS,
+  USAGE_LIMIT_PRS,
+  USAGE_LIMIT_RESET_MS,
   COSTLY_RETRY_PRS,
   COSTLY_RETRY_USD,
   FAILING_PR_FROM,
@@ -349,7 +351,8 @@ const FIX_NOT_RESOLVED_AT = 1;
 /**
  * Answers per session kind. A full review keeps its brief (`briefFile`) and the `lessons.md` it
  * reads (`lessonsFile`), and reads the PR number from the brief: from `FAILING_PR_FROM`, invalid;
- * in `FAIL_ONCE_PRS`, invalid the first time only; in `HELD_PRS`, one reported turn, then the
+ * in `FAIL_ONCE_PRS`, invalid the first time only; in `USAGE_LIMIT_PRS`, the Claude usage limit
+ * the first time only; in `HELD_PRS`, one reported turn, then the
  * review once the spec releases it or cancels the run; in `QUESTION_PRS`, questions until the
  * brief has the team's answers; while `hold-<number>` exists in `holdDir` it waits. A fix check
  * (no brief, `findings.json`) resolves every finding, except at `fixShas[FIX_NOT_RESOLVED_AT]`,
@@ -360,6 +363,7 @@ class ScriptedAgents implements AgentRunner {
   readonly #fixShas: readonly string[];
   readonly #callLog: string;
   readonly #failedOnce = new Set<number>();
+  readonly #usageLimited = new Set<number>();
   /** Full reviews per PR number so far. */
   readonly #reviews = new Map<number, number>();
 
@@ -399,6 +403,12 @@ class ScriptedAgents implements AgentRunner {
     if (input.signal?.aborted) {
       const spent = held ? { costUsd: HELD_TURN_COST_USD, turns: 1 } : { turns: 0 };
       return new FakeAgentRunner([{ fail: 'cancelled', ...spent }]).run(input);
+    }
+    if (inRange(number, USAGE_LIMIT_PRS) && !this.#usageLimited.has(number)) {
+      this.#usageLimited.add(number);
+      const resetsAt = new Date(Date.now() + USAGE_LIMIT_RESET_MS).toISOString();
+      const limit = { fail: 'usage_limit_reached' as const, params: { resetsAt }, costUsd: 0.02 };
+      return new FakeAgentRunner([limit]).run(input);
     }
     const costly = number >= COSTLY_RETRY_PRS.from && number <= COSTLY_RETRY_PRS.to;
     const failOnce =

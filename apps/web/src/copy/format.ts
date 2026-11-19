@@ -2,8 +2,40 @@
 
 const n = (value: unknown): number => (typeof value === 'number' ? value : Number(value) || 0);
 
-/** Dollars with cents: `$1.84`. */
-export const money = (usd: unknown): string => `$${n(usd).toFixed(2)}`;
+/**
+ * What a dollar amount means (P-25): real spend on an API key; on a Claude subscription the SDK's
+ * price of the same usage at API rates, which nobody is billed. Set from `GET /api/status`
+ * (`modelAuth`) before any page renders (`RootLayout`).
+ */
+export type CostBasis = 'spend' | 'api_equivalent';
+let costBasis: CostBasis = 'spend';
+
+export const costBasisOf = (modelAuth: string | undefined): CostBasis =>
+  modelAuth === 'subscription' ? 'api_equivalent' : 'spend';
+export const setCostBasis = (basis: CostBasis): void => {
+  costBasis = basis;
+};
+export const isApiEquivalent = (): boolean => costBasis === 'api_equivalent';
+
+/** The one wording every amount carries on a subscription. */
+export const API_EQUIVALENT = 'API-equivalent';
+const basisSuffix = (): string => (isApiEquivalent() ? ` ${API_EQUIVALENT}` : '');
+
+/** Dollars with cents, never labelled: chart ticks and amounts a label already covers. */
+export const amount = (usd: unknown): string => `$${n(usd).toFixed(2)}`;
+
+/** Dollars with cents: `$1.84`; on a subscription `$1.84 API-equivalent`. */
+export const money = (usd: unknown): string => `${amount(usd)}${basisSuffix()}`;
+
+/** Two amounts labelled once: `$1.20 of $10.00` (`… API-equivalent` on a subscription). */
+export const moneyOf = (part: unknown, whole: unknown): string =>
+  `${amount(part)} of ${amount(whole)}${basisSuffix()}`;
+
+/** A spend hint: real spend on an API key, the API-equivalent explanation on a subscription. */
+export const spendHint = (real: string): string =>
+  isApiEquivalent()
+    ? `${API_EQUIVALENT}: the API price of this usage. A Claude subscription is not billed per token.`
+    : real;
 
 export const plural = (count: number, one: string, many = `${one}s`): string =>
   `${count} ${count === 1 ? one : many}`;
@@ -38,3 +70,11 @@ export const dateTime = (iso: string): string =>
     hour: '2-digit',
     minute: '2-digit',
   });
+
+/** `14:02` today, else `20 Nov, 14:02` (the viewer's time zone). */
+export const clockOrDate = (iso: string, now: Date = new Date()): string =>
+  new Date(iso).toDateString() === now.toDateString() ? clock(iso) : dateTime(iso);
+
+/** Runs wait for the Claude subscription's usage limit (P-25), until just after its reset. */
+export const usageLimitPause = (until: string): string =>
+  `Paused until ${clockOrDate(until)}: Claude usage limit`;

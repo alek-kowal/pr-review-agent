@@ -89,6 +89,8 @@ export interface RoundResult {
 export type QueueCause =
   | { cause: 'paused'; by: Actor | null; note: string }
   | { cause: 'budget'; spentUsd: number; budgetUsd: number }
+  /** The Claude usage limit (P-25): every run waits until `until`. */
+  | { cause: 'usage_limit'; until: string }
   | { cause: 'slot' };
 
 /** The PR's active run, as the state table needs it. */

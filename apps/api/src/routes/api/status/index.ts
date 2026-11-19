@@ -1,7 +1,13 @@
 // S-03-T7 and S-10-T4: the status chip (state and today's spend) and the signed pause, resume,
 // daily budget and agent slots changes (FR-021, FR-074). Each change writes one
 // `settings_changes` row (area `budget`) and then wakes the queue drainer.
-import { holdReason, MAX_AGENT_SLOTS, type AppSettings } from '@pra/core';
+import {
+  holdReason,
+  MAX_AGENT_SLOTS,
+  MODEL_AUTH_MODES,
+  type AppSettings,
+  type ModelAuthMode,
+} from '@pra/core';
 import {
   countActiveAlerts,
   getAppSettings,
@@ -53,6 +59,11 @@ export const StatusResponse = z.object({
   queuedCount: z.number().int(),
   /** Active alerts (S-18); the chip shows the count when it is above 0. */
   activeAlertCount: z.number().int(),
+  /**
+   * How the agents reach the model (P-25), a name only: `subscription` (costs are
+   * API-equivalent), `api_key` or `none`.
+   */
+  modelAuth: z.enum(MODEL_AUTH_MODES),
 });
 export type StatusResponse = z.infer<typeof StatusResponse>;
 
@@ -76,7 +87,10 @@ const SlotsBody = AgentSlotsSchema.extend({ before: AgentSlotsSchema.optional(),
 const errors = { 400: ApiErrorSchema, 409: ApiErrorSchema } as const;
 
 /** The chip's view of the stored status. */
-export async function statusView(db: Db): Promise<StatusResponse> {
+export async function statusView(
+  db: Db,
+  modelAuth: ModelAuthMode = 'none',
+): Promise<StatusResponse> {
   const settings = (await getAppSettings(db)).value;
   const [spent, waiting, pausedBy, activeAlertCount] = await Promise.all([
     spentToday(db, { timeZone: settings.timeZone }),
@@ -96,6 +110,7 @@ export async function statusView(db: Db): Promise<StatusResponse> {
     since: spent.since.toISOString(),
     queuedCount: waiting.length,
     activeAlertCount,
+    modelAuth,
   };
 }
 
@@ -113,10 +128,12 @@ async function wakeDrainer(queue: Queue, log: FastifyBaseLogger): Promise<void> 
 }
 
 const status: FastifyPluginAsyncZod = async (fastify) => {
-  const { db, queue } = fastify.deps;
+  const { db, queue, modelAuth } = fastify.deps;
   const respond = { 200: StatusResponse, ...errors };
 
-  fastify.get('/', { schema: { response: { 200: StatusResponse } } }, () => statusView(db));
+  fastify.get('/', { schema: { response: { 200: StatusResponse } } }, () =>
+    statusView(db, modelAuth),
+  );
 
   const stored = async () => (await getAppSettings(db)).value;
 
@@ -141,7 +158,7 @@ const status: FastifyPluginAsyncZod = async (fastify) => {
       return sendError(reply, result.status, result.code, result.params);
     }
     await wakeDrainer(queue, log);
-    return statusView(db);
+    return statusView(db, modelAuth);
   }
 
   fastify.post(

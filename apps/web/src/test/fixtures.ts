@@ -311,6 +311,7 @@ export const aStatus = (over: Partial<StatusResponse> = {}): StatusResponse => (
   since: '2026-11-18T23:00:00.000Z',
   queuedCount: 0,
   activeAlertCount: 0,
+  modelAuth: 'api_key',
   ...over,
 });
 

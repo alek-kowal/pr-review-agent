@@ -1,5 +1,5 @@
 // Copy for a run: its round label, the stepper and round line on the PR page, and Run detail.
-import { duration, money, plural } from './format.ts';
+import { API_EQUIVALENT, duration, isApiEquivalent, money, plural } from './format.ts';
 import { shortSha } from './nextStep.ts';
 
 type Params = Record<string, unknown>;
@@ -140,7 +140,11 @@ export const runs = {
       status: (status: string) => (status === 'completed' ? '' : status),
     },
     costPerSession: 'Cost per session',
-    costPerSessionHint: 'Code stages cost nothing. Only agent sessions are billed.',
+    get costPerSessionHint() {
+      return isApiEquivalent()
+        ? `Code stages cost nothing. Agent sessions show their ${API_EQUIVALENT} price; a Claude subscription is not billed per token.`
+        : 'Code stages cost nothing. Only agent sessions are billed.';
+    },
     noSessions: 'No agent sessions in this run.',
     instructionVersions: 'Instruction versions',
     instructionVersionsHint: 'Frozen when the round starts.',

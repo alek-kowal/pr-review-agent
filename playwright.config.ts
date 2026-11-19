@@ -22,10 +22,18 @@ export default defineConfig({
       testMatch: 'pause-budget.spec.ts',
       use: { ...devices['Desktop Chrome'] },
     },
+    // usage-limit.spec.ts holds every run until a usage limit resets: next, alone, and it lifts
+    // the hold when it ends (P-25).
+    {
+      name: 'usage-limit',
+      testMatch: 'usage-limit.spec.ts',
+      dependencies: ['pause-budget'],
+      use: { ...devices['Desktop Chrome'] },
+    },
     {
       name: 'chromium',
-      testIgnore: 'pause-budget.spec.ts',
-      dependencies: ['pause-budget'],
+      testIgnore: ['pause-budget.spec.ts', 'usage-limit.spec.ts'],
+      dependencies: ['usage-limit'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

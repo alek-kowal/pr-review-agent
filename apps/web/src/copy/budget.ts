@@ -1,5 +1,5 @@
 // Settings → General → Budget & status (S-10-T5).
-import { money, plural } from './format.ts';
+import { money, plural, spendHint } from './format.ts';
 
 export const budget = {
   title: 'Budget & status',
@@ -30,7 +30,9 @@ export const budget = {
   spend: {
     title: 'Budget',
     spentToday: 'Spent today',
-    spentHint: 'Real spend only. Resets at midnight in the time zone below.',
+    get spentHint() {
+      return spendHint('Real spend only. Resets at midnight in the time zone below.');
+    },
     of: (amount: number) => `of ${money(amount)}`,
     noBudget: 'no daily budget',
     insightsLink: 'Spend in Insights',
