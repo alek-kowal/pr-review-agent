@@ -18,3 +18,29 @@ The orchestrator (the main Claude session in Herdr tab 1) answers the agents' qu
 
 | When | Agent | Question | Answer | Basis |
 | --- | --- | --- | --- | --- |
+| 19 Nov 02:10 | orchestrator | PRD Open Questions 2, 3, 8–15, 17–19 | Provisional defaults below. They hold for planning and building until Alek changes them | `docs/03`, `04`, `05`, `06`, `01-analysis.md` §3 |
+
+### Provisional answers to the PRD's open questions
+
+These are defaults so the work can go on overnight. Alek reviews them in the morning. Anything marked **Alek** stays open and blocks only what it names.
+
+| # | Default |
+| --- | --- |
+| 1 | No deadline. Plan by dependency, not by calendar. **Alek** may set dates later |
+| 2 | Merge from the app appears only when the checklist is green at the reviewed SHA. There is no override in the app. "Not a blocker" holds because merging in GitHub always stays possible, and metric 5 records it |
+| 3 | The app merges and pushes as `pr-review-agent`, never bypassing branch protection. The merge commit body carries `Signed-off-in-app-by: <name>` and the push commit carries `Co-authored-by` the signer's GitHub identity from Team. If branch protection refuses, the app shows GitHub's reason. **Alek** confirms the protection settings per repo |
+| 4 | **Alek.** Until then, the agent runtime sits behind an `AgentRunner` interface. Tests use doubles, and real wiring reads `ANTHROPIC_API_KEY` from env/secret store. There is no runtime fake mode: without a key, runs fail with a clear "model access not configured" state |
+| 5, 6 | **Alek.** Build and run locally with Docker Compose (Postgres) until a target is chosen. Deployment slices wait |
+| 7 | **Alek.** WB first. Repo-specific values live in RepositoryConfig from day one |
+| 8 | Link by a ClickUp task ID in the branch name or PR title, with search as a fallback. ClickUp is optional per repo (on for WB) |
+| 9 | Yes, it is a real setting: "Agent slots", default 2, in General → Budget & status. Queued shows the reason (slots busy, paused or budget) |
+| 10 | Unsigned, as in the approved prototype. They don't push, merge or change settings in force |
+| 11 | Nits are optional. They can get opinions and may be decided, but never block and never count as "to decide" |
+| 12 | As designed: show the reason and offer "Link a ClickUp task" |
+| 13 | Alert comments in ClickUp link to the app, as in the accepted `06-metrics.md`. **Alek** can still say no |
+| 14 | v1: per-stage timeout plus Retry from stage, and a "large PR" warning above a per-repo line threshold (RepositoryConfig) suggesting a split. Review per package is a later slice |
+| 15 | Start empty. Today's instruction files from `~/Projects/wb-factory/knowledge` (read-only copy) become version 1. No import of runs, lessons or decisions |
+| 16 | **Alek.** He switches the old apps off before the pilot. Nothing in the build depends on it |
+| 17 | 90 days for full transcripts and raw GitHub events in object storage. DB rows (runs, findings, decisions, costs) are kept with no limit. Configurable |
+| 18 | Webhook to board in under 10 s (SSE). A reconcile poll every 10 min as a safety net |
+| 19 | "General" is fine |
