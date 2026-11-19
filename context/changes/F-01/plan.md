@@ -253,14 +253,14 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Automated
 
-- [x] 3.1 `openapi.test.ts` and `errors.test.ts` pass
+- [x] 3.1 `openapi.test.ts` and `errors.test.ts` pass — de38be9
 
 ### Phase 4: apps/web with Vite, TanStack Router and Query
 
 #### Automated
 
-- [ ] 4.1 `pnpm --filter @pra/web test` and `build` pass
-- [ ] 4.2 `/` redirects to `/prs` in the dev server
+- [x] 4.1 `pnpm --filter @pra/web test` and `build` pass
+- [x] 4.2 `/` redirects to `/prs` in the dev server
 
 ### Phase 5: Tailwind, shadcn/ui, WB tokens and the top bar
 
