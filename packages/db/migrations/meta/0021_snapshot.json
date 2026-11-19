@@ -1,5 +1,5 @@
 {
-  "id": "5064a7f1-149f-4810-b565-810edbd3616b",
+  "id": "fcf1146d-ca51-4c3e-9003-98de681eb856",
   "prevId": "e2844399-ecdf-46aa-a0da-821ec196e235",
   "version": "7",
   "dialect": "postgresql",
@@ -4165,6 +4165,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "run_id": {
+          "name": "run_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "title": {
           "name": "title",
           "type": "jsonb",
@@ -4298,6 +4304,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "alerts_run_id_runs_id_fk": {
+          "name": "alerts_run_id_runs_id_fk",
+          "tableFrom": "alerts",
+          "tableTo": "runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

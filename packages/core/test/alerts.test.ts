@@ -36,7 +36,13 @@ const config = (over: Partial<AlertConfig> = {}): AlertConfig => ({
   ...over,
 });
 
-const failure = { no: 1, stage: 'review' as const, errorCode: 'stage_timeout', timeoutMinutes: 30 };
+const failure = {
+  no: 1,
+  runId: 'run-7',
+  stage: 'review' as const,
+  errorCode: 'stage_timeout',
+  timeoutMinutes: 30,
+};
 
 /** Stores what fired and applies the clears, as the worker does. */
 function step(known: KnownAlert[], snap: AlertSnapshot, cfg: AlertConfig = config()) {
@@ -86,6 +92,7 @@ describe('run failed', () => {
         kind: 'failed',
         key: 'failed:pr-1:1',
         prId: 'pr-1',
+        runId: 'run-7',
         title: {
           code: 'alert_failed',
           params: {

@@ -18,6 +18,7 @@ CREATE TABLE "alerts" (
 	"kind" text NOT NULL,
 	"key" text NOT NULL,
 	"pull_request_id" integer,
+	"run_id" integer,
 	"title" jsonb NOT NULL,
 	"next_step" jsonb NOT NULL,
 	"clickup_task_id" text,
@@ -34,9 +35,11 @@ CREATE TABLE "alerts" (
 );
 --> statement-breakpoint
 ALTER TABLE "alerts" ADD CONSTRAINT "alerts_pull_request_id_pull_requests_id_fk" FOREIGN KEY ("pull_request_id") REFERENCES "public"."pull_requests"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "alerts" ADD CONSTRAINT "alerts_run_id_runs_id_fk" FOREIGN KEY ("run_id") REFERENCES "public"."runs"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "alerts_status" ON "alerts" USING btree ("status","created_at");--> statement-breakpoint
 CREATE INDEX "alerts_pull_request" ON "alerts" USING btree ("pull_request_id","status");--> statement-breakpoint
--- S-18-T2 (hand-written): the alert config row exists after migrate, with the defaults ($5, 80%).
+-- S-18-T2 (hand-written; keep when this migration is regenerated): the alert config row exists
+-- after migrate, with the defaults ($5, 80%).
 INSERT INTO "alert_config" ("id") VALUES (1) ON CONFLICT ("id") DO NOTHING;--> statement-breakpoint
 -- Live updates (S-03-T1): alert changes reach the board, the status chip and Activity over SSE.
 CREATE TRIGGER alerts_notify_change AFTER INSERT OR UPDATE ON alerts

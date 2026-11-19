@@ -84,6 +84,7 @@ export type NewAlert = {
   kind: AlertKind;
   key: string;
   pullRequestId: number | null;
+  runId?: number | null;
   title: AlertTitle;
   nextStep: AlertNextStep;
   clickupTaskId: string | null;

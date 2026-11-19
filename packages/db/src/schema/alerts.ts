@@ -22,6 +22,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { pullRequests } from './repositories.ts';
+import { runs } from './runs.ts';
 
 /**
  * How an alert's ClickUp comment went: `pending` until the delivery job runs, `sent` with the
@@ -47,6 +48,8 @@ export const alerts = pgTable(
     pullRequestId: integer('pull_request_id').references(() => pullRequests.id, {
       onDelete: 'cascade',
     }),
+    /** The failed run of a run-failed alert (its Retry); null for the other kinds. */
+    runId: integer('run_id').references(() => runs.id, { onDelete: 'set null' }),
     /** Reason code: the problem. */
     title: jsonb().$type<AlertTitle>().notNull(),
     /** Reason code: the next step. */

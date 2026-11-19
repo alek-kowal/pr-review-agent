@@ -55,6 +55,8 @@ export interface AlertPrSnapshot {
    */
   failure: {
     no: number;
+    /** The failed run, which Retry restarts. */
+    runId: string;
     stage: StageKey;
     errorCode: string;
     timeoutMinutes: number | null;
@@ -93,6 +95,8 @@ export interface AlertCondition {
   key: string;
   /** null for the daily budget. */
   prId: string | null;
+  /** The failed run of a run-failed alert (Retry restarts it); null for the other kinds. */
+  runId: string | null;
   title: AlertTitle;
   nextStep: AlertNextStep;
 }
@@ -129,11 +133,12 @@ export function alertConditions(snapshot: AlertSnapshot, config: AlertConfig): A
   const items: AlertCondition[] = [];
   for (const pr of snapshot.prs) {
     if (config.failedOn && pr.failure) {
-      const { no, stage, errorCode, timeoutMinutes } = pr.failure;
+      const { no, runId, stage, errorCode, timeoutMinutes } = pr.failure;
       items.push({
         kind: 'failed',
         key: alertKey.failed(pr.prId, no),
         prId: pr.prId,
+        runId,
         title: reason('alert_failed', { prNumber: pr.number, stage, errorCode, timeoutMinutes }),
         nextStep: reason('alert_next_retry', { stage }),
       });
@@ -143,6 +148,7 @@ export function alertConditions(snapshot: AlertSnapshot, config: AlertConfig): A
         kind: 'rounds',
         key: alertKey.rounds(pr.prId, pr.roundsUsedChain),
         prId: pr.prId,
+        runId: null,
         title: reason('alert_rounds', { prNumber: pr.number, max: MAX_CHAIN_ROUNDS }),
         nextStep: reason('alert_next_start_review'),
       });
@@ -152,6 +158,7 @@ export function alertConditions(snapshot: AlertSnapshot, config: AlertConfig): A
         kind: 'cost',
         key: alertKey.cost(pr.prId),
         prId: pr.prId,
+        runId: null,
         title: reason('alert_cost', {
           prNumber: pr.number,
           spentUsd: pr.spentUsd,
@@ -170,6 +177,7 @@ export function alertConditions(snapshot: AlertSnapshot, config: AlertConfig): A
           kind: 'budget',
           key: alertKey.budget(snapshot.day, percent),
           prId: null,
+          runId: null,
           title: reason('alert_budget', { percent, spentUsd: spent, budgetUsd: budget }),
           nextStep: reason('alert_next_budget'),
         });

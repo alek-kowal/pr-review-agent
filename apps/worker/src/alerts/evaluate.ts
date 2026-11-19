@@ -79,6 +79,7 @@ async function snapshotPrs(deps: WorkerDeps): Promise<AlertPrSnapshot[]> {
         failed && round
           ? {
               no: round.id,
+              runId: String(round.id),
               stage: failed.stage,
               errorCode: failed.errorCode,
               timeoutMinutes: failed.timeoutMinutes,
@@ -138,6 +139,7 @@ export async function evaluateAlerts(
       kind: condition.kind,
       key: condition.key,
       pullRequestId: condition.prId ? Number(condition.prId) : null,
+      runId: condition.runId ? Number(condition.runId) : null,
       title: condition.title,
       nextStep: condition.nextStep,
       clickupTaskId: target.taskId,
