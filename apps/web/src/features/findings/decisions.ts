@@ -101,10 +101,15 @@ export function useDecide(repo: string, number: string) {
           : signed,
         // Long enough to notice a wrong decision and undo it.
         duration: 10_000,
-        action: {
-          label: copy.decisions.toast.undo,
-          onClick: () => void undoDecision(queryClient, repo, number, result.batchId),
-        },
+        // Decisions that started the implementer are not undone here: Cancel the run first.
+        ...(result.implementerRunId
+          ? {}
+          : {
+              action: {
+                label: copy.decisions.toast.undo,
+                onClick: () => void undoDecision(queryClient, repo, number, result.batchId),
+              },
+            }),
       });
     },
     onError: (error) => {

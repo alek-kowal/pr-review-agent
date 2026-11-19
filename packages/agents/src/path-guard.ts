@@ -77,6 +77,12 @@ export async function checkToolPath(
       if (writing && (await isSymlink(path.resolve(policy.cwd, target)))) {
         return deny(`writes never go through a symlink: ${target}`);
       }
+      // `.git` decides which git dir and config the host's own git commands use in this folder
+      // (a `core.fsmonitor` there runs a command): a session never writes it. Case-insensitive,
+      // as on a case-insensitive file system `.GIT` is the same entry.
+      if (writing && isGitPath(realRoots[0]!, real)) {
+        return deny(`writes never touch .git: ${target}`);
+      }
     }
   } catch {
     // A dangling symlink, a loop or an unreadable folder: the real target is unknown.
@@ -158,6 +164,14 @@ function isInside(root: string, target: string): boolean {
     relative === '' ||
     (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
   );
+}
+
+/** True when `target` is `.git` under `root` or anything inside it, at any depth. */
+function isGitPath(root: string, target: string): boolean {
+  return path
+    .relative(root, target)
+    .split(path.sep)
+    .some((segment) => segment.toLowerCase() === '.git');
 }
 
 /** The part of a glob pattern before its first wildcard segment. */

@@ -103,6 +103,14 @@ export function sendDrainJob(queue: Queue): Promise<string | null> {
   return sendJob(queue, JOBS.runDrain, {});
 }
 
+/**
+ * Queues a patch's check. The singleton key makes the `stately` policy count per patch: without
+ * it one check of any patch would block (and drop) the checks of every other patch.
+ */
+export function sendPatchCheckJob(queue: Queue, patchId: number): Promise<string | null> {
+  return sendJob(queue, JOBS.patchCheck, { patchId }, { singletonKey: `patch:${patchId}` });
+}
+
 /** A follow-up job waits this long, so the decision's Undo (offered for 10 s) creates no task. */
 export const FOLLOW_UP_DELAY_SECONDS = 15;
 

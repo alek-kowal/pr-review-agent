@@ -119,7 +119,7 @@ test('a level 3 PR raised to level 4 gets a patch that the team edits, reverts a
   await expect(edges.getByText('edited by hand')).toBeVisible();
 
   // Revert the other: it leaves the list.
-  await page.getByRole('button', { name: `Revert ${SDK}` }).click();
+  await page.getByRole('button', { name: `Revert file ${SDK}` }).click();
   await expect(page.getByRole('region', { name: SDK })).toHaveCount(0);
   await expect(page.getByTestId('patch-file')).toHaveCount(1);
 
@@ -132,6 +132,14 @@ test('a level 3 PR raised to level 4 gets a patch that the team edits, reverts a
     if (await view.isVisible()) await view.click();
     await expect(page.getByText('Revision 2')).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 90_000 });
+
+  // The Timeline names the signer of the decisions and records each patch change by hand.
+  await page.getByRole('tab', { name: 'Timeline' }).click();
+  const entries = page.getByRole('list', { name: 'Timeline entries' });
+  await expect(entries.locator('[data-entry="findings_decided"]').first()).toContainText('Kasia');
+  for (const kind of ['patch_file_edited', 'patch_file_reverted', 'patch_revise_requested']) {
+    await expect(entries.locator(`[data-entry="${kind}"]`).first()).toContainText('By hand');
+  }
 });
 
 test('Cancel during Fixing leaves no patch', async ({ page }) => {

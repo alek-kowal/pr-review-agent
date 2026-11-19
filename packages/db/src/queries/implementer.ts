@@ -78,7 +78,13 @@ async function reviseGate(
   const block = implementBlock(load.input);
   if (block) return { reason: block };
   const [patch] = await tx.select().from(patches).where(eq(patches.id, patchId));
-  if (patch?.pullRequestId !== load.pullRequest.id || patch.status !== 'ready') {
+  // A revise run checks out the reviewed commit and lays the patch's whole files over it: a patch
+  // built on an older commit would undo the newer changes to those files.
+  if (
+    patch?.pullRequestId !== load.pullRequest.id ||
+    patch.status !== 'ready' ||
+    patch.baseSha !== load.reviewedRound?.headSha
+  ) {
     return { reason: reason('patch_stale', { revision: patch?.revision ?? 0 }) };
   }
   const active = load.input.activeRun;

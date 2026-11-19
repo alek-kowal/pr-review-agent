@@ -12,11 +12,10 @@ import {
   getActiveTeamMember,
   getPatch,
   getRunContext,
-  JOBS,
   lockActiveTeamMember,
   recordTimelineEntry,
   revertPatchFile,
-  sendJob,
+  sendPatchCheckJob,
   sendPushJob,
   startImplementer,
   type Db,
@@ -90,9 +89,12 @@ export async function startImplementerRun(
   }
 }
 
-/** Queues the patch check after an edit or a revert; a lost send leaves `checking` set. */
+/**
+ * Queues the patch check after an edit or a revert; a lost send leaves `checking` set, and the
+ * worker's `resendLostJobs` sends it again.
+ */
 async function queueCheck(queue: Queue, log: FastifyBaseLogger, patchId: number) {
-  await sendJob(queue, JOBS.patchCheck, { patchId }).catch((error: unknown) =>
+  await sendPatchCheckJob(queue, patchId).catch((error: unknown) =>
     log.warn({ err: error, patchId }, 'patch check job not sent'),
   );
 }
@@ -201,6 +203,12 @@ const patches: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
     if (!result.ok) {
       if (result.reason === 'not_found') {
         return sendError(reply, 404, ApiErrorCode.PatchFileNotFound, { path: target.path });
+      }
+      if (result.reason === 'revising') {
+        return sendError(reply, 409, ApiErrorCode.RunActive, {
+          kind: 'implementer',
+          status: result.status,
+        });
       }
       return sendError(reply, 409, ApiErrorCode.PatchStale, { revision: result.revision });
     }
@@ -325,13 +333,9 @@ const patches: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       if (!found) return sendError(reply, 404, ApiErrorCode.PatchNotFound, request.params);
       const { pullRequest, repository } = found;
 
-      let headSha: string;
+      let fresh: Awaited<ReturnType<typeof github.getPullRequestState>>;
       try {
-        const fresh = await github.getPullRequestState(
-          repository.githubFullName,
-          pullRequest.number,
-        );
-        headSha = fresh.headSha;
+        fresh = await github.getPullRequestState(repository.githubFullName, pullRequest.number);
       } catch (error) {
         if (error instanceof IntegrationError && error.code === GITHUB_NOT_CONFIGURED) {
           return sendError(reply, 503, ApiErrorCode.GithubNotConfigured, error.params);
@@ -343,11 +347,12 @@ const patches: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
         { status: patch.status, baseSha: patch.baseSha, files: filesToPush(patch).length },
         {
           number: pullRequest.number,
+          state: fresh.state,
           fork: pullRequest.isFork,
           activeRun: await activeRunOfPr(db, pullRequest.id),
         },
         typedNumber,
-        headSha,
+        fresh.headSha,
       );
       if (!gate.allowed) return sendRefusal(reply, gate.reason);
 

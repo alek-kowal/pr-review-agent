@@ -131,4 +131,17 @@ describe('lineDiff', () => {
     expect(lineDiff('', '')).toEqual([]);
     expect(diffSummary(lineDiff('x\ny', 'x\ny'))).toEqual({ added: 0, removed: 0 });
   });
+
+  it('shows a changed middle too large to compare as replaced, keeping the same ends', () => {
+    // 30,000 lines changed near both ends: the full table would need about 3.6 GB.
+    const lines = Array.from({ length: 30_000 }, (_, i) => `line ${i}`);
+    const before = ['head', ...lines, 'tail'].join('\n');
+    const after = ['head', 'first', ...lines.slice(1, -1), 'last', 'tail'].join('\n');
+
+    const diff = lineDiff(before, after);
+
+    expect(diff[0]).toEqual({ kind: 'same', text: 'head' });
+    expect(diff.at(-1)).toEqual({ kind: 'same', text: 'tail' });
+    expect(diffSummary(diff)).toEqual({ added: 30_000, removed: 30_000 });
+  });
 });

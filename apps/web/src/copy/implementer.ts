@@ -72,7 +72,8 @@ export const implementer = {
     saving: 'Saving…',
     cancel: 'Cancel',
     revert: 'Revert file',
-    revertLabel: (path: string) => `Revert ${path}`,
+    /** The button's accessible name starts with its visible text (WCAG 2.5.3). */
+    revertLabel: (path: string) => `Revert file ${path}`,
     reverted: (path: string) => `${path} is back to the reviewed version.`,
     saved: (path: string) => `${path} saved. The reproductions run again.`,
     revise: {

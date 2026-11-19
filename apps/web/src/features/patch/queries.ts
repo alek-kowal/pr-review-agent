@@ -1,6 +1,6 @@
 // The Patch tab (S-13-T6): one patch revision with its files, and the unsigned edits on it.
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiRequest } from '@/lib/api.ts';
+import { ApiError, apiGet, apiRequest } from '@/lib/api.ts';
 import type { ImplementResponse, PatchDetail, PatchFileView } from '@/lib/api-types.ts';
 import { boardKeys } from '@/features/board/queries.ts';
 import { prKeys } from '@/features/pr/queries.ts';
@@ -39,6 +39,14 @@ function usePatchChange<Input>(
     onSuccess: (next) => {
       queryClient.setQueryData(patchKeys.detail(detail.patch.id, detail.patch.checkVersion), next);
       void queryClient.invalidateQueries({ queryKey: prKeys.view(repo, number) });
+    },
+    onError: (error) => {
+      // Someone changed the patch (or a new revision replaced it): load what is there now, or
+      // every retry from this page gets 409 again until the next check result.
+      if (error instanceof ApiError && error.code === 'patch_stale') {
+        void queryClient.invalidateQueries({ queryKey: ['patch', detail.patch.id] });
+        void queryClient.invalidateQueries({ queryKey: prKeys.view(repo, number) });
+      }
     },
   });
 }

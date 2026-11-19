@@ -119,6 +119,24 @@ test('Revert removes the file from the list', async () => {
   });
 });
 
+test('a stale revert loads the patch again and says why', async () => {
+  const { calls } = stubPatch(undefined, {
+    'POST /api/patches/5/files/revert': {
+      status: 409,
+      body: { error: { code: 'patch_stale', params: { revision: 1 } } },
+    },
+  });
+  const user = userEvent.setup();
+  renderApp('/pr/wb/12?tab=patch');
+
+  await user.click(await screen.findByRole('button', { name: t.revertLabel('src/group.ts') }));
+
+  expect(await screen.findByText(copy.errors.patch_stale!)).toBeVisible();
+  await waitFor(() =>
+    expect(calls.filter((c) => c.path === '/api/patches/5' && c.method === 'GET')).toHaveLength(2),
+  );
+});
+
 test('Revise needs a note, then sends it', async () => {
   const { calls } = stubPatch(undefined, {
     'POST /api/patches/5/revise': { status: 202, body: { runId: 42, findingIds: [1, 2] } },

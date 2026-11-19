@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { lstat, mkdir, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { execa } from 'execa';
 
@@ -24,6 +24,8 @@ export interface GitMirror {
    * included, ignored files not), each with its content at that commit (`null` when added).
    */
   worktreeChanges(worktree: string): Promise<WorktreeChange[]>;
+  /** Puts a run's worktree back at its checked-out commit, byte for byte; ignored files stay. */
+  resetWorktree(worktree: string): Promise<void>;
   /**
    * Commits `files` on top of `baseSha` in a fresh worktree and pushes that commit to `branch`,
    * never forced: when the branch is no longer `baseSha` (or a descendant git can fast-forward
@@ -229,7 +231,8 @@ export class CliGitMirror implements GitMirror {
   }
 
   async worktreeChanges(worktree: string): Promise<WorktreeChange[]> {
-    const status = await this.#git(worktree, [
+    const git = await this.#worktreeGit(worktree);
+    const status = await git([
       'status',
       '--porcelain=v1',
       '-z',
@@ -243,7 +246,7 @@ export class CliGitMirror implements GitMirror {
       .map((entry) => entry.slice(3));
     const changes: WorktreeChange[] = [];
     for (const file of [...new Set(paths)].sort()) {
-      const base = await this.#git(worktree, ['show', `HEAD:${file}`]).catch(() => null);
+      const base = await git(['show', `HEAD:${file}`]).catch(() => null);
       changes.push({ path: file, base });
     }
     return changes;
@@ -303,6 +306,37 @@ export class CliGitMirror implements GitMirror {
         await this.#removeWorktree(input.repo, dir);
       }
     });
+  }
+
+  async resetWorktree(worktree: string): Promise<void> {
+    const git = await this.#worktreeGit(worktree);
+    await git(['reset', '--hard', '--quiet', 'HEAD']);
+    await git(['clean', '-d', '--force', '--quiet']);
+  }
+
+  /**
+   * Git on a run's worktree, with its admin dir named on the command line. An agent edits files in
+   * the worktree, so git never discovers its dir or config through `<worktree>/.git`: that file
+   * must be a plain file pointing into a mirror's `worktrees/` folder, and `core.fsmonitor` (a
+   * command git would run) is off.
+   */
+  async #worktreeGit(worktree: string): Promise<(args: string[]) => Promise<string>> {
+    const dir = path.resolve(worktree);
+    if (path.dirname(dir) !== path.join(this.rootDir, 'worktrees')) {
+      throw new TypeError(`Not a run worktree: ${JSON.stringify(worktree)}`);
+    }
+    const dotGit = path.join(dir, '.git');
+    if (!(await lstat(dotGit)).isFile()) throw new Error(`Not a git worktree: ${dir}`);
+    const pointer = /^gitdir: (.+)$/m.exec(await readFile(dotGit, 'utf8'))?.[1]?.trim();
+    const gitDir = pointer ? await realpath(path.resolve(dir, pointer)).catch(() => null) : null;
+    const mirrors = await realpath(path.join(this.rootDir, 'mirrors')).catch(() => null);
+    const relative = gitDir && mirrors ? path.relative(mirrors, gitDir).split(path.sep) : [];
+    // <mirrors>/<owner>/<repo>.git/worktrees/<name>
+    if (relative.length !== 4 || relative.includes('..') || relative[2] !== 'worktrees') {
+      throw new Error(`The worktree's .git does not point into a mirror: ${dir}`);
+    }
+    const fixed = ['--git-dir', gitDir!, '--work-tree', dir, '-c', 'core.fsmonitor=false'];
+    return (args) => this.#git(undefined, [...fixed, ...args]);
   }
 
   /** Clones the mirror if it is missing; returns whether it cloned. */

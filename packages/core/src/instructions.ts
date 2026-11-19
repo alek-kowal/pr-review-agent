@@ -175,6 +175,9 @@ function linesOf(text: string): string[] {
   return lines;
 }
 
+/** The most cells of the longest-common-subsequence table (16 MB): about 2,000 × 2,000 lines. */
+export const MAX_LCS_CELLS = 4_000_000;
+
 /** The line diff (longest common subsequence) from `before` to `after`. */
 export function lineDiff(before: string, after: string): DiffLine[] {
   const a = linesOf(before);
@@ -191,6 +194,16 @@ export function lineDiff(before: string, after: string): DiffLine[] {
   const midB = b.slice(start, endB);
   const n = midA.length;
   const m = midB.length;
+  // The table has (n + 1) × (m + 1) cells: past the cap the changed middle reads as replaced, so a
+  // large file never blocks the API for seconds or fails the allocation.
+  if ((n + 1) * (m + 1) > MAX_LCS_CELLS) {
+    return [
+      ...a.slice(0, start).map((text): DiffLine => ({ kind: 'same', text })),
+      ...midA.map((text): DiffLine => ({ kind: 'removed', text })),
+      ...midB.map((text): DiffLine => ({ kind: 'added', text })),
+      ...a.slice(endA).map((text): DiffLine => ({ kind: 'same', text })),
+    ];
+  }
   // lcs[i * (m + 1) + j]: common lines of midA[i..] and midB[j..].
   const lcs = new Uint32Array((n + 1) * (m + 1));
   for (let i = n - 1; i >= 0; i--) {
