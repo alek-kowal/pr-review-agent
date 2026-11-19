@@ -46,6 +46,7 @@ export type RoundView = {
 };
 
 export type PullRequestView = {
+  id: number;
   repository: RepositoryRef;
   number: number;
   title: string;
@@ -259,3 +260,87 @@ export type IntegrationSettings = { afterRoundGithubComment: boolean };
 /** `POST /api/settings/integrations/clickup/test`. */
 export type ClickUpTestResponse =
   { ok: true; user: { id: string; username: string } } | { ok: false; error: ReasonView };
+
+/** `GET /api/status`: the status chip. Paused and budget states arrive with S-10. */
+export type StatusResponse = {
+  state: 'running' | (string & {});
+  todaySpendUsd: number;
+  /** Start of the day the spend counts from. */
+  since: string;
+};
+
+/** `GET /api/activity/in-progress`: queued and running runs, oldest first. */
+export type InProgressRun = {
+  id: number;
+  kind: string;
+  status: RunStatus;
+  roundNumber: number | null;
+  level: { number: number; key: string };
+  /** The running stage, or the next one between two stages; null while queued. */
+  currentStage: string | null;
+  /** Grows per agent turn while a session runs. */
+  costUsd: number;
+  createdAt: string;
+  startedAt: string | null;
+  pullRequest: { repository: { slug: string }; number: number; title: string };
+};
+export type InProgressResponse = { runs: InProgressRun[] };
+
+export type RunStepStatus = 'done' | 'running' | 'failed' | 'queued' | 'off';
+
+/** An agent session of a run (`GET /api/runs/:id`). */
+export type RunSessionView = {
+  id: number;
+  role: string;
+  model: string;
+  status: string;
+  costUsd: number;
+  costSource: string;
+  turns: number | null;
+  durationMs: number | null;
+  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
+  /** Paths the session read; empty when its transcript is not stored. */
+  filesRead: string[];
+  actions: { tool: string; target: string | null }[];
+  hasTranscript: boolean;
+};
+
+export type RunStageView = {
+  key: string;
+  status: RunStepStatus;
+  attempt: number | null;
+  /** Every attempt of the stage. */
+  costUsd: number;
+  errorCode: string | null;
+  offReason: ReasonView | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  /** The latest attempt's stored output (the stage's readable result). */
+  output: unknown;
+  sessions: RunSessionView[];
+};
+
+/** `GET /api/runs/:id`. */
+export type RunDetail = {
+  run: {
+    id: number;
+    kind: string;
+    status: RunStatus;
+    level: { number: number; key: string };
+    startedBy: ActorView;
+    trigger: string;
+    createdAt: string;
+    startedAt: string | null;
+    finishedAt: string | null;
+    currentStage: string | null;
+    notChecked: string[];
+    instructionVersions: { id: number; scope: string; fileKey: string; version: number }[];
+    error: { stage: string; code: string } | null;
+  };
+  pullRequest: { repository: { slug: string }; number: number; title: string };
+  /** `round_label`; null for a run that is not a round. */
+  label: ReasonView | null;
+  stages: RunStageView[];
+  /** Sum of the run's session costs: for a failed run, what it spent up to the failure. */
+  totalCostUsd: number;
+};

@@ -14,6 +14,8 @@ export const RepositoryRefSchema = z.object({
 export const pullRequestSection = defineSection({
   key: 'pullRequest',
   schema: z.object({
+    /** The PR's id; live change events name PRs by it. */
+    id: z.number().int(),
     repository: RepositoryRefSchema,
     number: z.number().int(),
     title: z.string(),
@@ -31,6 +33,7 @@ export const pullRequestSection = defineSection({
   }),
   async build({ repository, pullRequest }) {
     return {
+      id: pullRequest.id,
       repository: repositoryRef(repository),
       number: pullRequest.number,
       title: pullRequest.title,

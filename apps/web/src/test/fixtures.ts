@@ -105,6 +105,7 @@ export const aPrView = (
   } = {},
 ): PrView => ({
   pullRequest: {
+    id: 7,
     repository: aRepository(),
     number: over.number ?? 12,
     title: 'Add node grouping',
