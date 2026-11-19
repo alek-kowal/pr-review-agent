@@ -258,6 +258,8 @@ export async function startRound(
         level,
         roundKind: roundNumber > 1 ? 'fix_check' : 'full',
         roundNumber,
+        // A fork may start by hand; its plan stays read-only (S-16).
+        fork: pullRequest.isFork,
       }),
       trigger: input.trigger,
       startedBy: input.startedBy,

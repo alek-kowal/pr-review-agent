@@ -206,7 +206,7 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
       const linked = (other: Run | undefined) =>
         other ? { id: other.id, status: other.status, costUsd: other.costUsd } : null;
       const rows = stageRows(stages, sessions);
-      const steps = runSteps(run, rows);
+      const steps = runSteps(run, rows, context.pullRequest.isFork);
       const views = new Map(
         await Promise.all(
           sessions.map(async (s) => [s.id, await sessionView(blobStore, s)] as const),

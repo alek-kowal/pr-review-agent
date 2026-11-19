@@ -2,6 +2,7 @@ import { cn } from 'cn';
 import { copy } from '@/copy/index.ts';
 import type { RoundStepView } from '@/lib/api-types.ts';
 import { reasonText, stageName } from '@/lib/reasons.ts';
+import { offStageText, offStepTexts } from './off-text.ts';
 import { STEP_ICON, STEP_TONE } from './step-style.ts';
 
 const spentMs = (step: RoundStepView): number | null =>
@@ -16,7 +17,7 @@ function stepSub(step: RoundStepView, level: number, runFailed: boolean): string
   const parts = (() => {
     switch (step.status) {
       case 'off':
-        return [copy.runs.step.off(level)];
+        return [offStageText(step.offReason, level)];
       case 'queued':
         return [runFailed ? copy.runs.step.notRun : copy.runs.step.waiting];
       case 'failed':
@@ -88,6 +89,11 @@ export function Stepper({
             >
               {stepSub(step, level, runFailed)}
             </span>
+            {offStepTexts(step.offSteps).map((text) => (
+              <span key={text} data-testid="off-step" className="text-xs text-text-3">
+                {text}
+              </span>
+            ))}
           </li>
         );
       })}

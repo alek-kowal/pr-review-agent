@@ -91,7 +91,7 @@ export const copy = {
     level: (n: number, name: string, isDefault: boolean) =>
       `${n} · ${name}${isDefault ? ' (repo default)' : ''}`,
     hint: (sha: string) => `New chain, round 1 on ${sha}. Not signed.`,
-    forkHint: 'Fork: read-only review.',
+    forkHint: 'Read-only review: no install, reproductions, implementer or push.',
     queued: 'A round is already queued for this PR.',
     running: 'A run is in progress. Cancel it first, or wait.',
     started: (round: number, level: number) => `Review started: round ${round} at level ${level}.`,

@@ -23,11 +23,15 @@ export type ActorView = { kind: 'member'; memberId: string } | { kind: 'bot' } |
 export type RepositoryRef = { slug: string; name: string; githubFullName: string };
 export type RepositoriesResponse = { repositories: RepositoryRef[] };
 
+/** A step inside a running stage that the plan turns off: a fork's install and reproductions. */
+export type OffStepView = { step: string; reason: ReasonView };
+
 export type StageView = {
   key: string;
   status: StageStatus;
   attempt: number | null;
   offReason: ReasonView | null;
+  offSteps: OffStepView[];
   errorCode: string | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -99,6 +103,7 @@ export type RoundStepView = {
   costUsd: number;
   errorCode: string | null;
   offReason: ReasonView | null;
+  offSteps: OffStepView[];
   startedAt: string | null;
   finishedAt: string | null;
 };
@@ -639,6 +644,7 @@ export type RunStageView = {
   costUsd: number;
   errorCode: string | null;
   offReason: ReasonView | null;
+  offSteps: OffStepView[];
   startedAt: string | null;
   finishedAt: string | null;
   /** The latest attempt's stored output (the stage's readable result). */

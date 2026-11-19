@@ -3,7 +3,8 @@
 import { chainState, roundLabel } from '@pra/core';
 import { getRunDetail, latestRound, runRecord, runsOfPullRequest } from '@pra/db';
 import { z } from 'zod/v4';
-import { iso, ReasonSchema } from '../round.ts';
+import { offStepsOf } from '../off-steps.ts';
+import { iso, OffStepSchema, ReasonSchema } from '../round.ts';
 import { defineSection } from '../section.ts';
 import { runSteps, stageRows } from '../stepper.ts';
 
@@ -15,8 +16,10 @@ export const RoundStepSchema = z.object({
   /** Every attempt of the stage. */
   costUsd: z.number(),
   errorCode: z.string().nullable(),
-  /** Why the level turns the stage off. */
+  /** Why the level (or a fork's read-only policy) turns the stage off. */
   offReason: ReasonSchema.nullable(),
+  /** Steps inside the stage the plan turns off: a fork's install and reproductions (S-16). */
+  offSteps: z.array(OffStepSchema),
   startedAt: timestamp.nullable(),
   finishedAt: timestamp.nullable(),
 });
@@ -43,7 +46,7 @@ export const roundProgressSection = defineSection({
       runsOfPullRequest(db, pullRequest.id),
     ]);
     if (!detail) return null;
-    const steps = runSteps(run, stageRows(detail.stages, detail.sessions));
+    const steps = runSteps(run, stageRows(detail.stages, detail.sessions), pullRequest.isFork);
     return {
       runId: run.id,
       label: roundLabel({ id: String(run.id) }, chainState(runs.map(runRecord))),
@@ -53,6 +56,7 @@ export const roundProgressSection = defineSection({
         costUsd: step.costUsd,
         errorCode: step.errorCode,
         offReason: step.offReason,
+        offSteps: offStepsOf(run, pullRequest.isFork, step),
         startedAt: iso(step.startedAt),
         finishedAt: iso(step.finishedAt),
       })),
