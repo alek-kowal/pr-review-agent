@@ -25,6 +25,11 @@ export type AgentRunInput<T> = {
   timeoutMs: number;
   /** Aborting it cancels the session (run cancel, S-09). */
   signal?: AbortSignal;
+  /**
+   * Called after every assistant turn with running totals: turns, tokens and the cost of that
+   * usage at the model's price (spent money, never an estimate). The worker stores it live
+   * (S-03-T3); the final cost is the SDK's reported total in the result.
+   */
   onProgress?: (progress: AgentProgress) => void;
 };
 

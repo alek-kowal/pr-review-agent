@@ -20,6 +20,7 @@ import {
   insertStageExecution,
   lockRun,
   stageExecutionsOfRun,
+  updateAgentSession,
   updateRun,
   updateStageExecution,
   type Executor,
@@ -34,6 +35,7 @@ import { removeRunFiles } from './cleanup.ts';
 import { passGates } from './gates.ts';
 import { fireHooks, type RunHookContext } from './hooks.ts';
 import { sendStageJob } from './jobs.ts';
+import { liveSessions, type LiveSessions } from './live-sessions.ts';
 import { latestAttempt, runStateOf } from './state.ts';
 
 /** After the timeout aborts a session, how long the executor gets to return its costs. */
@@ -95,8 +97,10 @@ export async function executeStage(
   const started = await db.transaction((tx) => startStageInTx(tx, runId, stage));
   if (!started) return 'not_next';
   const { run, executionId, attempt } = started;
+  // Sessions get their row when they start and their cost per turn (S-03-T3).
+  const live = liveSessions(deps, { runId, stageExecutionId: executionId });
 
-  const result = await runExecutor(deps, executor, {
+  const result = await runExecutor({ ...deps, agentRunner: live.runner }, executor, {
     run,
     pullRequest,
     repository,
@@ -107,7 +111,7 @@ export async function executeStage(
 
   const blobKeys = await storeSessionBlobs(deps, run.id, stage, attempt, result.sessions);
   const stored = await db.transaction((tx) =>
-    storeResultInTx(tx, { runId, stage, executionId, result, blobKeys, pullRequest }),
+    storeResultInTx(tx, { runId, stage, executionId, result, blobKeys, pullRequest, live }),
   );
   if (!stored) {
     logger.warn({ runId, stage }, 'stage result dropped: the run changed while it ran');
@@ -171,8 +175,8 @@ async function startStageInTx(tx: Executor, runId: number, stage: string): Promi
     if (!begun.ok) return null;
     state = begun.run;
     const now = new Date();
-    await updateRun(tx, runId, { status: 'running', startedAt: now });
-    run = { ...run, status: 'running', startedAt: now };
+    await updateRun(tx, runId, { status: 'running', startedAt: now, currentStage: stage });
+    run = { ...run, status: 'running', startedAt: now, currentStage: stage };
     // Stages this level turns off get a row, so the run's history is complete.
     for (const off of state.stages.filter((s) => s.status === 'off')) {
       if (latestAttempt(executions, off.key)) continue;
@@ -199,6 +203,10 @@ async function startStageInTx(tx: Executor, runId: number, stage: string): Promi
     status: 'running',
     startedAt: new Date(),
   });
+  if (run.currentStage !== stage) {
+    await updateRun(tx, runId, { currentStage: stage });
+    run = { ...run, currentStage: stage };
+  }
   return { run, executionId: execution.id, attempt };
 }
 
@@ -316,20 +324,33 @@ type StoreInput = {
   result: StageResult;
   blobKeys: BlobKeys;
   pullRequest: PullRequest;
+  live: Pick<LiveSessions, 'sessionIdOf'>;
 };
 
 async function storeResultInTx(
   tx: Executor,
-  { runId, stage, executionId, result, blobKeys, pullRequest }: StoreInput,
+  { runId, stage, executionId, result, blobKeys, pullRequest, live }: StoreInput,
 ): Promise<{ run: Run; state: RunState; sessionIds: number[] } | null> {
   const locked = await lockRun(tx, runId);
   if (!locked) return null;
   const state = runStateOf(locked, await stageExecutionsOfRun(tx, runId));
 
-  // Sessions and their cost are recorded even when the run moved on (cost truth).
+  // Sessions and their cost are recorded even when the run moved on (cost truth). Sessions run
+  // through the live runner already have their row and cost; they only get their blob keys.
   const sessionIds: number[] = [];
+  let unrecordedCost = 0;
   for (const [index, session] of result.sessions.entries()) {
     const { result: agent } = session;
+    const liveId = live.sessionIdOf(agent);
+    if (liveId !== undefined) {
+      await updateAgentSession(tx, liveId, {
+        promptBlobKey: blobKeys[index]!.prompt,
+        transcriptBlobKey: blobKeys[index]!.transcript,
+      });
+      sessionIds.push(liveId);
+      continue;
+    }
+    unrecordedCost += agent.costUsd;
     const row = await insertAgentSession(tx, {
       stageExecutionId: executionId,
       role: session.role,
@@ -348,11 +369,7 @@ async function storeResultInTx(
     });
     sessionIds.push(row.id);
   }
-  await addRunCost(
-    tx,
-    runId,
-    result.sessions.reduce((sum, s) => sum + s.result.costUsd, 0),
-  );
+  await addRunCost(tx, runId, unrecordedCost);
 
   const transition: Transition =
     result.status === 'succeeded'
@@ -398,6 +415,7 @@ async function storeResultInTx(
   const finished = next.status !== 'running';
   const patch: Partial<Run> = {
     status: next.status,
+    currentStage: finished ? null : (nextStage(next) ?? null),
     ...(finished ? { finishedAt: now } : {}),
     ...(result.status === 'succeeded' && result.notChecked.length
       ? { notChecked: result.notChecked }

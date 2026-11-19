@@ -50,6 +50,13 @@
       "when": 1795063789852,
       "tag": "0006_live_notify",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795064611362,
+      "tag": "0007_run_current_stage",
+      "breakpoints": true
     }
   ]
 }

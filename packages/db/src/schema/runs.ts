@@ -84,8 +84,10 @@ export const runs = pgTable(
     createdAt: createdAt(),
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
-    /** Sum of the run's agent session costs. */
+    /** Sum of the run's agent session costs; grows per turn while a session runs. */
     costUsd: usd('cost_usd'),
+    /** The stage running now, or the next one between two stages; null when not running. */
+    currentStage: text('current_stage'),
     /** What the reviewer says it did not check. */
     notChecked: text('not_checked')
       .array()

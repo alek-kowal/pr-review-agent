@@ -4,12 +4,13 @@ import type { Executor } from '../client.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import {
   ACTIVE_RUN_STATUSES,
+  agentSessions,
   BLOCKING_RUN_KINDS,
   githubActions,
   runs,
   stageExecutions,
 } from '../schema/runs.ts';
-import type { GithubAction, Run, StageExecution } from './runs.ts';
+import type { AgentSession, GithubAction, Run, StageExecution } from './runs.ts';
 import type { PullRequest, Repository } from './repositories.ts';
 
 export async function getRun(db: Executor, runId: number): Promise<Run | null> {
@@ -121,4 +122,30 @@ export async function addRunCost(db: Executor, runId: number, usd: number): Prom
     .update(runs)
     .set({ costUsd: sql`${runs.costUsd} + ${usd}` })
     .where(eq(runs.id, runId));
+}
+
+/** Patches one agent session (live cost per turn, final usage, blob keys). */
+export async function updateAgentSession(
+  db: Executor,
+  id: number,
+  patch: Partial<Omit<AgentSession, 'id' | 'stageExecutionId' | 'createdAt'>>,
+): Promise<void> {
+  await db.update(agentSessions).set(patch).where(eq(agentSessions.id, id));
+}
+
+/** Sessions of a stage execution still marked running get `status` (after a restart). */
+export async function endRunningSessions(
+  db: Executor,
+  stageExecutionId: number,
+  status: string,
+): Promise<void> {
+  await db
+    .update(agentSessions)
+    .set({ status })
+    .where(
+      and(
+        eq(agentSessions.stageExecutionId, stageExecutionId),
+        eq(agentSessions.status, 'running'),
+      ),
+    );
 }

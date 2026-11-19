@@ -7,6 +7,7 @@ import {
   lockRun,
   runsWithStatus,
   stageExecutionsOfRun,
+  endRunningSessions,
   updateRun,
   updateStageExecution,
 } from '@pra/db';
@@ -40,8 +41,10 @@ export async function recoverRuns(deps: WorkerDeps): Promise<RecoveryResult> {
           errorCode: recovered.error!.code,
           finishedAt: now,
         });
+        // Live sessions keep the cost they recorded before the restart.
+        await endRunningSessions(tx, execution.id, recovered.error!.code);
       }
-      await updateRun(tx, run.id, { status: 'failed', finishedAt: now });
+      await updateRun(tx, run.id, { status: 'failed', finishedAt: now, currentStage: null });
       return recovered;
     });
 
