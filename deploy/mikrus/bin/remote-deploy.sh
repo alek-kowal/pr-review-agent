@@ -16,6 +16,8 @@ releases="$base/web/releases"
 min_free_kib=$((2 * 1024 * 1024))
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 export CI=true
+# nginx (www-data) reads the SPA builds.
+umask 022
 
 step() { printf '\n==> %s\n' "$*"; }
 

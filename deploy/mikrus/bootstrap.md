@@ -27,8 +27,10 @@ corepack enable
 
 useradd --system --create-home --home-dir /srv/pra --shell /bin/bash pra
 usermod -aG docker pra    # for `pnpm sandbox:bench` by hand; the units add the group themselves
-install -d -o pra -g pra -m 750 /srv/pra/web /srv/pra/web/releases /var/lib/pra \
-  /var/lib/pra/data /var/lib/pra/blobs
+# nginx (www-data) may pass through /srv/pra and read only the SPA builds under web/.
+chmod 711 /srv/pra
+install -d -o pra -g pra -m 755 /srv/pra/web /srv/pra/web/releases
+install -d -o pra -g pra -m 750 /var/lib/pra /var/lib/pra/data /var/lib/pra/blobs
 install -d -o pra -g pra -m 700 /var/backups/pra
 install -d -o root -g pra -m 750 /etc/pra
 

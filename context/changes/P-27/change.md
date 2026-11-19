@@ -1,9 +1,9 @@
 ---
 change_id: P-27
 title: Run on the Mikrus VPS (1 vCPU, 4 GB), several reviews in flight
-status: in_progress
+status: implemented
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-20
 archived_at: null
 ---
 
@@ -112,5 +112,13 @@ copies every package (about 1.5 GB of `node_modules` per run on WB).
 - **nginx gate details.** Only `location = /webhooks/github` skips basic auth (25 MB bodies, like
   the api's limit); `/health` stays behind the gate (the timers check it on loopback). nginx
   overwrites `X-Forwarded-Host` and drops `Authorization` so the api never logs the gate login.
+- **nginx reads only the SPA builds.** `/srv/pra` is 711 and `web/` 755 (the deploy sets
+  `umask 022`); `www-data` is not added to group `pra`, because the checkout's `.env` points at
+  `/etc/pra/pra.env` (root:pra, 640) and the group could read the secrets.
+- **`sandbox:bench` checked on the install fixture** (fetch 2.5 s / 68 MiB, install, store links,
+  `--check`, exit 0). Shell scripts pass `bash -n` and shellcheck, the nginx template passes
+  `nginx -t`, the units pass `systemd-analyze verify` (apart from node and Docker missing in the
+  check container). Nothing connected to the VPS; the real run is Alek's P-27 row in
+  `work-packages.md`.
 - **Backups are on the same disk** (pg_dump custom format, 14 days). Copying them off the server
   is a manual step in the docs, not automated: that would need a second host or account.
