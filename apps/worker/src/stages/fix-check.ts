@@ -3,14 +3,8 @@
 // reviewer in fix-check mode whether each is resolved, and `reproductions` reruns the scripts
 // Verify kept for them. None of them writes new findings.
 import { checkFixes, type FixCheckFinding, type FixStatus } from '@pra/agents';
-import { modelFor } from '@pra/core';
-import {
-  fixChecksOfRun,
-  fixTargetsOfRun,
-  getAppSettings,
-  reproductionScripts,
-  type FindingRow,
-} from '@pra/db';
+import { runModel } from '@pra/core';
+import { fixChecksOfRun, fixTargetsOfRun, reproductionScripts, type FindingRow } from '@pra/db';
 import type { ChangedFile } from '@pra/integrations';
 import type { SessionRecord, StageContext, StageExecutor, StageResult } from './stage.ts';
 import { earlierAnswers } from './review/answers-context.ts';
@@ -105,7 +99,7 @@ export const checkFixesStage: StageExecutor = {
 
     const worktree = await runWorktree(context);
     const diff = await deps.gitMirror.diff(repository.githubFullName, fromSha, run.headSha);
-    const model = modelFor((await getAppSettings(deps.db)).value, level, 'reviewer').model;
+    const model = runModel(run, 'reviewer');
     signal.throwIfAborted();
     const { prompt, ...result } = await checkFixes(deps.agentRunner, {
       model,

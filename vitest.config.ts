@@ -11,7 +11,7 @@ const localWorkers = Number(
 
 export default defineConfig({
   test: {
-    projects: ['apps/*', 'packages/*'],
+    projects: ['apps/*', 'packages/*', 'scripts'],
     ...(process.env.CI ? {} : { maxWorkers: localWorkers }),
   },
 });

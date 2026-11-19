@@ -2,7 +2,7 @@
 // since, the chain's rounds, the PR's level against the repository's default, and how many fixes
 // the newest fix checks found resolved.
 import { LEVEL_NUMBERS, MAX_CHAIN_ROUNDS, type LevelNumber } from '@pra/core';
-import { readRepositoryConfig, type PrStateLoad } from '@pra/db';
+import type { PrStateLoad } from '@pra/db';
 import { z } from 'zod/v4';
 import { defineSection } from '../section.ts';
 import { prStateOf } from '../state.ts';
@@ -30,7 +30,7 @@ export const HeadSchema = z.object({
 });
 
 export function headView(load: PrStateLoad): z.output<typeof HeadSchema> {
-  const { pullRequest, repository, input } = load;
+  const { pullRequest, input } = load;
   const implement = load.findings.filter((f) => load.decisions.get(f.id)?.decision === 'implement');
   const checked = implement.filter((f) => load.fixChecks.has(f.id));
   return {
@@ -41,7 +41,7 @@ export function headView(load: PrStateLoad): z.output<typeof HeadSchema> {
     maxRounds: MAX_CHAIN_ROUNDS,
     level: {
       pr: (pullRequest.level as LevelNumber | null) ?? null,
-      repositoryDefault: readRepositoryConfig(repository).value.defaultLevel,
+      repositoryDefault: load.defaultLevel,
       next: input.level,
     },
     fixes: checked.length

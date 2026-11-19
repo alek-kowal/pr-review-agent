@@ -20,7 +20,8 @@ tech stack); design notes in `docs/`; the static UI prototype in `prototype/`.
 
 - `pnpm install`: one root `pnpm-lock.yaml`; shared dev versions live in the `catalog:` in
   `pnpm-workspace.yaml`.
-- `pnpm lint`: ESLint plus `prettier --check`. `pnpm format` fixes formatting.
+- `pnpm lint`: ESLint, `prettier --check` and `scripts/check-repo-agnostic.ts`. `pnpm format`
+  fixes formatting.
 - `pnpm typecheck`, `pnpm test` (Vitest over all packages), `pnpm test:e2e` (Playwright, Chromium).
 - `pnpm verify`: lint, typecheck and test in parallel. Run it before you commit.
 - `pnpm --filter @pra/web dev` (http://localhost:5173), `pnpm --filter @pra/api dev` (port 3000).
@@ -28,12 +29,31 @@ tech stack); design notes in `docs/`; the static UI prototype in `prototype/`.
   each run creates and drops its own database (`@pra/db/testing` global setup).
 - `pnpm db:migrate` applies Drizzle migrations and installs pg-boss and its queues (`JOBS`);
   `pnpm db:generate` writes a migration after a schema change.
-- `pnpm db:seed-repo <seed.json> [--instructions <dir>]` upserts a repository (e.g.
-  `packages/db/seeds/workflowbuilder.json`) and imports its instruction files as version 1.
+- `pnpm db:seed-repo <seed.json> [--instructions <dir>]` upserts a repository from a local seed
+  file (shape: `packages/db/src/testing/fixtures/workflowbuilder.json`) and imports its
+  instruction files as version 1. It is for bootstrapping a database; connect repositories in
+  Settings (below).
 - `pnpm instructions:import --from <dir> [--map <file>]` creates version 1 of each instruction
-  file from a copy of the old knowledge folder (map: `packages/db/seeds/instructions-import.json`).
-  Safe to run again; it never writes to `<dir>`.
+  file from a copy of the old knowledge folder (default map:
+  `packages/db/src/testing/fixtures/instructions-import.json`). Safe to run again; it never
+  writes to `<dir>`.
 - `pnpm --filter @pra/worker dev`; api and worker read the root `.env`.
+
+## Connect a repository
+
+A repository differs from another only by its settings, never by code.
+
+1. Install the GitHub App on the repository (GitHub → the App → Configure → Repository access).
+2. Settings → Repositories → Connect a repository: pick it from the repositories the App can
+   reach.
+3. Set the default review level ("Global default" follows Settings → Review levels), the default
+   branch, the fetch and install commands, ClickUp (or off), sensitive files with their reasons
+   and the change-type rules. Connect and sign: the change lands in the Audit log.
+4. Its next ready-for-review PR starts round 1 with these settings. Settings → Integrations shows
+   its webhook deliveries. Edit it later in Settings → Repositories the same way.
+
+`pnpm lint` fails when a name of one repository (`workflowbuilder`, `synergycodes`,
+`wb-factory`) appears in `apps/` or `packages/` outside tests and test fixtures.
 
 ## Code rules
 

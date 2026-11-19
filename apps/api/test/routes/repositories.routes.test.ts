@@ -101,7 +101,7 @@ describe('GET /api/settings/repositories', () => {
     const body = RepositoriesSettingsResponse.parse(response.json());
     expect(body.repositories.find((r) => r.githubFullName === wb)).toMatchObject({
       installationId: 1,
-      config: { githubFullName: wb, defaultLevel: 1 },
+      config: { githubFullName: wb, defaultLevel: null },
     });
     expect(body.available.map((r) => r.fullName)).toEqual([second, third]);
     expect(body.available[0]).toMatchObject({

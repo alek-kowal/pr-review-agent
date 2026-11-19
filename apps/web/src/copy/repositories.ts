@@ -10,6 +10,8 @@ export const levelNames: Record<number, string> = {
   6: 'Learning',
 };
 
+const GLOBAL_LEVEL = 'Global default';
+
 export const repositories = {
   title: 'Repositories',
   affects:
@@ -25,6 +27,10 @@ export const repositories = {
     branch: 'Default branch',
   },
   level: (n: number) => `${n} · ${levelNames[n] ?? ''}`,
+  /** The repository has no own level and uses Settings → Review levels' default. */
+  levelGlobal: GLOBAL_LEVEL,
+  levelOrGlobal: (n: number | null) =>
+    n === null ? GLOBAL_LEVEL : `${n} · ${levelNames[n] ?? ''}`,
   on: 'On',
   actions: 'Actions',
   off: 'Off',
@@ -89,7 +95,7 @@ export const repositories = {
   },
   help: {
     defaultLevel:
-      'Used for round 1 when a PR becomes ready. Anyone can pick another level for one PR on its page.',
+      'Used for round 1 when a PR becomes ready. Global default follows Settings → Review levels. Anyone can pick another level for one PR on its page.',
     defaultBranch: 'Merges go here.',
     fetchCommand:
       'Downloads the packages from the lockfile, with network and without PR scripts. Leave empty for no fetch step.',

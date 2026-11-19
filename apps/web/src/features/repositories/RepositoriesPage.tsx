@@ -82,7 +82,7 @@ export function RepositoriesPage() {
                             {repository.githubFullName}
                           </Link>
                         </th>
-                        <td className="px-3 py-2">{t.level(config.defaultLevel)}</td>
+                        <td className="px-3 py-2">{t.levelOrGlobal(config.defaultLevel)}</td>
                         <td className="px-3 py-2">{config.clickup ? t.on : t.off}</td>
                         <td className="px-3 py-2 text-text-2">
                           {t.patterns(config.sensitivePatterns.length)}

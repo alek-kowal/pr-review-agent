@@ -7,9 +7,12 @@ import { checks } from './checks.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
+import { audit } from './audit.ts';
 import { instructions } from './instructions.ts';
 import { integrations } from './integrations.ts';
+import { levels } from './levels.ts';
 import { merge } from './merge.ts';
+import { models } from './models.ts';
 import { nextStep } from './nextStep.ts';
 import { notify } from './notify.ts';
 import { opinions } from './opinions.ts';
@@ -44,6 +47,9 @@ export const copy = {
   clickup,
   checks,
   timeline,
+  models,
+  levels,
+  audit,
   questions,
   opinions,
   notify,
@@ -211,6 +217,7 @@ export const copy = {
     model_access_not_configured: 'model access is not configured',
     stage_not_available: 'this stage is not available yet',
     stage_timeout: 'the stage ran out of time',
+    model_invalid: 'a model name in Settings → Models or Review levels is not valid',
     interrupted: 'the app restarted while it ran',
     interrupted_by_restart: 'the app restarted while it ran',
     stage_error: 'an unexpected error stopped it',
