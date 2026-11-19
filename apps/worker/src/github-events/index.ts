@@ -1,5 +1,11 @@
 import type { GithubEvent } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
+import {
+  handleCheckRunEvent,
+  handleCheckSuiteEvent,
+  handlePullRequestReviewEvent,
+  handleStatusEvent,
+} from './checks.ts';
 import { handlePullRequestEvent } from './pull-request.ts';
 
 export type GitHubEventContext = {
@@ -17,5 +23,9 @@ export type GitHubEventHandlers = Record<string, GitHubEventHandler>;
 /** By `X-GitHub-Event`. Other types are recorded with outcome `event_ignored`. */
 export const GITHUB_EVENT_HANDLERS: GitHubEventHandlers = {
   pull_request: handlePullRequestEvent,
+  check_suite: handleCheckSuiteEvent,
+  check_run: handleCheckRunEvent,
+  status: handleStatusEvent,
+  pull_request_review: handlePullRequestReviewEvent,
   ping: async () => 'ping',
 };

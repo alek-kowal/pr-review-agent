@@ -6,6 +6,7 @@ import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
 import { integrations } from './integrations.ts';
+import { merge } from './merge.ts';
 import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
@@ -232,6 +233,10 @@ export const copy = {
     clickup_auth_failed: 'ClickUp refused the API key.',
     clickup_error: 'ClickUp did not answer as expected.',
     github_error: 'GitHub did not answer as expected.',
+    merge_number_mismatch: 'The typed number is not this PR’s number.',
+    head_moved: 'New commits arrived after the review. Review them first.',
+    merge_not_ready: 'The merge checklist is not green.',
+    merge_refused: 'GitHub refused the merge.',
     task_not_found: 'ClickUp has no task with this ID.',
     task_ref_invalid: 'Enter a ClickUp task ID, such as WB-123, or a task link.',
     run_not_found: 'This run does not exist.',
@@ -241,6 +246,7 @@ export const copy = {
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity,
   insights,
+  merge,
   settings: {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',
