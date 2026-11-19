@@ -1,6 +1,7 @@
 // Response builders for web tests. Shapes follow `@/lib/api-types.ts`.
 import type {
   TaskSectionView,
+  ChecksSectionView,
   AuthorView,
   BoardCard,
   BoardResponse,
@@ -110,6 +111,7 @@ export const aPrView = (
     sensitive?: Partial<SensitiveView>;
     roundProgress?: RoundProgressView | null;
     task?: TaskSectionView;
+    checks?: ChecksSectionView;
   } = {},
 ): PrView => ({
   pullRequest: {
@@ -137,6 +139,18 @@ export const aPrView = (
   sensitive: aSensitive(over.sensitive),
   roundProgress: over.roundProgress ?? null,
   task: over.task ?? { configured: true, link: null },
+  checks: over.checks ?? aChecks(),
+});
+
+/** A PR with no completed round yet: nothing to show in the Change type panel. */
+export const aChecks = (over: Partial<ChecksSectionView> = {}): ChecksSectionView => ({
+  runId: null,
+  changeType: null,
+  forced: null,
+  largePr: null,
+  ci: null,
+  install: null,
+  ...over,
 });
 
 /** No sensitive file by default. */

@@ -89,6 +89,15 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   `updated_at`) and a `reconciled` state change; a close then goes through `cancelForClosedPr`,
   shared with the webhook hook. A snapshot change outside those fields (title, body) is stored
   without a timeline entry.
+- **Checks and change type on the PR page (T9).** A new PR view section `checks` (`runId`,
+  `changeType {value, reason}`, `forced`, `largePr {lines, threshold}`, `ci`, `install`) reads the
+  latest completed round's last succeeded or reused `checks` and `change_type` outputs. The web
+  maps `reason.code` to "forced by hand", "raised by the judge" or "set by the rules". The
+  Change type panel (`PR_PANELS`, every open PR, or a closed one with values) shows the type as
+  grey text, the type forced for the next round, the large-PR warning and Force type (a popover
+  with "Automatic" plus the three types; `null` clears the forced type). The route answers
+  `{checks}` and writes `change_type_forced` (`{from, to}`, by hand) only when the value changes.
+  Outputs render in Run detail through `STAGE_OUTPUTS` (the stepper has no output view).
 - **Load timeouts in `pnpm verify`.** Testing Library's `asyncUtilTimeout` is 4 s in the web test
   setup, and `reads-never-write` gets 30 s: they failed only under verify's parallel load.
 - **Retry is keyed by run id** (`POST /api/runs/:id/retry`, 201 `{run: {id, fromStage}}`); the

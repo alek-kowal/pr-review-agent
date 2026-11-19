@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { RunDetail, RunStageView } from '@/lib/api-types.ts';
+import { ChangeTypeOutput, ChecksOutput } from '@/features/checks/CheckOutputs.tsx';
 import { ReviewOutput, TaskOutput } from './StageOutputs.tsx';
 
 export type StageOutputProps = { output: unknown; stage: RunStageView; run: RunDetail };
@@ -10,6 +11,8 @@ export type StageOutputProps = { output: unknown; stage: RunStageView; run: RunD
  * output as keys and values.
  */
 export const STAGE_OUTPUTS: Record<string, ComponentType<StageOutputProps>> = {
+  checks: ChecksOutput,
   task: TaskOutput,
+  change_type: ChangeTypeOutput,
   review: ReviewOutput,
 };

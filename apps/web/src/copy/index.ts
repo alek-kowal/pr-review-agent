@@ -2,6 +2,7 @@
 import { activity } from './activity.ts';
 import { board } from './board.ts';
 import { checklist } from './checklist.ts';
+import { checks } from './checks.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
@@ -32,6 +33,7 @@ export const copy = {
   status,
   runs,
   clickup,
+  checks,
   timeline,
   pr: {
     loading: 'Loading the pull request…',

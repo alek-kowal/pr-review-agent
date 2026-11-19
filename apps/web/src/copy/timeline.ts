@@ -1,4 +1,5 @@
 // Copy for the PR Timeline tab: the time summary and one sentence per entry kind.
+import { checks } from './checks.ts';
 import { shortSha } from './nextStep.ts';
 import { money, plural } from './format.ts';
 
@@ -85,6 +86,10 @@ export const timeline = {
     pr_ready: () => 'PR marked ready for review',
     pr_pushed: (p) => (p.headSha ? `Pushed ${shortSha(p.headSha)}` : 'Pushed new commits'),
     pr_reconciled: reconciled,
+    change_type_forced: (p) =>
+      p.to
+        ? `Change type forced to ${checks.changeType(String(p.to))}`
+        : 'Change type back to automatic',
     pr_closed: () => 'PR closed',
     pr_merged: () => 'PR merged',
     run_started: (p) => `${runName(p)} started`,

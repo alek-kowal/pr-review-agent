@@ -148,6 +148,23 @@ export type PrView = {
   sensitive: SensitiveView;
   roundProgress: RoundProgressView | null;
   task: TaskSectionView;
+  checks: ChecksSectionView;
+};
+
+export type ChangeType = 'uses_existing' | 'changes_behaviour' | 'one_way_door';
+
+/**
+ * The PR's Checks and Change type from its latest completed round (S-04-T6), and the type a
+ * person forced for the next round. `PUT /api/prs/:repo/:number/change-type` answers `{checks}`.
+ */
+export type ChecksSectionView = {
+  runId: number | null;
+  /** `reason.code`: `forced_by_person`, `judge_raised`, or a rules code. */
+  changeType: { value: ChangeType; reason: ReasonView } | null;
+  forced: ChangeType | null;
+  largePr: { lines: number; threshold: number } | null;
+  ci: { passed: number; failed: number; pending: number } | null;
+  install: { status: string } | null;
 };
 
 /** `POST .../sensitive/approve` and `.../sensitive/send-back`: what changed on the PR page. */

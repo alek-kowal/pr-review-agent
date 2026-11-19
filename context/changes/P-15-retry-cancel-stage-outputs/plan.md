@@ -189,7 +189,7 @@ the durability test uses a child process. API tests use `apps/api/test/helper.ts
 
 ### Phase 9: Checks, change type and large PR
 
-- [ ] 9.1 `pnpm --filter @pra/api test change-type-route.test.ts` and `pnpm --filter @pra/web test checks-output.test.tsx large-pr.test.tsx` pass
+- [x] 9.1 `pnpm --filter @pra/api test change-type-route.test.ts` and `pnpm --filter @pra/web test checks-output.test.tsx large-pr.test.tsx` pass
 
 ### Phase 10: End-to-end Checks and change type
 

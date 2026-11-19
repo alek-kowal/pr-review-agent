@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { MainActionCode } from '@pra/core';
 import type { NextStepView, PrView } from '@/lib/api-types.ts';
+import { ChangeTypePanel } from '@/features/checks/ChangeTypePanel.tsx';
 import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
 import { RoundProgress } from '@/features/round/RoundProgress.tsx';
 import { CancelAction } from '@/features/runs/CancelAction.tsx';
@@ -46,6 +47,12 @@ export const PR_PANELS: PrPanel[] = [
   { key: 'checklist', Component: Checklist, shows: (view) => view.nextStep.lane !== null },
   { key: 'sensitive', Component: SensitivePanel, shows: (view) => view.sensitive.files.length > 0 },
   { key: 'clickup-task', Component: TaskPanel, shows: (view) => view.pullRequest.state === 'open' },
+  {
+    key: 'change-type',
+    Component: ChangeTypePanel,
+    shows: (view) =>
+      view.pullRequest.state === 'open' || view.checks.changeType !== null || !!view.checks.largePr,
+  },
 ];
 
 /** Quiet buttons in the PR header, before the GitHub link (extension point from P-08). */
