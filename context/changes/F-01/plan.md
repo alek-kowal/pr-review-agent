@@ -292,11 +292,11 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Manual
 
-- [ ] 8.2 CI run on GitHub is green after push
+- [ ] 8.2 CI run on GitHub is green after push (pending: needs a push by Alek; this session must not push)
 
 ### Phase 9: AGENTS.md and CLAUDE.md
 
 #### Automated
 
-- [x] 9.1 `AGENTS.md` under 100 lines and passes `prettier --check`
-- [x] 9.2 Report states its size in lines and approximate tokens
+- [x] 9.1 `AGENTS.md` under 100 lines and passes `prettier --check` — 247fa82
+- [x] 9.2 Report states its size in lines and approximate tokens — 247fa82

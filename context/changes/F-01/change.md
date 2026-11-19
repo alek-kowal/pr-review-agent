@@ -1,7 +1,7 @@
 ---
 change_id: F-01
 title: Monorepo foundations (pnpm workspace, api, web, lint, tests, CI, AGENTS.md)
-status: implementing
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -43,3 +43,4 @@ Roadmap item F-01 (`monorepo-foundations`): `context/foundation/roadmap.md#f-01-
 - Root `tsconfig.json` (extends the base, `noEmit`) covers the root `*.ts` configs and `e2e/`; root `typecheck` is `tsc -p tsconfig.json && pnpm -r typecheck`. `eslint.config.js` is linted but not type-checked (plain JS). `blob-report/` joins the Playwright output ignores.
 - CI (Phase 8): `actions/checkout@v7`, `pnpm/action-setup@v6` (no `version`, reads `packageManager`), `actions/setup-node@v7` (`.node-version`, `cache: pnpm`), one job on `ubuntu-latest`, `contents: read`, in-progress runs on the same ref cancelled. The CI steps were rehearsed on a fresh local clone (`CI=1`, frozen install, lint, typecheck, test: all exit 0); the GitHub run itself waits for Alek's push.
 - `AGENTS.md` (Phase 9): 61 lines, 3,227 characters, about 800 tokens loaded into every agent session. Beyond the F-01-T9 bullets it adds a few already-decided rules (`.ts` import extensions, lint boundaries, committed route tree, API error shape, `X-PRA-Request` header, catalog/single lockfile); `pnpm db:migrate` and `docker compose up -d db` are marked "from F-02". `CLAUDE.md` is only `@AGENTS.md`.
+- Closed as `implemented` with one open manual row (8.2, green CI run on GitHub). It needs a push, which this session must not do. Final local check: `pnpm verify` exit 0, `pnpm test:e2e smoke.spec.ts` 1 passed.
