@@ -39,10 +39,16 @@ This file is the resume point for the orchestrator, the main Claude session in H
 
 ## Next step
 
-Wait for the ra-stack watcher. When it is done, exit the session (`herdr agent prompt <name> /exit`) and start `ra-roadmap` in the same pane (w2:pA), with `--disallowedTools AskUserQuestion`. Then:
-1. `gh auth switch --user alek-kowal`
-2. `gh repo create alek-kowal/pr-review-agent --private --source . --push`
-3. Switch gh back to `aleksandrio`
+Execution runs by **work packages** (`context/foundation/work-packages.md`: 24 packages in 8 waves, dependency-driven). Loop:
+1. Wait for the watcher.
+2. `merge-task.sh <id>` for each finished package (verify, merge, push).
+3. `ci-wait.sh`.
+4. `ready.sh` lists the packages whose dependencies are merged.
+5. `spawn-task.sh <id> prompts/package.txt` for each, then a `watch-many.sh 26 <agents>` in the background.
+
+A package that stops at its context budget leaves `context/changes/<id>-handoff.md`, and a continuation session (`prompts/continue.txt`, adapted) picks up from it.
+
+Done: F-01 (monorepo, CI green), the roadmap, the work packages. Running: P-01 and P-02 (wave 1).
 
 ## How to start a task session
 
