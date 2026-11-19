@@ -103,6 +103,9 @@ export const runs = pgTable(
       .$type<RunInstructionVersion[]>()
       .notNull()
       .default([]),
+    /** Commits between `head_sha` and the PR head `commits_since_head` (S-07, FR-020). */
+    commitsSince: integer('commits_since'),
+    commitsSinceHead: text('commits_since_head'),
     /** What the reviewer says it did not check. */
     notChecked: text('not_checked')
       .array()

@@ -82,9 +82,10 @@ describe('chains', () => {
     const [first] = await roundsOfPr();
     await finish(first!, 'completed');
     const { id, headSha } = await pr();
-    await setChainExpectedHead(deps.db, first!.chainId!, headSha);
 
     for (const ending of ['failed', 'cancelled'] as const) {
+      // Starting a fix check consumes the expected head; S-14's next push sets it again.
+      await setChainExpectedHead(deps.db, first!.chainId!, headSha);
       const started = await startRound(deps, {
         pullRequestId: id,
         trigger: 'own_fix',

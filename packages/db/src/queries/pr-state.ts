@@ -16,6 +16,7 @@ import {
 } from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
+import { roundChains } from '../schema/chains.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
@@ -35,8 +36,13 @@ export type PrStateLoad = {
   input: PrStateInput;
   /** The Team member whose GitHub login is the PR author's; null when none is. */
   authorMember: TeamMember | null;
-  /** The completed round the findings and questions come from; null before one completed. */
+  /** The latest completed round: its head is the reviewed SHA; null before one completed. */
   reviewedRound: Run | null;
+  /**
+   * The completed full review (round 1 of its chain) the findings and questions come from; fix
+   * checks only add Resolved / Not resolved to them.
+   */
+  findingsRound: Run | null;
   findings: FindingRow[];
   questions: QuestionRow[];
   decisions: Map<number, CurrentDecision>;
@@ -113,6 +119,24 @@ export function prLevel(
 }
 
 /**
+ * Commits on the head since the reviewed round: measured with GitHub's compare when the head moved
+ * (`runs.commits_since`), else the difference of commit counts. The fix PR Review Agent pushed and
+ * did not check (the chain used its rounds) is not "new commits": FR-017 is about people's pushes.
+ */
+function commitsSinceReview(
+  pullRequest: PullRequest,
+  reviewed: Run | null,
+  chain: typeof roundChains.$inferSelect | null,
+): number {
+  if (!reviewed || reviewed.headSha === pullRequest.headSha) return 0;
+  if (chain?.expectedHeadSha && chain.expectedHeadSha === pullRequest.headSha) return 0;
+  if (reviewed.commitsSince !== null && reviewed.commitsSinceHead === pullRequest.headSha) {
+    return reviewed.commitsSince;
+  }
+  return Math.max(0, pullRequest.commitsCount - reviewed.commitsCountAtStart);
+}
+
+/**
  * Loads the state input of many PRs in a fixed number of queries. PRs that do not exist are
  * missing from the map.
  */
@@ -157,13 +181,16 @@ export async function loadPrStateInputs(
           rounds,
           latestRound: rounds.at(-1),
           reviewed: completed.at(-1),
+          findingsRound: completed.findLast((run) => (run.roundNo ?? 1) === 1),
           active: all.findLast((run) => run.status === 'queued' || run.status === 'running'),
         },
       ] as const;
     }),
   );
 
-  const reviewedIds = [...perPr.values()].flatMap((p) => (p.reviewed ? [p.reviewed.id] : []));
+  const reviewedIds = [...perPr.values()].flatMap((p) =>
+    p.findingsRound ? [p.findingsRound.id] : [],
+  );
   const failedIds = [...perPr.values()].flatMap((p) =>
     p.latestRound?.status === 'failed' ? [p.latestRound.id] : [],
   );
@@ -201,12 +228,26 @@ export async function loadPrStateInputs(
     db,
     findingRows.map((row) => row.id),
   );
+  const chainIds = [...perPr.values()].flatMap((p) =>
+    p.latestRound?.chainId ? [p.latestRound.chainId] : [],
+  );
+  const chainById = new Map(
+    (chainIds.length
+      ? await db.select().from(roundChains).where(inArray(roundChains.id, chainIds))
+      : []
+    ).map((chain) => [chain.id, chain] as const),
+  );
 
   for (const { repository, pullRequest } of prRows) {
     const p = perPr.get(pullRequest.id)!;
     const reviewed = p.reviewed ?? null;
-    const prFindings = reviewed ? findingRows.filter((row) => row.runId === reviewed.id) : [];
-    const prQuestions = reviewed ? questionRows.filter((row) => row.runId === reviewed.id) : [];
+    const findingsRound = p.findingsRound ?? null;
+    const prFindings = findingsRound
+      ? findingRows.filter((row) => row.runId === findingsRound.id)
+      : [];
+    const prQuestions = findingsRound
+      ? questionRows.filter((row) => row.runId === findingsRound.id)
+      : [];
     const failedStage =
       p.latestRound?.status === 'failed'
         ? failedStages.find((row) => row.runId === p.latestRound!.id)
@@ -234,9 +275,11 @@ export async function loadPrStateInputs(
       level: prLevel(repository, pullRequest),
       headSha: pullRequest.headSha,
       reviewedSha: reviewed?.headSha ?? null,
-      commitsSinceReview: reviewed
-        ? Math.max(0, pullRequest.commitsCount - reviewed.commitsCountAtStart)
-        : 0,
+      commitsSinceReview: commitsSinceReview(
+        pullRequest,
+        reviewed,
+        chainById.get(p.latestRound?.chainId ?? '') ?? null,
+      ),
       // Change type arrives in S-04, sensitive files in S-11, patches in S-13.
       changeType: null,
       activeRun: activeRun(p.active),
@@ -259,6 +302,7 @@ export async function loadPrStateInputs(
       input,
       authorMember,
       reviewedRound: reviewed,
+      findingsRound,
       findings: prFindings,
       questions: prQuestions,
       decisions: new Map(

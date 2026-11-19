@@ -73,7 +73,7 @@ export function decisionView(decision: CurrentDecision): z.output<typeof Decisio
 }
 
 export function findingsView(load: PrStateLoad): FindingsView {
-  const run = load.reviewedRound;
+  const run = load.findingsRound;
   if (!run) return { round: null, findings: [], questions: [], notChecked: [] };
   return {
     round: {

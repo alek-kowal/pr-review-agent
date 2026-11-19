@@ -14,6 +14,7 @@ import {
   type PullRequestSnapshot,
 } from '@pra/db';
 import { toPullRequest, type GitHubPullRequest, type RawPullRequest } from '@pra/integrations';
+import { startFixCheckOnPush } from '../run/chains.ts';
 import { startRound } from '../run/start-round.ts';
 import type { GitHubEventContext } from './index.ts';
 import { prEventKinds } from './pr-hooks.ts';
@@ -76,6 +77,12 @@ export async function handlePullRequestEvent({
       inTransaction: (tx) => setGithubEventOutcome(tx, event.id, 'round_started'),
     });
     outcome = result.started ? 'round_started' : result.reason.code;
+  } else if (action === 'synchronize' && !stale) {
+    // A push never starts a review, except the fix PR Review Agent pushed (FR-016).
+    const result = await startFixCheckOnPush(deps, pullRequest, (tx) =>
+      setGithubEventOutcome(tx, event.id, 'round_started'),
+    );
+    if (result) outcome = result.started ? 'round_started' : result.reason.code;
   }
 
   if (!stale) {

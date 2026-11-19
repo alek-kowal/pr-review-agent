@@ -223,11 +223,14 @@ export async function startRound(
     startedBy: input.startedBy,
     roundNo: roundNumber,
     chainId,
-    beforeInsert: newChain
-      ? async (tx) => {
-          await tx.insert(roundChains).values({ id: chainId, pullRequestId: pullRequest.id });
-        }
-      : undefined,
+    beforeInsert: async (tx) => {
+      if (newChain) {
+        await tx.insert(roundChains).values({ id: chainId, pullRequestId: pullRequest.id });
+      } else {
+        // The fix is being checked: a retried event or a later push on it starts nothing.
+        await setChainExpectedHead(tx, chainId, null);
+      }
+    },
     inTransaction: input.inTransaction,
   });
   if (!result.created) {

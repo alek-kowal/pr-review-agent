@@ -7,6 +7,7 @@ import {
   toPullRequest,
   type AccessibleRepository,
   type CiCheck,
+  type CommitComparison,
   type CiStatus,
   type GitHubGateway,
   type GitHubPullRequest,
@@ -73,6 +74,8 @@ export class FakeGitHubGateway implements GitHubGateway {
   readonly pullRequests = new Map<string, GitHubPullRequest>();
   /** CI checks by `owner/name@sha`; a commit without an entry has no checks. */
   readonly ci = new Map<string, CiCheck[]>();
+  /** Compares by `owner/name:base...head`; a pair without an entry is a 404 unless equal. */
+  readonly comparisons = new Map<string, CommitComparison>();
   readonly #failures = new Map<Method, Error[]>();
   #nextId = 1;
 
@@ -90,6 +93,14 @@ export class FakeGitHubGateway implements GitHubGateway {
 
   setCiChecks(fullName: string, sha: string, checks: CiCheck[]): this {
     this.ci.set(`${fullName}@${sha}`, checks);
+    return this;
+  }
+
+  /** `head` is `aheadBy` commits ahead of `base` (and `behindBy` behind it). */
+  setComparison(fullName: string, base: string, head: string, aheadBy: number, behindBy = 0): this {
+    const status =
+      aheadBy && behindBy ? 'diverged' : aheadBy ? 'ahead' : behindBy ? 'behind' : 'identical';
+    this.comparisons.set(`${fullName}:${base}...${head}`, { status, aheadBy, behindBy });
     return this;
   }
 
@@ -126,6 +137,14 @@ export class FakeGitHubGateway implements GitHubGateway {
     const pr = this.pullRequests.get(`${fullName}#${number}`);
     if (!pr) throw Object.assign(new Error(`Not Found: ${fullName}#${number}`), { status: 404 });
     return pr;
+  }
+
+  async compareCommits(fullName: string, base: string, head: string): Promise<CommitComparison> {
+    this.#record('compareCommits', [fullName, base, head]);
+    const known = this.comparisons.get(`${fullName}:${base}...${head}`);
+    if (known) return known;
+    if (base === head) return { status: 'identical', aheadBy: 0, behindBy: 0 };
+    throw Object.assign(new Error(`Not Found: ${base}...${head}`), { status: 404 });
   }
 
   async postIssueComment(fullName: string, number: number, body: string) {

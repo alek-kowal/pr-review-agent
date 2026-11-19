@@ -34,3 +34,15 @@ decide and record).
   `changeTypeRules.oneWayPaths`; the task's "one-way paths" means these sensitive patterns.
 - **Fix check `reproductions` stage** reruns nothing until scripts exist for the checked findings;
   it records that in its output instead of failing `stage_not_available`.
+
+### S-07-T2 (pushes)
+
+- The fix push start sits in the `pull_request` handler (the event's outcome is `round_started`);
+  measuring commits since is a `headChanged` PR event hook plus a `runCompleted` hook.
+- Starting a fix check clears the chain's `expected_head_sha` in the run's transaction, so a
+  retried event or a second push on the same commit never starts round 3 by itself.
+- The fix PR Review Agent pushed and did not check (chain used its 3 rounds) is not counted as
+  "new commits": the PR shows Automatic rounds used, as the task's "Done when" asks.
+- When the head equals the reviewed SHA there are 0 commits since, whatever the commit counts say.
+- The loader takes findings and questions from the latest completed full round (round 1 of its
+  chain), so a fix check, which writes no findings, keeps them on the PR (moved here from T4).
