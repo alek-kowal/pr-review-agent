@@ -24,3 +24,6 @@ export type StackState = {
 
 /** PR numbers from this one up get a failing reviewer. */
 export const FAILING_PR_FROM = 400;
+
+/** A repository the GitHub App double reaches that no seed connects. */
+export const SECOND_REPOSITORY = { fullName: 'acme/second-repo', installationId: 55500002 };

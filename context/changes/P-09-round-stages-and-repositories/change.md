@@ -1,7 +1,7 @@
 ---
 change_id: P-09
 title: Round stages and repositories (S-04-T3, S-06-T3, S-04-T5, S-05-T2, S-20-T3, S-20-T6, S-20-T4, S-20-T7, S-20-T8)
-status: in_progress
+status: done
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -241,3 +241,26 @@ listed order.
 - The comment Switch goes through `useSettingsForm`, the save bar (one unsaved change) and the
   signed dialog ("GitHub comment after a round": On → Off).
 - Settings → Repositories now links "GitHub App" to this page.
+
+### S-20-T8 (End-to-end second repository)
+
+- `e2e/connect-repo.spec.ts` connects `acme/second-repo` in Settings (level 2, branch `develop`,
+  `db/migrations/**` with a reason, ClickUp off, signed by Kasia), delivers `ready_for_review` for
+  `acme/second-repo#12` and checks the board card with its repository, the PR page ("Unchecked
+  (level 2)"), the round's stages from `GET /api/prs/second-repo/12` (Verify `off`), the change
+  type and Settings → Integrations.
+- The stack's GitHub double also reaches `acme/second-repo` (installation `55500002`,
+  `SECOND_REPOSITORY` in `e2e/support/env.ts`); no seed connects it. `deliverPullRequest` takes an
+  optional repository, which it writes into the payload's repository, head and base repos and
+  installation.
+- The stack's fixture PR also adds `db/migrations/0001_edge_labels.sql`. "Applies to that
+  repository only" is shown through the Change type stage, the one place a sensitive pattern acts
+  today (approval comes with S-11): the second repository's round is a One-way door with
+  `sensitive_one_way`, and Workflow Builder keeps "0 patterns". It also lets the round finish
+  without a scripted judge (the floor is already the highest).
+- Kasia signs. The spec inserts her with the same name and GitHub login decide.spec.ts uses,
+  with `on conflict do nothing`, so the two specs never disagree about Team when they run in
+  parallel.
+- `e2e/a11y-routes.ts` does not exist yet (its a11y spec comes with a later package). When it is
+  created, add `/settings/repositories`, `/settings/repositories/connect`,
+  `/settings/repositories/$id` and `/settings/integrations`.

@@ -10,6 +10,7 @@ import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
 import {
   createGitFixture,
+  DEFAULT_FEATURE_FILES,
   FakeClickUpGateway,
   FakeGitHubGateway,
   FakeSandbox,
@@ -21,7 +22,14 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { buildServer } from '../../apps/api/src/server.ts';
 import { startWorker } from '../../apps/worker/src/worker.ts';
-import { API_PORT, API_URL, FAILING_PR_FROM, STATE_FILE, type StackState } from './env.ts';
+import {
+  API_PORT,
+  API_URL,
+  FAILING_PR_FROM,
+  SECOND_REPOSITORY,
+  STATE_FILE,
+  type StackState,
+} from './env.ts';
 
 const FULL_NAME = 'synergycodes/workflowbuilder';
 const INSTALLATION_ID = 55500001;
@@ -83,13 +91,27 @@ class ScriptedReviewer implements AgentRunner {
 
 const logger = createLogger('e2e', { LOG_LEVEL: process.env.LOG_LEVEL ?? 'warn' });
 const root = await mkdtemp(path.join(tmpdir(), 'pra-e2e-'));
-const [database, fixture] = await Promise.all([createTestDatabase(), createGitFixture()]);
+// The feature branch also adds a migration: a sensitive file for a repository whose settings say
+// so (connect-repo.spec.ts), an ordinary file for the others.
+const [database, fixture] = await Promise.all([
+  createTestDatabase(),
+  createGitFixture({
+    feature: {
+      ...DEFAULT_FEATURE_FILES,
+      'db/migrations/0001_edge_labels.sql': 'alter table edges add column label text;\n',
+    },
+  }),
+]);
 const db = createDb(database.url, { max: 5 });
 const queue = createQueue(database.url, { max: 5 });
 const webhookSecret = randomBytes(16).toString('hex');
 const github = new FakeGitHubGateway({
   webhookSecret,
-  installations: { [FULL_NAME]: INSTALLATION_ID },
+  installations: {
+    [FULL_NAME]: INSTALLATION_ID,
+    // Reachable but not connected: Settings → Repositories connects it (connect-repo.spec.ts).
+    [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
+  },
 });
 const blobStore = new LocalBlobStore(path.join(root, 'blobs'));
 

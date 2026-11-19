@@ -12,22 +12,29 @@ export const AUTHOR_LOGIN = 'wb-dev';
 
 type Fixture = 'ready_for_review' | 'opened-draft';
 
+type Repo = { full_name: string; name: string; owner: { login: string } };
 type Payload = {
   number: number;
+  repository: Repo;
+  installation?: { id: number };
   pull_request: {
     number: number;
     title: string;
-    head: { sha: string };
-    base: { sha: string };
+    head: { sha: string; repo: Repo };
+    base: { sha: string; repo: Repo };
   };
 };
 
-/** Posts the `pull_request.<fixture>` payload as PR `number` at the fixture repository's shas. */
+/**
+ * Posts the `pull_request.<fixture>` payload as PR `number` at the fixture repository's shas;
+ * `repository` moves it to another repository (and App installation) than the fixture's.
+ */
 export async function deliverPullRequest(
   request: APIRequestContext,
   fixture: Fixture,
   number: number,
   title: string,
+  repository?: { fullName: string; installationId: number },
 ): Promise<void> {
   const { apiUrl, webhookSecret, baseSha, headSha } = stackState();
   const file = new URL(
@@ -40,6 +47,21 @@ export async function deliverPullRequest(
   payload.pull_request.title = title;
   payload.pull_request.head.sha = headSha;
   payload.pull_request.base.sha = baseSha;
+  if (repository) {
+    const [owner = '', name = ''] = repository.fullName.split('/');
+    for (const repo of [
+      payload.repository,
+      payload.pull_request.head.repo,
+      payload.pull_request.base.repo,
+    ]) {
+      Object.assign(repo, {
+        full_name: repository.fullName,
+        name,
+        owner: { ...repo.owner, login: owner },
+      });
+    }
+    payload.installation = { id: repository.installationId };
+  }
   const body = JSON.stringify(payload);
 
   const response = await request.post(`${apiUrl}/webhooks/github`, {
