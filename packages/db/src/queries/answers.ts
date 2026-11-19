@@ -5,6 +5,7 @@ import { answers } from '../schema/reviews.ts';
 import { questions, runs } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 import type { Transactor } from './decisions.ts';
+import { lockPullRequestRow } from './reviews.ts';
 import { recordStateChange, recordTimelineEntry } from './timeline.ts';
 
 /** A question's answer: its newest row, with the signer's name (kept after they leave). */
@@ -135,7 +136,9 @@ export async function saveAnswers(
   if (ids.length === 0) throw new Error('saveAnswers needs at least one answer');
 
   return db.transaction(async (tx) => {
-    // Locked in id order, so two saves over the same questions never deadlock.
+    // The PR row first (see lockPullRequestRow), then the questions in id order, so two saves on
+    // one PR never deadlock.
+    await lockPullRequestRow(tx, input.pullRequestId);
     const locked = await tx
       .select({ id: questions.id, options: questions.options })
       .from(questions)

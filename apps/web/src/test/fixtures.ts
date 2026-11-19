@@ -187,6 +187,7 @@ export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
     sourceSha: 'abc123',
     commitsBehind: 0,
     fix: null,
+    opinions: [],
     ...over,
   };
 };

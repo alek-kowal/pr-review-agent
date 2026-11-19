@@ -251,6 +251,22 @@ export type FindingView = {
   commitsBehind: number;
   /** The newest fix check of a finding decided Implement; null before one ran. */
   fix: { resolved: boolean; reason: string; runId: number } | null;
+  /** Signed opinions, oldest first (FR-037); one per signer. */
+  opinions: OpinionView[];
+};
+
+export type OpinionValue = 'worth' | 'not_worth';
+
+export type OpinionView = {
+  id: number;
+  signedBy: { id: string; name: string };
+  value: OpinionValue;
+  comment: string | null;
+  /** The round it was given in; shown as "from round N" when carried. */
+  fromRound: number;
+  /** Copied from the matching finding of an earlier round (FR-043). */
+  carried: boolean;
+  at: string;
 };
 
 export type QuestionView = {
