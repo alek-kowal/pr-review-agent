@@ -92,3 +92,15 @@ See `plan.md` "Key decisions"; implementation-time decisions are appended here a
   this wave. P-05 calls `createBlobStore()` where it builds its deps.
 - S3 credentials come only from the AWS default chain (it reads `process.env`, not the `env`
   argument); `S3_ENDPOINT` turns on path-style URLs for MinIO and other S3-compatible stores.
+
+### F-04-T4 CSRF guard
+
+- An `onRequest` hook (autoloaded `plugins/csrf.ts`), so a rejected request is never routed or
+  body-parsed. Only the exact path `/webhooks/github` is exempt (query ignored).
+- The `Origin` host is compared with `request.host` parsed under the Origin's scheme, so default
+  ports compare equal; `Origin: null` and malformed values are rejected.
+- `TRUST_PROXY` (comma-separated IPs/CIDRs or proxy-addr names) feeds Fastify `trustProxy`;
+  unset means no proxy is trusted. The deploy leaves it unset: Caddy forwards the original
+  `Host`, so the check works without trusting `X-Forwarded-Host`.
+- `apps/web` is untouched: P-04's `api.ts` sends `X-PRA-Request: 1` (no `api.ts` exists here).
+  API tests send `SAME_ORIGIN` from `test/helper.ts` on state-changing calls.

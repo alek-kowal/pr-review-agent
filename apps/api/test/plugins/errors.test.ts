@@ -1,12 +1,17 @@
 import Fastify from 'fastify';
 import { expect, test } from 'vitest';
 import Errors from '../../src/plugins/errors.ts';
-import { build } from '../helper.ts';
+import { build, SAME_ORIGIN } from '../helper.ts';
 
 test('an invalid body returns 400 invalid_request with the failing paths', async () => {
   const app = await build();
 
-  const res = await app.inject({ method: 'POST', url: '/example', payload: { text: '' } });
+  const res = await app.inject({
+    method: 'POST',
+    url: '/example',
+    headers: SAME_ORIGIN,
+    payload: { text: '' },
+  });
 
   expect(res.statusCode).toBe(400);
   expect(res.json()).toEqual({
@@ -23,7 +28,7 @@ test('a malformed JSON body returns 400 invalid_request', async () => {
   const res = await app.inject({
     method: 'POST',
     url: '/example',
-    headers: { 'content-type': 'application/json' },
+    headers: { ...SAME_ORIGIN, 'content-type': 'application/json' },
     payload: '{"text":',
   });
 
@@ -34,7 +39,12 @@ test('a malformed JSON body returns 400 invalid_request', async () => {
 test('a valid body passes validation', async () => {
   const app = await build();
 
-  const res = await app.inject({ method: 'POST', url: '/example', payload: { text: 'hello' } });
+  const res = await app.inject({
+    method: 'POST',
+    url: '/example',
+    headers: SAME_ORIGIN,
+    payload: { text: 'hello' },
+  });
 
   expect(res.statusCode).toBe(200);
   expect(res.json()).toEqual({ text: 'hello', length: 5 });

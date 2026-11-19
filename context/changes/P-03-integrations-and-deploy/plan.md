@@ -261,16 +261,16 @@ Compose checks are run by hand once per phase, on free ports and own project nam
 
 #### Automated
 
-- [x] 6.1 `pnpm --filter @pra/integrations test s3-blob-store` passes against MinIO
-- [x] 6.2 `createBlobStore` picks S3 only with `S3_BUCKET`
-- [x] 6.3 `pnpm verify` passes
+- [x] 6.1 `pnpm --filter @pra/integrations test s3-blob-store` passes against MinIO — 9fc9ef9
+- [x] 6.2 `createBlobStore` picks S3 only with `S3_BUCKET` — 9fc9ef9
+- [x] 6.3 `pnpm verify` passes — 9fc9ef9
 
 ### Phase 7: CSRF guard
 
 #### Automated
 
-- [ ] 7.1 `pnpm --filter @pra/api test csrf` passes
-- [ ] 7.2 `pnpm verify` passes
+- [x] 7.1 `pnpm --filter @pra/api test csrf` passes
+- [x] 7.2 `pnpm verify` passes
 
 ### Phase 8: Sentry and OpenTelemetry
 

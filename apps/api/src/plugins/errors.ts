@@ -5,6 +5,8 @@ import type { FastifyError } from 'fastify';
 export const ApiErrorCode = {
   InvalidRequest: 'invalid_request',
   InternalError: 'internal_error',
+  /** A state-changing request without `X-PRA-Request: 1` and a same-host `Origin` (csrf.ts). */
+  CsrfRejected: 'csrf_rejected',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
@@ -16,7 +18,7 @@ export type ApiErrorBody = {
   };
 };
 
-function errorBody(code: ApiErrorCode, params: Record<string, unknown> = {}): ApiErrorBody {
+export function errorBody(code: ApiErrorCode, params: Record<string, unknown> = {}): ApiErrorBody {
   return { error: { code, params } };
 }
 

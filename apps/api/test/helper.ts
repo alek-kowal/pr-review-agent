@@ -24,4 +24,10 @@ async function build(deps: Partial<AppDeps> = {}): Promise<FastifyInstance> {
   return app;
 }
 
-export { build };
+/**
+ * Headers the web client sends on state-changing calls; `inject` uses `Host: localhost:80`. The
+ * CSRF guard (src/plugins/csrf.ts) rejects a POST, PUT, PATCH or DELETE without them.
+ */
+const SAME_ORIGIN = { 'x-pra-request': '1', origin: 'http://localhost' } as const;
+
+export { build, SAME_ORIGIN };
