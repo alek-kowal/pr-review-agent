@@ -217,8 +217,11 @@ class UsageMeter {
     return total;
   }
 
+  /** Priced per message: a long-prompt rate applies to that request only. */
   get costUsd(): number {
-    return costOf(this.#model, this.usage);
+    let total = 0;
+    for (const usage of this.#byMessage.values()) total += costOf(this.#model, usage);
+    return total;
   }
 }
 
