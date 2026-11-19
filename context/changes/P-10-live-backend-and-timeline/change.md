@@ -34,3 +34,15 @@ are added per task below.
 - `run-round.test.ts` (P-05): the stage-timeout double now also resolves when the signal is
   already aborted. Under full-suite load the worktree setup outlasted the 180 ms timeout, the
   double waited the 30 s grace, and the worker's next jobs timed out.
+
+### S-03-T2 (SSE)
+
+- `GET /api/live` lives in `routes/api/live/index.ts`; the hub (`src/live/hub.ts`) and its one
+  `listenChanges` subscription in the `live` plugin. The subscription starts with the first
+  client and closes with the app; the route writes `: connected` only after LISTEN is active.
+- Messages: `event: change` with `{ table, id, prId, runId }`, `event: resync` after the listener
+  reconnects (changes in the gap are lost), `: heartbeat` every 15 s while a client is connected.
+- `AppDeps.live?: LiveHub` (default: a new hub) so tests can count clients; the app plugin is
+  encapsulated, so its decorations are not visible on the test's root instance.
+- A `preClose` hook ends open streams; otherwise `app.close()` would wait for them.
+- The route is hidden from the OpenAPI document (an event stream, not JSON).
