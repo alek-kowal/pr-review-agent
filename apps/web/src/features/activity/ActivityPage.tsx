@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { copy } from '@/copy/index.ts';
 import { clock, money } from '@/copy/format.ts';
+import { usePauseNames, waitText } from '@/features/budget/wait-text.ts';
 import { RunDetailsLink } from '@/features/runs/RunDetailsLink.tsx';
 import { ApiError } from '@/lib/api.ts';
 import type { InProgressRun } from '@/lib/api-types.ts';
@@ -96,7 +97,9 @@ function InProgressSection() {
 function InProgressRow({ run }: { run: InProgressRun }) {
   const t = copy.activity.inProgress;
   const pr = run.pullRequest;
-  const queued = run.status === 'queued';
+  // A started run that waits before an agent session reads as queued too (S-10).
+  const queued = run.status === 'queued' || Boolean(run.wait);
+  const names = usePauseNames();
   return (
     <tr data-run={run.id} data-status={run.status}>
       <td className="px-4 py-2.5">
@@ -114,7 +117,7 @@ function InProgressRow({ run }: { run: InProgressRun }) {
       </td>
       <td className="px-3 py-2.5" data-testid="run-stage">
         {queued ? (
-          <span className="text-text-2">{t.queued}</span>
+          <span className="text-text-2">{waitText(run.wait ?? null, names)}</span>
         ) : (
           <span className="flex items-center gap-2">
             <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-brand" />

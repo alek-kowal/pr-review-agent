@@ -13,6 +13,7 @@ import {
   sendJob,
   stageExecutionsOfRun,
   unprocessedGithubEvents,
+  type Run,
 } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import { resendLostFollowUps } from '../handlers/clickup-follow-up.ts';
@@ -62,6 +63,25 @@ export async function recoverRuns(deps: WorkerDeps): Promise<RecoveryResult> {
   return result;
 }
 
+/**
+ * Sends the job of the stage a queued or running run waits for: its first pending stage while
+ * queued, its next stage while running. False when there is none (the run is not active).
+ */
+export async function sendPendingStageJob(
+  deps: Pick<WorkerDeps, 'db' | 'queue'>,
+  run: Run,
+): Promise<boolean> {
+  if (run.status !== 'queued' && run.status !== 'running') return false;
+  const state = runStateOf(run, await stageExecutionsOfRun(deps.db, run.id));
+  const next =
+    state.status === 'queued'
+      ? (state.stages.find((s) => s.status === 'pending')?.key ?? null)
+      : nextStage(state);
+  if (!next) return false;
+  await sendStageJob(deps.queue, run.id, next, run);
+  return true;
+}
+
 /** Sends again every job a lost send left missing. Safe at any time: duplicates are dropped. */
 export async function resendLostJobs(
   deps: WorkerDeps,
@@ -76,15 +96,7 @@ export async function resendLostJobs(
       await finishCancel(deps, run.id);
       continue;
     }
-    const state = runStateOf(run, await stageExecutionsOfRun(db, run.id));
-    const next =
-      state.status === 'queued'
-        ? (state.stages.find((s) => s.status === 'pending')?.key ?? null)
-        : nextStage(state);
-    if (next) {
-      await sendStageJob(deps.queue, run.id, next, run);
-      result.resent.push(run.id);
-    }
+    if (await sendPendingStageJob(deps, run)) result.resent.push(run.id);
   }
 
   const events = await unprocessedGithubEvents(db, {

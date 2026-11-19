@@ -1,5 +1,5 @@
 {
-  "id": "738eb0f1-45ce-47ac-9e7f-4060dfc46534",
+  "id": "7d65c340-3c57-47f7-a6c2-a3b71fa34ae1",
   "prevId": "479ad126-310d-48f1-8ae3-a6f1d81c8c90",
   "version": "7",
   "dialect": "postgresql",
@@ -1520,42 +1520,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::text[]"
-        },
-        "retry_of": {
-          "name": "retry_of",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "retry_from": {
-          "name": "retry_from",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancel_requested_at": {
-          "name": "cancel_requested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_by": {
-          "name": "cancelled_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_by_member_id": {
-          "name": "cancelled_by_member_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancel_reason": {
-          "name": "cancel_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -1610,19 +1574,6 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
-        },
-        "runs_retry_of_runs_id_fk": {
-          "name": "runs_retry_of_runs_id_fk",
-          "tableFrom": "runs",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "retry_of"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1640,14 +1591,6 @@
         "runs_started_by": {
           "name": "runs_started_by",
           "value": "\"runs\".\"started_by\" in ('member', 'bot', 'hand')"
-        },
-        "runs_cancelled_by": {
-          "name": "runs_cancelled_by",
-          "value": "\"runs\".\"cancelled_by\" in ('member', 'bot', 'hand')"
-        },
-        "runs_cancel_reason": {
-          "name": "runs_cancel_reason",
-          "value": "\"runs\".\"cancel_reason\" in ('by_hand', 'pr_closed')"
         },
         "runs_started_by_member": {
           "name": "runs_started_by_member",
@@ -1731,12 +1674,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "reused_from_stage_id": {
-          "name": "reused_from_stage_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -1752,19 +1689,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "stage_executions_reused_from_stage_id_stage_executions_id_fk": {
-          "name": "stage_executions_reused_from_stage_id_stage_executions_id_fk",
-          "tableFrom": "stage_executions",
-          "tableTo": "stage_executions",
-          "columnsFrom": [
-            "reused_from_stage_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -3097,6 +3021,64 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.run_waits": {
+      "name": "run_waits",
+      "schema": "",
+      "columns": {
+        "run_id": {
+          "name": "run_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "admitted_at": {
+          "name": "admitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "waiting_since": {
+          "name": "waiting_since",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "run_waits_run_id_runs_id_fk": {
+          "name": "run_waits_run_id_runs_id_fk",
+          "tableFrom": "run_waits",
+          "tableTo": "runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

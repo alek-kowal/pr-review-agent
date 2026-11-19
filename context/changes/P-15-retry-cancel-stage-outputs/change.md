@@ -110,6 +110,17 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
 - **Merge with main (P-19).** Main's `0014_pr_checks` is kept; ours is regenerated as
   `0015_retry_cancel` (the same statements as the old 0014 and 0015). The PR page's main actions
   hold retry, cancel and P-19's merge side by side.
+- **Merge with main (P-16, pause, budget and queue).** Main's `0015_pause_budget_queue` and its
+  snapshot are kept; ours is regenerated as `0016_retry_cancel` (SQL identical to the old 0015).
+  `JOBS` holds both `reconcile` (cron `RECONCILE_CRON`) and `run.drain` (every minute), each with
+  its queue settings; the worker registers and schedules both, and listens for cancels before
+  recovery. `resendLostJobs` finishes a missed cancel first, then uses P-16's
+  `sendPendingStageJob`, which now passes the run so the stage job keeps the level's expiry. The
+  PR state's active run keeps our `retryFrom` and takes P-16's queue cause (`queueCauseOf`). Main
+  actions hold retry, cancel and resume. A cancelled run frees its slot through P-16's
+  `runCancelled` hook (`wakeQueueOnRunEnd`); a retry run is queued, so P-16's start gates apply to
+  it. `routeTree.gen.ts` was regenerated (`vite build`): main's `settings.budget` route, no diff.
+  The activity test fixture gained `wait: null` (P-16's new `InProgressRun` field).
 - **Retry is keyed by run id** (`POST /api/runs/:id/retry`, 201 `{run: {id, fromStage}}`); the
   banner retries `view.latestRound.id`, which is the failed round while the state is Stage failed.
   The stage a retry starts from is stored (`runs.retry_from`) rather than re-derived, so the PR

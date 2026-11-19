@@ -22,8 +22,8 @@ test('the first person adds themselves, then signs adding the next one', async (
     return route.fulfill({ json: { members } });
   });
 
-  await page.goto('/settings');
-  await expect(page).toHaveURL(/\/settings\/team$/);
+  // Settings opens on its first page (Budget & status); Team is its own link.
+  await page.goto('/settings/team');
   await expect(page.getByRole('heading', { name: 'Team', level: 1 })).toBeVisible();
   await expect(page.getByText('Nobody is in Team yet.')).toBeVisible();
 

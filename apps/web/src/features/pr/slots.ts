@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { MainActionCode } from '@pra/core';
 import type { NextStepView, PrView } from '@/lib/api-types.ts';
+import { ResumeAction } from '@/features/budget/ResumeAction.tsx';
 import { ChangeTypePanel } from '@/features/checks/ChangeTypePanel.tsx';
 import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
 import { MergeAction } from '@/features/merge/MergeAction.tsx';
@@ -29,6 +30,7 @@ export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActi
   approve_sensitive: SensitiveAction,
   retry: RetryAction,
   cancel: CancelAction,
+  resume: ResumeAction,
   merge: MergeAction,
 };
 

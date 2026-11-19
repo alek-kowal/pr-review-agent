@@ -23,6 +23,8 @@ export const JOBS = {
   clickupFollowUp: 'clickup.follow-up',
   /** The reconcile poll over every connected repository (cron `RECONCILE_CRON`). */
   reconcile: 'reconcile',
+  /** Starts queued runs that may start now, oldest first, and refreshes why the others wait. */
+  runDrain: 'run.drain',
 } as const;
 
 /** Every 10 minutes (OQ18): the poll that corrects what webhooks missed (S-03-T14). */
@@ -38,6 +40,7 @@ export interface JobPayloads {
   'github.comment': { runId: number };
   'clickup.follow-up': { batchId: number };
   reconcile: Record<string, never>;
+  'run.drain': Record<string, never>;
 }
 
 type QueueSettings = Omit<QueueDefinition, 'name'>;
@@ -59,7 +62,14 @@ export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   'clickup.follow-up': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
   // A failed poll is not retried: the next one comes 10 minutes later.
   reconcile: { retryLimit: 0 },
+  // One drain runs at a time and one more waits: wakes during a drain are merged into the next.
+  'run.drain': { policy: 'stately', retryLimit: 1 },
 };
+
+/** Wakes the queue drainer (after a status change, a freed slot, and every minute). */
+export function sendDrainJob(queue: Queue): Promise<string | null> {
+  return sendJob(queue, JOBS.runDrain, {});
+}
 
 /** A follow-up job waits this long, so the decision's Undo (offered for 10 s) creates no task. */
 export const FOLLOW_UP_DELAY_SECONDS = 15;

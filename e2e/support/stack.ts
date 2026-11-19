@@ -8,10 +8,12 @@ import {
   closeDb,
   createDb,
   createQueue,
+  getAppSettings,
   getPullRequest,
   getRepositoryByFullName,
   importInstructionV1,
   upsertRepository,
+  writeAppSettings,
   type Db,
 } from '@pra/db';
 import type { PullRequestFreshState } from '@pra/integrations';
@@ -412,6 +414,9 @@ for (const [fileKey, content] of [
   await importInstructionV1(db, { scope: 'global', fileKey, content });
 }
 await seedInsightsHistory(db);
+// Specs run in parallel on one stack: with every agent slot open no round waits for another
+// spec's (pause-budget.spec.ts covers the queue). 20 is the most Settings allows.
+await writeAppSettings(db, { ...(await getAppSettings(db)).value, agentSlots: 20 });
 
 // One ClickUp double for the api and the worker, like one key on one server.
 const clickup = new FakeClickUpGateway({ tasks: Object.values(CLICKUP_TASKS) });

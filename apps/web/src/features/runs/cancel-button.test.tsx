@@ -59,6 +59,7 @@ describe('Cancel', () => {
       costUsd: 0,
       createdAt: '2026-11-19T10:00:00.000Z',
       startedAt: null,
+      wait: null,
       pullRequest: { repository: { slug: 'wb' }, number: 12, title: 'Add node grouping' },
     };
     const { calls } = stubFetch({

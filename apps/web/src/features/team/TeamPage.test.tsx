@@ -35,7 +35,7 @@ async function pickSigner(dialog: HTMLElement, name: string) {
 describe('Settings → Team', () => {
   test('lists the members in the Settings shell', async () => {
     stubFetch({ '/api/team': { members: [kasia, tomek] } });
-    renderApp('/settings');
+    renderApp('/settings/team');
 
     const table = await screen.findByRole('table', { name: t.tableLabel });
     const rows = within(table).getAllByRole('row').slice(1);

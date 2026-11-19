@@ -66,6 +66,10 @@ export const ApiErrorCode = {
   ClickupAuthFailed: 'clickup_auth_failed',
   /** ClickUp did not answer as expected. */
   ClickupError: 'clickup_error',
+  /** `POST /api/status/pause` while PR Review Agent is already paused. */
+  AlreadyPaused: 'already_paused',
+  /** `POST /api/status/resume` while PR Review Agent is running. */
+  NotPaused: 'not_paused',
   /** The typed PR number is not this PR's number. */
   MergeNumberMismatch: 'merge_number_mismatch',
   /** The PR's head is not the reviewed commit (`params.reviewedSha`, `params.headSha`). */
