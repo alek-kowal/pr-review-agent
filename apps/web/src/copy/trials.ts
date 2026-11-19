@@ -36,7 +36,9 @@ export const trials = {
     draft: (fileKey: string, version: number) => `${fileKey} v${version}`,
     startedByHand: 'Started by hand',
   },
+  // A trial's status, and each run's on the Compare page.
   status: {
+    queued: 'Queued',
     running: 'Running',
     completed: 'Finished',
     failed: 'Failed',
@@ -62,9 +64,7 @@ export const trials = {
     none: 'None',
     finding: (file: string, line: number | null) => (line === null ? file : `${file}:${line}`),
     diffLabel: (fileKey: string, before: number | null, after: number) =>
-      before === null
-        ? `${fileKey}: draft v${after}`
-        : `${fileKey}: v${before} → draft v${after}`,
+      before === null ? `${fileKey}: draft v${after}` : `${fileKey}: v${before} → draft v${after}`,
     activate: (version: number) => `Go to activate version ${version}`,
     noLongerDraft: (version: number, status: string) =>
       `Version ${version} is no longer a draft (${status}).`,

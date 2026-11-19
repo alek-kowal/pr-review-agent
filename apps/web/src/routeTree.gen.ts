@@ -23,6 +23,8 @@ import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
 import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
+import { Route as SettingsExperimentsIndexRouteImport } from './routes/settings.experiments.index.tsx'
+import { Route as SettingsExperimentsIdRouteImport } from './routes/settings.experiments.$id.tsx'
 import { Route as SettingsInstructionsIndexRouteImport } from './routes/settings.instructions.index.tsx'
 import { Route as SettingsInstructionsIdRouteImport } from './routes/settings.instructions.$id.tsx'
 import { Route as SettingsRepositoriesIndexRouteImport } from './routes/settings.repositories.index.tsx'
@@ -99,6 +101,17 @@ const PrRepoNumberRoute = PrRepoNumberRouteImport.update({
   path: '/pr/$repo/$number',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsExperimentsIndexRoute =
+  SettingsExperimentsIndexRouteImport.update({
+    id: '/experiments/',
+    path: '/experiments/',
+    getParentRoute: () => SettingsRoute,
+  } as any)
+const SettingsExperimentsIdRoute = SettingsExperimentsIdRouteImport.update({
+  id: '/experiments/$id',
+  path: '/experiments/$id',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsInstructionsIndexRoute =
   SettingsInstructionsIndexRouteImport.update({
     id: '/instructions/',
@@ -143,9 +156,11 @@ export interface FileRoutesByFullPath {
   '/insights/': typeof InsightsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
+  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute
   '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/experiments/': typeof SettingsExperimentsIndexRoute
   '/settings/instructions/': typeof SettingsInstructionsIndexRoute
   '/settings/repositories/': typeof SettingsRepositoriesIndexRoute
 }
@@ -162,9 +177,11 @@ export interface FileRoutesByTo {
   '/insights': typeof InsightsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
+  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute
   '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/experiments': typeof SettingsExperimentsIndexRoute
   '/settings/instructions': typeof SettingsInstructionsIndexRoute
   '/settings/repositories': typeof SettingsRepositoriesIndexRoute
 }
@@ -184,9 +201,11 @@ export interface FileRoutesById {
   '/insights/': typeof InsightsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
+  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute
   '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
   '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
   '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/experiments/': typeof SettingsExperimentsIndexRoute
   '/settings/instructions/': typeof SettingsInstructionsIndexRoute
   '/settings/repositories/': typeof SettingsRepositoriesIndexRoute
 }
@@ -207,9 +226,11 @@ export interface FileRouteTypes {
     | '/insights/'
     | '/settings/'
     | '/pr/$repo/$number'
+    | '/settings/experiments/$id'
     | '/settings/instructions/$id'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/experiments/'
     | '/settings/instructions/'
     | '/settings/repositories/'
   fileRoutesByTo: FileRoutesByTo
@@ -226,9 +247,11 @@ export interface FileRouteTypes {
     | '/insights'
     | '/settings'
     | '/pr/$repo/$number'
+    | '/settings/experiments/$id'
     | '/settings/instructions/$id'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/experiments'
     | '/settings/instructions'
     | '/settings/repositories'
   id:
@@ -247,9 +270,11 @@ export interface FileRouteTypes {
     | '/insights/'
     | '/settings/'
     | '/pr/$repo/$number'
+    | '/settings/experiments/$id'
     | '/settings/instructions/$id'
     | '/settings/repositories/$id'
     | '/settings/repositories/connect'
+    | '/settings/experiments/'
     | '/settings/instructions/'
     | '/settings/repositories/'
   fileRoutesById: FileRoutesById
@@ -364,6 +389,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrRepoNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/experiments/': {
+      id: '/settings/experiments/'
+      path: '/experiments'
+      fullPath: '/settings/experiments/'
+      preLoaderRoute: typeof SettingsExperimentsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/experiments/$id': {
+      id: '/settings/experiments/$id'
+      path: '/experiments/$id'
+      fullPath: '/settings/experiments/$id'
+      preLoaderRoute: typeof SettingsExperimentsIdRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/instructions/': {
       id: '/settings/instructions/'
       path: '/instructions'
@@ -424,9 +463,11 @@ interface SettingsRouteChildren {
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  SettingsExperimentsIdRoute: typeof SettingsExperimentsIdRoute
   SettingsInstructionsIdRoute: typeof SettingsInstructionsIdRoute
   SettingsRepositoriesIdRoute: typeof SettingsRepositoriesIdRoute
   SettingsRepositoriesConnectRoute: typeof SettingsRepositoriesConnectRoute
+  SettingsExperimentsIndexRoute: typeof SettingsExperimentsIndexRoute
   SettingsInstructionsIndexRoute: typeof SettingsInstructionsIndexRoute
   SettingsRepositoriesIndexRoute: typeof SettingsRepositoriesIndexRoute
 }
@@ -435,9 +476,11 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  SettingsExperimentsIdRoute: SettingsExperimentsIdRoute,
   SettingsInstructionsIdRoute: SettingsInstructionsIdRoute,
   SettingsRepositoriesIdRoute: SettingsRepositoriesIdRoute,
   SettingsRepositoriesConnectRoute: SettingsRepositoriesConnectRoute,
+  SettingsExperimentsIndexRoute: SettingsExperimentsIndexRoute,
   SettingsInstructionsIndexRoute: SettingsInstructionsIndexRoute,
   SettingsRepositoriesIndexRoute: SettingsRepositoriesIndexRoute,
 }

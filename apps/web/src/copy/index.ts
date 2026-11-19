@@ -12,6 +12,7 @@ import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
 import { status } from './status.ts';
 import { timeline } from './timeline.ts';
+import { trials } from './trials.ts';
 
 export const copy = {
   app: {
@@ -244,11 +245,14 @@ export const copy = {
       'This version changed in the meantime. Reload the page to see the current versions.',
     instruction_copy_exists: 'This copy already exists.',
     instruction_no_active: 'The file has no active version to copy.',
+    trial_needs_draft: 'Only a draft version can be tried. Save a draft first.',
+    trial_not_found: 'This trial does not exist.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity,
   insights,
   instructions,
+  trials,
   settings: {
     title: 'Settings',
     placeholder: 'Settings arrive in a later slice.',

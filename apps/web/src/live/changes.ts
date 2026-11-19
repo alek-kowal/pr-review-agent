@@ -32,6 +32,8 @@ export const QUERY_FAMILIES = {
   activity: (key) => key[0] === 'activity',
   status: (key) => key[0] === 'status',
   run: (key, change) => key[0] === 'run' && (change.runId === null || key[1] === change.runId),
+  /** Trials and their Compare pages: a trial's status and buckets follow its two runs. */
+  trials: (key) => key[0] === 'trials',
   prView: (key, change, context) =>
     isPrKey(key) && key.length === 3 && samePr(key, change, context),
   prFindings: (key, change, context) =>
@@ -51,7 +53,7 @@ export type QueryFamilyKey = keyof typeof QUERY_FAMILIES;
  */
 export const LIVE_TARGETS: Record<string, readonly QueryFamilyKey[]> = {
   pull_requests: ['board', 'prView', 'activity'],
-  runs: ['run', 'prView', 'board', 'activity'],
+  runs: ['run', 'prView', 'board', 'activity', 'trials'],
   stage_executions: ['run', 'prView', 'activity'],
   agent_sessions: ['run', 'prView', 'activity', 'status'],
   findings: ['prFindings', 'prView', 'board'],

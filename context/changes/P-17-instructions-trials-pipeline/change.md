@@ -49,5 +49,8 @@ decide and record).
 - **Compare rule.** Findings match on file, lines within 3 of each other (a finding without a line
   matches any line) and the title in lower case without punctuation or accents; closest pairs
   match first, one to one.
+- **Try on a PR picks from the board.** The dialog offers the board's open PRs (drafts included);
+  a repository file offers only its repository's PRs. The trial opens its Compare page. A run
+  change invalidates the trial queries (live family `trials`), so Compare fills in by itself.
 - **Tests and global files.** Test files share one database, so a test that reads global
   instruction files filters to its own rows or uses its own `createTestDatabase()`.
