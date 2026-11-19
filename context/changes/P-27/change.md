@@ -10,7 +10,8 @@ archived_at: null
 ## Notes
 
 Orchestrator task P-27. Target: Mikrus `wojtek118`, unprivileged LXC (no KVM), Ubuntu 24.04,
-1 vCPU, 4 GB RAM (about 3.5 GB free, no swap), 27 GB disk, Docker 29 (runc; runsc maybe later),
+1 vCPU, 4 GB RAM (about 3.5 GB free, no swap), 27 GB disk, Docker 29 (runc; gVisor does not work
+there, see Decisions),
 nginx on :80 behind the Mikrus proxy (Cytrus, TLS, routes `*.mikrus.dev` by `server_name`).
 Nothing here connects to the VPS. One commit per step.
 
@@ -75,3 +76,41 @@ copies every package (about 1.5 GB of `node_modules` per run on WB).
   directly. Postgres stays in Compose (image already on the host, its own volume).
 - **Code reaches the server by `git push` over SSH** into a bare repository there, so the
   server needs no GitHub credentials and deploys exactly the local commit.
+- **runc with resource caps on Mikrus; gVisor only on a KVM VM later.** Tested on the VPS by
+  the orchestrator (runsc release-20261116.0): `docker run --runtime=runsc` fails with
+  `configuring device cgroup: loading device filter: operation not permitted`, because an
+  unprivileged LXC cannot load the cgroup device BPF filter. The only workaround,
+  `runsc --ignore-cgroups`, drops the memory and CPU caps this 1 vCPU / 4 GB box needs. It was
+  rolled back; the server is clean. `pra.env` sets `SANDBOX_RUNTIME=runc`; bootstrap installs no
+  gVisor. Recorded in `docs/deploy-mikrus.md`.
+- **The deploy builds on the server, without a type check.** `remote-deploy.sh` (piped over
+  SSH, so the deployed commit's own version runs) installs, builds api and worker with
+  `tsc --noCheck` (the commit passed `pnpm verify`; a full check on 1 vCPU is slow and costs
+  memory), builds the SPA into `web/releases/<commit>`, runs `pnpm db:migrate` before the restart
+  (migrations stay a deploy step, never a start step), then swaps the `web/current` link. Three
+  SPA builds are kept so open tabs still load their hashed assets. A lock file stops two deploys,
+  and a deploy refuses to start below 2 GiB free.
+- **All app settings in `/etc/pra/pra.env`, linked as the checkout's `.env`.** systemd reads it
+  for the services, and the CLIs (`db:migrate`, `data:cleanup`, `sandbox:bench`) read the same
+  file through `--env-file-if-exists=.env`, so a hand-run CLI never falls back to `.data`. The
+  units set only what belongs to the process: `NODE_ENV`, `HOST`, `PORT`, `TRUST_PROXY`,
+  `WORKER_HEARTBEAT_FILE`.
+- **Health restarts one service, and root runs only `systemctl`.** `pra-health@api|worker`
+  (user `pra`, every minute) fails when `/health` does not answer or the heartbeat is older than
+  90 s, and `OnFailure` starts `pra-restart@<same>`, which restarts only that service (at most 3
+  times in 30 minutes). A 503 (database down) is logged, not restarted: a restart would not help.
+  A stopped service or one up for less than 90 s is skipped. Unit files are root-owned copies,
+  never links into the checkout `pra` owns; sudo lets `pra` restart exactly the two services.
+- **Sandbox containers left by a stopped worker are removed when the worker starts**
+  (`ExecStartPre`, label `pra.sandbox`): one worker runs per host, so any such container is an
+  orphan. The nightly cleanup also prunes stopped ones and dangling images.
+- **Memory pressure order.** `OOMScoreAdjust` 300 for the worker (its Claude Code processes
+  inherit it) and 100 for the api, so the kernel spares Postgres. No `MemoryMax`: cgroup limits
+  in an unprivileged LXC are not reliable, and the sandbox has its own Docker cap. Defaults stay
+  (3 stages, 2048 MB per container); docs name the levers once `sandbox:bench` has run on the
+  real repository.
+- **nginx gate details.** Only `location = /webhooks/github` skips basic auth (25 MB bodies, like
+  the api's limit); `/health` stays behind the gate (the timers check it on loopback). nginx
+  overwrites `X-Forwarded-Host` and drops `Authorization` so the api never logs the gate login.
+- **Backups are on the same disk** (pg_dump custom format, 14 days). Copying them off the server
+  is a manual step in the docs, not automated: that would need a second host or account.

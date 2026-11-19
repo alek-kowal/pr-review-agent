@@ -1,0 +1,37 @@
+# Postgres for the Mikrus VPS (P-27). Only the database runs in Docker here; api and worker are
+# systemd services from the checkout (see docs/deploy-mikrus.md). Start it once with
+#   docker compose -f deploy/mikrus/compose.yaml up -d
+# The password comes from /etc/pra/db.env (POSTGRES_PASSWORD=...), written at bootstrap.
+name: pra-mikrus
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    env_file:
+      - path: /etc/pra/db.env
+        required: true
+    environment:
+      POSTGRES_USER: pra
+      POSTGRES_DB: pra
+    # Loopback only: api, worker and the backup timer connect from the host.
+    ports:
+      - '127.0.0.1:5432:5432'
+    # Small host (4 GB, no swap): modest buffers, few connections (api + worker pools + CLIs).
+    command: ['postgres', '-c', 'shared_buffers=128MB', '-c', 'max_connections=40']
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pra -d pra']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Docker's default json-file log never rotates.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+volumes:
+  pg-data:

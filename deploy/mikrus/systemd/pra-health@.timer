@@ -1,0 +1,11 @@
+# Every minute: `systemctl enable --now pra-health@api.timer pra-health@worker.timer`.
+[Unit]
+Description=PR Review Agent health check timer (%i)
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

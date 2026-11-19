@@ -1,0 +1,11 @@
+# Health check of one service (P-27): pra-health@api or pra-health@worker, run by the matching
+# timer. A failed check starts pra-restart@<instance>, which restarts only that service.
+[Unit]
+Description=PR Review Agent health check (%i)
+OnFailure=pra-restart@%i.service
+
+[Service]
+Type=oneshot
+User=pra
+Group=pra
+ExecStart=/bin/bash /srv/pra/app/deploy/mikrus/bin/health.sh %i
