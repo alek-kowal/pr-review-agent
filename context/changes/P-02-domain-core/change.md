@@ -80,3 +80,10 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   that keeps its round number. A round 1 is `newChain` when any earlier round exists.
 - Reason codes share one namespace, so codes are unique across families: the round rules own
   `draft`, `fork`, `pr_closed`; the PR state banners and autofix holds use their own codes.
+- T8: `planRun({ kind, level, roundKind, roundNumber })` builds a queued run with its stage plan
+  (rounds and trials from `stagesFor`; implementer `worktree`, `implement`, `reproductions` from
+  the prototype's `stepsFor('fix')`; analyst `analyse`). `completeStage` completes the run when no
+  stage is pending. `cancelRun` fails a running stage with `cancelled`. `retryFromStage` puts the
+  run back to `queued` (it passes the start gates again), adds one to `attempt`, and records
+  `retryFrom`. `recoverAfterRestart` leaves a running run between stages unchanged, because the
+  next stage's pg-boss job is durable. Stages must start in plan order (`stage_out_of_order`).
