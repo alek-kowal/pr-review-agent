@@ -57,6 +57,12 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   new or differ.
 - **Reconcile is a pg-boss cron** (`reconcile` job, `*/10 * * * *`) scheduled by the worker at
   start.
+- **Retry is keyed by run id** (`POST /api/runs/:id/retry`, 201 `{run: {id, fromStage}}`); the
+  banner retries `view.latestRound.id`, which is the failed round while the state is Stage failed.
+  The stage a retry starts from is stored (`runs.retry_from`) rather than re-derived, so the PR
+  banner and Run detail read it directly.
+- **Stage failed banner text** ends with "This round is not counted"; a `stage_timeout` reads
+  "Review stage timed out after 30 min" with the level's stage timeout.
 - **Change type route is keyed** `PUT /api/prs/:repo/:number/change-type` (the existing keying,
   as P-11 did), unsigned, timeline "by hand". `large_pr`, CI counts and the install result come
   from the latest completed round's stage outputs; no new PR columns.

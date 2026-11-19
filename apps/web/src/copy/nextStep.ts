@@ -46,7 +46,9 @@ const banner: Record<string, Line> = {
   state_fixing: (p, c) =>
     `Implementer is fixing ${plural(n(p.count), 'finding')} · started by ${c.actor(p.startedBy)}`,
   state_stage_failed: (p, c) =>
-    `Round ${n(p.roundNumber)} failed at ${c.stage(String(p.stage))}: ${c.reason(String(p.errorCode))}`,
+    p.errorCode === 'stage_timeout' && p.timeoutMinutes
+      ? `${c.stage(String(p.stage))} stage timed out after ${n(p.timeoutMinutes)} min. This round is not counted`
+      : `Round ${n(p.roundNumber)} failed at ${c.stage(String(p.stage))}: ${c.reason(String(p.errorCode))}. This round is not counted`,
   state_new_commits: (p) =>
     `${plural(n(p.count), 'new commit')} since last review (${shortSha(p.reviewedSha)})`,
   state_patch_ready: (p) =>

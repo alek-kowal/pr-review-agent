@@ -3,6 +3,7 @@ import type { MainActionCode } from '@pra/core';
 import type { NextStepView, PrView } from '@/lib/api-types.ts';
 import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
 import { RoundProgress } from '@/features/round/RoundProgress.tsx';
+import { RetryAction } from '@/features/runs/RetryAction.tsx';
 import { Checklist } from './Checklist.tsx';
 import { DecideAction } from './DecideAction.tsx';
 import { StartReviewHeaderAction, StartReviewMainAction } from '@/features/rounds/StartReview.tsx';
@@ -23,6 +24,7 @@ export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActi
   decide: DecideAction,
   start_review: StartReviewMainAction,
   approve_sensitive: SensitiveAction,
+  retry: RetryAction,
 };
 
 /**

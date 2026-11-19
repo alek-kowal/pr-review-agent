@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, test } from 'vitest';
@@ -76,15 +77,15 @@ const FIXTURES: {
       tone: 'failed',
       banner: {
         code: 'state_stage_failed',
-        params: { stage: 'review', errorCode: 'stage_timeout', roundNumber: 1 },
+        params: { stage: 'review', errorCode: 'stage_timeout', roundNumber: 1, timeoutMinutes: 30 },
       },
       who: { code: 'who_anyone_can_retry', params: {} },
       mainAction: { ...action('retry'), stage: 'review' },
     }),
-    title: 'Round 1 failed at Review: the stage ran out of time',
+    title: 'Review stage timed out after 30 min. This round is not counted',
     meta: 'Next step · anyone can retry',
     tone: 'bg-bad-bg',
-    button: null,
+    button: 'Retry from Review',
   },
   {
     name: 'ready',
@@ -108,7 +109,11 @@ describe('the Next step banner', () => {
     '$name: copy, tone and main action',
     ({ step, title, meta, tone, button }) => {
       const view = aPrView({ nextStep: step, author: anAuthor({ name: 'Kasia', memberId: 'm1' }) });
-      render(<NextStepBanner repo="wb" number="12" view={view} />);
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <NextStepBanner repo="wb" number="12" view={view} />
+        </QueryClientProvider>,
+      );
 
       const banner = screen.getByRole('region', { name: copy.nextStep.label });
       expect(within(banner).getByRole('heading', { level: 2 })).toHaveTextContent(title);

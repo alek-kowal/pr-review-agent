@@ -72,6 +72,8 @@ export const timeline = {
         ? `${runShort(p)} failed at ${c.stage(String(p.stage))}: ${c.reason(String(p.errorCode ?? 'stage_error'))}`
         : `${runShort(p)} failed`,
     run_cancelled: (p) => `${runShort(p)} cancelled`,
+    run_retried: (p, c) =>
+      p.stage ? `Retry from ${c.stage(String(p.stage))} started` : `${runShort(p)} retried`,
     github_comment_posted: (p) => `GitHub comment posted: "${String(p.body ?? '')}"`,
     findings_decided: (p) =>
       `Decided ${plural(n(p.count), 'finding')}: ${DECISIONS[String(p.decision)] ?? String(p.decision)}${

@@ -426,7 +426,15 @@ export type RunStageView = {
   /** The latest attempt's stored output (the stage's readable result). */
   output: unknown;
   sessions: RunSessionView[];
+  /** A retry's copy of a stage the failed run finished (S-09-T2). */
+  reused: boolean;
 };
+
+/** A run linked by retry: the failed run a retry repeats, or the retry of a failed run. */
+export type LinkedRunView = { id: number; status: RunStatus; costUsd: number };
+
+/** `POST /api/runs/:id/retry`. */
+export type RetryRunResponse = { run: { id: number; fromStage: string } };
 
 /** `GET /api/runs/:id`. */
 export type RunDetail = {
@@ -444,6 +452,12 @@ export type RunDetail = {
     notChecked: string[];
     instructionVersions: { id: number; scope: string; fileKey: string; version: number }[];
     error: { stage: string; code: string } | null;
+    /** The failed run this run retries, with its cost up to the failure. */
+    retryOf: LinkedRunView | null;
+    /** The stage this retry started from. */
+    retryFrom: string | null;
+    /** The run that retried this failed run. */
+    retriedBy: LinkedRunView | null;
   };
   pullRequest: { repository: { slug: string }; number: number; title: string };
   /** `round_label`; null for a run that is not a round. */
