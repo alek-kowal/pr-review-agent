@@ -201,6 +201,35 @@ describe('PR snapshot sync (P sync.test.ts 33, 60, 70)', () => {
     expect(pr?.isDraft).toBe(false);
   });
 
+  test('a late delivery of a PR opened as a draft starts no round', async () => {
+    expect(await deliver('pull_request.synchronize')).toBe('push_never_starts');
+
+    expect(await deliver('pull_request.opened-draft')).toBe('draft');
+
+    expect(await runsOf(312)).toHaveLength(0);
+  });
+
+  test('a late ready delivery starts no second round 1 after the round it caused', async () => {
+    expect(await deliver('pull_request.ready_for_review')).toBe('round_started');
+    const [round] = await runsOf(312);
+    await deps.db
+      .update(schema.runs)
+      .set({ status: 'completed', finishedAt: new Date() })
+      .where(eq(schema.runs.id, round!.id));
+
+    expect(await deliver('pull_request.opened')).toBe('event_stale');
+
+    expect(await runsOf(312)).toHaveLength(1);
+  });
+
+  test('a ready delivery that arrives after a later push still starts round 1', async () => {
+    expect(await deliver('pull_request.synchronize')).toBe('push_never_starts');
+
+    expect(await deliver('pull_request.ready_for_review')).toBe('round_started');
+
+    expect(await runsOf(312)).toHaveLength(1);
+  });
+
   test('a closed PR leaves the open list and returns when reopened', async () => {
     await deliver('pull_request.opened-draft');
 

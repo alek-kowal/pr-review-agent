@@ -6,6 +6,7 @@ import {
   getPullRequest,
   getRepositoryByFullName,
   readRepositoryConfig,
+  roundCreatedSince,
   setRepositoryInstallationId,
   upsertPullRequest,
   type PullRequest,
@@ -47,7 +48,8 @@ export async function handlePullRequestEvent({
     { action },
     {
       state: pullRequest.state,
-      draft: pullRequest.isDraft,
+      // A late delivery speaks for the moment it was sent: a draft then was not ready then.
+      draft: pullRequest.isDraft || (stale && snapshot.isDraft),
       fork: pullRequest.isFork,
       level: config.defaultLevel,
     },
@@ -55,7 +57,14 @@ export async function handlePullRequestEvent({
   );
 
   let outcome: string = decision.reason.code;
-  if (decision.start) {
+  if (
+    decision.start &&
+    stale &&
+    (await roundCreatedSince(db, pullRequest.id, new Date(snapshot.updatedAt)))
+  ) {
+    // A round started after this delivery was sent already covers it.
+    outcome = 'event_stale';
+  } else if (decision.start) {
     const result = await startRound(deps, {
       pullRequest,
       level: decision.level,
