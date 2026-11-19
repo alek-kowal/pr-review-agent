@@ -34,11 +34,11 @@ export type ChangedFile = {
 
 export type GitDiff = { patch: string; files: ChangedFile[] };
 
-/** Runs a command; the default is `execa`. Tests pass a spy. */
+/** Runs a command and kills it after `timeout` ms; the default is `execa`. Tests pass a spy. */
 export type GitExec = (
   file: string,
   args: string[],
-  options: { cwd?: string; env: Record<string, string> },
+  options: { cwd?: string; env: Record<string, string>; timeout: number },
 ) => Promise<{ stdout: string }>;
 
 export type CliGitMirrorOptions = {
@@ -47,13 +47,21 @@ export type CliGitMirrorOptions = {
   /** Where to clone from; default `https://github.com/<fullName>.git`. */
   remoteUrl?: (fullName: string) => string;
   exec?: GitExec;
+  /** Per git command, default `DEFAULT_GIT_TIMEOUT_MS`. */
+  timeoutMs?: number;
 };
 
 export const DEFAULT_GIT_DIR = '.data/git';
+/**
+ * A stalled clone or fetch never ends by itself (git has no network timeout by default) and would
+ * hold its repository's lock until the worker restarts, so every git command has a deadline.
+ */
+export const DEFAULT_GIT_TIMEOUT_MS = 15 * 60_000;
 
 const NAME_SEGMENT = /^[A-Za-z0-9_.-]+$/;
 const RUN_ID = /^[A-Za-z0-9_-]+$/;
-const SHA = /^[0-9a-f]{7,64}$/i;
+/** Full object ids only (SHA-1 or SHA-256): git may read a short one as a branch or tag name. */
+const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
 
 const STATUS: Record<string, ChangedFileStatus> = {
   A: 'added',
@@ -65,7 +73,11 @@ const STATUS: Record<string, ChangedFileStatus> = {
 };
 
 const defaultExec: GitExec = async (file, args, options) => {
-  const { stdout } = await execa(file, args, { ...options, stripFinalNewline: false });
+  const { stdout } = await execa(file, args, {
+    ...options,
+    stripFinalNewline: false,
+    forceKillAfterDelay: 5_000,
+  });
   return { stdout };
 };
 
@@ -89,6 +101,7 @@ export class CliGitMirror implements GitMirror {
   readonly rootDir: string;
   readonly #remoteUrl: (fullName: string) => string;
   readonly #exec: GitExec;
+  readonly #timeoutMs: number;
   /** Git takes file locks per repository; operations on one mirror run one at a time. */
   readonly #locks = new Map<string, Promise<unknown>>();
 
@@ -96,6 +109,7 @@ export class CliGitMirror implements GitMirror {
     this.rootDir = path.resolve(options.rootDir);
     this.#remoteUrl = options.remoteUrl ?? ((fullName) => `https://github.com/${fullName}.git`);
     this.#exec = options.exec ?? defaultExec;
+    this.#timeoutMs = options.timeoutMs ?? DEFAULT_GIT_TIMEOUT_MS;
   }
 
   mirrorDir(fullName: string): string {
@@ -185,7 +199,10 @@ export class CliGitMirror implements GitMirror {
 
   async #git(gitDir: string | undefined, args: string[], token?: string): Promise<string> {
     const fullArgs = gitDir ? ['-C', gitDir, ...args] : args;
-    const { stdout } = await this.#exec('git', fullArgs, { env: gitAuthEnv(token) });
+    const { stdout } = await this.#exec('git', fullArgs, {
+      env: gitAuthEnv(token),
+      timeout: this.#timeoutMs,
+    });
     return stdout;
   }
 
@@ -235,8 +252,11 @@ export function parseChangedFiles(nameStatus: string, numstat: string): ChangedF
   const countParts = numstat.split('\0');
   let index = 0;
   for (let i = 0; i < countParts.length - 1 && index < files.length; index++) {
-    const [added, deleted, inlinePath] = countParts[i++]!.split('\t');
-    // A rename has an empty path here, followed by the old and the new path.
+    const record = countParts[i++]!;
+    const [added, deleted] = record.split('\t', 2);
+    // `added<TAB>deleted<TAB>path`; a rename has an empty path here, followed by the old and the
+    // new path. Split only twice: a path may itself start with a tab.
+    const inlinePath = record.slice(`${added}\t${deleted}\t`.length);
     if (inlinePath === '') i += 2;
     const file = files[index]!;
     file.additions = added === '-' ? null : Number(added);

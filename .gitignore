@@ -3,6 +3,9 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Private keys (the GitHub App key lives outside the repo; see deploy/README.md)
+*.pem
+*.key
 dist/
 coverage/
 *.log

@@ -55,7 +55,8 @@ export class S3BlobStore implements BlobStore {
         contentType: object.ContentType ?? DEFAULT_CONTENT_TYPE,
       };
     } catch (error) {
-      if (isNotFound(error)) return null;
+      // Only a missing key: a missing bucket (`NoSuchBucket`, also a 404) is a setup error.
+      if (errorName(error) === 'NoSuchKey') return null;
       throw error;
     }
   }
@@ -66,6 +67,7 @@ export class S3BlobStore implements BlobStore {
       await this.#client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
       return true;
     } catch (error) {
+      // A HEAD response has no body, so a missing bucket is a 404 `NotFound` here too.
       if (isNotFound(error)) return false;
       throw error;
     }
@@ -89,6 +91,10 @@ export function s3ClientConfigFromEnv(env: NodeJS.ProcessEnv): S3ClientConfig {
     ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
     ...(env.AWS_REGION ? { region: env.AWS_REGION } : {}),
   };
+}
+
+function errorName(error: unknown): string | undefined {
+  return ((error ?? {}) as { name?: string }).name;
 }
 
 function isNotFound(error: unknown): boolean {

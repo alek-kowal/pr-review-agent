@@ -8,8 +8,11 @@ export type { Logger };
 export const REDACTED = '[Redacted]';
 
 // Keys whose values never reach a log line: authorization headers, `*_API_KEY`, `*_SECRET`,
-// passwords, tokens and private keys, in env-style and camelCase spellings.
-const SECRET_KEY = /(authorization|api_?key|secret|password|token|private_?key)$/i;
+// passwords, tokens, private keys, S3 secret keys (`AWS_SECRET_ACCESS_KEY`, `secretAccessKey`),
+// `DATABASE_URL` (it holds the password) and git's `GIT_CONFIG_VALUE_<n>` (the token header),
+// in env-style and camelCase spellings.
+const SECRET_KEY =
+  /(authorization|api_?key|secret|password|token|private_?key|secret_?access_?key|database_?url|git_config_value_\d+)$/i;
 // A PEM private key, wherever it appears (e.g. a GitHub App key read from disk).
 const PRIVATE_KEY_PEM = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
 const MAX_DEPTH = 8;
