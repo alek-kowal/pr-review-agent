@@ -27,6 +27,7 @@ import { afterAll, beforeEach, describe, expect, test } from 'vitest';
 import { processGithubEvent } from '../src/handlers/github-event.ts';
 import { executeStage } from '../src/run/execute-stage.ts';
 import { sensitiveFilesGate } from '../src/run/sensitive-files.ts';
+import { startRound } from '../src/run/start-round.ts';
 import { connectRepository, createTestWorkerDeps, storeGithubEvent } from './support.ts';
 
 const MIGRATION = 'db/migrations/0001_edge_labels.sql';
@@ -34,6 +35,8 @@ const PATTERNS = [{ pattern: 'db/migrations/**', reason: 'Migrations run once on
 
 const fixture = await createGitFixture({
   feature: { ...DEFAULT_FEATURE_FILES, [MIGRATION]: 'alter table edges add column label text;\n' },
+  // After the review: the approved migration is rewritten, then an unrelated file changes.
+  fixes: [{ [MIGRATION]: 'drop table edges;\n' }, { 'README.md': 'Docs.\n' }],
 });
 const deps = await createTestWorkerDeps();
 deps.gitMirror = new CliGitMirror({
@@ -288,5 +291,57 @@ describe('sensitive files', () => {
       }),
     ).toEqual({ ok: false, reason: 'stale', version: 2 });
     expect(await files()).toEqual([expect.objectContaining({ status: 'pending' })]);
+  });
+
+  test('an approved file a later commit changes needs a person again', async () => {
+    const { run, pullRequest } = await reviewedRound();
+    await decideAll(run, pullRequest);
+    await settleSensitiveFiles(deps.db, {
+      pullRequestId: pullRequest.id,
+      version: 1,
+      action: 'approve',
+    });
+
+    /** A push, then a review started by hand on it, scanned at its start. */
+    const reviewAt = async (head: string) => {
+      await deliver('pull_request.synchronize', head);
+      const [moved] = await deps.db
+        .update(schema.pullRequests)
+        .set({ baseSha: fixture.baseSha })
+        .where(eq(schema.pullRequests.id, pullRequest.id))
+        .returning();
+      const started = await startRound(deps, {
+        pullRequestId: pullRequest.id,
+        trigger: 'manual',
+        startedBy: { kind: 'hand' },
+      });
+      if (!started.started) throw new Error(started.reason.code);
+      await sensitiveFilesGate({
+        deps,
+        run: started.run,
+        pullRequest: moved!,
+        repository,
+        stage: 'review',
+      });
+      await deps.db
+        .update(schema.runs)
+        .set({ status: 'completed', finishedAt: new Date() })
+        .where(eq(schema.runs.id, started.run.id));
+    };
+
+    await reviewAt(fixture.fixShas[0]!);
+    expect(await files()).toEqual([
+      expect.objectContaining({ status: 'pending', actor: null, headSha: fixture.fixShas[0] }),
+    ]);
+    expect((await state()).input.sensitive?.status).toBe('pending');
+
+    // Approved on the rewrite, a commit that does not touch it leaves the approval.
+    await settleSensitiveFiles(deps.db, {
+      pullRequestId: pullRequest.id,
+      version: (await pr()).sensitiveVersion,
+      action: 'approve',
+    });
+    await reviewAt(fixture.fixShas[1]!);
+    expect(await files()).toEqual([expect.objectContaining({ status: 'approved' })]);
   });
 });

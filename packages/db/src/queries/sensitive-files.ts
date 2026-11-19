@@ -130,6 +130,46 @@ export async function resetSentBackSensitiveFiles(
   });
 }
 
+/**
+ * Approved files a later commit changed wait for a person again (FR-046 approves changes, not
+ * paths). Locks the PR row first, as settling does. Returns the reopened rows.
+ */
+export async function reopenSensitiveFiles(
+  db: Transactor,
+  pullRequestId: number,
+  paths: readonly string[],
+  headSha: string,
+): Promise<SensitiveFile[]> {
+  if (paths.length === 0) return [];
+  return db.transaction(async (tx) => {
+    await tx
+      .select({ id: pullRequests.id })
+      .from(pullRequests)
+      .where(eq(pullRequests.id, pullRequestId))
+      .for('update');
+    const reopened = await tx
+      .update(sensitiveFiles)
+      .set({
+        status: 'pending',
+        actor: null,
+        memberId: null,
+        comment: null,
+        at: new Date(),
+        headSha,
+      })
+      .where(
+        and(
+          eq(sensitiveFiles.pullRequestId, pullRequestId),
+          eq(sensitiveFiles.status, 'approved'),
+          inArray(sensitiveFiles.path, [...paths]),
+        ),
+      )
+      .returning();
+    if (reopened.length > 0) await bumpVersion(tx, pullRequestId);
+    return reopened;
+  });
+}
+
 export type SettleSensitiveInput = {
   pullRequestId: number;
   /** The `sensitive_version` the person saw. */
