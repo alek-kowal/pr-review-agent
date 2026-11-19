@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull, or } from 'drizzle-orm';
-import type { Db } from '../client.ts';
+import type { Executor } from '../client.ts';
 import { instructionVersions, type InstructionScope } from '../schema/repositories.ts';
 
 export type InstructionVersion = typeof instructionVersions.$inferSelect;
@@ -13,7 +13,7 @@ export type InstructionFile =
  * says `kept`, and newer content belongs in a new version (S-22), not in the seed.
  */
 export async function importInstructionV1(
-  db: Db,
+  db: Executor,
   file: InstructionFile,
 ): Promise<{ version: InstructionVersion; imported: boolean }> {
   const repositoryId = file.scope === 'repository' ? file.repositoryId : null;
@@ -42,7 +42,7 @@ export async function importInstructionV1(
 
 /** Active instruction versions a review of this repository reads: global ones, then its own. */
 export async function activeInstructions(
-  db: Db,
+  db: Executor,
   repositoryId: number,
 ): Promise<InstructionVersion[]> {
   return db

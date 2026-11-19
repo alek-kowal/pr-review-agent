@@ -28,6 +28,8 @@ tech stack); design notes in `docs/`; the static UI prototype in `prototype/`.
   each run creates and drops its own database (`@pra/db/testing` global setup).
 - `pnpm db:migrate` applies Drizzle migrations and installs pg-boss and its queues (`JOBS`);
   `pnpm db:generate` writes a migration after a schema change.
+- `pnpm db:seed-repo <seed.json> [--instructions <dir>]` upserts a repository (e.g.
+  `packages/db/seeds/workflowbuilder.json`) and imports its instruction files as version 1.
 - `pnpm --filter @pra/worker dev`; api and worker read the root `.env`.
 
 ## Code rules

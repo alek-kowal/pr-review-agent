@@ -5,7 +5,7 @@ import {
   type RepositoryConfig,
 } from '@pra/core';
 import { asc, eq, getTableColumns, sql } from 'drizzle-orm';
-import type { Db } from '../client.ts';
+import type { Executor } from '../client.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 
 export type Repository = typeof repositories.$inferSelect;
@@ -47,7 +47,7 @@ export function readRepositoryConfig(repository: Repository): Parsed<RepositoryC
  * config; the installation id is kept unless one is given.
  */
 export async function upsertRepository(
-  db: Db,
+  db: Executor,
   rawConfig: unknown,
   options: { installationId?: number | null } = {},
 ): Promise<Repository> {
@@ -66,17 +66,17 @@ export async function upsertRepository(
   return row!;
 }
 
-export async function listRepositories(db: Db): Promise<Repository[]> {
+export async function listRepositories(db: Executor): Promise<Repository[]> {
   return db.select().from(repositories).orderBy(asc(repositories.slug));
 }
 
-export async function getRepositoryBySlug(db: Db, slug: string): Promise<Repository | null> {
+export async function getRepositoryBySlug(db: Executor, slug: string): Promise<Repository | null> {
   const [row] = await db.select().from(repositories).where(eq(repositories.slug, slug));
   return row ?? null;
 }
 
 export async function getRepositoryByFullName(
-  db: Db,
+  db: Executor,
   githubFullName: string,
 ): Promise<Repository | null> {
   // GitHub names are case-insensitive.
@@ -88,7 +88,7 @@ export async function getRepositoryByFullName(
 }
 
 export async function setRepositoryInstallationId(
-  db: Db,
+  db: Executor,
   repositoryId: number,
   installationId: number,
 ): Promise<void> {
@@ -127,7 +127,7 @@ const SNAPSHOT_COLUMNS = [
  * writes nothing and returns `changed: false`.
  */
 export async function upsertPullRequest(
-  db: Db,
+  db: Executor,
   snapshot: PullRequestSnapshot,
 ): Promise<UpsertPullRequestResult> {
   const columns = SNAPSHOT_COLUMNS.map((key) => pullRequests[key]);
@@ -166,7 +166,7 @@ export async function upsertPullRequest(
 }
 
 export async function getPullRequest(
-  db: Db,
+  db: Executor,
   repositoryId: number,
   number: number,
 ): Promise<PullRequest | null> {

@@ -55,3 +55,16 @@ checks are the plan. One commit per task.
 - `@pra/db/testing` exports row builders (`aRepositoryConfig`, `aPullRequest`, `aRun`,
   `aFinding`, `aQuestion`, `seedPullRequest`) with unique slugs, because test files share one
   database per run.
+- T3: the seed file is `{ repository, instructions: { global, repository } }`. Which files of the
+  instructions folder become global or repository version 1 is data in the seed (WB: reviewer
+  prompt and rules global, `lessons.md` and `feature-map/` per repository, OQ15), so no WB file
+  name sits in code. An entry ending in `/` takes every file under the folder (recursive, dot
+  files skipped); file keys are `/`-separated paths. A listed file that is missing fails the
+  whole seed (`instruction_file_missing`) inside one transaction, so nothing half-seeded remains.
+- T3: WB's `largePrLines` is left at the core default (1000): the prototype has no value for it
+  (core's test fixture uses 1500 only as a test value). `defaultLevel: 1` as the task says.
+- T3: relative paths given to `pnpm db:seed-repo` resolve from where pnpm was called (`INIT_CWD`).
+  Checked on a throwaway database against the real `~/Projects/wb-factory/knowledge` (read only):
+  14 files imported as version 1, a second run imported 0 and kept 14.
+- `AGENTS.md` (hot file H14) gains one command line for the seed: about 40 more tokens in every
+  agent session.

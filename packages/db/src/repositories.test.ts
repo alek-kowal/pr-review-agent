@@ -200,7 +200,7 @@ describe('app settings', () => {
 describe('instruction versions', () => {
   test('imports version 1 once, global or per repository, and lists the active ones', async () => {
     const repo = await upsertRepository(db, repoConfig());
-    const globalKey = `rules-${unique()}.md`;
+    const globalKey = `test-only/rules-${unique()}.md`;
 
     const first = await importInstructionV1(db, {
       scope: 'global',
@@ -231,7 +231,7 @@ describe('instruction versions', () => {
   });
 
   test('a file has at most one active version, and scope matches the repository', async () => {
-    const fileKey = `prompt-${unique()}.md`;
+    const fileKey = `test-only/prompt-${unique()}.md`;
     await importInstructionV1(db, { scope: 'global', fileKey, content: 'v1' });
 
     await expect(

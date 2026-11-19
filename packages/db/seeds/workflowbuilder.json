@@ -1,0 +1,41 @@
+{
+  "repository": {
+    "slug": "workflowbuilder",
+    "githubFullName": "synergycodes/workflowbuilder",
+    "defaultBranch": "main",
+    "defaultLevel": 1,
+    "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
+    "clickupSpace": "Workflow Builder",
+    "sensitivePatterns": [
+      {
+        "pattern": "packages/(sdk|ui|temporal)/src/index.ts",
+        "reason": "Public exports: the published API of a package."
+      },
+      {
+        "pattern": "packages/*/package.json",
+        "reason": "Package manifests of published packages."
+      },
+      {
+        "pattern": "packages/temporal/src/workflow/",
+        "reason": "Temporal workflow code must replay older histories."
+      },
+      {
+        "pattern": "apps/backend/drizzle/",
+        "reason": "Database migrations cannot be undone after deploy."
+      },
+      { "pattern": "deploy/", "reason": "Production deployment files." },
+      { "pattern": ".github/workflows/", "reason": "CI and release workflows." },
+      { "pattern": "CLAUDE.md", "reason": "Instructions that agents follow in this repository." },
+      { "pattern": ".claude/", "reason": "Agent commands and settings." }
+    ],
+    "changeTypeRules": {
+      "usesExistingPaths": ["apps/docs/**", "**/*.md", "**/*.spec.{ts,tsx}", "**/*.test.{ts,tsx}"],
+      "oneWayPaths": ["apps/backend/drizzle/**", "packages/*/src/index.ts", "deploy/**"],
+      "sizeLines": 800
+    }
+  },
+  "instructions": {
+    "global": ["prompt-reviewer.md", "review-rules.md"],
+    "repository": ["lessons.md", "feature-map/"]
+  }
+}
