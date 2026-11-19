@@ -5,7 +5,13 @@ import { isValidGlob } from './glob.ts';
 import { isValidTaskIdPattern } from './task-id.ts';
 import { MAX_FINDINGS } from './limits.ts';
 import { reason, type Reason } from './reason.ts';
-import { AGENT_ROLES, LEVEL_NUMBERS, type AgentRole, type LevelNumber } from './vocabulary.ts';
+import {
+  AGENT_ROLES,
+  LEVEL_NUMBERS,
+  member,
+  type AgentRole,
+  type LevelNumber,
+} from './vocabulary.ts';
 
 /**
  * Model names reach an agent runtime, so a name must not look like a flag or carry shell or
@@ -237,10 +243,14 @@ export function modelFor(
  * budget never holds (P `control.test.ts:53`: 0 means no limit).
  */
 export function holdReason(
-  settings: Pick<AppSettings, 'paused' | 'pausedReason' | 'dailyBudgetUsd'>,
+  settings: Pick<AppSettings, 'paused' | 'pausedReason' | 'dailyBudgetUsd'> &
+    Partial<Pick<AppSettings, 'pausedBy'>>,
   spentToday: number,
-): Reason | null {
-  if (settings.paused) return reason('paused', { note: settings.pausedReason });
+): Reason<'paused' | 'budget_reached'> | null {
+  if (settings.paused) {
+    const by = settings.pausedBy ? member(settings.pausedBy) : null;
+    return reason('paused', { by, note: settings.pausedReason });
+  }
   const budget = settings.dailyBudgetUsd;
   if (budget != null && budget > 0 && spentToday >= budget) {
     return reason('budget_reached', { spentUsd: spentToday, budgetUsd: budget });
