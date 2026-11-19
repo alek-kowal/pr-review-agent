@@ -323,7 +323,7 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 4.1 push-dialog.test.tsx passes
+- [x] 4.1 push-dialog.test.tsx passes
 
 ### Phase 5: S-14-T5
 

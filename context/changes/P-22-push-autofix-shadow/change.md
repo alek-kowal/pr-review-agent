@@ -55,3 +55,13 @@ questions (orchestrator rule: decide and record).
 - The endpoint stores nothing on a refusal; only the job records `pushRefusal` and the timeline
   entry. The signer is checked without a lock: the job reads it again when it runs.
 - A second click while the job waits is still 202 and adds no job (pg-boss singleton key).
+
+### S-14-T4 (push dialog)
+
+- `PushAction` (`features/patch/`) is the `push` main action; it copies the Merge dialog: typed
+  number + `SignatureField`, the form mounted per open. The patch summary reuses the Patch
+  tab's line; the file count comes from `GET /api/patches/:id` (reverted files left out).
+- Success means "queued" (202): the toast says "Pushing to <branch>" and that the fix check
+  starts when GitHub reports the commit. A failed push in the job shows on the timeline.
+- `head_moved` and `pr_number_mismatch` have their own sentences; other refusals use the shared
+  error copy (new: `pr_number_mismatch`, `patch_not_ready`, `patch_empty`).
