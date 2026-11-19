@@ -115,6 +115,12 @@ export async function getPatch(db: Executor, id: number): Promise<PatchWithFiles
   return { ...patch, files };
 }
 
+/** The patch an implementer run wrote, with its files; undefined before it completed. */
+export async function patchOfRun(db: Executor, runId: number): Promise<PatchWithFiles | undefined> {
+  const [row] = await db.select({ id: patches.id }).from(patches).where(eq(patches.runId, runId));
+  return row ? getPatch(db, row.id) : undefined;
+}
+
 /** The newest revision of each PR's patch. */
 export async function latestPatchesOf(
   db: Executor,

@@ -342,7 +342,7 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 7.1 worker autofix.test.ts passes
+- [x] 7.1 worker autofix.test.ts passes
 
 ### Phase 8: S-15-T3
 

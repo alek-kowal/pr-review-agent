@@ -1,7 +1,7 @@
 // Level 5 autofix (S-15-T1): attempts the bot made and the shadow log of levels 3–4. Each write
 // adds its Timeline entry in the same transaction (actor bot), so the PR timeline needs no join.
 import { BOT, type AutofixPoint, type Reason } from '@pra/core';
-import { and, desc, eq, gte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import {
   autofixAttempts,
@@ -131,6 +131,31 @@ export async function latestAutofixWaiting(
     .orderBy(desc(autofixAttempts.at), desc(autofixAttempts.id))
     .limit(1);
   return row?.outcome === 'waiting' ? row : null;
+}
+
+/** The banner reason of each patch whose latest autofix attempt waits (first hold), by patch id. */
+export async function autofixWaitingOf(
+  db: Executor,
+  patchIds: readonly number[],
+): Promise<Map<number, Reason>> {
+  const waiting = new Map<number, Reason>();
+  if (!patchIds.length) return waiting;
+  const rows = await db
+    .select({
+      patchId: autofixAttempts.patchId,
+      outcome: autofixAttempts.outcome,
+      reasons: autofixAttempts.reasons,
+    })
+    .from(autofixAttempts)
+    .where(inArray(autofixAttempts.patchId, [...patchIds]))
+    .orderBy(asc(autofixAttempts.at), asc(autofixAttempts.id));
+  // Oldest first: the last row of each patch is its latest attempt.
+  for (const row of rows) {
+    const first = row.reasons[0];
+    if (row.outcome === 'waiting' && first) waiting.set(row.patchId!, first);
+    else waiting.delete(row.patchId!);
+  }
+  return waiting;
 }
 
 /** Attempts of a PR in time order. */

@@ -17,5 +17,7 @@ declare module '../reason.ts' {
     not_all_fixed: { fixed: number; total: number };
     reproductions_fail: { failed: number; total: number };
     patch_touches_sensitive: { path: string; pattern: string };
+    /** A finding autofix was about to decide changed meanwhile (someone decided it). */
+    autofix_findings_changed: NoParams;
   }
 }

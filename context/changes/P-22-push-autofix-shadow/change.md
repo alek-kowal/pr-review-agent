@@ -107,6 +107,29 @@ questions (orchestrator rule: decide and record).
 - `shadowByRepository` keeps the latest entry per PR in code (the `Executor` type has no
   `selectDistinctOn`).
 
+### S-15-T2 (autofix and shadow in the worker)
+
+- Two run hooks after `timelineOnRunCompleted` (so "Round finished" and "Patch ready" come
+  first): `autofixOnRoundCompleted` (kind `round`) and `autofixOnPatchReady` (kind
+  `implementer`). A round decides only while it is still the PR's latest completed round.
+- The start input reads what the state table leaves out: the verifier's `remedy` (from
+  `finding_verifications`) and the change type (the findings round's `change_type` output, else
+  the forced one). Pause and budget are passed as false: the autofix run is created and the S-10
+  gates queue it with the pause reason, as the task asks.
+- "Nothing to fix" writes no attempt and no shadow entry (there is nothing level 5 would do).
+- The bot's Implement decisions cover only the findings nobody decided; already decided Implement
+  ones need no batch. They run in `startImplementer`'s `prepare` with the versions the check read,
+  so a finding someone decided meanwhile refuses the start (`autofix_findings_changed`) instead of
+  overwriting it. `prepare` may now return a reason; `startImplementer` also takes `trigger`
+  (`autofix`) and `afterInsert`, which records the `started` attempt in the run's transaction.
+- A refused `startImplementer` (for example `run_active`) is a `waiting` start attempt.
+- At level 5 only the bot's own patch (a run with a `start` attempt) is pushed by itself; a
+  person's patch waits for a person's push. The push check uses the PR row's head; the push job
+  checks GitHub's fresh head again.
+- The push job, with no signer, records the `pushed` attempt in the transaction that marks the
+  patch pushed, and a `waiting` attempt with the refusal when GitHub's state refuses the push.
+- Shadow push (levels 3–4, a person's patch) counts no automatic patches: a person made them all.
+
 ### P-18 review observations applied here
 
 - O3: `canPush` refuses a closed or merged PR (`pr_closed`, from GitHub's fresh state), after the

@@ -4,6 +4,7 @@
 import { BOT, canPush, member, reason, type Actor, type Reason } from '@pra/core';
 import {
   activeRunOfPr,
+  autofixStartOfRun,
   filesToPush,
   getPatch,
   getRunContext,
@@ -11,6 +12,7 @@ import {
   latestChainOf,
   markPatchPushed,
   markPushRefused,
+  recordAutofixAttempt,
   recordTimelineEntry,
 } from '@pra/db';
 import { noreplyEmail, PUSH_COMMIT_MESSAGE, type GitIdentity } from '@pra/integrations';
@@ -49,7 +51,7 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
     pullRequest.number,
     fresh.headSha,
   );
-  if (!gate.allowed) return refuse(deps, patch.id, pullRequest.id, actor, gate.reason);
+  if (!gate.allowed) return refuse(deps, job, patch, actor, gate.reason);
 
   await fetchMirror({ deps, repository, run: found.run });
   const token = repository.installationId
@@ -74,18 +76,21 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
       repository.githubFullName,
       pullRequest.number,
     );
-    return refuse(
-      deps,
-      patch.id,
-      pullRequest.id,
-      actor,
-      reason('head_moved', { headSha: now.headSha }),
-    );
+    return refuse(deps, job, patch, actor, reason('head_moved', { headSha: now.headSha }));
   }
 
   const pushed = await deps.db.transaction(async (tx) => {
     const row = await markPatchPushed(tx, patch.id, result.sha);
     if (!row) return false;
+    if (job.signedBy === null) {
+      await recordAutofixAttempt(tx, {
+        ...(await autofixPushAttempt(deps, patch)),
+        outcome: 'pushed',
+        reasons: [reason('push_conditions_met')],
+        sha: result.sha,
+        at: row.pushedAt ?? undefined,
+      });
+    }
     await recordTimelineEntry(tx, {
       pullRequestId: pullRequest.id,
       actor,
@@ -107,21 +112,44 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
 
 async function refuse(
   deps: WorkerDeps,
-  patchId: number,
-  pullRequestId: number,
+  job: PushJob,
+  patch: { id: number; pullRequestId: number; runId: number },
   actor: Actor,
   refusal: Reason,
 ): Promise<PushOutcome> {
-  await markPushRefused(deps.db, patchId, refusal);
+  await markPushRefused(deps.db, patch.id, refusal);
   await recordTimelineEntry(deps.db, {
-    pullRequestId,
+    pullRequestId: patch.pullRequestId,
     actor,
     kind: 'patch_push_refused',
-    params: { reason: refusal, patchId },
-    sourceKey: `patch:${patchId}:push-refused:${Date.now()}`,
+    params: { reason: refusal, patchId: patch.id },
+    sourceKey: `patch:${patch.id}:push-refused:${Date.now()}`,
   });
-  deps.logger.info({ patchId, reason: refusal.code }, 'patch push refused');
+  // S-15-T2: the bot's own push that GitHub's state refused leaves autofix waiting, with why.
+  if (job.signedBy === null) {
+    await recordAutofixAttempt(deps.db, {
+      ...(await autofixPushAttempt(deps, patch)),
+      outcome: 'waiting',
+      reasons: [refusal],
+    });
+  }
+  deps.logger.info({ patchId: patch.id, reason: refusal.code }, 'patch push refused');
   return { pushed: false, reason: refusal };
+}
+
+/** The push attempt of an autofix patch: its PR, chain, implementer run and patch. */
+async function autofixPushAttempt(
+  deps: WorkerDeps,
+  patch: { id: number; pullRequestId: number; runId: number },
+) {
+  const start = await autofixStartOfRun(deps.db, patch.runId);
+  return {
+    pullRequestId: patch.pullRequestId,
+    chainId: start?.chainId ?? null,
+    implementerRunId: patch.runId,
+    patchId: patch.id,
+    point: 'push' as const,
+  };
 }
 
 async function blob(
