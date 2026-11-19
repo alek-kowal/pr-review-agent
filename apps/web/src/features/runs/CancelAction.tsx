@@ -8,21 +8,25 @@ import { useCancelRun } from './cancel.ts';
 const t = copy.runs.cancel;
 
 /**
- * The banner's `cancel` action while a round is queued or running (S-09-T4): cancels the PR's
- * latest round, which is the active one. Unsigned, recorded "by hand".
+ * The banner's `cancel` action while a round is queued or running (S-09-T4), or while the
+ * implementer is fixing (S-13-T5): cancels the PR's active run. Unsigned, recorded "by hand".
  */
 export function CancelAction({ view, action }: MainActionProps) {
   const cancel = useCancelRun();
   const round = view.latestRound;
-  const active = round && (round.status === 'queued' || round.status === 'running') ? round : null;
+  const activeId =
+    view.implementer.activeRun?.id ??
+    (round && (round.status === 'queued' || round.status === 'running') ? round.id : null);
 
   return (
     <Button
       size="sm"
       variant="outline"
       title={t.hint}
-      disabled={action.disabled !== null || !active || cancel.isPending || cancel.isSuccess}
-      onClick={() => active && cancel.mutate(active.id)}
+      disabled={
+        action.disabled !== null || activeId === null || cancel.isPending || cancel.isSuccess
+      }
+      onClick={() => activeId !== null && cancel.mutate(activeId)}
     >
       <X aria-hidden="true" className="size-[13px]" />
       {t.action}

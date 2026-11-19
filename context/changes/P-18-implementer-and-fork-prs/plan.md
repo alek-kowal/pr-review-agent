@@ -72,10 +72,10 @@ Every task's "Done when" test passes, `pnpm test:e2e implement-patch.spec.ts` an
 - [x] 1 S-13-T2 patch record and gate
 - [x] 2 S-13-T3 implementer, revise and patch-check jobs
 - [x] 3 S-13-T4 implement and patch API
-- [ ] 4 S-13-T5 Implement with agent in the form and banner
+- [x] 4 S-13-T5 Implement with agent in the form and banner
 - [ ] 5 S-13-T6 Patch tab
 - [ ] 6 S-13-T7 e2e implementer flow
 - [x] 7 S-16-T1 fork run policy in core
-- [ ] 8 S-16-T2 fork policy in the worker
+- [x] 8 S-16-T2 fork policy in the worker
 - [ ] 9 S-16-T3 fork PR on board and PR page
 - [ ] 10 S-16-T4 e2e fork review

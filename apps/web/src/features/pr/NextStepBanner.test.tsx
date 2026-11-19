@@ -55,7 +55,7 @@ const FIXTURES: {
     title: '2 findings to implement',
     meta: 'Next step · usually Kasia (author)',
     tone: 'bg-warn-bg',
-    button: null,
+    button: 'Implement with agent…',
   },
   {
     name: 'running',
