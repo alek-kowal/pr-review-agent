@@ -57,7 +57,9 @@ async function startInput({ deps, run }: RunHookContext, load: PrStateLoad): Pro
     // Pause and budget do not hold autofix: its implementer run queues behind them (S-10).
     paused: false,
     budgetReached: false,
-    changeType: changeType?.changeType ?? load.pullRequest.forcedChangeType ?? null,
+    // A type a person forced wins (as in `raiseChangeType`): forcing One-way door after round 1
+    // must hold autofix at the fix check, whose findings round still says otherwise.
+    changeType: load.pullRequest.forcedChangeType ?? changeType?.changeType ?? null,
     findings,
     openQuestions: load.input.questions.filter((q) => !q.answered).length,
     commitsSinceReview: load.input.commitsSinceReview,

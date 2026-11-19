@@ -10,9 +10,11 @@ import {
   getRun,
   insertFindings,
   insertRun,
+  insertStageExecution,
   recordAutofixAttempt,
   runWaitsOf,
   schema,
+  setForcedChangeType,
   shadowOfPr,
   storePatchRevision,
   writeAppSettings,
@@ -313,6 +315,27 @@ describe('autofix at level 5', () => {
     } finally {
       await writeAppSettings(deps.db, DEFAULT_APP_SETTINGS);
     }
+  });
+
+  test("a person's forced One-way door holds autofix over the round's own change type", async () => {
+    const pr = await reviewedPr(5);
+    await insertStageExecution(deps.db, {
+      runId: pr.round.id,
+      stage: 'change_type',
+      status: 'succeeded',
+      output: { changeType: 'changes_behaviour' },
+    });
+    await setForcedChangeType(deps.db, pr.pullRequest.id, 'one_way_door');
+
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+
+    const kinds = (await runsOf(pr.pullRequest.id)).map((r) => r.kind);
+    expect(kinds).not.toContain('implementer');
+    expect((await autofixAttemptsOfPr(deps.db, pr.pullRequest.id)).at(-1)).toMatchObject({
+      point: 'start',
+      outcome: 'waiting',
+      reasons: [reason('one_way_door_hold')],
+    });
   });
 
   test('a pause after the autofix run started pushes nothing, at patch ready or in the job', async () => {
