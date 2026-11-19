@@ -4,16 +4,26 @@ import { Octokit } from '@octokit/core';
 import { Webhooks } from '@octokit/webhooks';
 import { IntegrationError, IntegrationNotConfiguredError } from '../errors.ts';
 import {
+  checkRunState,
+  ciStatusOf,
+  commitStatusState,
   GITHUB_APP_NOT_INSTALLED,
   GITHUB_ENV,
   GITHUB_NOT_CONFIGURED,
   splitFullName,
   toPullRequest,
+  type AccessibleRepository,
+  type CiCheck,
+  type CiStatus,
   type GitHubGateway,
   type GitHubPullRequest,
   type InstallationToken,
   type RawPullRequest,
 } from './github-gateway.ts';
+
+/** GitHub's largest page; check runs are read for at most `MAX_PAGES` pages. */
+const PER_PAGE = 100;
+const MAX_PAGES = 10;
 
 /** A token is replaced this long before GitHub's `expires_at`, so no call races the expiry. */
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
@@ -33,6 +43,7 @@ export class OctokitGitHubGateway implements GitHubGateway {
   readonly #now: () => number;
   readonly #tokens = new Map<number, Promise<InstallationToken>>();
   readonly #installations = new Map<string, number>();
+  readonly missingEnv: readonly string[] = [];
 
   constructor(options: OctokitGitHubGatewayOptions) {
     this.#app = new App({ appId: options.appId, privateKey: options.privateKey, Octokit });
@@ -96,6 +107,75 @@ export class OctokitGitHubGateway implements GitHubGateway {
     });
   }
 
+  async getCiStatus(fullName: string, sha: string): Promise<CiStatus> {
+    return this.#withInstallation(fullName, async (octokit) => {
+      const repo = splitFullName(fullName);
+      const checks: CiCheck[] = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data } = await octokit.request(
+          'GET /repos/{owner}/{repo}/commits/{ref}/check-runs',
+          {
+            ...repo,
+            ref: sha,
+            per_page: PER_PAGE,
+            page,
+          },
+        );
+        for (const run of data.check_runs) {
+          checks.push({ name: run.name, source: 'check_run', state: checkRunState(run) });
+        }
+        if (data.check_runs.length < PER_PAGE || checks.length >= data.total_count) break;
+      }
+      // The combined status already holds the latest state per context.
+      const { data: combined } = await octokit.request(
+        'GET /repos/{owner}/{repo}/commits/{ref}/status',
+        { ...repo, ref: sha, per_page: PER_PAGE },
+      );
+      for (const status of combined.statuses) {
+        checks.push({
+          name: status.context,
+          source: 'status',
+          state: commitStatusState(status.state),
+        });
+      }
+      return ciStatusOf(checks);
+    });
+  }
+
+  async listAccessibleRepositories(): Promise<AccessibleRepository[]> {
+    const repositories: AccessibleRepository[] = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const { data: installations } = await this.#app.octokit.request('GET /app/installations', {
+        per_page: PER_PAGE,
+        page,
+      });
+      for (const installation of installations) {
+        const account = accountName(installation.account);
+        const { token } = await this.getInstallationToken(installation.id);
+        const octokit = new Octokit({ auth: token });
+        for (let repoPage = 1; repoPage <= MAX_PAGES; repoPage++) {
+          const { data } = await octokit.request('GET /installation/repositories', {
+            per_page: PER_PAGE,
+            page: repoPage,
+          });
+          for (const repo of data.repositories) {
+            this.#installations.set(repo.full_name, installation.id);
+            repositories.push({
+              fullName: repo.full_name,
+              installationId: installation.id,
+              account,
+              defaultBranch: repo.default_branch,
+              private: repo.private,
+            });
+          }
+          if (data.repositories.length < PER_PAGE) break;
+        }
+      }
+      if (installations.length < PER_PAGE) break;
+    }
+    return repositories.sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }
+
   /**
    * Runs `call` with the repository's installation client. A cached installation goes stale when
    * the App is reinstalled (new id, old tokens revoked) or the repository leaves it; GitHub then
@@ -152,6 +232,9 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     this.missing = missing;
   }
 
+  get missingEnv(): readonly string[] {
+    return this.missing;
+  }
   verifyWebhook(): Promise<boolean> {
     return this.#fail();
   }
@@ -165,6 +248,12 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     return this.#fail();
   }
   postIssueComment(): Promise<{ id: number }> {
+    return this.#fail();
+  }
+  getCiStatus(): Promise<CiStatus> {
+    return this.#fail();
+  }
+  listAccessibleRepositories(): Promise<AccessibleRepository[]> {
     return this.#fail();
   }
 
@@ -202,6 +291,12 @@ function readKey(path: string): string {
   } catch {
     return '';
   }
+}
+
+/** An installation's account: a user or organization login, or an enterprise slug. */
+function accountName(account: unknown): string {
+  const { login, slug } = (account ?? {}) as { login?: unknown; slug?: unknown };
+  return typeof login === 'string' ? login : typeof slug === 'string' ? slug : '';
 }
 
 function statusOf(error: unknown): number | undefined {

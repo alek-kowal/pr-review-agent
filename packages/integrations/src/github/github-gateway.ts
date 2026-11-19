@@ -1,5 +1,7 @@
 /** Everything the app asks of GitHub, as the GitHub App `pr-review-agent`. */
 export interface GitHubGateway {
+  /** The App's env vars that are missing (`GITHUB_ENV`); empty when it is configured. */
+  readonly missingEnv: readonly string[];
   /** Checks `X-Hub-Signature-256` against the raw request body. A missing signature is `false`. */
   verifyWebhook(rawBody: string | Uint8Array, signature: string | undefined): Promise<boolean>;
   /** The App's installation on a repository, or `null` when the App is not installed there. */
@@ -9,6 +11,69 @@ export interface GitHubGateway {
   getPullRequest(fullName: string, number: number): Promise<GitHubPullRequest>;
   /** Posts `body` unchanged as a comment on the PR's conversation. */
   postIssueComment(fullName: string, number: number, body: string): Promise<{ id: number }>;
+  /** CI on one commit: its check runs plus its combined commit status, counted. */
+  getCiStatus(fullName: string, sha: string): Promise<CiStatus>;
+  /** Every repository the App can reach, across all its installations, sorted by full name. */
+  listAccessibleRepositories(): Promise<AccessibleRepository[]>;
+}
+
+/** A repository one of the App's installations can act on. */
+export type AccessibleRepository = {
+  fullName: string;
+  installationId: number;
+  /** The account the installation belongs to (user or organization login). */
+  account: string;
+  defaultBranch: string;
+  private: boolean;
+};
+
+export type CiState = 'passed' | 'failed' | 'pending';
+
+/** One check run or one commit status context. */
+export type CiCheck = { name: string; source: 'check_run' | 'status'; state: CiState };
+
+export type CiStatus = {
+  passed: number;
+  failed: number;
+  pending: number;
+  total: number;
+  checks: CiCheck[];
+};
+
+/** A check run's state: not completed is pending; a failing conclusion is failed. */
+export function checkRunState(run: { status: string; conclusion: string | null }): CiState {
+  if (run.status !== 'completed') return 'pending';
+  switch (run.conclusion) {
+    case 'success':
+    case 'neutral':
+    case 'skipped':
+      return 'passed';
+    case 'stale':
+    case null:
+      return 'pending';
+    default:
+      // failure, timed_out, cancelled, action_required, startup_failure
+      return 'failed';
+  }
+}
+
+/** A commit status context's state (`success`, `failure`, `error`, `pending`). */
+export function commitStatusState(state: string): CiState {
+  if (state === 'success') return 'passed';
+  if (state === 'failure' || state === 'error') return 'failed';
+  return 'pending';
+}
+
+/** Counts the checks by state. */
+export function ciStatusOf(checks: CiCheck[]): CiStatus {
+  const count = (state: CiState) => checks.filter((check) => check.state === state).length;
+  return {
+    passed: count('passed'),
+    failed: count('failed'),
+    pending: count('pending'),
+    total: checks.length,
+    checks,
+  };
 }
 
 export type InstallationToken = { token: string; expiresAt: Date };

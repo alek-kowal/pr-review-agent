@@ -1,4 +1,4 @@
-import type { AppSettings, RepositoryConfig } from '@pra/core';
+import { CHANGE_TYPES, type AppSettings, type RepositoryConfig } from '@pra/core';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -53,6 +53,8 @@ export const pullRequests = pgTable(
     isFork: boolean('is_fork').notNull(),
     state: text({ enum: PR_STATES }).notNull(),
     commitsCount: integer('commits_count').notNull(),
+    /** A change type a person forced (FR-030); it wins over the rules and skips the judge. */
+    forcedChangeType: text('forced_change_type', { enum: CHANGE_TYPES }),
     /** GitHub's dates, refreshed with every snapshot. */
     openedAt: timestamp('opened_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
@@ -60,6 +62,10 @@ export const pullRequests = pgTable(
   (t) => [
     uniqueIndex('pull_requests_repository_number').on(t.repositoryId, t.number),
     check('pull_requests_state', sql`${t.state} in ('open', 'closed', 'merged')`),
+    check(
+      'pull_requests_forced_change_type',
+      sql`${t.forcedChangeType} in ('uses_existing', 'changes_behaviour', 'one_way_door')`,
+    ),
   ],
 );
 

@@ -1,5 +1,9 @@
 /** Everything the app asks of ClickUp. Every call takes the repository's ClickUp settings first. */
 export interface ClickUpGateway {
+  /** Env vars the gateway is missing (`CLICKUP_API_KEY`); empty when it is configured. */
+  readonly missingEnv: readonly string[];
+  /** The user the API key belongs to: Settings' "Test connection". */
+  whoAmI(): Promise<ClickUpUser>;
   /** A task by its ClickUp id or custom id (e.g. `WB-123`); `null` when it does not exist. */
   getTask(settings: ClickUpSettings | null, id: string): Promise<ClickUpTask | null>;
   /**
@@ -22,6 +26,8 @@ export interface ClickUpGateway {
     task: { name: string; description: string; parentId?: string | null },
   ): Promise<{ id: string; url: string }>;
 }
+
+export type ClickUpUser = { id: string; username: string };
 
 /**
  * The repository's ClickUp settings the gateway needs (`RepositoryConfig.clickup`). `null`: the

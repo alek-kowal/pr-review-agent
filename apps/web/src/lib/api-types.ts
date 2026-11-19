@@ -6,6 +6,7 @@ import type {
   Lane,
   MainActionCode,
   PrState,
+  RepositoryConfig,
   Severity,
   Tone,
   Verdict,
@@ -193,3 +194,68 @@ export type DecisionConflict = {
   version: number;
   decision: DecisionView | null;
 };
+
+/** Every RepositoryConfig field a person sets in Settings; slug and full name come from GitHub. */
+export type RepositorySettings = Omit<RepositoryConfig, 'slug' | 'githubFullName'>;
+
+/** A connected repository: `GET /api/settings/repositories` and `/:id`. */
+export type ConnectedRepository = {
+  id: number;
+  slug: string;
+  githubFullName: string;
+  installationId: number | null;
+  config: RepositoryConfig;
+};
+
+/** A repository the GitHub App can reach that is not connected yet. */
+export type AvailableRepository = {
+  fullName: string;
+  installationId: number;
+  account: string;
+  defaultBranch: string;
+  private: boolean;
+};
+
+export type RepositoriesSettingsResponse = {
+  repositories: ConnectedRepository[];
+  available: AvailableRepository[];
+  /** Why `available` could not be listed (e.g. `github_not_configured`); null when it was. */
+  availableError: ReasonView | null;
+};
+export type RepositorySettingsResponse = { repository: ConnectedRepository };
+
+/** `GET /api/settings/integrations`. */
+export type IntegrationsResponse = {
+  github: {
+    configured: boolean;
+    missing: string[];
+    installations: { id: number; account: string; repositoryCount: number }[];
+    repositories: { fullName: string; installationId: number; account: string; private: boolean }[];
+    listError: ReasonView | null;
+    deliveries: {
+      last: {
+        deliveryId: string;
+        event: string;
+        action: string | null;
+        repositoryFullName: string | null;
+        receivedAt: string;
+        processedAt: string | null;
+      } | null;
+      last24h: number;
+      signatureFailures24h: number;
+      lastSignatureFailureAt: string | null;
+    };
+    lastReconcilePoll: string | null;
+  };
+  clickup: {
+    configured: boolean;
+    missing: string[];
+    lastCall: { at: string; ok: boolean; error: ReasonView | null } | null;
+  };
+  settings: IntegrationSettings;
+};
+export type IntegrationSettings = { afterRoundGithubComment: boolean };
+
+/** `POST /api/settings/integrations/clickup/test`. */
+export type ClickUpTestResponse =
+  { ok: true; user: { id: string; username: string } } | { ok: false; error: ReasonView };

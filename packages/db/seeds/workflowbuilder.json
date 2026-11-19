@@ -23,16 +23,40 @@
         "pattern": "apps/backend/drizzle/",
         "reason": "Database migrations cannot be undone after deploy."
       },
-      { "pattern": "deploy/", "reason": "Production deployment files." },
-      { "pattern": ".github/workflows/", "reason": "CI and release workflows." },
-      { "pattern": "CLAUDE.md", "reason": "Instructions that agents follow in this repository." },
-      { "pattern": ".claude/", "reason": "Agent commands and settings." }
+      {
+        "pattern": "deploy/",
+        "reason": "Production deployment files."
+      },
+      {
+        "pattern": ".github/workflows/",
+        "reason": "CI and release workflows."
+      },
+      {
+        "pattern": "CLAUDE.md",
+        "reason": "Instructions that agents follow in this repository."
+      },
+      {
+        "pattern": ".claude/",
+        "reason": "Agent commands and settings."
+      }
     ],
     "changeTypeRules": {
-      "usesExistingPaths": ["apps/docs/**", "**/*.md", "**/*.spec.{ts,tsx}", "**/*.test.{ts,tsx}"],
+      "usesExistingPaths": [
+        "**/*.md",
+        "**/*.mdx",
+        "**/test/**",
+        "**/tests/**",
+        "**/__tests__/**",
+        "**/e2e/**",
+        "**/*.{test,spec}.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+        ".changeset/**",
+        "apps/docs/**",
+        "apps/e2e/**"
+      ],
       "oneWayPaths": ["apps/backend/drizzle/**", "packages/*/src/index.ts", "deploy/**"],
       "sizeLines": 800
-    }
+    },
+    "largePrLines": 1500
   },
   "instructions": {
     "global": [

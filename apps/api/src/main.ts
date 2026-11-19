@@ -2,7 +2,7 @@
 // env, then the server, and listens. Postgres may be down: the pool connects lazily and the queue
 // keeps retrying in the background, so `/health` can report it.
 import { closeDb, createDb, createQueue } from '@pra/db';
-import { createBlobStore, createGitHubGateway } from '@pra/integrations';
+import { createBlobStore, createClickUpGateway, createGitHubGateway } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
 import { buildServer } from './server.ts';
 
@@ -23,6 +23,8 @@ const server = await buildServer({
   queue,
   github: createGitHubGateway(),
   blobStore: createBlobStore(),
+  // Without `CLICKUP_API_KEY` every call fails with `clickup_not_configured`.
+  clickup: createClickUpGateway(),
 });
 
 let stopping = false;

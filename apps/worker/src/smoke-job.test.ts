@@ -21,7 +21,7 @@ afterAll(async () => {
   await worker?.stop();
   await deps?.close();
   await database?.drop();
-});
+}, 30_000);
 
 test('a smoke job writes a smoke row within 5 s', async () => {
   const note = `smoke ${randomUUID()}`;

@@ -1,5 +1,5 @@
 // Worker test dependencies: doubles, temp dirs, and stored webhook deliveries.
-import { FakeAgentRunner } from '@pra/agents/testing';
+import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
 import {
   closeDb,
   createDb,
@@ -16,7 +16,9 @@ import { aRepositoryConfig, testDatabaseUrl } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
 import {
+  FakeClickUpGateway,
   FakeGitHubGateway,
+  FakeSandbox,
   githubFixture,
   type GitHubFixtureName,
 } from '@pra/integrations/testing';
@@ -31,6 +33,9 @@ import { removeTree } from '../src/stages/review/prompt.ts';
 export type TestWorkerDeps = WorkerDeps & {
   github: FakeGitHubGateway;
   agentRunner: FakeAgentRunner;
+  judge: FakeJudge;
+  sandbox: FakeSandbox;
+  clickup: FakeClickUpGateway;
   blobStore: LocalBlobStore;
   /** Closes the pool and queue it created and removes its temp dir. */
   close: () => Promise<void>;
@@ -41,12 +46,15 @@ export type TestWorkerDepsOptions = Partial<Omit<WorkerDepsInput, 'db' | 'queue'
   url?: string;
   github?: FakeGitHubGateway;
   agentRunner?: FakeAgentRunner;
+  judge?: FakeJudge;
+  sandbox?: FakeSandbox;
+  clickup?: FakeClickUpGateway;
 };
 
 /**
  * Worker deps on a test database: a started queue without maintenance (pg-boss sends need a
- * started instance), a silent logger, a `FakeGitHubGateway`, a `FakeAgentRunner`, and a temp dir
- * for blobs, git and sessions. `startWorker` may start the same queue again (a no-op).
+ * started instance), a silent logger, a `FakeGitHubGateway`, a `FakeAgentRunner`, a `FakeJudge`,
+ * a `FakeSandbox`, a `FakeClickUpGateway`, and a temp dir for blobs, git and sessions. `startWorker` may start the same queue again (a no-op).
  */
 export async function createTestWorkerDeps(
   options: TestWorkerDepsOptions = {},
@@ -66,6 +74,9 @@ export async function createTestWorkerDeps(
     github: new FakeGitHubGateway(),
     gitMirror: new CliGitMirror({ rootDir: path.join(root, 'git') }),
     agentRunner: new FakeAgentRunner(),
+    judge: new FakeJudge(),
+    sandbox: new FakeSandbox(),
+    clickup: new FakeClickUpGateway(),
     ...rest,
   });
   return {

@@ -50,6 +50,23 @@ afterAll(() => server.close());
 const gateway = () => new HttpClickUpGateway({ apiKey: KEY, now: () => NOW });
 
 describe('HttpClickUpGateway', () => {
+  test('whoAmI reads the key’s user; a 401 is clickup_auth_failed', async () => {
+    const keys: (string | null)[] = [];
+    server.use(
+      http.get(`${CLICKUP_API}/user`, ({ request }) => {
+        keys.push(request.headers.get('authorization'));
+        return keys.length === 1
+          ? HttpResponse.json({ user: { id: 42, username: 'Bot', email: 'x' } })
+          : HttpResponse.json({ err: 'Token invalid' }, { status: 401 });
+      }),
+    );
+
+    expect(await gateway().whoAmI()).toEqual({ id: '42', username: 'Bot' });
+    await expect(gateway().whoAmI()).rejects.toMatchObject({ code: 'clickup_auth_failed' });
+    expect(keys).toEqual([KEY, KEY]);
+    expect(gateway().missingEnv).toEqual([]);
+  });
+
   test('getTask by custom id sends custom_task_ids and the workspace, and maps the task', async () => {
     server.use(http.get(`${CLICKUP_API}/task/:id`, () => HttpResponse.json(rawTask())));
     const task = await gateway().getTask(SETTINGS, 'WB-123');

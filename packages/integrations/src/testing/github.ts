@@ -2,8 +2,12 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { IntegrationError } from '../errors.ts';
 import {
+  ciStatusOf,
   GITHUB_APP_NOT_INSTALLED,
   toPullRequest,
+  type AccessibleRepository,
+  type CiCheck,
+  type CiStatus,
   type GitHubGateway,
   type GitHubPullRequest,
   type InstallationToken,
@@ -63,7 +67,12 @@ export class FakeGitHubGateway implements GitHubGateway {
   readonly calls: GitHubCall[] = [];
   readonly comments: Array<{ fullName: string; number: number; body: string; id: number }> = [];
   readonly installations = new Map<string, number>();
+  readonly missingEnv: readonly string[] = [];
+  /** Default branch and visibility per repository, for `listAccessibleRepositories`. */
+  readonly repositoryDetails = new Map<string, Partial<AccessibleRepository>>();
   readonly pullRequests = new Map<string, GitHubPullRequest>();
+  /** CI checks by `owner/name@sha`; a commit without an entry has no checks. */
+  readonly ci = new Map<string, CiCheck[]>();
   readonly #failures = new Map<Method, Error[]>();
   #nextId = 1;
 
@@ -76,6 +85,11 @@ export class FakeGitHubGateway implements GitHubGateway {
 
   addPullRequest(pr: GitHubPullRequest): this {
     this.pullRequests.set(`${pr.fullName}#${pr.number}`, pr);
+    return this;
+  }
+
+  setCiChecks(fullName: string, sha: string, checks: CiCheck[]): this {
+    this.ci.set(`${fullName}@${sha}`, checks);
     return this;
   }
 
@@ -122,6 +136,26 @@ export class FakeGitHubGateway implements GitHubGateway {
     const id = this.#nextId++;
     this.comments.push({ fullName, number, body, id });
     return { id };
+  }
+
+  async getCiStatus(fullName: string, sha: string): Promise<CiStatus> {
+    this.#record('getCiStatus', [fullName, sha]);
+    return ciStatusOf(this.ci.get(`${fullName}@${sha}`) ?? []);
+  }
+
+  /** Every repository in `installations`, with `repositoryDetails` over the defaults. */
+  async listAccessibleRepositories(): Promise<AccessibleRepository[]> {
+    this.#record('listAccessibleRepositories', []);
+    return [...this.installations]
+      .map(([fullName, installationId]) => ({
+        fullName,
+        installationId,
+        account: fullName.split('/')[0]!,
+        defaultBranch: 'main',
+        private: false,
+        ...this.repositoryDetails.get(fullName),
+      }))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName));
   }
 
   #record(method: Method, args: unknown[]): void {

@@ -1,0 +1,2 @@
+ALTER TABLE "pull_requests" ADD COLUMN "forced_change_type" text;--> statement-breakpoint
+ALTER TABLE "pull_requests" ADD CONSTRAINT "pull_requests_forced_change_type" CHECK ("pull_requests"."forced_change_type" in ('uses_existing', 'changes_behaviour', 'one_way_door'));

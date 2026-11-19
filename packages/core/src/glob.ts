@@ -82,3 +82,21 @@ export const matchGlob = (path: string, pattern: string): boolean =>
 /** The first pattern that matches the path, or null. */
 export const firstMatch = (path: string, patterns: readonly string[]): string | null =>
   patterns.find((pattern) => matchGlob(path, pattern)) ?? null;
+
+/**
+ * Whether a settings pattern is one this matcher reads as meant: not empty, no character classes
+ * (`[...]`), no backslashes, no `..` segment, and every `{` and `(` closed in order.
+ */
+export function isValidGlob(pattern: string): boolean {
+  const p = pattern.trim();
+  if (!p || /[[\]\\]/.test(p)) return false;
+  if (p.split('/').some((segment) => segment === '..')) return false;
+  const open: string[] = [];
+  for (const c of p) {
+    if (c === '{' || c === '(') open.push(c);
+    else if (c === '}' || c === ')') {
+      if (open.pop() !== (c === '}' ? '{' : '(')) return false;
+    }
+  }
+  return open.length === 0;
+}

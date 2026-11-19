@@ -3,10 +3,11 @@
 // adding it to the list.
 import type { StageContext } from '../stage.ts';
 import type { BriefSection } from './brief.ts';
+import { taskContextProvider } from './task-context.ts';
 
 export type ReviewerContextProvider = {
   key: string;
   sections: (context: StageContext) => Promise<BriefSection[]>;
 };
 
-export const REVIEWER_CONTEXT_PROVIDERS: readonly ReviewerContextProvider[] = [];
+export const REVIEWER_CONTEXT_PROVIDERS: readonly ReviewerContextProvider[] = [taskContextProvider];

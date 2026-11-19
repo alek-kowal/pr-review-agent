@@ -3,19 +3,33 @@
 // `CliGitMirror` on a local fixture repository. Playwright starts it (`webServer`) and stops it
 // with SIGTERM; the specs read `STATE_FILE`.
 import type { AgentRunInput, AgentRunner, AgentRunResult } from '@pra/agents';
-import { FakeAgentRunner } from '@pra/agents/testing';
+import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
 import { closeDb, createDb, createQueue, importInstructionV1, upsertRepository } from '@pra/db';
 import { createTestDatabase } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
-import { createGitFixture, FakeGitHubGateway, isolatedGitExec } from '@pra/integrations/testing';
+import {
+  createGitFixture,
+  DEFAULT_FEATURE_FILES,
+  FakeClickUpGateway,
+  FakeGitHubGateway,
+  FakeSandbox,
+  isolatedGitExec,
+} from '@pra/integrations/testing';
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { buildServer } from '../../apps/api/src/server.ts';
 import { startWorker } from '../../apps/worker/src/worker.ts';
-import { API_PORT, API_URL, FAILING_PR_FROM, STATE_FILE, type StackState } from './env.ts';
+import {
+  API_PORT,
+  API_URL,
+  FAILING_PR_FROM,
+  SECOND_REPOSITORY,
+  STATE_FILE,
+  type StackState,
+} from './env.ts';
 
 const FULL_NAME = 'synergycodes/workflowbuilder';
 const INSTALLATION_ID = 55500001;
@@ -77,13 +91,27 @@ class ScriptedReviewer implements AgentRunner {
 
 const logger = createLogger('e2e', { LOG_LEVEL: process.env.LOG_LEVEL ?? 'warn' });
 const root = await mkdtemp(path.join(tmpdir(), 'pra-e2e-'));
-const [database, fixture] = await Promise.all([createTestDatabase(), createGitFixture()]);
+// The feature branch also adds a migration: a sensitive file for a repository whose settings say
+// so (connect-repo.spec.ts), an ordinary file for the others.
+const [database, fixture] = await Promise.all([
+  createTestDatabase(),
+  createGitFixture({
+    feature: {
+      ...DEFAULT_FEATURE_FILES,
+      'db/migrations/0001_edge_labels.sql': 'alter table edges add column label text;\n',
+    },
+  }),
+]);
 const db = createDb(database.url, { max: 5 });
 const queue = createQueue(database.url, { max: 5 });
 const webhookSecret = randomBytes(16).toString('hex');
 const github = new FakeGitHubGateway({
   webhookSecret,
-  installations: { [FULL_NAME]: INSTALLATION_ID },
+  installations: {
+    [FULL_NAME]: INSTALLATION_ID,
+    // Reachable but not connected: Settings → Repositories connects it (connect-repo.spec.ts).
+    [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
+  },
 });
 const blobStore = new LocalBlobStore(path.join(root, 'blobs'));
 
@@ -98,6 +126,8 @@ await importInstructionV1(db, {
   content: '# Review rules\n\nReport real problems only.\n',
 });
 
+// One ClickUp double for the api and the worker, like one key on one server.
+const clickup = new FakeClickUpGateway();
 const worker = await startWorker(
   {
     db,
@@ -111,11 +141,14 @@ const worker = await startWorker(
       exec: isolatedGitExec,
     }),
     agentRunner: new ScriptedReviewer(),
+    judge: new FakeJudge(),
+    sandbox: new FakeSandbox(),
+    clickup,
     dataDir: path.join(root, 'data'),
   },
   { pollingIntervalSeconds: 0.5 },
 );
-const api = await buildServer({ db, queue, github, blobStore }, { logger: false });
+const api = await buildServer({ db, queue, github, blobStore, clickup }, { logger: false });
 await api.listen({ port: API_PORT, host: 'localhost' });
 
 const state: StackState = {

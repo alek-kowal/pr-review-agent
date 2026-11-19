@@ -6,12 +6,14 @@ import {
   matchSensitiveFiles,
   modelFor,
   severityRank,
+  type ChangeType,
   type FrozenLevel,
 } from '@pra/core';
 import { activeInstructions, getAppSettings, readRepositoryConfig } from '@pra/db';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import { sessionDirFor, worktreeKey } from '../paths.ts';
+import { changeTypeOfRun, changeTypeWhy } from '../change-type.ts';
+import { sessionDirFor } from '../paths.ts';
 import type {
   SessionRecord,
   StageContext,
@@ -20,6 +22,7 @@ import type {
   StageQuestion,
   StageResult,
 } from '../stage.ts';
+import { runWorktree } from '../worktree.ts';
 import { buildBrief, documentsFor, touchedWorkspaces } from './brief.ts';
 import {
   effectiveInstructions,
@@ -44,20 +47,15 @@ async function runReview(context: StageContext): Promise<StageResult> {
   const { deps, run, pullRequest, repository, level, attempt, signal } = context;
   const fullName = repository.githubFullName;
 
-  const token = repository.installationId
-    ? (await deps.github.getInstallationToken(repository.installationId)).token
-    : undefined;
-  // Git takes no signal: after the stage timeout, stop at the next step instead of going on to
-  // a worktree and a session nobody waits for.
-  await deps.gitMirror.fetch(fullName, token);
-  signal.throwIfAborted();
-  const worktree = await deps.gitMirror.addWorktree(fullName, worktreeKey(run.id), run.headSha);
+  const worktree = await runWorktree(context);
   const diff = await deps.gitMirror.diff(fullName, pullRequest.baseSha, run.headSha);
   signal.throwIfAborted();
   const changed = diff.files.map((file) => file.path);
 
   const config = readRepositoryConfig(repository).value;
-  const limits = limitsFor(level.settings, null);
+  // From level 2 the Change type stage ran first; its type narrows the limits.
+  const changeType = await changeTypeOfRun(deps.db, run.id);
+  const limits = limitsFor(level.settings, changeType?.changeType ?? null);
   const sections = [];
   for (const provider of deps.extensions.reviewerContext) {
     sections.push(...(await provider.sections(context)));
@@ -69,7 +67,9 @@ async function runReview(context: StageContext): Promise<StageResult> {
     documents: documentsFor(changed, await workspaceFiles(worktree, touchedWorkspaces(changed))),
     level,
     limits,
-    changeType: null,
+    changeType: changeType
+      ? { type: changeType.changeType, reason: changeTypeWhy(changeType) }
+      : null,
     sections,
   });
 
@@ -115,13 +115,18 @@ async function runReview(context: StageContext): Promise<StageResult> {
       sessions,
     };
   }
-  return { status: 'succeeded', sessions, ...mapReview(result.output, level) };
+  return {
+    status: 'succeeded',
+    sessions,
+    ...mapReview(result.output, level, changeType?.changeType ?? null),
+  };
 }
 
 /** P's answer to stored findings and questions, cut to the level's limits. */
 export function mapReview(
   output: ReviewOutput,
   level: Pick<FrozenLevel, 'settings'>,
+  changeType: ChangeType | null = null,
 ): {
   output: unknown;
   findings: StageFinding[];
@@ -147,7 +152,7 @@ export function mapReview(
   }));
   const enforced = enforce(
     { findings: mapped.map((m) => ({ ...m.finding, fix: m.fix })), questions },
-    limitsFor(level.settings, null),
+    limitsFor(level.settings, changeType),
   );
   // `enforce` keeps the reviewer's order; findings are stored most severe first.
   const kept = enforced.findings
@@ -165,6 +170,7 @@ export function mapReview(
       gatedNotes: output.gatedNotes ?? [],
       // Fixes have no column yet; kept by finding position (1-based ordinal).
       fixes: kept.flatMap((f, i) => (f.fix ? [{ ordinal: i + 1, ...f.fix }] : [])),
+      changeType,
       reported: { findings: output.findings.length, questions: output.questions.length },
       dropped: enforced.dropped,
       reasons: enforced.reasons,

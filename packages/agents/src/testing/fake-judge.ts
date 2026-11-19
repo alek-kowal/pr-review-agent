@@ -19,6 +19,12 @@ export class FakeJudge implements Judge {
     this.#steps = [...steps];
   }
 
+  /** Adds steps to the end of the script. */
+  enqueue(...steps: FakeJudgeStep[]): this {
+    this.#steps.push(...steps);
+    return this;
+  }
+
   async judge(input: JudgeInput): Promise<AgentRunResult<JudgeOutput>> {
     this.calls.push(input);
     const step = this.#steps.shift();

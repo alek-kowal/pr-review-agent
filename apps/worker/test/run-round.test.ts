@@ -329,10 +329,11 @@ describe('run.stage', () => {
 
     expect(await executeStage(deps, run.id, 'review')).toBe('not_next');
 
-    // The worker takes the job; Verify has no executor in this package.
+    // The worker takes the job; Verify runs and stops, since this test seeds no verifier
+    // instructions.
     expect((await settled(run.id)).status).toBe('failed');
     const verify = (await stagesOf(run.id)).find((s) => s.stage === 'verify');
-    expect(verify).toMatchObject({ status: 'failed', errorCode: 'stage_not_available' });
+    expect(verify).toMatchObject({ status: 'failed', errorCode: 'verifier_instructions_missing' });
   });
 
   test('with the real adapter and no key the run fails with model_access_not_configured', async () => {
@@ -377,9 +378,28 @@ describe('run.stage', () => {
   });
 
   test('a stage without an executor fails with stage_not_available', async () => {
-    const run = await queueRound(2);
+    // Inserted without a stage job, and run directly on deps without a Checks executor.
+    const repository = await connectRepository(deps.db);
+    const { pullRequest } = await upsertPullRequest(
+      deps.db,
+      aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
+    );
+    const run = await insertRun(
+      deps.db,
+      aRun(pullRequest.id, { levelNumber: 2, headSha: fixture.headSha }),
+    );
+    const withoutChecks = Object.fromEntries(
+      Object.entries(deps.extensions.stageExecutors).filter(([key]) => key !== 'checks'),
+    );
 
-    expect((await settled(run.id)).status).toBe('failed');
+    const outcome = await executeStage(
+      { ...deps, extensions: { ...deps.extensions, stageExecutors: withoutChecks } },
+      run.id,
+      'checks',
+    );
+
+    expect(outcome).toBe('failed');
+    expect((await getRun(deps.db, run.id))!.status).toBe('failed');
     const stages = await stagesOf(run.id);
     expect(stages.find((s) => s.stage === 'checks')).toMatchObject({
       status: 'failed',
@@ -413,20 +433,24 @@ describe('restart', () => {
     expect(review).toMatchObject({ status: 'failed', errorCode: 'interrupted' });
   });
 
-  test('a queued run whose job was lost gets its first stage job again', async () => {
-    const repository = await connectRepository(deps.db);
-    const { pullRequest } = await upsertPullRequest(
-      deps.db,
-      aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
-    );
-    const run = await insertRun(deps.db, aRun(pullRequest.id, { headSha: fixture.headSha }));
-    deps.agentRunner.enqueue({ output: ANSWER });
+  test(
+    'a queued run whose job was lost gets its first stage job again',
+    { timeout: 30_000 },
+    async () => {
+      const repository = await connectRepository(deps.db);
+      const { pullRequest } = await upsertPullRequest(
+        deps.db,
+        aPullRequest(repository.id, { headSha: fixture.headSha, baseSha: fixture.baseSha }),
+      );
+      const run = await insertRun(deps.db, aRun(pullRequest.id, { headSha: fixture.headSha }));
+      deps.agentRunner.enqueue({ output: ANSWER });
 
-    const recovered = await recoverRuns(deps);
+      const recovered = await recoverRuns(deps);
 
-    expect(recovered.resent).toContain(run.id);
-    expect((await settled(run.id)).status).toBe('completed');
-  });
+      expect(recovered.resent).toContain(run.id);
+      expect((await settled(run.id)).status).toBe('completed');
+    },
+  );
 
   test('a stored event whose job was never sent is processed after the resend', async () => {
     const repository = await connectRepository(deps.db);

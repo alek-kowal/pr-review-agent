@@ -212,6 +212,67 @@ describe('repository calls', () => {
   });
 });
 
+describe('listAccessibleRepositories', () => {
+  test('lists every installation’s repositories with that installation’s token, sorted', async () => {
+    const tokens = serveApp({ now: Date.now() });
+    const seen: string[] = [];
+    const repo = (fullName: string, extra: Record<string, unknown> = {}) => ({
+      full_name: fullName,
+      default_branch: 'main',
+      private: false,
+      ...extra,
+    });
+    server.use(
+      http.get(`${API}/app/installations`, () =>
+        HttpResponse.json([
+          { id: INSTALLATION, account: { login: 'synergycodes' } },
+          { id: 2, account: { login: 'acme' } },
+        ]),
+      ),
+      http.get(`${API}/installation/repositories`, ({ request }) => {
+        const auth = request.headers.get('authorization') ?? '';
+        seen.push(auth);
+        // Tokens are handed out in installation order: the first is the WB installation's.
+        const first = auth.endsWith('ghs_token_1');
+        return HttpResponse.json({
+          total_count: first ? 1 : 2,
+          repositories: first
+            ? [repo(REPO, { default_branch: 'develop' })]
+            : [repo('acme/second-repo', { private: true }), repo('acme/another')],
+        });
+      }),
+    );
+
+    const repositories = await gateway().listAccessibleRepositories();
+
+    expect(repositories).toEqual([
+      {
+        fullName: 'acme/another',
+        installationId: 2,
+        account: 'acme',
+        defaultBranch: 'main',
+        private: false,
+      },
+      {
+        fullName: 'acme/second-repo',
+        installationId: 2,
+        account: 'acme',
+        defaultBranch: 'main',
+        private: true,
+      },
+      {
+        fullName: REPO,
+        installationId: INSTALLATION,
+        account: 'synergycodes',
+        defaultBranch: 'develop',
+        private: false,
+      },
+    ]);
+    expect(tokens).toHaveLength(2);
+    expect(seen).toEqual(['token ghs_token_1', 'token ghs_token_2']);
+  });
+});
+
 describe('webhook signatures', () => {
   const { body } = githubFixture('pull_request.ready_for_review');
 
