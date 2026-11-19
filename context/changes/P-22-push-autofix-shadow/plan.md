@@ -303,15 +303,15 @@ remote; e2e uses its own repositories and PR ranges.
 
 #### Automated
 
-- [ ] 1.1 push-patch.test.ts passes
+- [x] 1.1 push-patch.test.ts passes
 
 ### Phase 2: S-14-T2
 
 #### Automated
 
-- [ ] 2.1 push-rule.test.ts passes
-- [ ] 2.2 push-job.test.ts passes
-- [ ] 2.3 Migration applies
+- [x] 2.1 push-rule.test.ts passes
+- [x] 2.2 push-job.test.ts passes
+- [x] 2.3 Migration applies
 
 ### Phase 3: S-14-T3
 

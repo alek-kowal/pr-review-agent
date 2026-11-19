@@ -29,3 +29,17 @@ questions (orchestrator rule: decide and record).
   worktree still uses `git worktree remove --force`, which deletes a local folder only.
 - `isolatedGitExec` now lets the call's own variables win over the test identity, so a commit
   made as the bot keeps the bot's name.
+
+### S-14-T2 (push rule, push job, hand-off)
+
+- Reason codes are lower snake_case (as P-18): `fork_read_only`, `patch_not_ready {status}`,
+  `pr_number_mismatch {number}`, `run_active {kind,status}`, `head_moved {headSha}`,
+  `patch_empty`; checked in that order. `fork_read_only` and `run_active` reuse existing codes.
+- The job payload's signer field is `signedBy` (as every signed route); `null` means the bot
+  (autofix). The job is exclusive per patch (singleton key = patch id).
+- Timeline kinds: `patch_pushed` (actor = signer, params `{sha, branch, patchId}`),
+  `autofix_pushed` (actor bot) and `patch_push_refused` (params `{reason, patchId}`).
+- The job writes no `head_changes` row: the webhook of the pushed commit does. The hand-off is
+  `expectOwnFix` on the PR's latest chain, called after the git push and the patch row update.
+- A rejected git push (the head moved between the check and the push) re-reads the head and is
+  stored as `head_moved` like the check's own refusal.

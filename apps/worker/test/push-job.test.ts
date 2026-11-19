@@ -60,7 +60,11 @@ const gitEnv = { ...process.env, ...ISOLATED_GIT_ENV };
 const git = async (dir: string, ...args: string[]) =>
   (await run('git', ['-C', dir, ...args], { env: gitEnv })).stdout.trim();
 
-async function deliver(repository: Repository, name: 'ready_for_review' | 'synchronize', sha: string) {
+async function deliver(
+  repository: Repository,
+  name: 'ready_for_review' | 'synchronize',
+  sha: string,
+) {
   clock += 60_000;
   const event = await storeGithubEvent(deps, `pull_request.${name}`, {
     fullName: repository.githubFullName,
@@ -77,6 +81,8 @@ async function readyPatch() {
   const repository = await connectRepository(deps.db);
   const bare = path.join(deps.dataDir, `remote-${repository.id}.git`);
   await run('git', ['clone', '--quiet', '--bare', fixture.dir, bare], { env: gitEnv });
+  // The fixture's `feature` branch would clash with `feature/edge-labels` (a ref can't be both).
+  await git(bare, 'update-ref', '-d', 'refs/heads/feature');
   await git(bare, 'update-ref', `refs/heads/${BRANCH}`, fixture.headSha);
   remotes.set(repository.githubFullName, bare);
   deps.github.addPullRequest({
@@ -152,7 +158,8 @@ describe('push job', () => {
     const entries = await timelineOf(deps.db, pullRequest.id);
     expect(entries.filter((e) => e.kind === 'patch_pushed')).toEqual([
       expect.objectContaining({
-        actor: member(signer.id),
+        actor: 'member',
+        memberId: signer.id,
         memberName: 'Kasia',
         params: expect.objectContaining({ sha, branch: BRANCH }),
       }),

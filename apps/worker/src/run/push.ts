@@ -21,8 +21,7 @@ import { expectOwnFix } from './chains.ts';
 export type PushJob = { patchId: number; signedBy: string | null };
 
 export type PushOutcome =
-  | { pushed: true; sha: string }
-  | { pushed: false; reason: Reason | 'not_ready' };
+  { pushed: true; sha: string } | { pushed: false; reason: Reason | 'not_ready' };
 
 /** Pushes one ready patch; a second delivery finds it pushed and does nothing. */
 export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<PushOutcome> {
