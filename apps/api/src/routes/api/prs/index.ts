@@ -11,6 +11,7 @@ import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors
 import { buildPrView, PrViewSchema } from '../../../pr-view/index.ts';
 import { FindingsResponse, findingsView } from '../../../pr-view/findings.ts';
 import { RepositoryRefSchema } from '../../../pr-view/sections/pull-request.ts';
+import { timelineRoutes } from '../../../pr-view/timeline.ts';
 
 export const PrParams = z.object({
   repo: z.string().min(1),
@@ -79,6 +80,9 @@ const prs: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       return buildPrView({ db, ...found });
     },
   );
+
+  // S-03-T7: the Timeline tab.
+  await fastify.register(timelineRoutes);
 
   fastify.get(
     '/:repo/:number/findings',

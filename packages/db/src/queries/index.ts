@@ -8,4 +8,5 @@ export * from './run-engine.ts';
 export * from './team.ts';
 export * from './decisions.ts';
 export * from './settings-changes.ts';
+export * from './timeline.ts';
 export * from './pr-state.ts';

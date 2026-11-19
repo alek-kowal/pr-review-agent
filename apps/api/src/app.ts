@@ -4,6 +4,7 @@ import type { Db, Queue } from '@pra/db';
 import type { BlobStore, GitHubGateway } from '@pra/integrations';
 import { type FastifyPluginAsync } from 'fastify';
 import { fileURLToPath } from 'node:url';
+import type { LiveHub } from './live/hub.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +21,8 @@ export type AppDeps = {
   github: GitHubGateway;
   /** Raw webhook payloads. */
   blobStore: BlobStore;
+  /** SSE clients of `GET /api/live`; a new hub by default (tests pass one to inspect it). */
+  live?: LiveHub;
 };
 
 export type AppOptions = AppDeps & Partial<AutoloadPluginOptions>;
@@ -31,9 +34,9 @@ declare module 'fastify' {
 }
 
 const app: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
-  const { db, queue, github, blobStore, ...autoloadOptions } = opts;
+  const { db, queue, github, blobStore, live, ...autoloadOptions } = opts;
   // Decorated before the plugins and routes load, so all of them see it.
-  fastify.decorate('deps', { db, queue, github, blobStore });
+  fastify.decorate('deps', { db, queue, github, blobStore, live });
 
   // Support plugins reused across the application.
   void fastify.register(AutoLoad, {

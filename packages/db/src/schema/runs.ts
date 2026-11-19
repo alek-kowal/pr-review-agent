@@ -59,6 +59,14 @@ const inList = (column: AnyPgColumn, values: readonly string[]): SQL =>
     sql`, `,
   )})`;
 
+/** One active instruction file version, as a run recorded it. */
+export type RunInstructionVersion = {
+  id: number;
+  scope: 'global' | 'repository';
+  fileKey: string;
+  version: number;
+};
+
 /** One run on a PR: a review round, an implementer run, a trial or the analyst. */
 export const runs = pgTable(
   'runs',
@@ -84,8 +92,15 @@ export const runs = pgTable(
     createdAt: createdAt(),
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
-    /** Sum of the run's agent session costs. */
+    /** Sum of the run's agent session costs; grows per turn while a session runs. */
     costUsd: usd('cost_usd'),
+    /** The stage running now, or the next one between two stages; null when not running. */
+    currentStage: text('current_stage'),
+    /** Instruction files the run read, set when it starts (Run detail). */
+    instructionVersions: jsonb('instruction_versions')
+      .$type<RunInstructionVersion[]>()
+      .notNull()
+      .default([]),
     /** What the reviewer says it did not check. */
     notChecked: text('not_checked')
       .array()

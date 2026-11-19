@@ -1,20 +1,32 @@
 import {
   NO_USAGE,
   type AgentErrorCode,
+  type AgentProgress,
   type AgentRunInput,
   type AgentRunner,
   type AgentRunResult,
   type AgentUsage,
 } from '../runner.ts';
 
-/** One scripted session: an answer, a failure, or a function of the input. */
+/**
+ * One scripted session: an answer, a failure, or a function of the input. `progress` is sent to
+ * the caller's `onProgress` in order, one per turn, before the result (running totals, as the
+ * real adapter reports them).
+ */
 export type FakeAgentStep =
-  | { output: unknown; costUsd?: number; turns?: number; usage?: Partial<AgentUsage> }
+  | {
+      output: unknown;
+      costUsd?: number;
+      turns?: number;
+      usage?: Partial<AgentUsage>;
+      progress?: readonly AgentProgress[];
+    }
   | {
       fail: AgentErrorCode;
       params?: Record<string, unknown>;
       costUsd?: number;
       turns?: number;
+      progress?: readonly AgentProgress[];
     }
   | ((input: AgentRunInput<unknown>) => AgentRunResult<unknown> | Promise<AgentRunResult<unknown>>);
 
@@ -47,6 +59,10 @@ export class FakeAgentRunner implements AgentRunner {
     if (!step) throw new Error(`FakeAgentRunner: no scripted step left for ${input.role}`);
     if (typeof step === 'function') {
       return (await step(input as AgentRunInput<unknown>)) as AgentRunResult<T>;
+    }
+    for (const progress of step.progress ?? []) {
+      input.onProgress?.(progress);
+      await new Promise((resolve) => setImmediate(resolve));
     }
 
     const base = {

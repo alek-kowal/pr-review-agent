@@ -22,6 +22,11 @@ export const ApiErrorCode = {
   /** A settings save whose `before` is no longer current: someone saved in between. */
   SettingsStale: 'settings_stale',
   TeamMemberNotFound: 'team_member_not_found',
+  RunNotFound: 'run_not_found',
+  /** The session does not exist or belongs to another run. */
+  SessionNotFound: 'session_not_found',
+  /** The session has no stored transcript (yet, or it was removed). */
+  TranscriptNotFound: 'transcript_not_found',
   /** Another active Team member has this GitHub login. */
   GithubLoginTaken: 'github_login_taken',
   /** Reject without a reason. */

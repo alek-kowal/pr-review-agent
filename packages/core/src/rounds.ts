@@ -153,7 +153,23 @@ export function nextAutomaticRound(
 }
 
 /** Data for "Round 2 of 3 · started by pr-review-agent after fix abc123". */
-export function roundLabel(round: Omit<ChainRound, 'runId' | 'status' | 'counts'>): Reason {
+export function roundLabel(round: Omit<ChainRound, 'runId' | 'status' | 'counts'>): Reason;
+/**
+ * The label of one run of a PR, from the PR's `chainState`: "Round 1 of 3 · started by hand",
+ * a later round 1 marked "new chain". Null for a run that is not a round of the chain.
+ */
+export function roundLabel(
+  run: Pick<RunRecord, 'id'>,
+  chain: Pick<ChainState, 'rounds'>,
+): Reason | null;
+export function roundLabel(
+  subject: Omit<ChainRound, 'runId' | 'status' | 'counts'> | Pick<RunRecord, 'id'>,
+  chain?: Pick<ChainState, 'rounds'>,
+): Reason | null {
+  const round = chain
+    ? chain.rounds.find((r) => r.runId === (subject as Pick<RunRecord, 'id'>).id)
+    : (subject as Omit<ChainRound, 'runId' | 'status' | 'counts'>);
+  if (!round) return null;
   return reason('round_label', {
     roundNumber: round.roundNumber,
     max: MAX_CHAIN_ROUNDS,

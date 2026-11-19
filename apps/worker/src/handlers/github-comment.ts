@@ -1,5 +1,6 @@
 // The after-round GitHub comment (S-01-T11, FR-027): one sentence per completed round, posted at
 // most once per run. No URL and no finding text: WB's PRs are public (NFR Privacy).
+import { BOT } from '@pra/core';
 import {
   getAppSettings,
   getRunContext,
@@ -7,6 +8,7 @@ import {
   insertGithubAction,
   JOBS,
   lockRun,
+  recordTimelineEntry,
   sendJob,
   updateGithubAction,
   type Executor,
@@ -95,9 +97,19 @@ export async function postAfterRoundComment(
     logger.warn({ err: error, runId }, 'after-round comment failed');
     throw error;
   }
-  // The comment is on GitHub now. If recording that fails, the row stays `sending`, so a retry
-  // never posts it a second time.
-  await updateGithubAction(db, claim.id, { result: 'posted', githubId: posted.id });
+  // The comment is on GitHub now. If recording that (and its timeline entry) fails, the row stays
+  // `sending`, so a retry never posts it a second time.
+  await db.transaction(async (tx) => {
+    await updateGithubAction(tx, claim.id, { result: 'posted', githubId: posted.id });
+    await recordTimelineEntry(tx, {
+      pullRequestId: pullRequest.id,
+      actor: BOT,
+      kind: 'github_comment_posted',
+      params: { body: claim.body },
+      runId,
+      sourceKey: `github_action:${claim.id}`,
+    });
+  });
   logger.info({ runId, pr: pullRequest.number }, 'after-round comment posted');
   return 'posted';
 }

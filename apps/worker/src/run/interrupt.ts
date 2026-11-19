@@ -2,6 +2,7 @@
 // the start) fails `interrupted`, and its run fails with it (core `recoverAfterRestart`).
 import { recoverAfterRestart, type RunState } from '@pra/core';
 import {
+  endRunningSessions,
   updateRun,
   updateStageExecution,
   type Executor,
@@ -31,7 +32,9 @@ export async function interruptRunningStage(
       errorCode: recovered.error!.code,
       finishedAt: now,
     });
+    // Live sessions keep the cost they recorded before the stop.
+    await endRunningSessions(tx, execution.id, recovered.error!.code);
   }
-  await updateRun(tx, run.id, { status: 'failed', finishedAt: now });
+  await updateRun(tx, run.id, { status: 'failed', finishedAt: now, currentStage: null });
   return recovered;
 }

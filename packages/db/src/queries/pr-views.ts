@@ -1,10 +1,10 @@
 // Reads behind the PR list and the PR page. They never write.
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
-import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
+import { agentSessions, findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import type { PullRequest, Repository } from './repositories.ts';
-import type { FindingRow, QuestionRow, Run, StageExecution } from './runs.ts';
+import type { AgentSession, FindingRow, QuestionRow, Run, StageExecution } from './runs.ts';
 
 export type PullRequestListItem = {
   repositorySlug: string;
@@ -98,4 +98,53 @@ export async function questionsOf(db: Executor, runId: number): Promise<Question
     .from(questions)
     .where(eq(questions.runId, runId))
     .orderBy(asc(questions.ordinal));
+}
+
+/** Every run of a PR, oldest first (chain labels). */
+export async function runsOfPullRequest(db: Executor, pullRequestId: number): Promise<Run[]> {
+  return db
+    .select()
+    .from(runs)
+    .where(eq(runs.pullRequestId, pullRequestId))
+    .orderBy(asc(runs.createdAt), asc(runs.id));
+}
+
+/** One agent session of a run, or null when the session belongs to another run. */
+export async function sessionOfRun(
+  db: Executor,
+  runId: number,
+  sessionId: number,
+): Promise<AgentSession | null> {
+  const [row] = await db
+    .select({ session: agentSessions })
+    .from(agentSessions)
+    .innerJoin(stageExecutions, eq(stageExecutions.id, agentSessions.stageExecutionId))
+    .where(and(eq(agentSessions.id, sessionId), eq(stageExecutions.runId, runId)));
+  return row?.session ?? null;
+}
+
+export type ActiveRunRow = {
+  run: Run;
+  pullRequest: PullRequest;
+  repositorySlug: string;
+};
+
+/** Queued and running runs of every PR, oldest first (Activity → In progress). */
+export async function activeRuns(db: Executor): Promise<ActiveRunRow[]> {
+  return db
+    .select({ run: runs, pullRequest: pullRequests, repositorySlug: repositories.slug })
+    .from(runs)
+    .innerJoin(pullRequests, eq(pullRequests.id, runs.pullRequestId))
+    .innerJoin(repositories, eq(repositories.id, pullRequests.repositoryId))
+    .where(inArray(runs.status, ['queued', 'running']))
+    .orderBy(asc(runs.createdAt), asc(runs.id));
+}
+
+/** Cost of every agent session created at or after `since` (today's spend). */
+export async function spendSince(db: Executor, since: Date): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<string>`coalesce(sum(${agentSessions.costUsd}), 0)` })
+    .from(agentSessions)
+    .where(gte(agentSessions.createdAt, since));
+  return Number(row?.total ?? 0);
 }
