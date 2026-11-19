@@ -65,3 +65,10 @@ checks are the plan. One commit per task.
   `useFetchResultsWhenRoundEnds` (it only refetches). The pin lives in the tab, so leaving the
   tab shows the newest results on return. `chains.spec.ts` checks fix counts inside its reload
   loop, since a round ending while the page is open now waits behind the strip.
+- T9: the reviewer double asks 2 questions only for PR numbers in `QUESTION_PRS` (260–269), so
+  other specs keep none; once the brief has "Answers from the team" it asks none and adds one
+  finding (the new result). The spec runs on `LEVEL_TWO_REPOSITORY`, since level 1 allows no
+  questions. The second review is a manual start (a new chain, so the strip reads "New results
+  from round 1"); a fix check would carry nothing. The double writes each full review's brief to
+  `holdDir` (`briefFile`), which is how the spec sees that the reviewer got the answers. Team
+  members are added through the api (`teamMember`).

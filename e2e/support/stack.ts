@@ -2,7 +2,13 @@
 // database, `FakeGitHubGateway`, a reviewer scripted per PR number, a local blob store and a
 // `CliGitMirror` on a local fixture repository. Playwright starts it (`webServer`) and stops it
 // with SIGTERM; the specs read `STATE_FILE`.
-import { NO_USAGE, type AgentRunInput, type AgentRunner, type AgentRunResult } from '@pra/agents';
+import {
+  NO_USAGE,
+  TEAM_ANSWERS_TITLE,
+  type AgentRunInput,
+  type AgentRunner,
+  type AgentRunResult,
+} from '@pra/agents';
 import { FakeAgentRunner, FakeJudge } from '@pra/agents/testing';
 import { closeDb, createDb, createQueue, importInstructionV1, upsertRepository } from '@pra/db';
 import { createTestDatabase } from '@pra/db/testing';
@@ -25,10 +31,12 @@ import { startWorker } from '../../apps/worker/src/worker.ts';
 import {
   API_PORT,
   API_URL,
+  briefFile,
   FAILING_PR_FROM,
   HELD_PRS,
   HELD_TURN_COST_USD,
   LEVEL_TWO_REPOSITORY,
+  QUESTION_PRS,
   releaseFile,
   SECOND_REPOSITORY,
   SENSITIVE_REPOSITORY,
@@ -82,6 +90,38 @@ export const SCRIPTED_REVIEW = {
   questions: [],
   notChecked: ['Keyboard focus after renaming'],
 };
+
+/** The questions of a PR in `QUESTION_PRS` before the team answered them. */
+const SCRIPTED_QUESTIONS = [
+  {
+    question: 'Should an empty label fall back to the edge id?',
+    options: ['Yes, show the edge id', 'No, hide the label'],
+    recommended: 0,
+    why: 'The diff trims the label but does not say what an empty one shows.',
+  },
+  {
+    question: 'Is EdgeLabel part of the public SDK?',
+    options: ['Yes, keep it exported', 'No, it is internal', 'Not decided yet'],
+    recommended: 1,
+    why: 'The SDK entry now exports it, which makes it public API.',
+  },
+];
+
+/** The finding a PR in `QUESTION_PRS` gets once the team answered (a new result of round 2). */
+const ANSWERED_FINDING = {
+  title: 'Long labels overflow the edge',
+  severity: 'should',
+  file: 'apps/demo/src/edges.ts',
+  line: 1,
+  scenario: 'A label of 200 characters runs past both nodes and covers other edges.',
+  suggestion: 'Truncate the label with an ellipsis and show the full text on hover.',
+};
+
+/** What the reviewer answers a PR in `QUESTION_PRS`, given whether the brief has answers. */
+const questionsReview = (answered: boolean) =>
+  answered
+    ? { ...SCRIPTED_REVIEW, findings: [...SCRIPTED_REVIEW.findings, ANSWERED_FINDING] }
+    : { ...SCRIPTED_REVIEW, questions: SCRIPTED_QUESTIONS };
 
 /** A reproduction's last line says how it ends; the sandbox double exits with that code. */
 const reproduction = (exitCode: number) => `console.log('repro');\nprocess.exit(${exitCode});\n`;
@@ -148,15 +188,18 @@ async function waitForFile(file: string, ms: number): Promise<void> {
 const FIX_NOT_RESOLVED_AT = 1;
 
 /**
- * Answers per session kind. A full review reads the PR number from the brief: from
- * `FAILING_PR_FROM`, invalid; in `HELD_PRS`, one reported turn, then the review once the spec
- * releases it; while `hold-<number>` exists in `holdDir` it waits. A fix check (no brief,
+ * Answers per session kind. A full review keeps its brief (`briefFile`) and reads the PR number
+ * from it: from `FAILING_PR_FROM`, invalid; in `HELD_PRS`, one reported turn, then the review once
+ * the spec releases it; in `QUESTION_PRS`, questions until the brief has the team's answers;
+ * while `hold-<number>` exists in `holdDir` it waits. A fix check (no brief,
  * `findings.json`) resolves every finding, except at `fixShas[FIX_NOT_RESOLVED_AT]`, where the
  * first stays unresolved. The verifier answers per finding title.
  */
 class ScriptedAgents implements AgentRunner {
   readonly #holdDir: string;
   readonly #fixShas: readonly string[];
+  /** Full reviews per PR number so far. */
+  readonly #reviews = new Map<number, number>();
 
   constructor(holdDir: string, fixShas: readonly string[]) {
     this.#holdDir = holdDir;
@@ -172,15 +215,22 @@ class ScriptedAgents implements AgentRunner {
     if (brief === null) return this.#checkFixes(input);
 
     const number = Number(/PR #(\d+)/.exec(brief)?.[1]);
+    const k = (this.#reviews.get(number) ?? 0) + 1;
+    this.#reviews.set(number, k);
+    await writeFile(briefFile(this.#holdDir, number, k), brief);
     if (number >= HELD_PRS.from && number <= HELD_PRS.to) {
       input.onProgress?.({ turns: 1, costUsd: HELD_TURN_COST_USD, usage: NO_USAGE });
       await waitForFile(releaseFile(number), 120_000);
     }
     await this.#whileHeld(number, input.signal);
+    const output =
+      number >= QUESTION_PRS.from && number <= QUESTION_PRS.to
+        ? questionsReview(brief.includes(TEAM_ANSWERS_TITLE))
+        : SCRIPTED_REVIEW;
     const step =
       number >= FAILING_PR_FROM
         ? { output: { summary: 'not a review' }, costUsd: 0.04 }
-        : { output: SCRIPTED_REVIEW, costUsd: 0.31, turns: 6 };
+        : { output, costUsd: 0.31, turns: 6 };
     return new FakeAgentRunner([step]).run(input);
   }
 
