@@ -251,8 +251,11 @@ export function parseChangedFiles(nameStatus: string, numstat: string): ChangedF
   const countParts = numstat.split('\0');
   let index = 0;
   for (let i = 0; i < countParts.length - 1 && index < files.length; index++) {
-    const [added, deleted, inlinePath] = countParts[i++]!.split('\t');
-    // A rename has an empty path here, followed by the old and the new path.
+    const record = countParts[i++]!;
+    const [added, deleted] = record.split('\t', 2);
+    // `added<TAB>deleted<TAB>path`; a rename has an empty path here, followed by the old and the
+    // new path. Split only twice: a path may itself start with a tab.
+    const inlinePath = record.slice(`${added}\t${deleted}\t`.length);
     if (inlinePath === '') i += 2;
     const file = files[index]!;
     file.additions = added === '-' ? null : Number(added);

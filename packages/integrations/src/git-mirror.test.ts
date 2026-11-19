@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { execa } from 'execa';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
-import { CliGitMirror, gitAuthEnv, type GitExec } from './git-mirror.ts';
+import { CliGitMirror, gitAuthEnv, parseChangedFiles, type GitExec } from './git-mirror.ts';
 
 const REPO = 'synergycodes/workflowbuilder';
 const TOKEN = 'ghs_never_in_argv_0123456789';
@@ -199,4 +199,14 @@ describe('CliGitMirror', () => {
 
 test('without a token only the prompt is switched off', () => {
   expect(gitAuthEnv()).toEqual({ GIT_TERMINAL_PROMPT: '0' });
+});
+
+test('a path starting with a tab keeps every file on its own line counts', () => {
+  const nameStatus = ['M', '\tlead', 'R100', 'old.txt', 'new.txt', 'M', 'z.txt', ''].join('\0');
+  const numstat = ['2\t1\t\tlead', '0\t0\t', 'old.txt', 'new.txt', '1\t0\tz.txt', ''].join('\0');
+  expect(parseChangedFiles(nameStatus, numstat)).toEqual([
+    { path: '\tlead', status: 'modified', additions: 2, deletions: 1 },
+    { path: 'new.txt', previousPath: 'old.txt', status: 'renamed', additions: 0, deletions: 0 },
+    { path: 'z.txt', status: 'modified', additions: 1, deletions: 0 },
+  ]);
 });
