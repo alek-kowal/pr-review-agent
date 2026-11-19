@@ -157,7 +157,7 @@ run is required; the existing e2e spec is rerun once at the end because the stag
 
 ### Phase 4: Core rules
 
-- [ ] 4.1 `pnpm --filter @pra/core test round-label.test.ts stepper.test.ts time-summary.test.ts`
+- [x] 4.1 `pnpm --filter @pra/core test round-label.test.ts stepper.test.ts time-summary.test.ts`
   passes; `pnpm verify` green
 
 ### Phase 5: Timeline and state log

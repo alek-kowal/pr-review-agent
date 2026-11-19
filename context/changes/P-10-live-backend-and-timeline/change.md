@@ -64,3 +64,19 @@ are added per task below.
   names the next stage (the one queued); `null` when the run ends, also in recovery.
 - `FakeAgentRunner` steps take `progress` (sent in order before the result, one macrotask
   apart), so existing tests keep working without it.
+
+### S-03-T4 (core rules)
+
+- `roundLabel(run, chain)` is an overload of the existing `roundLabel(round)`: it finds the run in
+  `chainState(...).rounds` and returns the same `round_label` reason, or null for a run that is
+  not a round (trial, implementer, analyst). No new reason code.
+- `stepperModel(stageRows, level, roundKind)`: the steps are the run's plan (`stagesFor`, the
+  same plan the worker's `runStateOf` uses); each step takes the status of its latest stored
+  attempt (`pending` → queued, `succeeded`/`reused` → done) and the cost of all its attempts. A
+  planned stage without a row is `queued`; a row for a stage outside the plan is not shown; a
+  stage off at the level stays `off` with its `off_at_level` reason.
+- `timeSummary(stateChanges, runs, now)`: ready time is the first logged state that is neither
+  `draft` nor off the board. Each state's span goes to its lane; Agents worked is the
+  `agents_working` lane, waiting is the other three lanes (never reviewed included), time while
+  closed counts toward none. The end is the last change when it is `merged`/`closed`, else
+  `now`. Cost sums runs that are completed, failed or cancelled.
