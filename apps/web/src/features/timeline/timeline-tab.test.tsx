@@ -125,4 +125,18 @@ describe('PR Timeline tab', () => {
     await user.click(screen.getByRole('button', { name: copy.timeline.filters.people }));
     expect(kinds()).toEqual(['findings_decided', 'pr_ready']);
   });
+
+  it('P-11 entries read as sentences, not their kind', () => {
+    const { entries } = copy.timeline;
+    const context = { stage: String, reason: String };
+    expect(entries.pr_level_changed!({ from: null, to: 3 }, context)).toBe(
+      'PR level set to level 3 (was the repository default)',
+    );
+    expect(entries.sensitive_approved!({ count: 2, files: ['a', 'b'] }, context)).toBe(
+      'Approved 2 sensitive files',
+    );
+    expect(
+      entries.sensitive_sent_back!({ count: 1, files: ['a'], comment: 'Split it' }, context),
+    ).toBe('Sent back 1 sensitive file: "Split it"');
+  });
 });

@@ -62,6 +62,7 @@ export function makePr(overrides: Partial<PrSnapshot> = {}): PrSnapshot {
     reviewers: 0,
     ci: [{ name: 'build', conclusion: 'success' }],
     changesRequestedBy: [],
+    ownFixUnchecked: false,
     ...overrides,
   };
 }

@@ -1,7 +1,7 @@
 ---
 change_id: P-11
 title: Manual start, chains and sensitive files (S-07-T1–T7, S-11-T1–T4)
-status: done
+status: impl_reviewed
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
