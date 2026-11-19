@@ -1,4 +1,5 @@
 ALTER TABLE "runs" ADD COLUMN "retry_of" integer;--> statement-breakpoint
+ALTER TABLE "runs" ADD COLUMN "retry_from" text;--> statement-breakpoint
 ALTER TABLE "runs" ADD COLUMN "cancel_requested_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "runs" ADD COLUMN "cancelled_by" text;--> statement-breakpoint
 ALTER TABLE "runs" ADD COLUMN "cancelled_by_member_id" text;--> statement-breakpoint

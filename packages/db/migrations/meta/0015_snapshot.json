@@ -1,6 +1,6 @@
 {
-  "id": "63353643-40ee-4ea9-9af2-35b6fda8c084",
-  "prevId": "bf81f49c-ed7c-4f3d-9adc-bd56acb57279",
+  "id": "738eb0f1-45ce-47ac-9e7f-4060dfc46534",
+  "prevId": "479ad126-310d-48f1-8ae3-a6f1d81c8c90",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -470,6 +470,32 @@
         "merge_sha": {
           "name": "merge_sha",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_sha": {
+          "name": "ci_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_checks": {
+          "name": "ci_checks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "changes_requested_by": {
+          "name": "changes_requested_by",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "checks_refreshed_at": {
+          "name": "checks_refreshed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }

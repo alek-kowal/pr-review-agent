@@ -66,6 +66,16 @@ export const ApiErrorCode = {
   ClickupAuthFailed: 'clickup_auth_failed',
   /** ClickUp did not answer as expected. */
   ClickupError: 'clickup_error',
+  /** The typed PR number is not this PR's number. */
+  MergeNumberMismatch: 'merge_number_mismatch',
+  /** The PR's head is not the reviewed commit (`params.reviewedSha`, `params.headSha`). */
+  HeadMoved: 'head_moved',
+  /** A checklist row fails on fresh GitHub state (`params.items`: the failing rows). */
+  MergeNotReady: 'merge_not_ready',
+  /** GitHub refused the merge (`params.status`, `params.message` verbatim). */
+  MergeRefused: 'merge_refused',
+  /** GitHub did not answer as expected (`params.status` when it answered). */
+  GithubError: 'github_error',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

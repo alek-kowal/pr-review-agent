@@ -10,7 +10,7 @@ import {
 describe('GitHub fixtures', () => {
   test.each(GITHUB_FIXTURES)('%s parses and names its event', (name) => {
     const fixture = githubFixture(name);
-    expect(fixture.event).toBe(name === 'ping' ? 'ping' : 'pull_request');
+    expect(fixture.event).toBe(name.split('.')[0]);
     expect(JSON.parse(fixture.body)).toEqual(fixture.payload);
   });
 

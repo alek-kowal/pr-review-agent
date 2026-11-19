@@ -24,6 +24,57 @@ export interface GitHubGateway {
   compareCommits(fullName: string, base: string, head: string): Promise<CommitComparison>;
   /** One commit's parents and message (metric 5 tells "Update branch" merges apart). */
   getCommit(fullName: string, sha: string): Promise<GitHubCommit>;
+  /** The PR as GitHub sees it right now: head, open or merged, and GitHub's mergeable state. */
+  getPullRequestState(fullName: string, number: number): Promise<PullRequestFreshState>;
+  /** GitHub logins whose latest review on the PR requests changes. */
+  listChangesRequested(fullName: string, number: number): Promise<string[]>;
+  /**
+   * Squash-merges the PR as the App, pinned to `sha`: GitHub refuses when the head moved. Branch
+   * protection applies; nothing here bypasses it. A refusal (405, 409, 422) is an answer with
+   * GitHub's status and message; any other failure throws.
+   */
+  squashMerge(merge: SquashMerge): Promise<MergeResult>;
+}
+
+export type PullRequestFreshState = {
+  headSha: string;
+  state: PullRequestState;
+  /** GitHub's `mergeable_state` (`clean`, `blocked`, `behind`, `dirty`, `unknown`, ...). */
+  mergeableState: string;
+};
+
+export type SquashMerge = {
+  fullName: string;
+  number: number;
+  /** The reviewed commit; GitHub merges only while it is the PR's head. */
+  sha: string;
+  title: string;
+  message: string;
+};
+
+export type MergeResult =
+  { merged: true; sha: string } | { merged: false; status: number; message: string };
+
+/** GitHub's answers to a merge that are a refusal, not a failure. */
+export const MERGE_REFUSAL_STATUSES: ReadonlySet<number> = new Set([405, 409, 422]);
+
+/** One review as GitHub lists it (`GET /pulls/{n}/reviews`, oldest first). */
+export type PullRequestReview = { login: string; state: string };
+
+/**
+ * Logins whose latest review requests changes. A later approval or dismissal replaces an earlier
+ * request; comments (and pending reviews) do not.
+ */
+export function changesRequestedBy(reviews: readonly PullRequestReview[]): string[] {
+  const latest = new Map<string, string>();
+  for (const { login, state } of reviews) {
+    if (state === 'COMMENTED' || state === 'PENDING') continue;
+    latest.set(login, state);
+  }
+  return [...latest]
+    .filter(([, state]) => state === 'CHANGES_REQUESTED')
+    .map(([login]) => login)
+    .sort();
 }
 
 /** GitHub's compare of two commits (`GET /repos/{owner}/{repo}/compare/{base}...{head}`). */

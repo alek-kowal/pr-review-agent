@@ -170,6 +170,12 @@ export type ChecksSectionView = {
 /** `POST .../sensitive/approve` and `.../sensitive/send-back`: what changed on the PR page. */
 export type SensitiveResult = Pick<PrView, 'nextStep' | 'checklist' | 'sensitive'>;
 
+/** `POST /api/prs/:repo/:number/merge`: the reviewed SHA, GitHub's squash commit and the signer. */
+export type MergeResponse = { sha: string; mergeSha: string; by: { id: string; name: string } };
+
+/** A failing checklist row in 409 `merge_not_ready` (`params.items`). */
+export type MergeFailingRow = Pick<ChecklistView['items'][number], 'item' | 'reason'>;
+
 /** `POST /api/prs/:repo/:number/start-review`. */
 export type StartReviewResponse = {
   runId: number;

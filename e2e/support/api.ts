@@ -44,7 +44,7 @@ export async function decide(
   request: APIRequestContext,
   number: number,
   titles: string[],
-  decision: 'implement' | 'reject',
+  decision: 'implement' | 'reject' | 'defer',
   slug = WB_SLUG,
 ): Promise<void> {
   const { apiUrl } = stackState();

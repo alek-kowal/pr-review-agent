@@ -1,1 +1,0 @@
-ALTER TABLE "runs" ADD COLUMN "retry_from" text;

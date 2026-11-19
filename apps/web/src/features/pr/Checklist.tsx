@@ -4,12 +4,13 @@ import { copy } from '@/copy/index.ts';
 import type { ChecklistView } from '@/lib/api-types.ts';
 import type { PrSlotProps } from './slots.ts';
 
-type Item = ChecklistView['items'][number];
+type Item = Pick<ChecklistView['items'][number], 'item' | 'ok' | 'reason'>;
 
 const reasonLine = ({ reason }: Item): string =>
   copy.checklist.reasons[reason.code]?.(reason.params) ?? copy.unknownReason(reason.code);
 
-function Row({ item }: { item: Item }) {
+/** One checklist row: its name and its reason (also the Merge dialog's failing rows). */
+export function ChecklistRow({ item }: { item: Item }) {
   const Icon = item.ok ? CircleCheck : CircleX;
   return (
     <li className="flex items-start gap-2 px-3.5 py-[7px] text-[13px]" data-ok={item.ok}>
@@ -31,8 +32,8 @@ function Row({ item }: { item: Item }) {
 }
 
 /**
- * The merge checklist: failing rows only, the rest behind "Show all N"; all green is one line
- * that opens the list (docs/03-design-decisions.md).
+ * The merge checklist: failing rows only, the rest behind "Show all N"; all green is one line,
+ * "Checklist green at abc1234", that opens the list (docs/03-design-decisions.md).
  */
 export function Checklist({ view }: PrSlotProps) {
   const [all, setAll] = useState(false);
@@ -59,14 +60,16 @@ export function Checklist({ view }: PrSlotProps) {
           className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3.5 py-2.5 text-[13px] hover:bg-surface-2"
         >
           <CircleCheck aria-hidden="true" className="size-[15px] text-ok" />
-          <span className="flex-1 text-left font-medium">{copy.checklist.title}</span>
+          <span className="flex-1 text-left font-medium">
+            {copy.checklist.green(view.pullRequest.headSha)}
+          </span>
           <span className="text-text-3 tabular-nums">{copy.checklist.progress(total, total)}</span>
           <Chevron aria-hidden="true" className="size-3.5 text-text-3" />
         </button>
         {all && (
           <ul id={listId} className="border-t border-divider py-1">
             {items.map((item) => (
-              <Row key={item.item} item={item} />
+              <ChecklistRow key={item.item} item={item} />
             ))}
           </ul>
         )}
@@ -92,7 +95,7 @@ export function Checklist({ view }: PrSlotProps) {
       </div>
       <ul id={listId} className="py-1">
         {shown.map((item) => (
-          <Row key={item.item} item={item} />
+          <ChecklistRow key={item.item} item={item} />
         ))}
       </ul>
       {okCount > 0 && (
