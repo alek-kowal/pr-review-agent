@@ -7,6 +7,7 @@ import { enqueueAfterRoundComment } from '../handlers/github-comment.ts';
 import type { SessionRecord } from '../stages/stage.ts';
 import { carryOpinionsOnRunCompleted } from './carry-opinions.ts';
 import { chainsOnRunCompleted } from './chains.ts';
+import { storePatchOnCompleted } from './patches.ts';
 import { wakeQueueOnRunEnd } from './queue-hooks.ts';
 import {
   timelineOnRunCancelled,
@@ -43,6 +44,7 @@ export type RunHooks = {
 /** Register a hook by adding it to its list. */
 export const RUN_HOOKS: RunHooks = {
   runCompleted: [
+    storePatchOnCompleted,
     chainsOnRunCompleted,
     carryOpinionsOnRunCompleted,
     timelineOnRunCompleted,

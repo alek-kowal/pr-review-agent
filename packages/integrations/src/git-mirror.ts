@@ -18,7 +18,14 @@ export interface GitMirror {
   diff(fullName: string, baseSha: string, headSha: string): Promise<GitDiff>;
   /** Removes the run's worktree; a missing one is fine. */
   removeWorktree(fullName: string, runId: string): Promise<void>;
+  /**
+   * Files that differ from the worktree's checked-out commit (edited, added or deleted, untracked
+   * included, ignored files not), each with its content at that commit (`null` when added).
+   */
+  worktreeChanges(worktree: string): Promise<WorktreeChange[]>;
 }
+
+export type WorktreeChange = { path: string; base: string | null };
 
 export type ChangedFileStatus = 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'changed';
 
@@ -167,6 +174,27 @@ export class CliGitMirror implements GitMirror {
   async removeWorktree(fullName: string, runId: string): Promise<void> {
     const dir = this.worktreeDir(runId);
     return this.#locked(fullName, () => this.#removeWorktree(fullName, dir));
+  }
+
+  async worktreeChanges(worktree: string): Promise<WorktreeChange[]> {
+    const status = await this.#git(worktree, [
+      'status',
+      '--porcelain=v1',
+      '-z',
+      '--untracked-files=all',
+      '--no-renames',
+    ]);
+    // Each entry is "XY <path>"; without renames there is never a second path.
+    const paths = status
+      .split('\0')
+      .filter((entry) => entry.length > 3)
+      .map((entry) => entry.slice(3));
+    const changes: WorktreeChange[] = [];
+    for (const file of [...new Set(paths)].sort()) {
+      const base = await this.#git(worktree, ['show', `HEAD:${file}`]).catch(() => null);
+      changes.push({ path: file, base });
+    }
+    return changes;
   }
 
   /** Clones the mirror if it is missing; returns whether it cloned. */

@@ -43,6 +43,7 @@ import { CANCEL_GRACE_MS, finishCancel } from './cancel.ts';
 import { CANCELLED } from './cancellation.ts';
 import { removeRunFiles } from './cleanup.ts';
 import { passGates } from './gates.ts';
+import { executorFor } from '../stages/index.ts';
 import { fireHooks, type RunHookContext } from './hooks.ts';
 import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
@@ -84,7 +85,7 @@ export async function executeStage(
     return 'cancelled';
   }
   const { pullRequest, repository } = found;
-  const executor = deps.extensions.stageExecutors[stage];
+  const executor = executorFor(deps.extensions.stageExecutors, found.run.kind, stage);
 
   // The queue holds one queued or active job per run and stage, so a job that finds its stage
   // still running is a retry: the handler that started the attempt threw or its worker stopped.

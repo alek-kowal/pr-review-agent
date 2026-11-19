@@ -9,12 +9,42 @@ import {
   type Actor,
   type Reason,
 } from '@pra/core';
-import { eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
+import type { Executor } from '../client.ts';
 import { patches } from '../schema/patches.ts';
+import { findingVerifications, findings } from '../schema/runs.ts';
+import { currentDecisions } from './decisions.ts';
 import { insertImplementerRequest } from './patches.ts';
 import { loadPrStateInput, type PrStateLoad } from './pr-state.ts';
-import type { Run } from './runs.ts';
+import type { FindingRow, Run } from './runs.ts';
+import type { FindingVerification } from './verifications.ts';
 import { createRun, type RunStartDeps, type RunTx } from './start-round.ts';
+
+/** A finding as the implementer reads it: the row, its verification and the decision's note. */
+export type ImplementerFindingRow = {
+  finding: FindingRow;
+  verification: FindingVerification | null;
+  note: string | null;
+};
+
+export async function implementerFindings(
+  db: Executor,
+  findingIds: readonly number[],
+): Promise<ImplementerFindingRow[]> {
+  if (!findingIds.length) return [];
+  const ids = [...findingIds];
+  const [rows, verifications, decisions] = await Promise.all([
+    db.select().from(findings).where(inArray(findings.id, ids)).orderBy(asc(findings.ordinal)),
+    db.select().from(findingVerifications).where(inArray(findingVerifications.findingId, ids)),
+    currentDecisions(db, ids),
+  ]);
+  const byFinding = new Map(verifications.map((v) => [v.findingId, v]));
+  return rows.map((finding) => ({
+    finding,
+    verification: byFinding.get(finding.id) ?? null,
+    note: decisions.get(finding.id)?.reason ?? null,
+  }));
+}
 
 export type StartImplementerInput = {
   pullRequestId: number;

@@ -25,6 +25,8 @@ export const JOBS = {
   reconcile: 'reconcile',
   /** Starts queued runs that may start now, oldest first, and refreshes why the others wait. */
   runDrain: 'run.drain',
+  /** Reruns a patch's reproductions after an edit or revert, no model spend; keyed `<patchId>`. */
+  patchCheck: 'patch.check',
 } as const;
 
 /** Every 10 minutes (OQ18): the poll that corrects what webhooks missed (S-03-T14). */
@@ -41,6 +43,7 @@ export interface JobPayloads {
   'clickup.follow-up': { batchId: number };
   reconcile: Record<string, never>;
   'run.drain': Record<string, never>;
+  'patch.check': { patchId: number };
 }
 
 type QueueSettings = Omit<QueueDefinition, 'name'>;
@@ -64,6 +67,8 @@ export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   reconcile: { retryLimit: 0 },
   // One drain runs at a time and one more waits: wakes during a drain are merged into the next.
   'run.drain': { policy: 'stately', retryLimit: 1 },
+  // One check per patch at a time and one more waits: edits during a check queue the next one.
+  'patch.check': { policy: 'stately', retryLimit: 1 },
 };
 
 /** Wakes the queue drainer (after a status change, a freed slot, and every minute). */
