@@ -442,7 +442,14 @@ export type RunDetail = {
     finishedAt: string | null;
     currentStage: string | null;
     notChecked: string[];
-    instructionVersions: { id: number; scope: string; fileKey: string; version: number }[];
+    instructionVersions: {
+      id: number;
+      scope: string;
+      fileKey: string;
+      version: number;
+      level?: number | null;
+      fileId?: number | null;
+    }[];
     error: { stage: string; code: string } | null;
   };
   pullRequest: { repository: { slug: string }; number: number; title: string };

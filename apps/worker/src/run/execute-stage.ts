@@ -18,7 +18,7 @@ import {
   insertFindings,
   insertQuestions,
   saveFixChecks,
-  activeInstructions,
+  freezeRunInstructions,
   insertStageExecution,
   lockRun,
   stageExecutionsOfRun,
@@ -224,13 +224,8 @@ async function startStageInTx(
     if (!begun.ok) return notStarted;
     state = begun.run;
     const now = new Date();
-    // The instruction files this run reads, for Run detail (S-03-T5).
-    const instructionVersions = (await activeInstructions(tx, repositoryId)).map((v) => ({
-      id: v.id,
-      scope: v.scope,
-      fileKey: v.fileKey,
-      version: v.version,
-    }));
+    // The instruction versions this run reads, frozen now (S-22-T3) and shown in Run detail.
+    const instructionVersions = await freezeRunInstructions(tx, run, repositoryId);
     const patch = {
       status: 'running' as const,
       startedAt: now,

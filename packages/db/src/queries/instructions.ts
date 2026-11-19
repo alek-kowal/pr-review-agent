@@ -1,7 +1,19 @@
-import type { InstructionLayer, InstructionScope, InstructionTarget, LevelNumber } from '@pra/core';
+import {
+  resolveInstructions,
+  type InstructionLayer,
+  type InstructionScope,
+  type InstructionTarget,
+  type LevelNumber,
+  type Reason,
+} from '@pra/core';
 import { and, asc, eq, getTableColumns, isNull, or } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
-import { instructionFiles, instructionVersions } from '../schema/instructions.ts';
+import {
+  instructionFiles,
+  instructionVersions,
+  runInstructionVersions,
+} from '../schema/instructions.ts';
+import type { RunInstructionVersion } from '../schema/runs.ts';
 
 export type InstructionFileRow = typeof instructionFiles.$inferSelect;
 export type InstructionVersionRow = typeof instructionVersions.$inferSelect;
@@ -143,4 +155,106 @@ export async function activeInstructionLayers(
   target: InstructionTarget,
 ): Promise<InstructionLayer[]> {
   return (await activeInstructions(db, target.repositoryId)).map(toLayer);
+}
+
+/**
+ * Makes a version the file's active one (a signed activation or a rollback): the active version
+ * is archived, a draft being activated stops being the draft. Call it inside the signed change's
+ * transaction. Returns null when the version does not exist.
+ */
+export async function activateInstructionVersion(
+  tx: Executor,
+  versionId: number,
+  signerId: string | null,
+  at: Date = new Date(),
+): Promise<InstructionVersionRow | null> {
+  const [target] = await tx
+    .select()
+    .from(instructionVersions)
+    .where(eq(instructionVersions.id, versionId))
+    .for('update');
+  if (!target) return null;
+  if (target.status === 'active') return target;
+  await tx
+    .update(instructionVersions)
+    .set({ status: 'archived' })
+    .where(
+      and(eq(instructionVersions.fileId, target.fileId), eq(instructionVersions.status, 'active')),
+    );
+  const [active] = await tx
+    .update(instructionVersions)
+    .set({ status: 'active', activatedAt: at, activatedByMemberId: signerId })
+    .where(eq(instructionVersions.id, versionId))
+    .returning();
+  return active ?? null;
+}
+
+type RunRef = { id: number; level: { number: LevelNumber } };
+
+/**
+ * Freezes the versions a starting run reads (S-22-T3): resolves the active versions for its
+ * repository and level, with `replace` (a trial's draft) in place of the same file's active
+ * version, and records every version that contributes in `run_instruction_versions`. Returns the
+ * snapshot Run detail shows.
+ */
+export async function freezeRunInstructions(
+  tx: Executor,
+  run: RunRef,
+  repositoryId: number,
+  replace: readonly InstructionVersion[] = [],
+): Promise<RunInstructionVersion[]> {
+  const replaced = new Set(replace.map((v) => v.fileId));
+  const versions = [
+    ...(await activeInstructions(tx, repositoryId)).filter((v) => !replaced.has(v.fileId)),
+    ...replace,
+  ];
+  const { files } = resolveInstructions(versions.map(toLayer), {
+    repositoryId,
+    level: run.level.number,
+  });
+  const used = new Set(files.flatMap((f) => f.layers.map((l) => l.versionId)));
+  const frozen = versions.filter((v) => used.has(v.id));
+  if (frozen.length) {
+    await tx
+      .insert(runInstructionVersions)
+      .values(frozen.map((v) => ({ runId: run.id, versionId: v.id })))
+      .onConflictDoNothing();
+  }
+  return frozen
+    .sort((a, b) => a.fileKey.localeCompare(b.fileKey) || a.scope.localeCompare(b.scope))
+    .map((v) => ({
+      id: v.id,
+      fileId: v.fileId,
+      scope: v.scope,
+      level: v.level,
+      fileKey: v.fileKey,
+      version: v.version,
+    }));
+}
+
+/** The versions a run recorded when it started. */
+export async function versionsOfRun(db: Executor, runId: number): Promise<InstructionVersion[]> {
+  return selectVersions(db)
+    .innerJoin(runInstructionVersions, eq(runInstructionVersions.versionId, instructionVersions.id))
+    .where(eq(runInstructionVersions.runId, runId))
+    .orderBy(asc(instructionFiles.fileKey));
+}
+
+/**
+ * The instruction files a run reads, by file key: its frozen versions, so activating a version
+ * never changes a running run. A run without recorded versions (started before S-22) reads the
+ * active ones.
+ */
+export async function runInstructions(
+  db: Executor,
+  run: RunRef,
+  repositoryId: number,
+): Promise<{ files: Map<string, string>; warnings: Reason[] }> {
+  const frozen = await versionsOfRun(db, run.id);
+  const versions = frozen.length ? frozen : await activeInstructions(db, repositoryId);
+  const { files, warnings } = resolveInstructions(versions.map(toLayer), {
+    repositoryId,
+    level: run.level.number,
+  });
+  return { files: new Map(files.map((f) => [f.fileKey, f.content])), warnings };
 }

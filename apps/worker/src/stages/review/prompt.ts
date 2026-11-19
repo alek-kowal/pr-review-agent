@@ -1,6 +1,5 @@
 // The reviewer's knowledge directory and launch prompt, after P's `src/prompt.ts`.
 import { BUILT_IN_REVIEWER_PROMPT } from '@pra/core';
-import type { InstructionVersion } from '@pra/db';
 import { chmod, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -33,22 +32,6 @@ export function renderReviewerPrompt(
   return usable
     .trim()
     .replace(/\{\{(\w+)\}\}/g, (whole, name: string) => values[name as Placeholder] ?? whole);
-}
-
-/**
- * The files a review reads, by file key: global ones, then the repository's, which win over a
- * global file with the same key.
- */
-export function effectiveInstructions(
-  versions: readonly InstructionVersion[],
-): Map<string, string> {
-  const files = new Map<string, string>();
-  for (const scope of ['global', 'repository'] as const) {
-    for (const version of versions) {
-      if (version.scope === scope) files.set(version.fileKey, version.content);
-    }
-  }
-  return files;
 }
 
 /**
