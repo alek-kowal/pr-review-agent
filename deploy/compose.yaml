@@ -28,6 +28,13 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      # The SPA from Caddy's own file server; the api has its own check.
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:8080/']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   api:
     build: { context: .., dockerfile: apps/api/Dockerfile }
