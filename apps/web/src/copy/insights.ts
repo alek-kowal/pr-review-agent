@@ -1,5 +1,7 @@
 // Copy for Insights (S-19). Numbers always carry their sample size; nothing compares periods.
 
+import { levelNames } from './repositories.ts';
+
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export const insights = {
@@ -20,7 +22,6 @@ export const insights = {
     repo: 'Repository',
     allRepos: 'All repositories',
   },
-  later: 'This tab arrives in the next task.',
   loading: 'Loading Insights…',
   failed: 'Insights could not be loaded. Try again in a moment.',
   money: (usd: number) => `$${usd.toFixed(2)}`,
@@ -35,6 +36,64 @@ export const insights = {
     return m === 0 ? `${h} h` : `${h} h ${m} min`;
   },
   none: '—',
+  level: (n: number) => `${n} · ${levelNames[n] ?? ''}`,
+  /** Shown instead of rates below 5 findings. */
+  tooFewFindings: (n: number) => `Too few findings (${n} of 5)`,
+  tooFewHint: 'Rates show from 5 findings up. Fewer would be noise.',
+  unchecked: 'Unchecked',
+  uncheckedHint: 'Levels 1–2 do not verify findings.',
+  cost: {
+    statsLabel: 'Spend',
+    today: 'Spent today',
+    ofBudget: (budget: string) => `of ${budget} daily budget`,
+    noBudget: 'No daily budget set',
+    rangeTotal: (days: number) => `Last ${days} days`,
+    rangeTotalSub: (repo: string | undefined) =>
+      repo ? `PR work in ${repo}` : 'PR work, all repositories',
+    averageRound: 'Average round',
+    averageRoundSub: 'completed rounds in the range',
+    byDay: 'Spend by day',
+    byDayChart: (days: number) => `Daily spend for the last ${days} days`,
+    day: 'Day',
+    spent: 'Spent',
+    byRepository: 'By repository',
+    byRole: 'By agent role',
+    byLevel: 'By review level',
+    nothing: 'Nothing spent in this range.',
+    roles: {
+      reviewer: 'Reviewer',
+      verifier: 'Verifier',
+      implementer: 'Implementer',
+      judge: 'Judge',
+      analyst: 'Analyst',
+    } as Record<string, string>,
+    separate: 'Not in PR cost',
+    separateHint: 'Trials and the analyst after close are kept out of every figure above.',
+    trials: 'Trials',
+    analyst: 'Analyst',
+  },
+  quality: {
+    perLevel: 'Per review level',
+    perLevelHint:
+      'Confirmed and Refuted come from the verifier (level 3 and up). Decided Implement is the share of decided findings that people chose to fix.',
+    perVersion: 'Per instruction version',
+    columns: {
+      level: 'Level',
+      rounds: 'Rounds',
+      runs: 'Runs',
+      findings: 'Findings',
+      confirmed: 'Confirmed',
+      refuted: 'Refuted',
+      implement: 'Decided Implement',
+      averageRound: 'Average round',
+      averageCost: 'Average cost',
+      instruction: 'Instruction',
+      version: 'Version',
+    },
+    version: (n: number, active: boolean) => `v${n}${active ? ' · active' : ''}`,
+    noVersion: 'No version recorded',
+    noRuns: 'No run in this range.',
+  },
   overview: {
     empty: 'No PR finished in this range.',
     emptyHint: 'Pick a longer range, another author or another repository.',

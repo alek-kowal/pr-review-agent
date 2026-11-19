@@ -140,3 +140,17 @@ Work package P-13 from `context/foundation/work-packages.md`, wave 5. Plan: no; 
   summed time. The PR table and "Not measured yet" are native `<details>`, collapsed.
 - Insights response types live in `features/insights/types.ts`, not `lib/api-types.ts`, to keep
   parallel packages off a shared file.
+
+### S-19-T6 (Cost and Quality tabs)
+
+- `recharts` 3.8.0 and the shadcn `chart` component (`pnpm dlx shadcn add chart`) draw spend by
+  day. Beside the chart, a screen-reader table carries the same numbers; the chart has
+  `role="img"` and a label. Tests give elements a size (`getBoundingClientRect` spy), since jsdom
+  lays nothing out and Recharts draws nothing at 0 px.
+- Cost tiles: spent today against the daily budget (or "No daily budget set"), the range total of
+  PR work, and the average completed round. The prototype's fourth tile ("Share spent on Review")
+  is left out; the by-role bars show it. Repository, role and level spend are plain bar lists.
+  Trials and the analyst sit in their own "Not in PR cost" card.
+- Quality: below 5 findings one cell spans the rate columns: "Too few findings (n of 5)".
+  Levels 1–2 show "Unchecked" in Confirmed and Refuted; the per-version table shows Confirmed
+  only (the prototype's columns). Runs with no recorded version are "No version recorded".

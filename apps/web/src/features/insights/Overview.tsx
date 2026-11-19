@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronRight } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { copy } from '@/copy/index.ts';
 import { InsightsFilters } from './InsightsFilters.tsx';
+import { Fold } from './parts.tsx';
 import { overviewQuery } from './queries.ts';
 import { DEFAULT_RANGE, type InsightsSearch } from './search.ts';
 import type { Lanes, OverviewPr, OverviewResponse } from './types.ts';
@@ -176,21 +175,6 @@ function LaneSplit({ lanes, merged }: { lanes: Lanes; merged: number }) {
         <p className="m-0 text-xs text-text-3">{l.queueNote}</p>
       </div>
     </section>
-  );
-}
-
-function Fold({ title, children }: { title: ReactNode; children: ReactNode }) {
-  return (
-    <details className="group rounded-lg border border-border bg-surface">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-sm font-medium text-text-2">
-        <ChevronRight
-          aria-hidden="true"
-          className="size-4 transition-transform group-open:rotate-90"
-        />
-        {title}
-      </summary>
-      {children}
-    </details>
   );
 }
 

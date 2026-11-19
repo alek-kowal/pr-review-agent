@@ -1,6 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { copy } from '@/copy/index.ts';
+import { CostTab } from '@/features/insights/CostTab.tsx';
 
 export const Route = createFileRoute('/insights/cost')({
-  component: () => <p className="text-text-3">{copy.insights.later}</p>,
+  component: Tab,
 });
+
+function Tab() {
+  return <CostTab search={Route.useSearch()} />;
+}
