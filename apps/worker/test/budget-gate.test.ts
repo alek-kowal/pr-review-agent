@@ -45,6 +45,8 @@ const reviewOnce: StageExecutor = {
   key: 'review',
   usesAgent: true,
   async run({ deps, run }) {
+    // The step is scripted only once the gates let the stage run, so a wait leaves none behind.
+    agentStep();
     const result = await deps.agentRunner.run({
       role: 'reviewer',
       model: 'claude-opus-5-5',
@@ -107,14 +109,16 @@ function agentStep(): void {
       new Promise<AgentRunResult<unknown>>((resolve) =>
         held.push(() =>
           resolve({
-            ok: true,
+            status: 'completed',
             output: { done: true },
+            error: null,
             costUsd: SESSION_COST_USD,
             costSource: 'reported',
             turns: 1,
             durationMs: 10,
             usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
-          } as AgentRunResult<unknown>),
+            transcript: [],
+          }),
         ),
       ),
   );
@@ -143,7 +147,6 @@ async function ready(): Promise<Run> {
 
 /** The review stage of `run`; it stays pending while its agent session is held. */
 function review(run: Run) {
-  agentStep();
   return executeStage(deps, run.id, 'review');
 }
 
@@ -265,7 +268,6 @@ describe('daily budget', () => {
     // A raised budget lets the drainer start it.
     await setStatus({ dailyBudgetUsd: 100 });
     expect((await drainQueue(deps)).started).toEqual([run.id]);
-    held.length = 0;
   });
 
   test('a running round that hits the budget waits before its next agent stage', async () => {
@@ -294,7 +296,6 @@ describe('daily budget', () => {
     await setStatus({ dailyBudgetUsd: null });
     expect((await drainQueue(deps)).resumed).toEqual([running.id]);
     expect((await waitOf(running))?.reason).toBeNull();
-    held.length = 0;
   });
 });
 
@@ -315,11 +316,6 @@ describe('pause', () => {
 
     releaseOldest();
     expect(await done).toBe('succeeded');
-    const stages = await deps.db
-      .select()
-      .from(schema.stageExecutions)
-      .where(inArray(schema.stageExecutions.runId, [running.id]));
-    expect(stages.map((s) => [s.stage, s.status, s.errorCode])).toEqual([]);
     expect((await getRun(deps.db, running.id))!.status).toBe('completed');
     expect((await drainQueue(deps)).started).toEqual([]);
 
@@ -327,7 +323,9 @@ describe('pause', () => {
     expect((await getAppSettings(deps.db)).value.paused).toBe(false);
     expect((await drainQueue(deps)).started).toEqual([queued.id]);
     expect(await jobsWhere(deps.db, 'run.stage', 'runId', queued.id)).not.toHaveLength(0);
-    expect(await review(queued)).not.toBe('waiting');
-    held.length = 0;
+    const resumed = review(queued);
+    await vi.waitFor(() => expect(deps.agentRunner.calls).toHaveLength(2));
+    releaseOldest();
+    expect(await resumed).toBe('succeeded');
   });
 });

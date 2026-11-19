@@ -158,15 +158,15 @@ web component tests with `stubFetch`, one Playwright spec.
 
 ### Phase 1: Status data
 
-- [ ] 1.1 `pnpm --filter @pra/db test status.test.ts`
+- [x] 1.1 `pnpm --filter @pra/db test status.test.ts`
 
 ### Phase 2: Start gate in core
 
-- [ ] 2.1 `pnpm --filter @pra/core test start-gate.test.ts`
+- [x] 2.1 `pnpm --filter @pra/core test start-gate.test.ts`
 
 ### Phase 3: Enforce the gate in the worker
 
-- [ ] 3.1 `pnpm --filter @pra/worker test budget-gate.test.ts`
+- [x] 3.1 `pnpm --filter @pra/worker test budget-gate.test.ts`
 
 ### Phase 4: API
 
