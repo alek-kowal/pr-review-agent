@@ -262,5 +262,5 @@ the guard. Every role also gets the guard as a PreToolUse hook.
 
 #### Automated
 
-- [ ] 7.1 implementer.test.ts passes
-- [ ] 7.2 pnpm verify passes
+- [x] 7.1 implementer.test.ts passes
+- [x] 7.2 pnpm verify passes

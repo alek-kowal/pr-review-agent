@@ -183,10 +183,10 @@ describe('ClaudeAgentRunner', () => {
   it('fails with role_not_supported for a role without tools', async () => {
     const query = vi.fn<QueryFn>();
     const result = await new ClaudeAgentRunner({ apiKey: 'sk-test', query }).run(
-      input({ role: 'implementer' }),
+      input({ role: 'analyst' }),
     );
     expect(query).not.toHaveBeenCalled();
-    expect(result.error).toEqual({ code: 'role_not_supported', params: { role: 'implementer' } });
+    expect(result.error).toEqual({ code: 'role_not_supported', params: { role: 'analyst' } });
   });
 
   it('is cancelled when the caller aborts mid-session', async () => {

@@ -1,7 +1,7 @@
 ---
 change_id: P-06
 title: Sandbox and adapters (S-04-T1, S-04-T2, S-04-T4, S-05-T1, S-06-T1, S-06-T2, S-13-T1)
-status: in_progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -125,3 +125,20 @@ The planning step ran without questions (orchestrator rule: decide and record).
   Migration `0003_pr_task_links`; renumber after rebase if another package lands a migration first.
 - **AGENTS.md not updated for the seed flags** (hot file H14, edited by P-07 in this wave); the CLI's
   usage line documents them.
+- **S-13-T1: the implementer keeps the v1 answer** (`decisions [{id, action: fixed|declined, why}]`,
+  `commitMessage`, `summary`, `notChecked` ≤ 5) and maps it to `fixedFindingIds`, `declined
+  [{id, reason}]`, `summary`, `commitMessage`, `notChecked`. Finding ids are strings (v1: integers).
+- **S-13-T1: `cwd` is the worktree; inputs sit in a read-only session folder** (`findings.json`
+  with v1's field names plus `reproduction`, `answers.json`, rules under `instructions/`), filled
+  into `{{runDir}}` / `{{knowledgeDir}}`; one English line points to `answers.json` when there are
+  answers.
+- **S-13-T1: path guard details** (`packages/agents/src/path-guard.ts`): read tools (Read, Glob,
+  Grep) may use `cwd` and the read dirs, write tools (Edit, MultiEdit, Write, NotebookEdit) only
+  `cwd`; a Glob pattern's fixed prefix is checked too; `~` paths are denied; shells, web tools and
+  sub-agents are denied by name even if a tool list ever named them. Tools without a path argument
+  (the SDK's own structured-output tool) are left to the session's `tools` list, so structured
+  output keeps working under `permissionMode: 'default'`.
+- **S-13-T1: env stays `ANTHROPIC_API_KEY`, `PATH` and a throwaway `HOME`** (see Planning); the test
+  asserts no `GITHUB_*`, `CLICKUP_*` or `DATABASE_URL`. The `role_not_supported` runner test now
+  uses `analyst`, the only role still without tools.
+- **No e2e run**: the package changes no UI (`pnpm verify` only, per the orchestrator rule).

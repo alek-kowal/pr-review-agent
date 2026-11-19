@@ -17,6 +17,7 @@ import {
   toUsage,
   type ApiUsage,
 } from './agent-result.ts';
+import { pathGuard } from './path-guard.ts';
 import { costOf } from './prices.ts';
 import {
   NO_USAGE,
@@ -31,13 +32,21 @@ import {
 export type QueryFn = (params: { prompt: string; options: Options }) => AsyncIterable<SDKMessage>;
 
 /**
- * Built-in tools per role. Nobody gets a shell; the reviewer and the verifier only read.
+ * Built-in tools per role. Nobody gets a shell; the reviewer and the verifier only read, the
+ * implementer edits its worktree.
  * The judge is not here: it is one Messages API call without tools (`AnthropicJudge`).
  */
 export const ROLE_TOOLS: Partial<Record<AgentRole, readonly string[]>> = Object.freeze({
   reviewer: Object.freeze(['Read', 'Grep', 'Glob']),
   verifier: Object.freeze(['Read', 'Grep', 'Glob']),
+  implementer: Object.freeze(['Read', 'Glob', 'Grep', 'Edit', 'Write']),
 });
+
+/**
+ * Roles whose every tool call goes through the path guard as a permission callback, with nothing
+ * pre-approved: they write, so a read of a secret must never slip through a pre-approval.
+ */
+const GUARDED_EACH_CALL: ReadonlySet<AgentRole> = new Set(['implementer']);
 
 export type ClaudeAgentRunnerOptions = {
   /** `ANTHROPIC_API_KEY`; without it every run fails with `model_access_not_configured`. */
@@ -141,15 +150,22 @@ export class ClaudeAgentRunner implements AgentRunner {
     home: string,
     abort: AbortController,
   ): Options {
+    const guard = pathGuard({ cwd: input.cwd, readDirs: input.readDirs ?? [] });
+    const permissions: Partial<Options> = GUARDED_EACH_CALL.has(input.role)
+      ? // Nothing pre-approved: every call is decided by the guard.
+        { allowedTools: [], permissionMode: 'default', canUseTool: guard.canUseTool }
+      : // Anything not pre-approved is denied, never asked.
+        { allowedTools: [...tools], permissionMode: 'dontAsk' };
     return {
       model: input.model,
       cwd: input.cwd,
       additionalDirectories: input.readDirs ?? [],
       ...(input.systemPrompt === undefined ? {} : { systemPrompt: input.systemPrompt }),
       tools: [...tools],
-      allowedTools: [...tools],
-      // Anything not pre-approved is denied, never asked.
-      permissionMode: 'dontAsk',
+      ...permissions,
+      // Every role: reads stay in `cwd` and the read dirs, writes in `cwd`. A hook deny wins over
+      // a pre-approval.
+      hooks: { PreToolUse: [{ hooks: [guard.hook] }] },
       // No user or project settings: no hooks, skills or CLAUDE.md from the machine or the PR.
       settingSources: [],
       mcpServers: {},

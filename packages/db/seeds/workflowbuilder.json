@@ -41,7 +41,9 @@
       "prompt-classifier.md",
       "classify-rules.md",
       "prompt-verifier.md",
-      "verify-rules.md"
+      "verify-rules.md",
+      "prompt-implementer.md",
+      "implement-rules.md"
     ],
     "repository": ["lessons.md", "feature-map/"]
   }
