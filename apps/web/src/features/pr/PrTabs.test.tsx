@@ -44,12 +44,27 @@ test('switching tabs updates ?tab=', async () => {
 });
 
 test('a deep link opens the right tab', async () => {
-  stubPr();
+  stubFetch({
+    '/api/prs/wb/12': aPrView(),
+    '/api/prs/wb/12/findings': aFindingsResponse(),
+    '/api/prs/wb/12/timeline': {
+      summary: {
+        readyAt: null,
+        outcome: 'open',
+        totalMs: 0,
+        agentsWorkedMs: 0,
+        waitingMs: 0,
+        byLane: {},
+        costUsd: 0,
+      },
+      entries: [],
+    },
+  });
   renderApp('/pr/wb/12?tab=timeline');
 
   const tab = await screen.findByRole('tab', { name: copy.pr.tabs.timeline });
   expect(tab).toHaveAttribute('aria-selected', 'true');
-  expect(screen.getByText(copy.pr.empty.timeline)).toBeVisible();
+  expect(await screen.findByText(copy.timeline.empty)).toBeVisible();
 });
 
 test('an unknown ?tab= falls back to Findings', async () => {

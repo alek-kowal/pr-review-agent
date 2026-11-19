@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api.ts';
-import type { FindingsResponse, PrView } from '@/lib/api-types.ts';
+import type { FindingsResponse, PrView, TimelineResponse } from '@/lib/api-types.ts';
 
 // No polling: live updates (`src/live`) invalidate these keys when the PR's rows change.
 
@@ -23,4 +23,10 @@ export const findingsQuery = (repo: string, number: string) =>
   queryOptions({
     queryKey: prKeys.findings(repo, number),
     queryFn: ({ signal }) => apiGet<FindingsResponse>(`${prPath(repo, number)}/findings`, signal),
+  });
+
+export const timelineQuery = (repo: string, number: string) =>
+  queryOptions({
+    queryKey: prKeys.timeline(repo, number),
+    queryFn: ({ signal }) => apiGet<TimelineResponse>(`${prPath(repo, number)}/timeline`, signal),
   });

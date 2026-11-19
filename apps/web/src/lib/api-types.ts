@@ -367,3 +367,33 @@ export type RunDetail = {
   /** Sum of the run's session costs: for a failed run, what it spent up to the failure. */
   totalCostUsd: number;
 };
+
+/** `GET /api/prs/:repo/:number/timeline`. */
+export type TimelineResponse = {
+  summary: {
+    /** First ready-for-review state; null while the PR was never ready. */
+    readyAt: string | null;
+    outcome: 'open' | 'merged' | 'closed';
+    /** Ready → merged / closed, or open for (until now). */
+    totalMs: number;
+    agentsWorkedMs: number;
+    waitingMs: number;
+    byLane: Record<string, number>;
+    /** Cost of the PR's finished runs. */
+    costUsd: number;
+  };
+  entries: TimelineEntryView[];
+};
+
+export type TimelineEntryView = {
+  id: number;
+  at: string;
+  actor: ActorView;
+  /** The signer's name for member entries (kept after they leave the team). */
+  memberName: string | null;
+  kind: string;
+  params: Record<string, unknown>;
+  runId: number | null;
+  /** A finished run's final cost. */
+  costUsd: number | null;
+};

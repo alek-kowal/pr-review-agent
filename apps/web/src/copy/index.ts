@@ -8,6 +8,7 @@ import { nextStep } from './nextStep.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
 import { status } from './status.ts';
+import { timeline } from './timeline.ts';
 
 export const copy = {
   app: {
@@ -29,6 +30,7 @@ export const copy = {
   status,
   runs,
   clickup,
+  timeline,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',
@@ -55,7 +57,6 @@ export const copy = {
     empty: {
       questions: 'No questions for this pull request.',
       patch: 'No patch yet.',
-      timeline: 'Nothing on the timeline yet.',
     },
   },
   round: {
