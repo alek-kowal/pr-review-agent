@@ -43,6 +43,9 @@ export const QUESTION_PRS = { from: 270, to: 279 };
 /** PR numbers from this one up get a failing reviewer. */
 export const FAILING_PR_FROM = 400;
 
+/** PR numbers in this range get a reviewer that fails its first session only (retry-cancel.spec.ts). */
+export const FAIL_ONCE_PRS = { from: 150, to: 159 };
+
 /**
  * PR numbers in this range get a held reviewer: it reports one turn costing `HELD_TURN_COST_USD`,
  * then waits until the spec creates `releaseFile(number)` before it answers (live-progress.spec.ts).
@@ -83,6 +86,20 @@ export const LEVEL_TWO_REPOSITORY = {
   fullName: 'acme/level-two-repo',
   installationId: 55500004,
 };
+
+/** Seeded at level 2 with a 1-line large-PR threshold: every PR there is large. */
+export const LARGE_PR_REPOSITORY = {
+  slug: 'large-pr-repo',
+  fullName: 'acme/large-pr-repo',
+  installationId: 55500006,
+};
+
+/** CI on the fixture head in the level-two and large-PR repositories: 2 passed, 1 failed. */
+export const FIXTURE_CI = [
+  { name: 'build', source: 'check_run', state: 'passed' },
+  { name: 'lint', source: 'check_run', state: 'passed' },
+  { name: 'e2e', source: 'status', state: 'failed' },
+] as const;
 
 /**
  * Seeded at level 1 with two sensitive patterns that match two of the fixture's changed files:

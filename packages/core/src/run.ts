@@ -16,7 +16,13 @@ export type RunStageKey =
 export type StageStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'off' | 'reused';
 
 /** Error codes the machine itself sets; stages fail with any code (for example `timeout`). */
-export const STAGE_ERROR = { interrupted: 'interrupted', cancelled: 'cancelled' } as const;
+export const STAGE_ERROR = {
+  /** No handler runs the stage any more (its handler threw after the start). */
+  interrupted: 'interrupted',
+  /** The worker stopped while the stage ran; found at the next worker start (S-09-T6). */
+  interruptedByRestart: 'interrupted_by_restart',
+  cancelled: 'cancelled',
+} as const;
 
 export interface StageState {
   key: RunStageKey;
@@ -181,12 +187,15 @@ export function retryFromStage(run: RunState): Transition {
  * After a restart nothing stays running forever: a running stage fails with `interrupted` (so it
  * can be retried), and queued runs stay queued.
  */
-export function recoverAfterRestart(run: RunState): RunState {
+export function recoverAfterRestart(
+  run: RunState,
+  code: string = STAGE_ERROR.interrupted,
+): RunState {
   const interrupted = run.stages.find((s) => s.status === 'running');
   if (run.status !== 'running' || !interrupted) return run;
   return {
-    ...withStage(run, interrupted.key, { status: 'failed', errorCode: STAGE_ERROR.interrupted }),
+    ...withStage(run, interrupted.key, { status: 'failed', errorCode: code }),
     status: 'failed',
-    error: { stage: interrupted.key, code: STAGE_ERROR.interrupted },
+    error: { stage: interrupted.key, code },
   };
 }

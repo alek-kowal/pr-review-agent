@@ -38,6 +38,9 @@ const FAILED_RUN: RunDetail = {
     notChecked: [],
     instructionVersions: [{ id: 7, scope: 'global', fileKey: 'review-rules.md', version: 3 }],
     error: { stage: 'review', code: 'stage_timeout' },
+    retryOf: null,
+    retryFrom: null,
+    retriedBy: null,
   },
   pullRequest: { repository: { slug: 'wb' }, number: 12, title: 'Add node grouping' },
   label: {
@@ -63,6 +66,7 @@ const FAILED_RUN: RunDetail = {
       finishedAt: at(2),
       output: { summary: 'checks done' },
       sessions: [],
+      reused: false,
     },
     {
       key: 'task',
@@ -86,6 +90,7 @@ const FAILED_RUN: RunDetail = {
         },
       },
       sessions: [session({ id: 1, costUsd: 0.1 })],
+      reused: false,
     },
     {
       key: 'review',
@@ -109,6 +114,7 @@ const FAILED_RUN: RunDetail = {
           hasTranscript: true,
         }),
       ],
+      reused: false,
     },
     {
       key: 'verify',
@@ -121,6 +127,7 @@ const FAILED_RUN: RunDetail = {
       finishedAt: null,
       output: null,
       sessions: [],
+      reused: false,
     },
   ],
   totalCostUsd: 0.4,

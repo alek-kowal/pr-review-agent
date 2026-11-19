@@ -429,7 +429,7 @@ describe('restart', () => {
     expect(recovered.interrupted).toContain(run.id);
     expect(await getRun(deps.db, run.id)).toMatchObject({ status: 'failed' });
     const [review] = await stagesOf(run.id);
-    expect(review).toMatchObject({ status: 'failed', errorCode: 'interrupted' });
+    expect(review).toMatchObject({ status: 'failed', errorCode: 'interrupted_by_restart' });
   });
 
   test(

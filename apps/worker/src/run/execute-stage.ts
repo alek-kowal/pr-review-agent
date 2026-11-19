@@ -2,9 +2,11 @@
 // result in one transaction, then queues the next stage or ends the run. Keyed by (runId, stage):
 // a job for a stage that is not the run's next pending one does nothing.
 import {
+  cancelRun,
   completeStage,
   failStage,
   nextStage,
+  STAGE_ERROR,
   startRun,
   startStage,
   type RunStageKey,
@@ -13,6 +15,8 @@ import {
 } from '@pra/core';
 import {
   addRunCost,
+  cancelRequested,
+  deleteQueuedStageJobs,
   getRunContext,
   insertAgentSession,
   insertFindings,
@@ -35,6 +39,8 @@ import {
 } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 import type { SessionRecord, StageError, StageExecutor, StageResult } from '../stages/stage.ts';
+import { CANCEL_GRACE_MS, finishCancel } from './cancel.ts';
+import { CANCELLED } from './cancellation.ts';
 import { removeRunFiles } from './cleanup.ts';
 import { passGates } from './gates.ts';
 import { fireHooks, type RunHookContext } from './hooks.ts';
@@ -55,20 +61,27 @@ export async function handleRunStages(
 }
 
 export type ExecuteStageOutcome =
-  'run_not_found' | 'not_next' | 'waiting' | 'interrupted' | 'succeeded' | 'failed';
+  'run_not_found' | 'not_next' | 'waiting' | 'interrupted' | 'cancelled' | 'succeeded' | 'failed';
+
+type ExecuteStageOptions = { abortGraceMs?: number; cancelGraceMs?: number };
 
 /** Runs one stage of one run. Returns what happened (for logs and tests). */
 export async function executeStage(
   deps: WorkerDeps,
   runId: number,
   stage: string,
-  options: { abortGraceMs?: number } = {},
+  options: ExecuteStageOptions = {},
 ): Promise<ExecuteStageOutcome> {
   const { db, logger } = deps;
   const found = await getRunContext(db, runId);
   if (!found) {
     logger.warn({ runId, stage }, 'run not found');
     return 'run_not_found';
+  }
+  // A cancel waits for its run's next stage job at the latest (S-09-T3 backstop).
+  if (cancelRequested(found.run)) {
+    await finishCancel(deps, runId);
+    return 'cancelled';
   }
   const { pullRequest, repository } = found;
   const executor = deps.extensions.stageExecutors[stage];
@@ -113,11 +126,48 @@ export async function executeStage(
     }
   }
 
+  // Registered before the start, so a cancel from now on aborts this stage instead of racing it.
+  const cancel = deps.cancellation.register(runId);
+  let outcome: ExecuteStageOutcome | 'cancel_requested';
+  try {
+    outcome = await startAndRun(deps, {
+      ...found,
+      stage,
+      executor,
+      options,
+      cancel: cancel.signal,
+    });
+  } finally {
+    deps.cancellation.release(runId, cancel);
+  }
+  if (outcome !== 'cancel_requested') return outcome;
+  await finishCancel(deps, runId);
+  return 'cancelled';
+}
+
+type StageJob = {
+  run: Run;
+  pullRequest: PullRequest;
+  repository: Repository;
+  stage: string;
+  executor: StageExecutor | undefined;
+  options: ExecuteStageOptions;
+  cancel: AbortSignal;
+};
+
+async function startAndRun(
+  deps: WorkerDeps,
+  job: StageJob,
+): Promise<ExecuteStageOutcome | 'cancel_requested'> {
+  const { db, logger } = deps;
+  const { pullRequest, repository, stage, executor, options } = job;
+  const runId = job.run.id;
   const started = await db.transaction((tx) => startStageInTx(tx, runId, repository.id, stage));
+  if ('cancel' in started) return 'cancel_requested';
   if ('next' in started) {
     // A repeated job for a finished stage: the send of the next stage's job may have been lost
     // (the handler threw after its commit). The queue drops it while one is queued or active.
-    if (started.next) await sendStageJob(deps.queue, runId, started.next);
+    if (started.next) await sendStageJob(deps.queue, runId, started.next, job.run);
     return 'not_next';
   }
   const { run, executionId, attempt } = started;
@@ -131,6 +181,8 @@ export async function executeStage(
     stage,
     attempt,
     abortGraceMs: options.abortGraceMs ?? ABORT_GRACE_MS,
+    cancel: job.cancel,
+    cancelGraceMs: options.cancelGraceMs ?? CANCEL_GRACE_MS,
   });
 
   const stored = await storeResult(deps, {
@@ -145,6 +197,11 @@ export async function executeStage(
   if (!stored) {
     logger.warn({ runId, stage }, 'stage result dropped: the run changed while it ran');
     return result.status;
+  }
+  if (stored.state.status === 'cancelled') {
+    logger.info({ runId, stage, attempt }, 'stage cancelled');
+    await afterTransition(deps, { deps, run: stored.run, pullRequest, repository }, stored.state);
+    return 'cancelled';
   }
   logger.info(
     {
@@ -178,7 +235,7 @@ export async function afterTransition(
   const { run } = context;
   if (state.status === 'running') {
     const next = nextStage(state);
-    if (next) await sendStageJob(deps.queue, run.id, next);
+    if (next) await sendStageJob(deps.queue, run.id, next, run);
     return;
   }
   if (state.status === 'completed') {
@@ -186,6 +243,8 @@ export async function afterTransition(
   } else if (state.status === 'failed') {
     await fireHooks(deps.extensions.runHooks.runFailed, context, 'runFailed');
   } else if (state.status === 'cancelled') {
+    // Nothing of the run runs after its cancel: its queued stage jobs go too.
+    await deleteQueuedStageJobs(deps.queue, run.id);
     await fireHooks(deps.extensions.runHooks.runCancelled, context, 'runCancelled');
   }
   await removeRunFiles(deps, context.repository, run.id);
@@ -194,6 +253,8 @@ export async function afterTransition(
 type Started = { run: Run; executionId: number; attempt: number };
 /** Not started: the job's stage is not the run's next one; `next` is, if any. */
 type NotStarted = { next: RunStageKey | null };
+/** Not started: the run waits for its cancel to finish. */
+type CancelPending = { cancel: true };
 
 async function interruptIfLeftRunning(
   tx: Executor,
@@ -213,10 +274,12 @@ async function startStageInTx(
   runId: number,
   repositoryId: number,
   stage: string,
-): Promise<Started | NotStarted> {
+): Promise<Started | NotStarted | CancelPending> {
   const notStarted: NotStarted = { next: null };
   let run = await lockRun(tx, runId);
   if (!run) return notStarted;
+  // A cancelled queued run never starts a stage (and never calls `AgentRunner`).
+  if (cancelRequested(run)) return { cancel: true };
   let executions = await stageExecutionsOfRun(tx, runId);
   let state = runStateOf(run, executions);
 
@@ -285,7 +348,13 @@ type RunInput = {
   stage: string;
   attempt: number;
   abortGraceMs: number;
+  /** Aborted when the run is cancelled (S-09-T3). */
+  cancel: AbortSignal;
+  /** After a cancel, how long the executor gets to return its sessions. */
+  cancelGraceMs: number;
 };
+
+const cancelledError: StageError = { code: STAGE_ERROR.cancelled, params: {} };
 
 const failed = (error: StageError, sessions: SessionRecord[] = []): StageResult => ({
   status: 'failed',
@@ -300,12 +369,16 @@ async function runExecutor(
   input: RunInput,
 ): Promise<StageResult> {
   if (!executor) return failed({ code: 'stage_not_available', params: { stage: input.stage } });
+  if (input.cancel.aborted) return failed(cancelledError);
 
   const minutes = input.run.level.settings.stageTimeoutMinutes;
   const controller = new AbortController();
   let timedOut = false;
+  let cancelled = false;
   let timer: NodeJS.Timeout | undefined;
   let graceTimer: NodeJS.Timeout | undefined;
+  let cancelTimer: NodeJS.Timeout | undefined;
+  let stopListening = () => {};
   const timeout = { code: 'stage_timeout', params: { stage: input.stage, minutes } };
 
   const work = executor
@@ -332,12 +405,28 @@ async function runExecutor(
     }, minutes * 60_000);
   });
 
+  // A cancel aborts the session at once; live sessions already stored each turn's cost, and the
+  // executor gets a short grace to return its sessions. One that returns later still updates its
+  // own cost row through the live runner, and nothing else.
+  const stopped = new Promise<StageResult>((resolve) => {
+    const onCancel = () => {
+      cancelled = true;
+      controller.abort(new Error(CANCELLED));
+      cancelTimer = setTimeout(() => resolve(failed(cancelledError)), input.cancelGraceMs);
+    };
+    input.cancel.addEventListener('abort', onCancel, { once: true });
+    stopListening = () => input.cancel.removeEventListener('abort', onCancel);
+  });
+
   try {
-    const result = await Promise.race([work, expired]);
+    const result = await Promise.race([work, expired, stopped]);
+    if (cancelled) return failed(cancelledError, result.sessions);
     return timedOut ? failed(timeout, result.sessions) : result;
   } finally {
+    stopListening();
     clearTimeout(timer);
     clearTimeout(graceTimer);
+    clearTimeout(cancelTimer);
   }
 }
 
@@ -468,6 +557,22 @@ async function storeResultInTx(
     sessionIds.push(row.id);
   }
   await addRunCost(tx, runId, unrecordedCost);
+  const now = new Date();
+
+  // The cancel guard (S-09-T3): under the run lock, a run with a cancel request (or a stage the
+  // cancel aborted) keeps only its sessions and cost. No findings, outputs or next stage.
+  const aborted = result.status === 'failed' && result.error.code === STAGE_ERROR.cancelled;
+  if (cancelRequested(locked) || aborted) {
+    const cancel = cancelRun(state);
+    if (!cancel.ok) return null;
+    await updateStageExecution(tx, executionId, {
+      status: 'failed',
+      finishedAt: now,
+      errorCode: STAGE_ERROR.cancelled,
+    });
+    await updateRun(tx, runId, { status: 'cancelled', currentStage: null, finishedAt: now });
+    return { run: (await lockRun(tx, runId))!, state: cancel.run, sessionIds };
+  }
 
   const transition: Transition =
     result.status === 'succeeded'
@@ -475,7 +580,6 @@ async function storeResultInTx(
       : failStage(state, stage as RunStageKey, result.error.code);
   if (!transition.ok) return null;
   const next = transition.run;
-  const now = new Date();
 
   if (result.status === 'succeeded') {
     if (result.findings.length) {

@@ -143,6 +143,37 @@ describe('repository calls', () => {
     });
   });
 
+  test('listOpenPullRequests pages through the open PRs and keeps the summary fields', async () => {
+    serveApp({ now: Date.now() });
+    const queries: string[] = [];
+    const pr = (number: number) => ({
+      number,
+      draft: number % 2 === 0,
+      updated_at: `2026-11-18T10:00:00Z`,
+      head: { sha: `sha-${number}` },
+    });
+    server.use(
+      http.get(`${API}/repos/:owner/:repo/pulls`, ({ request }) => {
+        const url = new URL(request.url);
+        queries.push(url.search);
+        const page = Number(url.searchParams.get('page'));
+        const numbers = page === 1 ? Array.from({ length: 100 }, (_, i) => i + 1) : [101];
+        return HttpResponse.json(numbers.map(pr));
+      }),
+    );
+
+    const open = await gateway().listOpenPullRequests(REPO);
+
+    expect(open).toHaveLength(101);
+    expect(open[1]).toEqual({
+      number: 2,
+      headSha: 'sha-2',
+      isDraft: true,
+      updatedAt: '2026-11-18T10:00:00Z',
+    });
+    expect(queries).toEqual(['?state=open&per_page=100&page=1', '?state=open&per_page=100&page=2']);
+  });
+
   test('after the App is reinstalled, a stale cached installation is looked up again once', async () => {
     let installation = INSTALLATION;
     const tokens = new Map<string, number>();

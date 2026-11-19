@@ -9,6 +9,7 @@ import type {
 } from '@pra/integrations';
 import type { Logger } from '@pra/integrations/logging';
 import { DEFAULT_EXTENSIONS, type Extensions } from './extensions.ts';
+import { RunCancellation } from './run/cancellation.ts';
 
 /** What the worker needs from outside. `src/main.ts` builds it from env; tests pass doubles. */
 export type WorkerDeps = {
@@ -28,12 +29,19 @@ export type WorkerDeps = {
   dataDir: string;
   /** The registries later packages extend; `DEFAULT_EXTENSIONS` unless a test replaces some. */
   extensions: Extensions;
+  /** The in-flight stage of each run in this process, for cancel (S-09-T3). */
+  cancellation: RunCancellation;
 };
 
-export type WorkerDepsInput = Omit<WorkerDeps, 'extensions'> & {
+export type WorkerDepsInput = Omit<WorkerDeps, 'extensions' | 'cancellation'> & {
   extensions?: Partial<Extensions>;
+  cancellation?: RunCancellation;
 };
 
 export function withDefaults(input: WorkerDepsInput): WorkerDeps {
-  return { ...input, extensions: { ...DEFAULT_EXTENSIONS, ...input.extensions } };
+  return {
+    ...input,
+    extensions: { ...DEFAULT_EXTENSIONS, ...input.extensions },
+    cancellation: input.cancellation ?? new RunCancellation(),
+  };
 }

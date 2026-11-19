@@ -141,6 +141,13 @@
       "when": 1795093289408,
       "tag": "0019_trials",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1795093956978,
+      "tag": "0020_retry_cancel",
+      "breakpoints": true
     }
   ]
 }

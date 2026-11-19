@@ -70,7 +70,7 @@ const FIXTURES: {
     title: 'Review starting: PR marked ready for review (round 1 of 3)',
     meta: 'Next step · no one needs to act',
     tone: 'bg-brand-bg',
-    button: null,
+    button: 'Cancel',
   },
   {
     name: 'failed',
@@ -79,15 +79,15 @@ const FIXTURES: {
       tone: 'failed',
       banner: {
         code: 'state_stage_failed',
-        params: { stage: 'review', errorCode: 'stage_timeout', roundNumber: 1 },
+        params: { stage: 'review', errorCode: 'stage_timeout', roundNumber: 1, timeoutMinutes: 30 },
       },
       who: { code: 'who_anyone_can_retry', params: {} },
       mainAction: { ...action('retry'), stage: 'review' },
     }),
-    title: 'Round 1 failed at Review: the stage ran out of time',
+    title: 'Review stage timed out after 30 min. This round is not counted',
     meta: 'Next step · anyone can retry',
     tone: 'bg-bad-bg',
-    button: null,
+    button: 'Retry from Review',
   },
   {
     name: 'ready',
