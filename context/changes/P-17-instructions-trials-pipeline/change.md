@@ -35,5 +35,19 @@ decide and record).
   notices, and never touch the PR state table, chains or PR cost.
 - **The pipeline lists global files.** `GET /api/pipeline` shows the global active instruction
   files per stage; a per-repository view is out of scope.
+- **One draft per file, saved in place.** `PUT /api/instructions/:id/draft` updates the file's
+  draft or adds the next version number as the draft. A draft that a trial read is kept as the
+  trial saw it: the next save archives it (never active) and starts the next version. Rollback
+  takes only archived versions that were active once.
+- **Activation in the settings log.** Area `instructions`, entity = file id, value
+  `{ fileKey, version }`; the stored `after` adds `added`/`removed` line counts. A copy
+  (`POST /:id/copies`, repository by slug or level) starts as an unsigned draft version 1. The
+  editor has no copy button yet (not in S-22-T5's list).
+- **Trial runs skip Checks and Task** (`off_in_trial`): those stages read GitHub and ClickUp, and
+  a trial calls neither. Both runs skip them, so the compare stays fair. A trial uses the PR's
+  level and records the commit both runs review.
+- **Compare rule.** Findings match on file, lines within 3 of each other (a finding without a line
+  matches any line) and the title in lower case without punctuation or accents; closest pairs
+  match first, one to one.
 - **Tests and global files.** Test files share one database, so a test that reads global
   instruction files filters to its own rows or uses its own `createTestDatabase()`.

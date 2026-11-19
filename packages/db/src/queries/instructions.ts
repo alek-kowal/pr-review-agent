@@ -414,6 +414,18 @@ export async function findInstructionVersion(
   return row ?? null;
 }
 
+/** The file's active version, if it has one. */
+export async function activeVersionOf(
+  db: Executor,
+  fileId: number,
+): Promise<InstructionVersionRow | null> {
+  const [active] = await db
+    .select()
+    .from(instructionVersions)
+    .where(and(eq(instructionVersions.fileId, fileId), eq(instructionVersions.status, 'active')));
+  return active ?? null;
+}
+
 /** The file's active version, locked until the transaction ends. */
 export async function lockActiveInstructionVersion(
   tx: Executor,

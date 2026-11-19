@@ -71,6 +71,9 @@ export const ApiErrorCode = {
   InstructionCopyExists: 'instruction_copy_exists',
   /** A copy of a file that has no active version to start from. */
   InstructionNoActive: 'instruction_no_active',
+  /** A trial of a version that is not a draft (`params.status`). */
+  TrialNeedsDraft: 'trial_needs_draft',
+  TrialNotFound: 'trial_not_found',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
