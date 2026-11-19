@@ -27,7 +27,14 @@ import {
   writeAppSettings,
   type Db,
 } from '@pra/db';
-import type { GitHubPullRequest, PullRequestFreshState, Sandbox } from '@pra/integrations';
+import type {
+  CiStatus,
+  CommitComparison,
+  GitExec,
+  GitHubPullRequest,
+  PullRequestFreshState,
+  Sandbox,
+} from '@pra/integrations';
 import { createTestDatabase } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
@@ -59,6 +66,9 @@ import {
   analystInputFile,
   API_PORT,
   API_URL,
+  AUTOFIX_FINDINGS,
+  AUTOFIX_PRS,
+  AUTOFIX_REPOSITORY,
   briefFile,
   CLICKUP_REPOSITORY,
   CLICKUP_TASKS,
@@ -83,13 +93,19 @@ import {
   LEVEL_TWO_REPOSITORY,
   MERGE_REFUSAL,
   MERGE_REPOSITORY,
+  movedHeadFile,
   NOTIFY_REPOSITORY,
+  PUSH_PRS,
+  PUSH_REPOSITORY,
+  PUSH_SIGNER,
+  pushBranch,
   QUESTION_PRS,
   README_REPOSITORY,
   REFUSED_MERGE_PRS,
   releaseFile,
   SECOND_REPOSITORY,
   SENSITIVE_REPOSITORY,
+  SHADOW_REPOSITORY,
   STATE_FILE,
   TRIAL_PRS,
   TRIAL_RULE_FINDING,
@@ -195,6 +211,11 @@ const VERIFIER_ANSWERS: Record<string, { script?: string; quote?: string }> = {
     quote: "export * from './edges.ts';",
     script: reproduction(1),
   },
+  // autofix.spec.ts: confirmed by a reproduction.
+  [AUTOFIX_FINDINGS.sensitive.title]: {
+    quote: 'export const store = new Map<string, string>();',
+    script: reproduction(0),
+  },
 };
 
 async function verifierAnswer(cwd: string) {
@@ -212,15 +233,22 @@ async function verifierAnswer(cwd: string) {
   };
 }
 
-/** Whether a reproduction's worktree carries a patch: tracked files differ from the checkout. */
-const patched = async (dir: string): Promise<boolean> =>
-  (
-    await isolatedGitExec('git', ['status', '--porcelain', '--untracked-files=no'], {
-      cwd: dir,
-      env: {},
-      timeout: 10_000,
-    })
-  ).stdout.trim() !== '';
+/**
+ * Whether a reproduction's worktree carries the implementer double's fix: tracked files differ
+ * from the checkout (a patch), or the checked-out commit holds its `// Fixed:` lines (a pushed
+ * patch, push-recheck.spec.ts).
+ */
+async function patched(dir: string): Promise<boolean> {
+  const git = (args: string[]) =>
+    isolatedGitExec('git', args, { cwd: dir, env: {}, timeout: 10_000 });
+  const status = await git(['status', '--porcelain', '--untracked-files=no']);
+  if (status.stdout.trim() !== '') return true;
+  // `git grep` exits 1 when nothing matches.
+  return git(['grep', '--quiet', '--fixed-strings', '// Fixed: ', 'HEAD']).then(
+    () => true,
+    () => false,
+  );
+}
 
 /**
  * A Checks install step (`sh -c ...`, checks-change-type.spec.ts) succeeds; a reproduction exits
@@ -258,6 +286,13 @@ const loggedSandbox = (log: string): Sandbox => ({
  * reads holds `trialRule(number)`, the Nit gives way to `TRIAL_RULE_FINDING` (instructions.spec.ts).
  */
 async function scriptedReview(number: number, readDirs: readonly string[] = []) {
+  // autofix.spec.ts: one Blocking finding with an obvious fix, so nothing holds level 5.
+  if (inRange(number, AUTOFIX_PRS.fixes) || inRange(number, AUTOFIX_PRS.shadow)) {
+    return { ...SCRIPTED_REVIEW, findings: [AUTOFIX_FINDINGS.fixes] };
+  }
+  if (inRange(number, AUTOFIX_PRS.sensitive)) {
+    return { ...SCRIPTED_REVIEW, findings: [AUTOFIX_FINDINGS.sensitive] };
+  }
   if (number < TRIAL_PRS.from || number > TRIAL_PRS.to) return SCRIPTED_REVIEW;
   for (const dir of readDirs) {
     const rules = await readFile(path.join(dir, 'review-rules.md'), 'utf8').catch(() => '');
@@ -408,7 +443,19 @@ class ScriptedAgents implements AgentRunner {
       file: string;
     }[];
     const note = await readFile(path.join(dir, 'revise-note.md'), 'utf8').catch(() => null);
-    await whileExists(path.join(this.#holdDir, IMPLEMENTER_HOLD), input.signal);
+    // push-recheck.spec.ts runs beside implement-patch.spec.ts: its repository's sessions (the
+    // worktree's remote is the push remote) never wait on the hold.
+    const remote = await isolatedGitExec('git', ['config', '--get', 'remote.origin.url'], {
+      cwd: input.cwd,
+      env: {},
+      timeout: 10_000,
+    }).then(
+      (result) => result.stdout.trim(),
+      () => '',
+    );
+    if (remote !== pushRemote) {
+      await whileExists(path.join(this.#holdDir, IMPLEMENTER_HOLD), input.signal);
+    }
     if (input.signal?.aborted) {
       return new FakeAgentRunner([{ fail: 'cancelled', turns: 0 }]).run(input);
     }
@@ -466,6 +513,9 @@ class ScriptedAnalyst implements Analyst {
   }
 }
 
+/** The repositories whose remote is the push remote (push-recheck.spec.ts, autofix.spec.ts). */
+const PUSHED_TO = new Set([PUSH_REPOSITORY.fullName, AUTOFIX_REPOSITORY.fullName]);
+
 /**
  * The GitHub double, plus fresh PR state for PRs the specs only delivered as webhooks: GitHub
  * would answer what those webhooks said, which is the stored row (merge.spec.ts, and the
@@ -473,10 +523,42 @@ class ScriptedAnalyst implements Analyst {
  */
 class StackGitHub extends FakeGitHubGateway {
   readonly #db: Db;
+  readonly #pushRemote: string;
 
-  constructor(db: Db, options: ConstructorParameters<typeof FakeGitHubGateway>[0]) {
+  constructor(
+    db: Db,
+    pushRemote: string,
+    options: ConstructorParameters<typeof FakeGitHubGateway>[0],
+  ) {
     super(options);
     this.#db = db;
+    this.#pushRemote = pushRemote;
+  }
+
+  /** The push remote's commits are real: GitHub compares them with git in it. */
+  override async compareCommits(
+    fullName: string,
+    base: string,
+    head: string,
+  ): Promise<CommitComparison> {
+    if (!PUSHED_TO.has(fullName)) return super.compareCommits(fullName, base, head);
+    const counted = await isolatedGitExec(
+      'git',
+      ['rev-list', '--left-right', '--count', `${base}...${head}`],
+      { cwd: this.#pushRemote, env: {}, timeout: 10_000 },
+    ).catch(() => null);
+    if (!counted) return super.compareCommits(fullName, base, head);
+    const [behindBy = 0, aheadBy = 0] = counted.stdout.trim().split(/\s+/).map(Number);
+    this.setComparison(fullName, base, head, aheadBy, behindBy);
+    return super.compareCommits(fullName, base, head);
+  }
+
+  /** CI in the push remote's repositories is green at every commit, the pushed ones too. */
+  override async getCiStatus(fullName: string, sha: string): Promise<CiStatus> {
+    if (PUSHED_TO.has(fullName)) {
+      this.setCiChecks(fullName, sha, [{ name: 'build', source: 'check_run', state: 'passed' }]);
+    }
+    return super.getCiStatus(fullName, sha);
   }
 
   override async getPullRequest(fullName: string, number: number): Promise<GitHubPullRequest> {
@@ -521,8 +603,12 @@ class StackGitHub extends FakeGitHubGateway {
     const repository = await getRepositoryByFullName(this.#db, fullName);
     const pr = repository && (await getPullRequest(this.#db, repository.id, number));
     if (!pr) return super.getPullRequestState(fullName, number);
+    const moved =
+      fullName === PUSH_REPOSITORY.fullName
+        ? await readFile(movedHeadFile(holdDir, number), 'utf8').catch(() => null)
+        : null;
     return {
-      headSha: pr.headSha,
+      headSha: moved?.trim() || pr.headSha,
       state: pr.state,
       mergeableState: pr.state === 'open' ? 'clean' : 'unknown',
     };
@@ -556,10 +642,32 @@ const [database, fixture] = await Promise.all([
     ],
   }),
 ]);
+// push-recheck.spec.ts and autofix.spec.ts: a bare copy of the fixture that accepts pushes, one
+// branch per PR.
+const pushRemote = path.join(root, 'push-remote.git');
+const gitPushes = path.join(root, 'git-pushes.jsonl');
+const inRoot = { cwd: root, env: {}, timeout: 30_000 };
+await isolatedGitExec('git', ['clone', '--quiet', '--bare', fixture.dir, pushRemote], inRoot);
+const pushedPrs = [PUSH_PRS, AUTOFIX_PRS.fixes, AUTOFIX_PRS.sensitive].flatMap(({ from, to }) =>
+  Array.from({ length: to - from + 1 }, (_, i) => from + i),
+);
+for (const number of pushedPrs) {
+  await isolatedGitExec(
+    'git',
+    ['-C', pushRemote, 'update-ref', `refs/heads/${pushBranch(number)}`, fixture.headSha],
+    inRoot,
+  );
+}
+/** The worker's git, logging the argv of each push for the specs. */
+const loggedGit: GitExec = async (file, args, options) => {
+  if (args.includes('push')) await appendFile(gitPushes, `${JSON.stringify({ args })}\n`);
+  return isolatedGitExec(file, args, options);
+};
+
 const db = createDb(database.url, { max: 5 });
 const queue = createQueue(database.url, { max: 5 });
 const webhookSecret = randomBytes(16).toString('hex');
-const github = new StackGitHub(db, {
+const github = new StackGitHub(db, pushRemote, {
   webhookSecret,
   installations: {
     [MERGE_REPOSITORY.fullName]: MERGE_REPOSITORY.installationId,
@@ -576,8 +684,12 @@ const github = new StackGitHub(db, {
     [CLICKUP_REPOSITORY.fullName]: CLICKUP_REPOSITORY.installationId,
     [LEARNING_REPOSITORY.fullName]: LEARNING_REPOSITORY.installationId,
     [README_REPOSITORY.fullName]: README_REPOSITORY.installationId,
+    [PUSH_REPOSITORY.fullName]: PUSH_REPOSITORY.installationId,
+    [AUTOFIX_REPOSITORY.fullName]: AUTOFIX_REPOSITORY.installationId,
+    [SHADOW_REPOSITORY.fullName]: SHADOW_REPOSITORY.installationId,
   },
 });
+github.addUser(PUSH_SIGNER.login, PUSH_SIGNER.id);
 // GitHub's compare on the branch's commits, as the worker measures commits since a review.
 const branch = [fixture.headSha, ...fixture.fixShas];
 for (const [i, base] of branch.entries()) {
@@ -626,6 +738,27 @@ await upsertRepository(
     sensitivePatterns: [{ pattern: 'db/migrations/**', reason: 'Migrations cannot be undone.' }],
   },
   { installationId: VERIFIED_REPOSITORY.installationId },
+);
+await upsertRepository(
+  db,
+  { slug: PUSH_REPOSITORY.slug, githubFullName: PUSH_REPOSITORY.fullName, defaultLevel: 4 },
+  { installationId: PUSH_REPOSITORY.installationId },
+);
+// autofix.spec.ts: level 5 acts by itself, level 3 only writes the shadow log.
+await upsertRepository(
+  db,
+  {
+    slug: AUTOFIX_REPOSITORY.slug,
+    githubFullName: AUTOFIX_REPOSITORY.fullName,
+    defaultLevel: 5,
+    sensitivePatterns: AUTOFIX_REPOSITORY.patterns,
+  },
+  { installationId: AUTOFIX_REPOSITORY.installationId },
+);
+await upsertRepository(
+  db,
+  { slug: SHADOW_REPOSITORY.slug, githubFullName: SHADOW_REPOSITORY.fullName, defaultLevel: 3 },
+  { installationId: SHADOW_REPOSITORY.installationId },
 );
 // implement-patch.spec.ts: level 3 without sensitive files, raised to level 4 per PR.
 await upsertRepository(
@@ -800,8 +933,8 @@ const worker = await startWorker(
     github,
     gitMirror: new CliGitMirror({
       rootDir: path.join(root, 'git'),
-      remoteUrl: () => fixture.dir,
-      exec: isolatedGitExec,
+      remoteUrl: (fullName) => (PUSHED_TO.has(fullName) ? pushRemote : fixture.dir),
+      exec: loggedGit,
     }),
     agentRunner: new ScriptedAgents(holdDir, fixture.fixShas, agentCalls),
     judge: new FakeJudge(),
@@ -828,6 +961,8 @@ const state: StackState = {
   holdDir,
   agentCalls,
   sandboxCalls,
+  pushRemote,
+  gitPushes,
 };
 await writeFile(STATE_FILE, JSON.stringify(state, null, 2));
 logger.warn({ api: API_URL, database: database.name }, 'e2e stack ready');

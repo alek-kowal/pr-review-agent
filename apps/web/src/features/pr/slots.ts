@@ -8,6 +8,7 @@ import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
 import { ImplementAction } from '@/features/implementer/ImplementAction.tsx';
 import { LearningBannerLine, RunAnalystHeaderAction } from '@/features/learning/LearningStatus.tsx';
 import { MergeAction } from '@/features/merge/MergeAction.tsx';
+import { PushAction } from '@/features/patch/PushAction.tsx';
 import { RoundProgress } from '@/features/round/RoundProgress.tsx';
 import { CancelAction } from '@/features/runs/CancelAction.tsx';
 import { RetryAction } from '@/features/runs/RetryAction.tsx';
@@ -38,6 +39,7 @@ export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActi
   resume: ResumeAction,
   merge: MergeAction,
   implement_with_agent: ImplementAction,
+  push: PushAction,
 };
 
 /**

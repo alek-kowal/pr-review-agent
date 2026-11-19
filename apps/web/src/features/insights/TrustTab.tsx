@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { CircleCheck, CircleDashed, Info } from 'lucide-react';
 import { LEVEL_NUMBERS } from '@pra/core';
 import { copy } from '@/copy/index.ts';
 import { cn } from '@/lib/utils.ts';
@@ -84,7 +85,71 @@ function RepositoryCard({ row }: { row: Row }) {
           {summary(row)}{' '}
           <span className="text-text-3">{t.trust.basedOn(row.findings, row.rounds)}</span>
         </p>
+        <ShadowLog row={row} />
       </div>
+    </section>
+  );
+}
+
+/** An ⓘ whose text is its title, also read by screen readers. */
+function InfoTip({ text }: { text: string }) {
+  return (
+    <span title={text} className="ml-1 inline-flex align-[-2px] text-text-3">
+      <Info aria-hidden="true" className="size-3.5" />
+      <span className="sr-only">{text}</span>
+    </span>
+  );
+}
+
+/** "Level 5 shadow log": what level 5 would have done per PR, once 5 PRs have an entry. */
+function ShadowLog({ row }: { row: Row }) {
+  const s = t.trust.shadow;
+  const { shadow } = row;
+  const id = `shadow-${row.repositoryId}`;
+  return (
+    <section aria-labelledby={id}>
+      <h3 id={id} className="m-0 mb-1 text-xs font-semibold text-text-2">
+        {s.title}
+      </h3>
+      {shadow.eligible < shadow.needed ? (
+        <p className="m-0 text-sm text-text-3">
+          {s.notEnough(shadow.eligible, shadow.needed)}
+          <InfoTip text={s.startsAtLevel3} />
+        </p>
+      ) : (
+        <>
+          <p className="m-0 text-sm">
+            <span className="font-semibold">{s.summary(shadow.wouldFix, shadow.eligible)}</span>{' '}
+            <span className="text-text-3">· {s.lastDays(shadow.days)}</span>
+            <InfoTip text={s.nothingPushed} />
+          </p>
+          <ul
+            aria-label={s.listLabel}
+            className="m-0 mt-2 list-none divide-y divide-divider rounded-lg border border-divider p-0"
+          >
+            {shadow.prs.map((pr) => {
+              const fixes = pr.decision !== 'would_wait';
+              const Icon = fixes ? CircleCheck : CircleDashed;
+              return (
+                <li key={pr.number} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+                  <Icon
+                    aria-hidden="true"
+                    className={cn('size-3.5 shrink-0', fixes ? 'text-ok' : 'text-text-3')}
+                  />
+                  <Link
+                    to="/pr/$repo/$number"
+                    params={{ repo: row.repository, number: String(pr.number) }}
+                    className="font-mono"
+                  >
+                    #{pr.number}
+                  </Link>
+                  <span className={fixes ? undefined : 'text-text-2'}>{s.row(pr)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </section>
   );
 }

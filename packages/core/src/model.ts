@@ -8,6 +8,7 @@ import type {
   StageKey,
   Verdict,
 } from './vocabulary.ts';
+import type { Reason } from './reason.ts';
 
 /** Quoted evidence for a verdict: the quote must exist word for word in the file. */
 export interface Evidence {
@@ -120,8 +121,8 @@ export interface Patch {
   fixed: number;
   total: number;
   reproductionsPass: boolean;
-  /** Level 5 autofix stopped before the push, and why. */
-  waiting: 'sensitive' | null;
+  /** Level 5 autofix stopped before the push, and why (an autofix reason code). */
+  waiting: Reason | null;
 }
 
 export type CheckConclusion =

@@ -1,6 +1,6 @@
 // Implementer patches (S-13-T2). An implementer run writes one patch revision when it completes;
 // people edit or revert its files, and a revise run writes the next revision, which supersedes it.
-import { ACTOR_KINDS, type PatchReproduction, type PatchStatus } from '@pra/core';
+import { ACTOR_KINDS, type PatchReproduction, type PatchStatus, type Reason } from '@pra/core';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -59,6 +59,11 @@ export const patches = pgTable(
     checkVersion: integer('check_version').notNull().default(0),
     startedBy: text('started_by', { enum: ACTOR_KINDS }).notNull(),
     startedByMemberId: uuid('started_by_member_id').references(() => teamMembers.id),
+    /** The commit the push job wrote on the PR branch (S-14-T2); null until pushed. */
+    pushedSha: text('pushed_sha'),
+    pushedAt: timestamp('pushed_at', { withTimezone: true }),
+    /** Why the last push job pushed nothing (`head_moved`, ...); cleared by a push. */
+    pushRefusal: jsonb('push_refusal').$type<Reason>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

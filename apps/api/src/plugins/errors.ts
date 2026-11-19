@@ -122,6 +122,12 @@ export const ApiErrorCode = {
   PatchStale: 'patch_stale',
   /** Revise needs a note. */
   NoteRequired: 'note_required',
+  /** Push: the typed number is not the PR's number (`params.number`). */
+  PrNumberMismatch: 'pr_number_mismatch',
+  /** Push of a patch that is pushed, superseded or discarded (`params.status`). */
+  PatchNotReady: 'patch_not_ready',
+  /** Push of a patch whose files are all reverted. */
+  PatchEmpty: 'patch_empty',
   LessonCandidateNotFound: 'lesson_candidate_not_found',
   /** Edit, reject or accept a candidate that is already decided (`params.status`). */
   CandidateNotOpen: 'candidate_not_open',

@@ -31,6 +31,7 @@ export {
   sendDrainJob,
   sendJob,
   sendPatchCheckJob,
+  sendPushJob,
   stableJobId,
   type JobName,
   type JobPayloads,
@@ -55,6 +56,12 @@ export { TASK_LINK_HOWS, type TaskLinkHow } from './schema/clickup.ts';
 export { FOLLOW_UP_STATUSES, type FollowUpStatus } from './schema/team.ts';
 export { OPINIONS, type OpinionValue } from './schema/reviews.ts';
 export { PATCH_FILE_STATUSES, PATCH_STATUSES, type PatchFileStatus } from './schema/patches.ts';
+export {
+  AUTOFIX_OUTCOMES,
+  SHADOW_DECISIONS,
+  type AutofixOutcome,
+  type ShadowDecision,
+} from './schema/autofix.ts';
 export {
   ALERT_DELIVERY_STATUSES,
   ALERT_ENDERS,

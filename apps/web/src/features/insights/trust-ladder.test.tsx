@@ -28,6 +28,7 @@ const wb: TrustResponse['repositories'][number] = {
   confirmedRate: 0.72,
   refutedRate: 0.11,
   implementShare: 0.58,
+  shadow: { days: 14, eligible: 0, needed: 5, wouldFix: 0, prs: [] },
 };
 const tpl: TrustResponse['repositories'][number] = {
   repositoryId: 2,
@@ -43,6 +44,7 @@ const tpl: TrustResponse['repositories'][number] = {
   confirmedRate: null,
   refutedRate: null,
   implementShare: null,
+  shadow: { days: 14, eligible: 0, needed: 5, wouldFix: 0, prs: [] },
 };
 
 test('one card per repository, the current level highlighted, too few below 5 findings', async () => {

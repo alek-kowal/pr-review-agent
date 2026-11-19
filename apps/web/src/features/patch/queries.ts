@@ -71,6 +71,24 @@ export function useRevertPatchFile(repo: string, number: string, detail: PatchDe
   );
 }
 
+export type PushInput = { typedNumber: number; signedBy: string };
+
+/**
+ * `POST /api/patches/:id/push` (S-14-T4): queues the signed push. Success or not, the PR view and
+ * the board are fetched again: a refusal can mean the head moved or the patch changed.
+ */
+export function usePushPatch(repo: string, number: string, patchId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PushInput) =>
+      apiRequest<{ queued: true }>(`/api/patches/${patchId}/push`, { method: 'POST', body: input }),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: prKeys.view(repo, number) });
+      void queryClient.invalidateQueries({ queryKey: boardKeys.all });
+    },
+  });
+}
+
 /** `POST /api/patches/:id/revise`: a new implementer run from this revision and a note. */
 export function useRevisePatch(repo: string, number: string, patchId: number) {
   const queryClient = useQueryClient();

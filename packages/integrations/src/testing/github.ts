@@ -14,6 +14,7 @@ import {
   type GitHubGateway,
   type GitHubCommit,
   type GitHubPullRequest,
+  type GitHubUser,
   type InstallationToken,
   type MergeResult,
   type OpenPullRequestSummary,
@@ -22,6 +23,12 @@ import {
   type RawPullRequest,
   type SquashMerge,
 } from '../github/index.ts';
+
+/** The bot the fake App commits as. */
+export const FAKE_BOT = {
+  name: 'pr-review-agent[bot]',
+  email: '41898282+pr-review-agent[bot]@users.noreply.github.com',
+} as const;
 
 /** The `X-Hub-Signature-256` value GitHub sends for `body` signed with `secret`. */
 export function signWebhook(body: string | Uint8Array, secret: string): string {
@@ -99,6 +106,8 @@ export class FakeGitHubGateway implements GitHubGateway {
   readonly mergeRefusals = new Map<string, { status: number; message: string }>();
   /** Every squash merge that went through. */
   readonly merges: Array<SquashMerge & { mergeSha: string }> = [];
+  /** GitHub accounts by lower-case login (`addUser`). */
+  readonly users = new Map<string, GitHubUser>();
   readonly #failures = new Map<Method, Error[]>();
   #nextId = 1;
 
@@ -309,6 +318,22 @@ export class FakeGitHubGateway implements GitHubGateway {
         ...this.repositoryDetails.get(fullName),
       }))
       .sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }
+
+  /** A GitHub account `getUser` knows; any other login is unknown. */
+  addUser(login: string, id: number): this {
+    this.users.set(login.toLowerCase(), { id, login });
+    return this;
+  }
+
+  async getUser(login: string): Promise<GitHubUser | null> {
+    this.#record('getUser', [login]);
+    return this.users.get(login.toLowerCase()) ?? null;
+  }
+
+  async getBotIdentity(): Promise<{ name: string; email: string }> {
+    this.#record('getBotIdentity', []);
+    return { ...FAKE_BOT };
   }
 
   #record(method: Method, args: unknown[]): void {

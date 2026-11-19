@@ -22,6 +22,7 @@ export {
   type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,
+  type GitHubUser,
   type InstallationToken,
   type OpenPullRequestSummary,
   type PullRequestState,

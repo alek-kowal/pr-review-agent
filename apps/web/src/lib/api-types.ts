@@ -363,7 +363,8 @@ export type DecisionView = {
   batchId: number;
   decision: Decision;
   reason: string | null;
-  signedBy: { id: string; name: string };
+  /** `id` is null when the bot decided (level 5 autofix); the name is then `pr-review-agent`. */
+  signedBy: { id: string | null; name: string };
   decidedAt: string;
   /** The PR author when it was decided (S-08-T5). */
   author: AuthorView;

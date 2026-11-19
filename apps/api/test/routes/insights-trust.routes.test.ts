@@ -101,6 +101,7 @@ test('one row per repository with its level, days at it and that level rates', a
     confirmedRate: 3 / 5,
     refutedRate: 1 / 5,
     implementShare: 3 / 4,
+    shadow: { days: 14, eligible: 0, needed: 5, wouldFix: 0, prs: [] },
   });
   // No level change logged: since it was connected. 3 findings are too few.
   expect(body.repositories[1]).toMatchObject({

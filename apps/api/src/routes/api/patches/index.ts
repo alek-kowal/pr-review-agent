@@ -1,15 +1,22 @@
 // S-13-T4: Implement with agent for findings already decided (signed), and the patch it leaves:
 // read it with diffs, edit or revert a file, or revise it with a note. Patch writes are unsigned
 // and recorded "by hand"; each edit or revert queues a patch check (reproductions only).
-import { HAND, member, type Reason } from '@pra/core';
+// S-14-T3: Push (signed, typed PR number) checks the push rule on fresh GitHub state and queues
+// the push job; the job checks again before it pushes.
+import { canPush, HAND, member, type Reason } from '@pra/core';
 import {
+  activeRunOfPr,
   editPatchFile,
+  filesToPush,
   findPullRequest,
+  getActiveTeamMember,
   getPatch,
+  getRunContext,
   lockActiveTeamMember,
   recordTimelineEntry,
   revertPatchFile,
   sendPatchCheckJob,
+  sendPushJob,
   startImplementer,
   type Db,
   type PatchFileChange,
@@ -17,6 +24,7 @@ import {
   type StartImplementerInput,
   type Transactor,
 } from '@pra/db';
+import { GITHUB_NOT_CONFIGURED, IntegrationError } from '@pra/integrations';
 import type { FastifyBaseLogger, FastifyReply } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { randomUUID } from 'node:crypto';
@@ -42,6 +50,11 @@ const REFUSALS: Record<string, { status: number; code: Code }> = {
   patch_stale: { status: 409, code: ApiErrorCode.PatchStale },
   pr_closed: { status: 409, code: ApiErrorCode.PrClosed },
   pr_not_found: { status: 404, code: ApiErrorCode.PrNotFound },
+  // The push rule (S-14-T3).
+  pr_number_mismatch: { status: 409, code: ApiErrorCode.PrNumberMismatch },
+  patch_not_ready: { status: 409, code: ApiErrorCode.PatchNotReady },
+  head_moved: { status: 409, code: ApiErrorCode.HeadMoved },
+  patch_empty: { status: 409, code: ApiErrorCode.PatchEmpty },
 };
 
 /** Sends the gate's refusal with its reason code and params. */
@@ -102,8 +115,15 @@ const FileTarget = z.object({
 
 const errors = { 400: ApiErrorSchema, 404: ApiErrorSchema, 409: ApiErrorSchema };
 
+const PushBody = z.object({
+  typedNumber: z.coerce.number().int(),
+  /** The signing Team member; checked here, so a missing one is `signature_required`. */
+  signedBy: z.string().trim().optional(),
+});
+export const PushResponse = z.object({ queued: z.literal(true) });
+
 const patches: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
-  const { db, queue, blobStore } = fastify.deps;
+  const { db, queue, blobStore, github } = fastify.deps;
 
   fastify.post(
     '/prs/:repo/:number/implement',
@@ -284,6 +304,60 @@ const patches: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
         return sendRefusal(reply, started.reason);
       }
       return reply.code(202).send({ runId: started.run.id, findingIds: started.findingIds });
+    },
+  );
+
+  fastify.post(
+    '/patches/:id/push',
+    {
+      schema: {
+        params: PatchParams,
+        body: PushBody,
+        response: {
+          202: PushResponse,
+          ...errors,
+          502: ApiErrorSchema,
+          503: ApiErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { typedNumber, signedBy } = request.body;
+      if (!signedBy) return sendError(reply, 400, ApiErrorCode.SignatureRequired);
+      const patch = await getPatch(db, request.params.id);
+      if (!patch) return sendError(reply, 404, ApiErrorCode.PatchNotFound, request.params);
+      if (!(await getActiveTeamMember(db, signedBy))) {
+        return sendError(reply, 400, ApiErrorCode.SignerUnknown, { signer: signedBy });
+      }
+      const found = await getRunContext(db, patch.runId);
+      if (!found) return sendError(reply, 404, ApiErrorCode.PatchNotFound, request.params);
+      const { pullRequest, repository } = found;
+
+      let fresh: Awaited<ReturnType<typeof github.getPullRequestState>>;
+      try {
+        fresh = await github.getPullRequestState(repository.githubFullName, pullRequest.number);
+      } catch (error) {
+        if (error instanceof IntegrationError && error.code === GITHUB_NOT_CONFIGURED) {
+          return sendError(reply, 503, ApiErrorCode.GithubNotConfigured, error.params);
+        }
+        request.log.warn({ err: error, patchId: patch.id }, 'push: GitHub failed');
+        return sendError(reply, 502, ApiErrorCode.GithubError);
+      }
+      const gate = canPush(
+        { status: patch.status, baseSha: patch.baseSha, files: filesToPush(patch).length },
+        {
+          number: pullRequest.number,
+          state: fresh.state,
+          fork: pullRequest.isFork,
+          activeRun: await activeRunOfPr(db, pullRequest.id),
+        },
+        typedNumber,
+        fresh.headSha,
+      );
+      if (!gate.allowed) return sendRefusal(reply, gate.reason);
+
+      await sendPushJob(queue, patch.id, signedBy);
+      return reply.code(202).send({ queued: true as const });
     },
   );
 };

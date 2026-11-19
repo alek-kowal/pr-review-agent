@@ -11,6 +11,7 @@ import {
   type Finding,
   type LevelNumber,
   type PrStateInput,
+  type Reason,
   type RoundTrigger,
   type RunRecord,
   type StageKey,
@@ -23,6 +24,7 @@ import { pullRequests, repositories } from '../schema/repositories.ts';
 import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
 import { getAppSettings } from './app-settings.ts';
+import { autofixWaitingOf } from './autofix.ts';
 import { currentAnswers, type CurrentAnswer } from './answers.ts';
 import { boardFilterConditions, type BoardFilter } from './board.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
@@ -116,8 +118,14 @@ export function coreFinding(
 
 /** `wait`: why the run waits (S-10); a started run that waits before a session reads as queued. */
 /** The newest patch counts only while it applies to the reviewed commit (S-13). */
-function statePatch(patch: PatchRow | undefined, reviewed: Run | null) {
-  return patch && patch.baseSha === reviewed?.headSha ? corePatch(patch) : null;
+function statePatch(
+  patch: PatchRow | undefined,
+  reviewed: Run | null,
+  autofixWaiting: Map<number, Reason>,
+) {
+  return patch && patch.baseSha === reviewed?.headSha
+    ? corePatch(patch, autofixWaiting.get(patch.id) ?? null)
+    : null;
 }
 
 function activeRun(run: Run | undefined, wait?: RunWait): ActiveRun | null {
@@ -321,6 +329,11 @@ export async function loadPrStateInputs(
     db,
     [...perPr.values()].flatMap((p) => (p.active ? [p.active.id] : [])),
   );
+  // S-15-T3: why level 5 autofix did not push a ready patch (the banner's reason).
+  const autofixWaiting = await autofixWaitingOf(
+    db,
+    [...patchByPr.values()].filter((patch) => patch.status === 'ready').map((patch) => patch.id),
+  );
   const chainById = new Map(
     (chainIds.length
       ? await db.select().from(roundChains).where(inArray(roundChains.id, chainIds))
@@ -387,7 +400,7 @@ export async function loadPrStateInputs(
       ),
       questions: prQuestions.map((row) => ({ id: String(row.id), answered: answers.has(row.id) })),
       sensitive: sensitiveState(sensitiveByPr.get(pullRequest.id) ?? []),
-      patch: statePatch(patchByPr.get(pullRequest.id), reviewed),
+      patch: statePatch(patchByPr.get(pullRequest.id), reviewed, autofixWaiting),
       reviewers: new Set(
         prFindings.flatMap((row) => (opinions.get(row.id) ?? []).map((o) => o.signedBy)),
       ).size,

@@ -14,11 +14,14 @@ export const ISOLATED_GIT_ENV: Readonly<Record<string, string>> = {
   GIT_COMMITTER_EMAIL: 'test@example.invalid',
 };
 
-/** A `GitExec` for `CliGitMirror` that runs git with `ISOLATED_GIT_ENV`. */
+/**
+ * A `GitExec` for `CliGitMirror` that runs git with `ISOLATED_GIT_ENV`. The call's own variables
+ * win, so a commit made as the bot keeps the bot's identity.
+ */
 export const isolatedGitExec: GitExec = async (file, args, options) => {
   const { stdout } = await execa(file, args, {
     ...options,
-    env: { ...options.env, ...ISOLATED_GIT_ENV },
+    env: { ...ISOLATED_GIT_ENV, ...options.env },
     stripFinalNewline: false,
   });
   return { stdout };

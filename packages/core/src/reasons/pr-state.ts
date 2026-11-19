@@ -1,3 +1,4 @@
+import type { Reason } from '../reason.ts';
 import type { Actor, LevelNumber } from '../vocabulary.ts';
 
 // Next step banners (`state_*`) and who usually acts (`who_*`), one per PR state variant.
@@ -21,7 +22,8 @@ declare module '../reason.ts' {
     };
     state_new_commits: { count: number; reviewedSha: string };
     state_patch_ready: { fixed: number; total: number; reproductionsPass: boolean };
-    state_autofix_waiting_sensitive: NoParams;
+    /** Level 5 autofix stopped before the push; `reason` is the autofix hold. */
+    state_autofix_waiting: { reason: Reason };
     state_questions_waiting: { count: number; toDecideAfter: number };
     state_findings_to_decide: { count: number; reviewers: number };
     state_sensitive_files: { count: number };

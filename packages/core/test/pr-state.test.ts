@@ -8,6 +8,7 @@ import {
   member,
   nextStep,
   prState,
+  reason,
   type ActiveRun,
   type PrSnapshot,
   type PrState,
@@ -257,16 +258,18 @@ describe('PR state table', () => {
       code: 'state_round_retrying',
       params: { stage: 'review', roundNumber: 1, max: 3 },
     });
+    const sensitive = reason('patch_touches_sensitive', { path: 'a', pattern: 'a' });
     const autofix = {
       status: 'ready',
       fixed: 1,
       total: 1,
       reproductionsPass: true,
-      waiting: 'sensitive',
+      waiting: sensitive,
     } as const;
-    expect(nextStep(makePr({ patch: autofix })).banner.code).toBe(
-      'state_autofix_waiting_sensitive',
-    );
+    expect(nextStep(makePr({ patch: autofix })).banner).toEqual({
+      code: 'state_autofix_waiting',
+      params: { reason: sensitive },
+    });
     const sentBack = { status: 'sent_back', files: ['a'], sentBackBy: member('tomek') } as const;
     expect(nextStep(makePr({ sensitive: sentBack }))).toMatchObject({
       banner: { code: 'state_sensitive_sent_back', params: { count: 1 } },

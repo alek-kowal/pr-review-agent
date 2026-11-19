@@ -1,6 +1,7 @@
 // Copy for core's Next step: the banner title, the board card's short line and who acts, for
 // every state code (`state_*`) and who code (`who_*`), and the main action labels.
 import type { MainActionCode } from '@pra/core';
+import { autofix } from './autofix.ts';
 
 export type StepParams = Record<string, unknown>;
 
@@ -53,7 +54,7 @@ const banner: Record<string, Line> = {
     `${plural(n(p.count), 'new commit')} since last review (${shortSha(p.reviewedSha)})`,
   state_patch_ready: (p) =>
     `Patch ready: ${n(p.fixed)} of ${n(p.total)} fixed${p.reproductionsPass ? ', reproductions pass' : ''}`,
-  state_autofix_waiting_sensitive: () => 'Autofix waiting: patch touches a sensitive file',
+  state_autofix_waiting: (p) => autofix.waiting(p.reason),
   state_questions_waiting: (p) => `Answer ${plural(n(p.count), 'question')}`,
   state_findings_to_decide: (p) => `Decide ${plural(n(p.count), 'finding')}`,
   state_sensitive_files: (p) => `Approve changes to ${plural(n(p.count), 'sensitive file')}`,
@@ -77,7 +78,7 @@ const short: Record<string, Line> = {
   state_stage_failed: (p, c) => `${c.stage(String(p.stage))} stage failed`,
   state_new_commits: (p) => `${plural(n(p.count), 'new commit')} since last review`,
   state_patch_ready: () => 'Patch ready: review and push',
-  state_autofix_waiting_sensitive: () => 'Autofix waiting: sensitive file',
+  state_autofix_waiting: (p) => autofix.waiting(p.reason),
   state_sensitive_files: (p) => `Approve ${plural(n(p.count), 'sensitive file')}`,
   state_sensitive_sent_back: () => 'Sensitive files sent back',
   state_ready_to_merge: () => 'Merge when you are ready',

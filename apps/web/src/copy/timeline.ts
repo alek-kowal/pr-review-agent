@@ -1,5 +1,6 @@
 // Copy for the PR Timeline tab: the time summary and one sentence per entry kind.
 import { alerts } from './alerts.ts';
+import { autofix } from './autofix.ts';
 import { checks } from './checks.ts';
 import { shortSha } from './nextStep.ts';
 import { money, plural, reviewCounts } from './format.ts';
@@ -123,6 +124,7 @@ export const timeline = {
     patch_file_reverted: (p) => `Reverted ${String(p.path ?? '')} in the patch`,
     patch_revise_requested: (p) =>
       `Asked for a new patch revision${p.note ? `: ${String(p.note)}` : ''}`,
+    ...autofix.timeline,
     pr_level_changed: (p) => `PR level set to ${prLevel(p.to)} (was ${prLevel(p.from)})`,
     sensitive_approved: (p) => `Approved ${plural(n(p.count), 'sensitive file')}`,
     sensitive_sent_back: (p) =>

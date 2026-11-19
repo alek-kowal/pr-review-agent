@@ -109,3 +109,76 @@ export function pushByItself(
     reasons: holds.length ? holds : [reason('push_conditions_met')],
   };
 }
+
+/** The two moments autofix decides: after a round (start) and when its patch is ready (push). */
+export type AutofixPoint = 'start' | 'push';
+/** `act` from level 5; `shadow` at levels 3–4 writes what level 5 would do; `off` below. */
+export type AutofixMode = 'act' | 'shadow' | 'off';
+
+/** The level from which the same checks run silently for the shadow log. */
+export const AUTOFIX_SHADOW_FROM: LevelNumber = 3;
+
+export function autofixMode(level: LevelNumber): AutofixMode {
+  if (level >= FEATURE_ON_FROM.autofix) return 'act';
+  return level >= AUTOFIX_SHADOW_FROM ? 'shadow' : 'off';
+}
+
+export interface AutofixPushInput {
+  level: LevelNumber;
+  fork: boolean;
+  patch: PatchResult;
+  /** The PR head right now. */
+  headSha: string;
+  sensitivePatterns?: readonly SensitivePattern[];
+  /** Automatic patches made in this chain before this one. */
+  autoPatchesInChain: number;
+  maxAutoPatches?: number;
+}
+
+export interface AutofixCheck {
+  mode: AutofixMode;
+  allowed: boolean;
+  /** Every hold, or the one "conditions met" reason when allowed. */
+  reasons: Reason[];
+  /** The first of `reasons`: the one the banner and the shadow log show. */
+  reason: Reason;
+  /** Start only: the findings autofix implements. */
+  findingIds: string[];
+}
+
+/**
+ * The autofix rule at one of its two points (S-15-T1). Start wraps `autofixDecision`; push wraps
+ * `pushByItself` and adds the fork and the per-chain cap, so a fork never acts and the cap holds
+ * even for a patch already made. Below level 5 the same answer feeds the shadow log.
+ */
+export function autofixCheck(point: 'start', input: AutofixInput): AutofixCheck;
+export function autofixCheck(point: 'push', input: AutofixPushInput): AutofixCheck;
+export function autofixCheck(
+  point: AutofixPoint,
+  input: AutofixInput | AutofixPushInput,
+): AutofixCheck {
+  const mode = autofixMode(input.level);
+  if (point === 'start') {
+    const decision = autofixDecision(input as AutofixInput);
+    return {
+      mode,
+      allowed: decision.go,
+      reasons: decision.reasons,
+      reason: decision.reasons[0]!,
+      findingIds: decision.findingIds,
+    };
+  }
+  const push = input as AutofixPushInput;
+  const max = push.maxAutoPatches ?? DEFAULT_AUTOFIX_MAX_PATCHES;
+  const rule = pushByItself(push.patch, {
+    headSha: push.headSha,
+    sensitivePatterns: push.sensitivePatterns,
+  });
+  const holds: Reason[] = rule.go ? [] : [...rule.reasons];
+  if (push.fork) holds.unshift(reason('fork_read_only'));
+  if (push.autoPatchesInChain >= max) {
+    holds.push(reason('auto_patches_used', { used: push.autoPatchesInChain, max }));
+  }
+  const reasons = holds.length ? holds : rule.reasons;
+  return { mode, allowed: holds.length === 0, reasons, reason: reasons[0]!, findingIds: [] };
+}

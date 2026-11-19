@@ -36,3 +36,4 @@ export * from './learning.ts';
 export * from './alerts.ts';
 export * from './board.ts';
 export * from './search.ts';
+export * from './autofix.ts';

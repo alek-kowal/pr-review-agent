@@ -3,6 +3,7 @@ import { App } from '@octokit/app';
 import { Octokit } from '@octokit/core';
 import { Webhooks } from '@octokit/webhooks';
 import { IntegrationError, IntegrationNotConfiguredError } from '../errors.ts';
+import { noreplyEmail } from '../git-mirror.ts';
 import {
   changesRequestedBy,
   checkRunState,
@@ -22,6 +23,7 @@ import {
   type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,
+  type GitHubUser,
   type InstallationToken,
   type MergeResult,
   type OpenPullRequestSummary,
@@ -53,6 +55,7 @@ export class OctokitGitHubGateway implements GitHubGateway {
   readonly #now: () => number;
   readonly #tokens = new Map<number, Promise<InstallationToken>>();
   readonly #installations = new Map<string, number>();
+  #bot: Promise<{ name: string; email: string }> | undefined;
   readonly missingEnv: readonly string[] = [];
 
   constructor(options: OctokitGitHubGatewayOptions) {
@@ -306,6 +309,32 @@ export class OctokitGitHubGateway implements GitHubGateway {
     });
   }
 
+  async getUser(login: string): Promise<GitHubUser | null> {
+    try {
+      const { data } = await this.#app.octokit.request('GET /users/{username}', {
+        username: login,
+      });
+      return { id: Number(data.id), login: data.login };
+    } catch (error) {
+      if (statusOf(error) === 404) return null;
+      throw error;
+    }
+  }
+
+  async getBotIdentity(): Promise<{ name: string; email: string }> {
+    this.#bot ??= (async () => {
+      const { data: app } = await this.#app.octokit.request('GET /app');
+      const login = `${app?.slug ?? ''}[bot]`;
+      const user = await this.getUser(login);
+      if (!user) throw new Error(`GitHub has no bot account ${login}`);
+      return { name: login, email: noreplyEmail(user.id, login) };
+    })().catch((error: unknown) => {
+      this.#bot = undefined;
+      throw error;
+    });
+    return this.#bot;
+  }
+
   async listAccessibleRepositories(): Promise<AccessibleRepository[]> {
     const repositories: AccessibleRepository[] = [];
     for (let page = 1; page <= MAX_PAGES; page++) {
@@ -439,6 +468,12 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     return this.#fail();
   }
   squashMerge(): Promise<MergeResult> {
+    return this.#fail();
+  }
+  getUser(): Promise<GitHubUser | null> {
+    return this.#fail();
+  }
+  getBotIdentity(): Promise<{ name: string; email: string }> {
     return this.#fail();
   }
 

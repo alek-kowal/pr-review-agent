@@ -6,6 +6,8 @@ import {
   type Actor,
   type Patch as CorePatch,
   type PatchReproduction,
+  type Reason,
+  type RunKind,
 } from '@pra/core';
 import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
@@ -113,6 +115,12 @@ export async function getPatch(db: Executor, id: number): Promise<PatchWithFiles
   return { ...patch, files };
 }
 
+/** The patch an implementer run wrote, with its files; undefined before it completed. */
+export async function patchOfRun(db: Executor, runId: number): Promise<PatchWithFiles | undefined> {
+  const [row] = await db.select({ id: patches.id }).from(patches).where(eq(patches.runId, runId));
+  return row ? getPatch(db, row.id) : undefined;
+}
+
 /** The newest revision of each PR's patch. */
 export async function latestPatchesOf(
   db: Executor,
@@ -133,14 +141,17 @@ export async function latestPatch(db: Executor, pullRequestId: number) {
   return (await latestPatchesOf(db, [pullRequestId])).get(pullRequestId);
 }
 
-/** A patch row as the core state table reads it. */
-export function corePatch(row: PatchRow): CorePatch {
+/**
+ * A patch row as the core state table reads it. `waiting` is why level 5 autofix did not push it
+ * (its latest autofix attempt, when that one waits).
+ */
+export function corePatch(row: PatchRow, waiting: Reason | null = null): CorePatch {
   return {
     status: row.status,
     fixed: row.fixedFindingIds.length,
     total: row.findingIds.length,
     reproductionsPass: patchReproductions(Object.values(row.reproductions)) === 'pass',
-    waiting: null,
+    waiting: row.status === 'ready' ? waiting : null,
   };
 }
 
@@ -230,6 +241,62 @@ export function editPatchFile(
 /** Reverts a file to its base content: status `reverted`, the base blob as its content. */
 export function revertPatchFile(db: Transactor, target: FileTarget): Promise<PatchFileChange> {
   return changeFile(db, target, (file) => ({ blobKey: file.baseBlobKey, status: 'reverted' }));
+}
+
+/**
+ * Marks a ready patch pushed as `sha` (S-14-T2). Returns false when the patch was no longer
+ * ready, so a second delivery of the push job records nothing twice.
+ */
+export async function markPatchPushed(
+  db: Executor,
+  patchId: number,
+  sha: string,
+  at = new Date(),
+): Promise<PatchRow | undefined> {
+  const [row] = await db
+    .update(patches)
+    .set({ status: 'pushed', pushedSha: sha, pushedAt: at, pushRefusal: null, updatedAt: at })
+    .where(and(eq(patches.id, patchId), eq(patches.status, 'ready')))
+    .returning();
+  return row;
+}
+
+/**
+ * Records why the push job pushed nothing; the patch stays ready. `updatedAt` stays, so a patch
+ * check running meanwhile still stores its result.
+ */
+export async function markPushRefused(
+  db: Executor,
+  patchId: number,
+  refusal: Reason,
+): Promise<void> {
+  await db.update(patches).set({ pushRefusal: refusal }).where(eq(patches.id, patchId));
+}
+
+/** The PR's queued or running round or implementer run (at most one), as the push rule reads it. */
+export async function activeRunOfPr(
+  db: Executor,
+  pullRequestId: number,
+): Promise<{ kind: RunKind; status: ActiveRunStatus } | null> {
+  const [row] = await db
+    .select({ kind: runs.kind, status: runs.status })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.pullRequestId, pullRequestId),
+        inArray(runs.status, [...ACTIVE_RUN_STATUSES]),
+        inArray(runs.kind, ['round', 'implementer']),
+      ),
+    )
+    .limit(1);
+  return row ? { kind: row.kind, status: row.status as ActiveRunStatus } : null;
+}
+
+/** The files a push writes: every file that is not reverted, with its content's blob key. */
+export function filesToPush(patch: PatchWithFiles): { path: string; blobKey: string | null }[] {
+  return patch.files
+    .filter((file) => file.status !== 'reverted')
+    .map((file) => ({ path: file.path, blobKey: file.blobKey }));
 }
 
 /**

@@ -18,6 +18,8 @@ import {
   instructionVersionLabels,
   qualityInputs,
   repositoryLevels,
+  SHADOW_DECISIONS,
+  shadowByRepository,
   spendRows,
   spentToday,
   type Db,
@@ -26,6 +28,7 @@ import {
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
+import { ReasonSchema } from '../../../pr-view/round.ts';
 import { startOfUtcDay } from '../status/index.ts';
 
 const DAY_MS = 86_400_000;
@@ -171,9 +174,36 @@ export const TrustResponse = z.object({
       /** Rounds of this repository at its current level, and their findings' rates. */
       rounds: z.number().int(),
       ...RatesSchema,
+      /**
+       * The level 5 shadow log over the last `days`: the latest entry of each PR written at level
+       * 3 or above. Below `needed` PRs there is not enough data for a summary.
+       */
+      shadow: z.object({
+        days: z.number().int(),
+        eligible: z.number().int(),
+        needed: z.number().int(),
+        /** PRs whose latest entry would have started or pushed a fix. */
+        wouldFix: z.number().int(),
+        /** Newest first. */
+        prs: z.array(
+          z.object({
+            number: z.number().int(),
+            decision: z.enum(SHADOW_DECISIONS),
+            reason: ReasonSchema.nullable(),
+            fixed: z.number().int(),
+            total: z.number().int(),
+            at: timestamp,
+          }),
+        ),
+      }),
     }),
   ),
 });
+
+const SHADOW_DAYS = 14;
+const SHADOW_NEEDED = 5;
+/** The shadow log needs verified findings, so it starts at level 3. */
+const SHADOW_FROM_LEVEL = 3;
 
 const ScopeQuery = z.object({
   range: RangeSchema,
@@ -429,16 +459,36 @@ const insights: FastifyPluginAsyncZod = async (fastify) => {
         return sendError(reply, 404, ApiErrorCode.RepositoryNotFound, { repo });
       }
       const now = Date.now();
-      const [repositories, { runs, findings }] = await Promise.all([
+      const [repositories, { runs, findings }, shadow] = await Promise.all([
         repositoryLevels(db, repository?.id),
         qualityInputs(db, { since: null, repositoryId: repository?.id }),
+        shadowByRepository(db, {
+          repositoryId: repository?.id,
+          since: new Date(now - SHADOW_DAYS * DAY_MS),
+          minLevel: SHADOW_FROM_LEVEL,
+        }),
       ]);
       return {
         repositories: repositories.map((row) => {
           const rounds = runs.filter(
             (run) => run.repositoryId === row.id && run.kind === 'round' && run.level === row.level,
           );
+          const prs = shadow.filter((entry) => entry.repositoryId === row.id);
           return {
+            shadow: {
+              days: SHADOW_DAYS,
+              eligible: prs.length,
+              needed: SHADOW_NEEDED,
+              wouldFix: prs.filter((entry) => entry.decision !== 'would_wait').length,
+              prs: prs.map((entry) => ({
+                number: entry.number,
+                decision: entry.decision,
+                reason: entry.reasons[0] ?? null,
+                fixed: entry.fixed,
+                total: entry.total,
+                at: entry.at.toISOString(),
+              })),
+            },
             repositoryId: row.id,
             repository: row.slug,
             level: row.level,

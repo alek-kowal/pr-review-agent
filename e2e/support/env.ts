@@ -34,6 +34,10 @@ export type StackState = {
   agentCalls: string;
   /** JSON lines `{ command, mounts }`, one per Sandbox call; mounts are host paths (`run-<id>`). */
   sandboxCalls: string;
+  /** The push repository's bare remote (`PUSH_REPOSITORY`). */
+  pushRemote: string;
+  /** JSON lines `{ args }`, one per `git push` the worker ran (its argv, never the token). */
+  gitPushes: string;
 };
 
 /**
@@ -123,6 +127,72 @@ export const IMPLEMENTER_REPOSITORY = {
 
 /** While a file of this name exists in the hold folder, every implementer session waits. */
 export const IMPLEMENTER_HOLD = 'hold-implementer';
+
+/**
+ * Seeded at level 4 (push-recheck.spec.ts). Its remote is a bare copy of the fixture that
+ * accepts pushes (`StackState.pushRemote`); each PR in `PUSH_PRS` has its own branch there
+ * (`pushBranch`), at the fixture head. GitHub compares its commits with git and reports green CI
+ * at any commit.
+ */
+export const PUSH_REPOSITORY = {
+  slug: 'push-repo',
+  fullName: 'acme/push-repo',
+  installationId: 55500012,
+};
+export const PUSH_PRS = { from: 265, to: 267 };
+export const pushBranch = (number: number): string => `edge-labels-${number}`;
+/** The GitHub account of the Team member who signs pushes (`Co-authored-by`). */
+export const PUSH_SIGNER = { login: 'wb-dev', id: 4242 };
+/** While this file exists, GitHub reports its content as PR `number`'s head (push repository). */
+export const movedHeadFile = (holdDir: string, number: number): string =>
+  path.join(holdDir, `moved-head-${number}`);
+
+/**
+ * Seeded at level 5 with the SDK store as a sensitive file: tracked in the fixture, but not in its
+ * diff, so the PR stays a two-way door and only a patch touches it (autofix.spec.ts). Like the
+ * push repository, its remote is the bare push remote with a branch per PR (`pushBranch`), and
+ * GitHub compares commits with git and reports green CI.
+ */
+export const AUTOFIX_REPOSITORY = {
+  slug: 'autofix-repo',
+  fullName: 'acme/autofix-repo',
+  installationId: 55500013,
+  patterns: [{ pattern: 'packages/sdk/src/store.ts', reason: 'Holds every saved diagram.' }],
+};
+/** Seeded at level 3: autofix only writes its shadow log (autofix.spec.ts). */
+export const SHADOW_REPOSITORY = {
+  slug: 'shadow-repo',
+  fullName: 'acme/shadow-repo',
+  installationId: 55500014,
+};
+/**
+ * PRs whose review has one Blocking finding the verifier confirms with an obvious fix, so level 5
+ * starts and pushes by itself. In `sensitive`, the finding (and so the patch) is in the SDK
+ * store, a sensitive file; in `fixes` and `shadow`, in `apps/demo/src/edges.ts`.
+ */
+export const AUTOFIX_PRS = {
+  fixes: { from: 210, to: 212 },
+  sensitive: { from: 213, to: 215 },
+  shadow: { from: 216, to: 218 },
+};
+export const AUTOFIX_FINDINGS = {
+  fixes: {
+    title: 'Empty label hides the edge',
+    severity: 'blocker',
+    file: 'apps/demo/src/edges.ts',
+    line: 1,
+    scenario: 'When a label is only spaces, trim() leaves nothing and the edge shows no text.',
+    suggestion: 'Fall back to the edge id when the trimmed label is empty.',
+  },
+  sensitive: {
+    title: 'Store keeps the old label',
+    severity: 'blocker',
+    file: 'packages/sdk/src/store.ts',
+    line: 1,
+    scenario: 'After a rename, the store still returns the label the edge had before.',
+    suggestion: 'Write the new label to the store when an edge is renamed.',
+  },
+};
 
 /** Seeded at level 2: rounds run the checks and the change type, but no Verify. */
 export const LEVEL_TWO_REPOSITORY = {

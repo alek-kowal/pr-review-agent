@@ -53,9 +53,13 @@ export type StartImplementerInput = {
   revise?: { patchId: number; note: string };
   /**
    * Runs first in the run's transaction, for example the signed decisions that start it. The gate
-   * then reads the PR as they left it; a refusal rolls them back.
+   * then reads the PR as they left it; a refusal rolls them back. A returned reason refuses.
    */
-  prepare?: (tx: RunTx) => Promise<void>;
+  prepare?: (tx: RunTx) => Promise<Reason | void>;
+  /** Why it starts; `manual` (or `revise`) by default, `autofix` when level 5 starts it. */
+  trigger?: 'autofix';
+  /** Runs in the run's transaction after the insert, for example to record what started it. */
+  afterInsert?: (tx: RunTx, run: Run) => Promise<void>;
 };
 
 export type StartImplementerResult =
@@ -115,10 +119,11 @@ export async function startImplementer(
       kind: 'implementer',
       level: before.input.level,
       plan: planRun({ kind: 'implementer', level: before.input.level }),
-      trigger: input.revise ? 'revise' : 'manual',
+      trigger: input.trigger ?? (input.revise ? 'revise' : 'manual'),
       startedBy: input.startedBy,
       beforeInsert: async (tx) => {
-        await input.prepare?.(tx);
+        const refused = await input.prepare?.(tx);
+        if (refused) throw new Refused(refused);
         const load = await loadPrStateInput(tx, input.pullRequestId);
         if (!load)
           throw new Refused(reason('pr_not_found', { pullRequestId: input.pullRequestId }));
@@ -139,6 +144,7 @@ export async function startImplementer(
           revisesPatchId: input.revise?.patchId ?? null,
           note: input.revise?.note ?? null,
         });
+        await input.afterInsert?.(tx as RunTx, run);
       },
     });
     if (!created.created) {

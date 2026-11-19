@@ -16,3 +16,4 @@ export * from './status.ts';
 export * from './patches.ts';
 export * from './learning.ts';
 export * from './alerts.ts';
+export * from './autofix.ts';

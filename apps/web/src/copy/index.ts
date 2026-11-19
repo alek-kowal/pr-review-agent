@@ -1,6 +1,7 @@
 // UI copy (English). Components read strings from here, never inline them.
 import { activity } from './activity.ts';
 import { alerts } from './alerts.ts';
+import { autofix } from './autofix.ts';
 import { board } from './board.ts';
 import { budget } from './budget.ts';
 import { checklist } from './checklist.ts';
@@ -20,6 +21,7 @@ import { nextStep } from './nextStep.ts';
 import { notify } from './notify.ts';
 import { opinions } from './opinions.ts';
 import { palette, shortcuts, theme } from './palette.ts';
+import { push } from './push.ts';
 import { questions } from './questions.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
@@ -39,6 +41,7 @@ export const copy = {
     insights: 'Insights',
     settings: 'Settings',
   },
+  autofix,
   board,
   budget,
   nextStep,
@@ -306,6 +309,9 @@ export const copy = {
     patch_file_not_found: 'This file is no longer part of the patch. Reload the page.',
     patch_stale: 'The patch changed in the meantime. It now shows the current files.',
     note_required: 'Write a note for the implementer.',
+    pr_number_mismatch: 'The typed number is not this PR’s number.',
+    patch_not_ready: 'This patch is no longer ready: it was pushed or replaced. Reload the page.',
+    patch_empty: 'Every file of the patch is reverted: there is nothing to push.',
     author_has_no_clickup_user:
       'The author has no ClickUp user in Team. Add it in Settings → Team, then notify.',
     lesson_candidate_not_found: 'This lesson candidate no longer exists.',
@@ -325,6 +331,7 @@ export const copy = {
   learning,
   pipeline,
   merge,
+  push,
   palette,
   shortcuts,
   theme,

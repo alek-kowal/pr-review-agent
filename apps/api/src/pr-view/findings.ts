@@ -32,8 +32,8 @@ export const DecisionSchema = z.object({
   batchId: z.number().int(),
   decision: z.enum(DECISIONS),
   reason: z.string().nullable(),
-  /** The signer, named even after they left the team. */
-  signedBy: z.object({ id: z.string(), name: z.string() }),
+  /** The signer, named even after they left the team; id null when the bot decided (autofix). */
+  signedBy: z.object({ id: z.string().nullable(), name: z.string() }),
   decidedAt: timestamp,
   /** The PR author when it was decided (S-08-T5, FR-041). */
   author: AuthorSchema,
