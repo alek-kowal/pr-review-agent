@@ -21,7 +21,10 @@ export function TopBar() {
           <Logo />
           <span className="font-heading text-[15px] font-semibold">{copy.app.name}</span>
         </Link>
-        <nav aria-label={copy.nav.label} className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
+        <nav
+          aria-label={copy.nav.label}
+          className="flex min-w-0 items-center gap-0.5 overflow-x-auto"
+        >
           {NAV.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
@@ -42,7 +45,13 @@ function Logo() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
       <rect width="24" height="24" rx="6" fill="var(--brand)" />
-      <path d="M6 8.5h5.5a3 3 0 0 1 3 3V17" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M6 8.5h5.5a3 3 0 0 1 3 3V17"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
       <circle cx="6.5" cy="8.5" r="2" fill="#fff" />
       <circle cx="14.5" cy="17" r="2.2" fill="var(--coral)" stroke="#fff" strokeWidth="1.2" />
     </svg>

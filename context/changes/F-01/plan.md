@@ -266,17 +266,17 @@ Sequential phases, each one verified before the next. Use official generators (`
 
 #### Automated
 
-- [x] 5.1 `TopBar.test.tsx` passes
-- [x] 5.2 `pnpm --filter @pra/web build` passes
-- [x] 5.3 Both themes' tokens are defined in the global stylesheet
+- [x] 5.1 `TopBar.test.tsx` passes — 032e96d
+- [x] 5.2 `pnpm --filter @pra/web build` passes — 032e96d
+- [x] 5.3 Both themes' tokens are defined in the global stylesheet — 032e96d
 
 ### Phase 6: ESLint and Prettier with package boundary rules
 
 #### Automated
 
-- [ ] 6.1 `pnpm lint` exits 0
-- [ ] 6.2 `node:fs` import in `packages/core` fails with `no-restricted-imports`
-- [ ] 6.3 `pnpm verify` exits 0, and non-zero when one script fails
+- [x] 6.1 `pnpm lint` exits 0
+- [x] 6.2 `node:fs` import in `packages/core` fails with `no-restricted-imports`
+- [x] 6.3 `pnpm verify` exits 0, and non-zero when one script fails
 
 ### Phase 7: Playwright skeleton with one smoke spec
 
