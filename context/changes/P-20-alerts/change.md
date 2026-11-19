@@ -101,3 +101,24 @@ in the listed order.
   alerts, for the banner line). The status chip payload gets `activeAlertCount`.
 - SSE: no new event name. The `alerts` trigger sends the existing `change` event with
   `table: 'alerts'`; that is the `alert.changed` signal the web listens for.
+
+### S-18-T6 (alerts in the web)
+
+- Everything plugs into the existing extension points: `ACTIVITY_SECTIONS` (`before`: Alerts),
+  `CARD_BADGE_SLOTS` (the bell), `BANNER_LINES` (the PR line), `CHIP_SEGMENTS` (the count) and
+  `LIVE_TARGETS.alerts` (`activity`, `board`, `prView`, `status`). The only edits outside slots are
+  the strip in `Board.tsx` and the chip's aria-label, which names the alert count (the segment is
+  inside a labelled button, so a screen reader would not read it).
+- The alert lists use keys under `['activity', 'alerts', ...]`, so the `activity` live family
+  refreshes them. Past alerts load only when "Show N past alerts" opens (shadcn `Collapsible`,
+  added from the existing `radix-ui` package).
+- Actions follow the task text: a run-failed alert carries "Retry from <stage>" (the shared
+  `useRetryRun`, on the alert's `runId`), the cost alert carries Dismiss; the rounds and budget
+  alerts clear by themselves and carry no button (the prototype also offered Dismiss there).
+- Alert copy (`copy/alerts.ts`) maps the reason codes; it mirrors core's `alertTitleText` wording
+  but stays app copy. Delivery reads "Posted to ClickUp WB-123", "Not sent: ClickUp not
+  configured", or "Could not post …; trying again". "5 min ago" counts from the query's
+  `dataUpdatedAt` (renders stay pure, as the board's ages do).
+- Timeline: `alert_raised` "Alert posted as a ClickUp comment on WB-123: <title>" and
+  `alert_dismissed` "Dismissed the alert: <title>" (actor column: By hand).
+- The "Alert settings" link in Activity → Alerts comes with the Settings page (S-21-T9).

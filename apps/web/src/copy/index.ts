@@ -1,5 +1,6 @@
 // UI copy (English). Components read strings from here, never inline them.
 import { activity } from './activity.ts';
+import { alerts } from './alerts.ts';
 import { board } from './board.ts';
 import { budget } from './budget.ts';
 import { checklist } from './checklist.ts';
@@ -287,9 +288,12 @@ export const copy = {
     no_linked_task: 'This pull request has no linked ClickUp task.',
     author_has_no_clickup_user:
       'The author has no ClickUp user in Team. Add it in Settings → Team, then notify.',
+    alert_not_found: 'This alert no longer exists. Reload the page.',
+    alert_not_active: 'This alert has already cleared or been dismissed.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity,
+  alerts,
   insights,
   instructions,
   trials,

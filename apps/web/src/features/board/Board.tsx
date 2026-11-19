@@ -4,6 +4,7 @@ import { Bot, ChevronRight, CircleCheck, CircleDashed, UserRound } from 'lucide-
 import { LANES, type Lane } from '@pra/core';
 import { cn } from 'cn';
 import { copy } from '@/copy/index.ts';
+import { AlertStrip } from '@/features/alerts/BoardAlerts.tsx';
 import { ApiError } from '@/lib/api.ts';
 import type { BoardCard as Card, BoardResponse } from '@/lib/api-types.ts';
 import { authorName, bannerText, stepContext } from '@/lib/next-step.ts';
@@ -33,6 +34,7 @@ export function Board() {
         </p>
       ) : (
         <>
+          <AlertStrip />
           <Lanes board={board.data} now={board.dataUpdatedAt} />
           <MergedOrClosed cards={board.data.mergedOrClosed} />
         </>

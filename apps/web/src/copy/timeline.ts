@@ -1,4 +1,5 @@
 // Copy for the PR Timeline tab: the time summary and one sentence per entry kind.
+import { alerts } from './alerts.ts';
 import { checks } from './checks.ts';
 import { shortSha } from './nextStep.ts';
 import { money, plural, reviewCounts } from './format.ts';
@@ -124,6 +125,8 @@ export const timeline = {
     review_saved: (p) => `Review saved: ${reviewCounts(n(p.worth), n(p.notWorth))}`,
     author_notified: (p) =>
       `Notified ${String(p.authorName ?? 'the author')} in ClickUp (${String(p.taskId ?? '')})`,
+    alert_raised: alerts.timeline.raised,
+    alert_dismissed: alerts.timeline.dismissed,
   } as Record<string, (p: Params, c: TimelineContext) => string>,
   unknownEntry: (kind: string) => kind.replaceAll('_', ' '),
 };

@@ -1,5 +1,6 @@
 // Response builders for web tests. Shapes follow `@/lib/api-types.ts`.
 import type {
+  AlertView,
   TaskSectionView,
   ChecksSectionView,
   AuthorView,
@@ -72,6 +73,7 @@ export const aBoardCard = (over: Partial<BoardCard> = {}): BoardCard => ({
   openedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
   nextStep: aNextStep(),
   badges: [],
+  alertCount: 0,
   ...over,
 });
 
@@ -115,6 +117,7 @@ export const aPrView = (
     roundProgress?: RoundProgressView | null;
     task?: TaskSectionView;
     checks?: ChecksSectionView;
+    alerts?: AlertView[];
   } = {},
 ): PrView => ({
   pullRequest: {
@@ -143,6 +146,7 @@ export const aPrView = (
   roundProgress: over.roundProgress ?? null,
   task: over.task ?? { configured: true, link: null },
   checks: over.checks ?? aChecks(),
+  alerts: over.alerts ?? [],
 });
 
 /** A PR with no completed round yet: nothing to show in the Change type panel. */
@@ -264,5 +268,29 @@ export const aStatus = (over: Partial<StatusResponse> = {}): StatusResponse => (
   todaySpendUsd: 1.84,
   since: '2026-11-18T23:00:00.000Z',
   queuedCount: 0,
+  activeAlertCount: 0,
+  ...over,
+});
+
+let nextAlertId = 500;
+/** An active cost alert on PR #142 (S-18), its ClickUp comment posted to WB-123. */
+export const anAlert = (over: Partial<AlertView> = {}): AlertView => ({
+  id: nextAlertId++,
+  kind: 'cost',
+  status: 'active',
+  title: { code: 'alert_cost', params: { prNumber: 142, spentUsd: 5.4, maxUsd: 5 } },
+  nextStep: { code: 'alert_next_split', params: {} },
+  runId: null,
+  pullRequest: { repository: { slug: 'wb' }, number: 142, title: 'Add node grouping' },
+  delivery: {
+    status: 'sent',
+    taskId: 'WB-123',
+    toGeneralTask: false,
+    postedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+  },
+  createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+  endedAt: null,
+  endedBy: null,
+  endNote: null,
   ...over,
 });
