@@ -121,3 +121,14 @@ decide and record).
   `decideFindings`: it locks the PR row, compares the version, settles every file not approved
   yet, and writes the timeline entry (`sensitive_approved` / `sensitive_sent_back`) and the state
   change in the same transaction.
+
+### S-11-T2 (approve and send back API)
+
+- Routes follow the PR keying: `POST /api/prs/:repo/:number/sensitive/approve { version }` and
+  `.../sensitive/send-back { version, comment, signedBy }` in `routes/api/sensitive/`. Both answer
+  the refreshed `nextStep`, `checklist` and `sensitive` sections.
+- Errors: 400 `signature_required` / `signer_unknown` / `comment_required`; 409 `sensitive_stale`
+  (params `version`) and `sensitive_nothing_pending` when every file is already approved.
+- The PR view gets a `sensitive` section: version, status (null without files), each file with
+  pattern, reason and status, and `sentBack { by { id, name }, comment, at }` while any file is
+  sent back. The checklist row and its reason come from core as before.

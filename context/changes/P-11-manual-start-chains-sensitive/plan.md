@@ -191,7 +191,7 @@ after phases 5, 6, 7, 10 and 11.
 
 ### Phase 9: Approve and send back API
 
-- [ ] 9.1 `pnpm --filter @pra/api test sensitive.test.ts`
+- [x] 9.1 `pnpm --filter @pra/api test sensitive.test.ts`
 
 ### Phase 10: Sensitive files on the PR page
 

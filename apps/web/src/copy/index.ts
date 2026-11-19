@@ -176,6 +176,10 @@ export const copy = {
     clickup_not_configured: 'ClickUp is not configured on this server.',
     run_active: 'A round is already queued or running for this PR.',
     pr_closed: 'This pull request is closed.',
+    comment_required:
+      'A comment is required to send files back, so the author knows what to change.',
+    sensitive_stale: 'The sensitive files changed in the meantime. Check them again.',
+    sensitive_nothing_pending: 'Every sensitive file is already approved.',
     clickup_auth_failed: 'ClickUp refused the API key.',
     clickup_error: 'ClickUp did not answer as expected.',
     github_error: 'GitHub did not answer as expected.',

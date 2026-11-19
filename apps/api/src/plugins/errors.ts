@@ -47,6 +47,12 @@ export const ApiErrorCode = {
   RunActive: 'run_active',
   /** A start on a merged or closed PR. */
   PrClosed: 'pr_closed',
+  /** Send back without a comment. */
+  CommentRequired: 'comment_required',
+  /** The PR's sensitive files changed since the person saw them (`params.version`). */
+  SensitiveStale: 'sensitive_stale',
+  /** Approve or send back when every sensitive file is already approved, or there is none. */
+  SensitiveNothingPending: 'sensitive_nothing_pending',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
