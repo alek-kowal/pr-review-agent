@@ -1,10 +1,20 @@
 // The Findings tab: the newest completed round's findings with their current decisions, its
 // questions and what it did not check.
-import { DECISIONS, needsDecision, SEVERITIES, VERDICTS } from '@pra/core';
+import {
+  DECISIONS,
+  decisionLabelNames,
+  needsDecision,
+  SEVERITIES,
+  VERDICTS,
+  type UsualDecider,
+} from '@pra/core';
 import {
   commitsSinceRun,
   coreFinding,
   FOLLOW_UP_STATUSES,
+  OPINIONS,
+  type CurrentAnswer,
+  type OpinionRow,
   verificationsOfRun,
   type CurrentDecision,
   type Executor,
@@ -13,6 +23,7 @@ import {
 } from '@pra/db';
 import { z } from 'zod/v4';
 import { iso, ReasonSchema, roundLevel, RoundLevelSchema } from './round.ts';
+import { AuthorSchema, authorView } from './state.ts';
 
 const timestamp = z.iso.datetime({ offset: true });
 
@@ -24,6 +35,13 @@ export const DecisionSchema = z.object({
   /** The signer, named even after they left the team. */
   signedBy: z.object({ id: z.string(), name: z.string() }),
   decidedAt: timestamp,
+  /** The PR author when it was decided (S-08-T5, FR-041). */
+  author: AuthorSchema,
+  /**
+   * The names its label shows: "Rejected by Tomek (author: Kasia)", or only the signer when the
+   * author signed ("Rejected by Kasia (author)").
+   */
+  label: z.object({ signer: z.string(), author: z.string().nullable() }),
   /** Defer to ClickUp only: the follow-up task, or why there is none (S-06-T5). */
   followUp: z
     .object({
@@ -71,6 +89,8 @@ export const FindingSchema = z.object({
   /** Sent back with a decision, so a decision made in between conflicts (409). */
   version: z.number().int(),
   decision: DecisionSchema.nullable(),
+  /** Who usually decides it (core `usuallyDecidedBy`); null when it needs no decision. */
+  usuallyDecidedBy: AuthorSchema.nullable(),
   /** Whether it waits for a decision, and why (core `needsDecision`). */
   needsDecision: z.object({ needed: z.boolean(), reason: ReasonSchema }),
   /** The head SHA of the round that found it (FR-045). */
@@ -79,7 +99,33 @@ export const FindingSchema = z.object({
   commitsBehind: z.number().int().nonnegative(),
   /** The newest fix check of a finding decided Implement; null before one ran. */
   fix: z.object({ resolved: z.boolean(), reason: z.string(), runId: z.number().int() }).nullable(),
+  /** Signed opinions, oldest first (FR-037); one per signer. */
+  opinions: z.array(
+    z.object({
+      id: z.number().int(),
+      signedBy: z.object({ id: z.string(), name: z.string() }),
+      value: z.enum(OPINIONS),
+      comment: z.string().nullable(),
+      /** The round it was given in; shown as "from round N" when carried. */
+      fromRound: z.number().int(),
+      /** Copied from the matching finding of an earlier round (FR-043). */
+      carried: z.boolean(),
+      at: timestamp,
+    }),
+  ),
 });
+
+export function opinionView(opinion: OpinionRow): z.output<typeof FindingSchema>['opinions'][0] {
+  return {
+    id: opinion.id,
+    signedBy: { id: opinion.signedBy, name: opinion.signerName },
+    value: opinion.value,
+    comment: opinion.comment,
+    fromRound: opinion.fromRound,
+    carried: opinion.carriedFromId !== null,
+    at: opinion.createdAt.toISOString(),
+  };
+}
 
 export const QuestionSchema = z.object({
   id: z.number().int(),
@@ -88,7 +134,28 @@ export const QuestionSchema = z.object({
   options: z.array(z.string()),
   recommended: z.number().int().nullable(),
   why: z.string().nullable(),
+  /** The current answer; null while the question is open. Sent back as `expectedAnswerId`. */
+  answer: z
+    .object({
+      id: z.number().int(),
+      /** The picked option; null for an own answer. */
+      option: z.number().int().nullable(),
+      text: z.string(),
+      signedBy: z.object({ id: z.string(), name: z.string() }),
+      savedAt: timestamp,
+    })
+    .nullable(),
 });
+
+export function answerView(answer: CurrentAnswer): z.output<typeof QuestionSchema>['answer'] {
+  return {
+    id: answer.id,
+    option: answer.option,
+    text: answer.text,
+    signedBy: { id: answer.signedBy, name: answer.signerName },
+    savedAt: answer.savedAt.toISOString(),
+  };
+}
 
 export const FindingsResponse = z.object({
   /** The latest completed round the findings come from; null when no round completed yet. */
@@ -100,6 +167,11 @@ export const FindingsResponse = z.object({
       finishedAt: timestamp.nullable(),
     })
     .nullable(),
+  /**
+   * The latest completed round, whose results (new findings or fix checks) this answer shows; the
+   * web holds a newer one behind "View new results" (S-08-T8). Null before a round completed.
+   */
+  resultsRound: z.object({ id: z.number().int(), number: z.number().int().nullable() }).nullable(),
   findings: z.array(FindingSchema),
   questions: z.array(QuestionSchema),
   notChecked: z.array(z.string()),
@@ -108,13 +180,24 @@ export const FindingsResponse = z.object({
 });
 export type FindingsView = z.output<typeof FindingsResponse>;
 
-export function decisionView(decision: CurrentDecision): z.output<typeof DecisionSchema> {
+/**
+ * A current decision for the api. `prAuthor` (the PR's author now) stands in for decisions stored
+ * before the author was kept on them.
+ */
+export function decisionView(
+  decision: CurrentDecision,
+  prAuthor: UsualDecider,
+): z.output<typeof DecisionSchema> {
+  const signedBy = { id: decision.signedBy, name: decision.signerName };
+  const author = decision.author ?? prAuthor;
   return {
     batchId: decision.batchId,
     decision: decision.decision,
     reason: decision.reason,
-    signedBy: { id: decision.signedBy, name: decision.signerName },
+    signedBy,
     decidedAt: decision.decidedAt.toISOString(),
+    author,
+    label: decisionLabelNames(signedBy, author),
     followUp: decision.followUp,
   };
 }
@@ -154,9 +237,21 @@ export function findingsView(
   verifications: readonly FindingVerification[] = [],
 ): FindingsView {
   const run = load.findingsRound;
-  if (!run) return { round: null, findings: [], questions: [], notChecked: [], unchecked: null };
+  const results = load.reviewedRound;
+  const resultsRound = results ? { id: results.id, number: results.roundNo } : null;
+  if (!run) {
+    return {
+      round: null,
+      resultsRound,
+      findings: [],
+      questions: [],
+      notChecked: [],
+      unchecked: null,
+    };
+  }
   const byFinding = new Map(verifications.map((v) => [v.findingId, v]));
   const commitsBehind = commitsSinceRun(load.pullRequest, run);
+  const author = authorView(load);
   return {
     round: {
       id: run.id,
@@ -164,9 +259,11 @@ export function findingsView(
       level: roundLevel(run),
       finishedAt: iso(run.finishedAt),
     },
+    resultsRound,
     findings: load.findings.map((f) => {
       const decision = load.decisions.get(f.id);
       const fix = load.fixChecks.get(f.id);
+      const needs = needsDecision(coreFinding(f, decision, fix));
       return {
         id: f.id,
         ordinal: f.ordinal,
@@ -180,11 +277,13 @@ export function findingsView(
         evidence: f.evidence,
         verification: verificationView(byFinding.get(f.id)),
         version: f.version,
-        decision: decision ? decisionView(decision) : null,
-        needsDecision: needsDecision(coreFinding(f, decision, fix)),
+        decision: decision ? decisionView(decision, author) : null,
+        usuallyDecidedBy: needs.needed ? author : null,
+        needsDecision: needs,
         sourceSha: run.headSha,
         commitsBehind,
         fix: fix ? { resolved: fix.resolved, reason: fix.reason, runId: fix.runId } : null,
+        opinions: (load.opinions.get(f.id) ?? []).map(opinionView),
       };
     }),
     questions: load.questions.map((q) => ({
@@ -194,6 +293,7 @@ export function findingsView(
       options: q.options,
       recommended: q.recommended,
       why: q.why,
+      answer: load.answers.has(q.id) ? answerView(load.answers.get(q.id)!) : null,
     })),
     notChecked: run.notChecked,
     unchecked:

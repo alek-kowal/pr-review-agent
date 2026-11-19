@@ -82,7 +82,8 @@ export function TaskPanel({ view, repo, number }: PrSlotProps) {
   );
 }
 
-function LinkTaskForm({
+/** The S-06 link dialog's form; Notify author's card opens it too (S-08-T11). */
+export function LinkTaskForm({
   repo,
   number,
   onDone,

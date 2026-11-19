@@ -10,6 +10,7 @@ import { CancelAction } from '@/features/runs/CancelAction.tsx';
 import { RetryAction } from '@/features/runs/RetryAction.tsx';
 import { Checklist } from './Checklist.tsx';
 import { DecideAction } from './DecideAction.tsx';
+import { AnswerAction } from '@/features/questions/AnswerAction.tsx';
 import { StartReviewHeaderAction, StartReviewMainAction } from '@/features/rounds/StartReview.tsx';
 import { SensitiveAction } from '@/features/sensitive/SensitiveAction.tsx';
 import { SensitiveBannerLine, SensitivePanel } from '@/features/sensitive/SensitivePanel.tsx';
@@ -30,6 +31,7 @@ export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActi
   approve_sensitive: SensitiveAction,
   retry: RetryAction,
   cancel: CancelAction,
+  answer: AnswerAction,
   resume: ResumeAction,
   merge: MergeAction,
 };

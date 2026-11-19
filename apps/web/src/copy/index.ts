@@ -10,6 +10,9 @@ import { insights } from './insights.ts';
 import { integrations } from './integrations.ts';
 import { merge } from './merge.ts';
 import { nextStep } from './nextStep.ts';
+import { notify } from './notify.ts';
+import { opinions } from './opinions.ts';
+import { questions } from './questions.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
 import { status } from './status.ts';
@@ -38,6 +41,9 @@ export const copy = {
   clickup,
   checks,
   timeline,
+  questions,
+  opinions,
+  notify,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',
@@ -122,6 +128,10 @@ export const copy = {
   },
   findings: {
     loading: 'Loading findings…',
+    /** S-08-T8: a newer round finished while the reader looks at the older results. */
+    newResults: (round: number | null) =>
+      round === null ? 'New results' : `New results from round ${round}`,
+    viewNewResults: 'View new results',
     severities: {
       blocking: { group: 'Blocking', one: 'Blocking', hint: 'Must be dealt with before merge.' },
       worth_fixing: {
@@ -251,6 +261,13 @@ export const copy = {
     run_not_found: 'This run does not exist.',
     session_not_found: 'This agent session does not exist.',
     transcript_not_found: 'The transcript of this session is not stored.',
+    question_not_found: 'A question is no longer on this pull request. Reload the page.',
+    answer_invalid: 'Pick an option or write an answer for every question.',
+    answer_conflict: 'Someone answered in the meantime.',
+    review_not_found: 'This review no longer exists.',
+    no_linked_task: 'This pull request has no linked ClickUp task.',
+    author_has_no_clickup_user:
+      'The author has no ClickUp user in Team. Add it in Settings → Team, then notify.',
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity,

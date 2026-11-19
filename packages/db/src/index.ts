@@ -56,3 +56,4 @@ export {
 } from './schema/runs.ts';
 export { TASK_LINK_HOWS, type TaskLinkHow } from './schema/clickup.ts';
 export { FOLLOW_UP_STATUSES, type FollowUpStatus } from './schema/team.ts';
+export { OPINIONS, type OpinionValue } from './schema/reviews.ts';

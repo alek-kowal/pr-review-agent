@@ -14,6 +14,10 @@ export interface ClickUpGateway {
     settings: ClickUpSettings | null,
     prUrl: string,
   ): Promise<ClickUpTask | null>;
+  /**
+   * A comment on the task. With `mentionUserId` it mentions that ClickUp user: in place of a
+   * leading "@Name:" in `text` (Notify author's "@Kasia: Tomek marked…"), else before the text.
+   */
   createComment(
     settings: ClickUpSettings | null,
     taskId: string,

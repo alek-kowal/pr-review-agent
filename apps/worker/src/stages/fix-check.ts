@@ -13,6 +13,7 @@ import {
 } from '@pra/db';
 import type { ChangedFile } from '@pra/integrations';
 import type { SessionRecord, StageContext, StageExecutor, StageResult } from './stage.ts';
+import { earlierAnswers } from './review/answers-context.ts';
 import { keepRun, reproduce, type ReproRun } from './verify.ts';
 import { fetchMirror, runWorktree } from './worktree.ts';
 
@@ -116,6 +117,7 @@ export const checkFixesStage: StageExecutor = {
       maxTurns: FIX_CHECK_MAX_TURNS,
       maxCostUsd: FIX_CHECK_MAX_COST_USD,
       stageTimeoutMinutes: level.settings.stageTimeoutMinutes,
+      answers: await earlierAnswers(deps.db, run),
       signal,
     });
     const sessions: SessionRecord[] = [{ role: 'reviewer', model, prompt, result }];

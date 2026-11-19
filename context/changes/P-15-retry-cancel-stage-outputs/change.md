@@ -121,6 +121,18 @@ Work package P-15 from `context/foundation/work-packages.md`, wave 6. Plan: yes,
   `runCancelled` hook (`wakeQueueOnRunEnd`); a retry run is queued, so P-16's start gates apply to
   it. `routeTree.gen.ts` was regenerated (`vite build`): main's `settings.budget` route, no diff.
   The activity test fixture gained `wait: null` (P-16's new `InProgressRun` field).
+- **Merge with main (P-14, questions and signed reviews).** Main's `0016_questions_and_reviews`
+  and its snapshot are kept; ours is regenerated as `0017_retry_cancel` (SQL identical to the old
+  0016). Main actions hold retry, cancel and P-14's answer. The e2e reviewer double keeps both
+  sides: every full review writes its brief (`briefFile`) and counts per PR, then a cancelled
+  session ends with what it spent, `FAIL_ONCE_PRS` fails once, and `QUESTION_PRS` asks questions
+  until the brief has the team's answers. PR ranges stay apart (`FAIL_ONCE_PRS` 150–159,
+  `QUESTION_PRS` 270–279, held 350–399). A retry run is a round, so P-14's opinion carrying skips
+  the failed run (it is not completed) and the retried review reads the earlier answers. No route
+  changed on either side; `routeTree.gen.ts` was regenerated (`vite build`) with no diff. After
+  the merge `decide.spec.ts` failed once in the full e2e run (no conflict alert after the second
+  browser's decision) and passed in the next two full runs; neither side touched it, so it is
+  left as a flaky check to watch.
 - **Retry is keyed by run id** (`POST /api/runs/:id/retry`, 201 `{run: {id, fromStage}}`); the
   banner retries `view.latestRound.id`, which is the failed round while the state is Stage failed.
   The stage a retry starts from is stored (`runs.retry_from`) rather than re-derived, so the PR

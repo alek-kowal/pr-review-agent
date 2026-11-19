@@ -14,6 +14,7 @@ import {
   type RoundTrigger,
   type RunRecord,
   type StageKey,
+  usuallyDecidedBy,
 } from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
@@ -21,7 +22,9 @@ import { roundChains } from '../schema/chains.ts';
 import { pullRequests, repositories } from '../schema/repositories.ts';
 import { findings, questions, runs, stageExecutions } from '../schema/runs.ts';
 import { teamMembers } from '../schema/team.ts';
+import { currentAnswers, type CurrentAnswer } from './answers.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
+import { opinionsOf, type OpinionRow } from './reviews.ts';
 import { newestFixChecks, type FixCheck } from './fix-checks.ts';
 import { sensitiveFilesOf, sensitiveState, type SensitiveFile } from './sensitive-files.ts';
 import { runWaitsOf, type RunWait } from './status.ts';
@@ -51,6 +54,10 @@ export type PrStateLoad = {
   sensitiveFiles: SensitiveFile[];
   findings: FindingRow[];
   questions: QuestionRow[];
+  /** The current answer of each answered question (S-08-T1). */
+  answers: Map<number, CurrentAnswer>;
+  /** The signed opinions of each finding that has any, oldest first (S-08-T4). */
+  opinions: Map<number, OpinionRow[]>;
   decisions: Map<number, CurrentDecision>;
   /** The newest fix status of each finding that has one. */
   fixChecks: Map<number, FixCheck>;
@@ -263,7 +270,7 @@ export async function loadPrStateInputs(
           .orderBy(desc(stageExecutions.id))
       : [],
   ]);
-  const [decisions, fixChecks, sensitiveByPr] = await Promise.all([
+  const [decisions, fixChecks, sensitiveByPr, answers, opinions] = await Promise.all([
     currentDecisions(
       db,
       findingRows.map((row) => row.id),
@@ -275,6 +282,14 @@ export async function loadPrStateInputs(
     sensitiveFilesOf(
       db,
       prRows.map((row) => row.pullRequest.id),
+    ),
+    currentAnswers(
+      db,
+      questionRows.map((row) => row.id),
+    ),
+    opinionsOf(
+      db,
+      findingRows.map((row) => row.id),
     ),
   ]);
   const chainIds = [...perPr.values()].flatMap((p) =>
@@ -318,9 +333,8 @@ export async function loadPrStateInputs(
                 : null,
           }
         : null;
-    const authorMember =
-      members.find((m) => m.githubLogin.toLowerCase() === pullRequest.authorLogin.toLowerCase()) ??
-      null;
+    const { memberId: authorMemberId } = usuallyDecidedBy(pullRequest, members);
+    const authorMember = members.find((m) => m.id === authorMemberId) ?? null;
 
     const input: PrStateInput = {
       state: pullRequest.state,
@@ -349,12 +363,12 @@ export async function loadPrStateInputs(
       findings: prFindings.map((row) =>
         coreFinding(row, decisions.get(row.id), fixChecks.get(row.id)),
       ),
-      // Answers arrive in S-08, so every question is open.
-      questions: prQuestions.map((row) => ({ id: String(row.id), answered: false })),
+      questions: prQuestions.map((row) => ({ id: String(row.id), answered: answers.has(row.id) })),
       sensitive: sensitiveState(sensitiveByPr.get(pullRequest.id) ?? []),
       patch: null,
-      // Opinions arrive in S-08.
-      reviewers: 0,
+      reviewers: new Set(
+        prFindings.flatMap((row) => (opinions.get(row.id) ?? []).map((o) => o.signedBy)),
+      ).size,
       // CI counts only for the head it was reported on (S-12): a push empties the row.
       ci: pullRequest.ciSha === pullRequest.headSha ? pullRequest.ciChecks : [],
       changesRequestedBy: pullRequest.changesRequestedBy,
@@ -370,6 +384,18 @@ export async function loadPrStateInputs(
       sensitiveFiles: sensitiveByPr.get(pullRequest.id) ?? [],
       findings: prFindings,
       questions: prQuestions,
+      answers: new Map(
+        prQuestions.flatMap((row) => {
+          const answer = answers.get(row.id);
+          return answer ? [[row.id, answer] as const] : [];
+        }),
+      ),
+      opinions: new Map(
+        prFindings.flatMap((row) => {
+          const list = opinions.get(row.id);
+          return list ? [[row.id, list] as const] : [];
+        }),
+      ),
       decisions: new Map(
         prFindings.flatMap((row) => {
           const decision = decisions.get(row.id);

@@ -14,6 +14,10 @@ import {
   stackState,
 } from './support/github.ts';
 
+// Every PR here shares the fixture head, and a `check_suite` refreshes the CI of every open PR at
+// that head: run this file's tests in order so one test's green CI cannot reach another's PR.
+test.describe.configure({ mode: 'default' });
+
 const { slug } = MERGE_REPOSITORY;
 const TO_DECIDE = [
   'Empty label hides the edge',

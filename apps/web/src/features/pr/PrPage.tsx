@@ -1,15 +1,16 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
 import { copy } from '@/copy/index.ts';
 import { ApiError } from '@/lib/api.ts';
-import { isActiveStatus } from '@/lib/api-types.ts';
 import { errorText } from '@/lib/reasons.ts';
 import { DecideFocusContext, type DecideFocus } from './decide-focus.ts';
 import { NextStepBanner } from './NextStepBanner.tsx';
 import { PrHeader } from './PrHeader.tsx';
-import { prKeys, prViewQuery } from './queries.ts';
+import { prViewQuery } from './queries.ts';
+import { useFetchResultsWhenRoundEnds } from '@/features/findings/new-results.ts';
+import { NotifyCards } from '@/features/notify/NotifyCards.tsx';
 import { PR_PANELS } from './slots.ts';
 import { PR_TABS } from './tabs.ts';
 
@@ -25,7 +26,8 @@ export function PrPage({
   onTabChange: (tab: string) => void;
 }) {
   const view = useQuery(prViewQuery(repo, number));
-  useRefreshFindingsWhenRoundEnds(repo, number, view.data?.latestRound?.status);
+  // A finished round's results wait behind "View new results" on the Findings tab (S-08-T8).
+  useFetchResultsWhenRoundEnds(repo, number, view.data?.latestRound?.status);
   const [focus, setFocus] = useState({ seq: 0, live: false });
   const decideFocus = useMemo<DecideFocus>(
     () => ({
@@ -66,6 +68,7 @@ export function PrPage({
       <div className="flex flex-col">
         <PrHeader {...slotProps} />
         <NextStepBanner {...slotProps} />
+        <NotifyCards {...slotProps} />
         <div
           className={`mt-4 grid items-start gap-5 ${panels.length > 0 ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : ''}`}
         >
@@ -99,17 +102,4 @@ export function PrPage({
       </div>
     </DecideFocusContext>
   );
-}
-
-/** Findings come from the latest completed round: refetch them once a running round ends. */
-function useRefreshFindingsWhenRoundEnds(repo: string, number: string, status?: string) {
-  const queryClient = useQueryClient();
-  const previous = useRef(status);
-  useEffect(() => {
-    const wasActive = isActiveStatus(previous.current as never);
-    previous.current = status;
-    if (wasActive && !isActiveStatus(status as never)) {
-      void queryClient.invalidateQueries({ queryKey: prKeys.findings(repo, number) });
-    }
-  }, [queryClient, repo, number, status]);
 }
