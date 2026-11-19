@@ -66,7 +66,7 @@ export async function resendLostJobs(
         ? (state.stages.find((s) => s.status === 'pending')?.key ?? null)
         : nextStage(state);
     if (next) {
-      await sendStageJob(deps.queue, run.id, next);
+      await sendStageJob(deps.queue, run.id, next, run);
       result.resent.push(run.id);
     }
   }

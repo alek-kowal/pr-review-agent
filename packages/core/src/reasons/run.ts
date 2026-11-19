@@ -6,6 +6,7 @@ declare module '../reason.ts' {
     run_not_running: { status: RunStatus };
     run_not_failed: { status: RunStatus };
     run_finished: { status: RunStatus };
+    run_not_found: { runId: number };
     stage_not_in_plan: { stage: string };
     stage_not_pending: { stage: string; status: string };
     stage_not_running: { stage: string; status: string };

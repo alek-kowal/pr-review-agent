@@ -116,7 +116,7 @@ export async function executeStage(
   if ('next' in started) {
     // A repeated job for a finished stage: the send of the next stage's job may have been lost
     // (the handler threw after its commit). The queue drops it while one is queued or active.
-    if (started.next) await sendStageJob(deps.queue, runId, started.next);
+    if (started.next) await sendStageJob(deps.queue, runId, started.next, found.run);
     return 'not_next';
   }
   const { run, executionId, attempt } = started;
@@ -177,7 +177,7 @@ export async function afterTransition(
   const { run } = context;
   if (state.status === 'running') {
     const next = nextStage(state);
-    if (next) await sendStageJob(deps.queue, run.id, next);
+    if (next) await sendStageJob(deps.queue, run.id, next, run);
     return;
   }
   if (state.status === 'completed') {

@@ -47,7 +47,8 @@ const STAGE_JOB_EXPIRY_SECONDS = 5 * 60 * 60;
  * so a GitHub outage or a secondary rate limit does not drop it.
  */
 export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
-  'run.stage': { policy: 'exclusive', expireInSeconds: STAGE_JOB_EXPIRY_SECONDS },
+  // Nothing retries a stage by itself (S-09-T1): a failed stage waits for Retry by a person.
+  'run.stage': { policy: 'exclusive', expireInSeconds: STAGE_JOB_EXPIRY_SECONDS, retryLimit: 0 },
   'github.comment': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
   'clickup.follow-up': { policy: 'exclusive', retryLimit: 5, retryDelay: 60, retryBackoff: true },
 };
