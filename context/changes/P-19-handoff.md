@@ -1,32 +1,18 @@
-# P-19 handoff (usage limit reached during S-12-T2)
+# P-19 handoff (orchestrator stop after S-12-T3)
 
 Plan: `context/changes/P-19-merge-from-app/plan.md`; decisions: `change.md` in the same folder.
 
-## Done
-
-- Plan, brief and decisions (commit `docs(P-19): plan merge from the app`).
-- S-12-T1 GitHub merge and fresh-state reads, committed: `getPullRequestState`,
-  `listChangesRequested`, `squashMerge` (Octokit, unconfigured, fake with `addReview`,
-  `refuseMerge`, `merges`); `github.merge.test.ts` passes, integrations tests green.
-
-## S-12-T2 in progress (WIP commit, not verified)
-
-Written, not yet typechecked or tested:
-- Migration `0014_pr_checks` (`ci_sha`, `ci_checks`, `changes_requested_by`,
-  `checks_refreshed_at` on `pull_requests`); loader reads them (CI only for the current head).
-- `packages/db/src/queries/merge.ts`: `ciChecksOf`, `storePrCi`, `storeChangesRequested`,
-  `lockPullRequest`, `recordPrMergedInApp`, `recordMergeRefused` (exported from queries index).
-- `apps/api/src/merge/merge-pr.ts` (service) and `apps/api/src/routes/api/merge/index.ts` (route);
-  new `ApiErrorCode`s `merge_number_mismatch`, `head_moved`, `merge_not_ready`, `merge_refused`,
-  `github_error`.
-- Worker `timelineOnMerged` skips its entry when the PR was already merged in the app.
-
-## Left
-
-1. T2: `pnpm typecheck`; check `IntegrationError` is exported from `@pra/integrations`; check
-   whether a web test requires copy for every `ApiErrorCode`; write
-   `apps/api/test/routes/merge.test.ts` (cases in the plan, Phase 2); `pnpm verify`; amend the WIP
-   into `feat(S-12): merge service and route (T2)`.
-2. T3–T5 and S-06-T8 as in the plan (Phases 3–6).
-3. `git merge main`, regenerate migration numbering if main added 0014, final `pnpm verify` and
-   `pnpm test:e2e`.
+- Done, each committed with `pnpm verify` green: S-12-T1 (gateway merge, PR state, reviews), T2
+  (`POST /api/prs/:repo/:number/merge`, migration `0014_pr_checks`), T3 (CI and review webhooks,
+  force push leaves Ready to merge).
+- Left, in order: S-12-T4 (not started, no partial code), T5 `merge.spec.ts`, S-06-T8
+  `clickup-link.spec.ts`, then `git merge main`, final `pnpm verify` and `pnpm test:e2e`.
+- T4 notes: `MAIN_ACTIONS` in `apps/web/src/features/pr/slots.ts` needs `merge: MergeAction`;
+  `NextStepBanner.test.tsx` "ready" fixture expects no button and must be updated. Copy the dialog
+  pattern from `features/sensitive/SensitiveAction.tsx` (AlertDialog from `components/ui`). The
+  api's 409 `merge_not_ready` sends `params.items` (failing rows), and 422 `merge_refused` sends
+  `params.message`. The success body is `{ sha, mergeSha, by }`. Add copy for the new error codes
+  and for the timeline entries `merge_refused` and `pr_merged` (`via: 'app'`).
+- T5/S-06-T8 notes: the stack's fake must answer `getPullRequestState` for PRs it only saw as
+  webhooks (subclass reading the DB row). Use separate `merge-repo` and `clickup-repo` repos.
+- `stale-findings.test.tsx` (web) timed out once under full `verify` load; it passes alone.
