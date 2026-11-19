@@ -52,5 +52,15 @@ decide and record).
 - **Try on a PR picks from the board.** The dialog offers the board's open PRs (drafts included);
   a repository file offers only its repository's PRs. The trial opens its Compare page. A run
   change invalidates the trial queries (live family `trials`), so Compare fills in by itself.
+- **Pipeline descriptor in `@pra/agents`.** `PIPELINE_STAGES` lists the eight stages with role,
+  `ROLE_TOOLS`, the integrations a code stage calls, instruction file keys, output schema and
+  fields, attempts and the level where each turns on. Agent output fields come from the schemas;
+  the review and Checks fields are literal and a worker test keeps them equal to the worker's
+  schema and types. `GET /api/pipeline` resolves each model with core `modelFor` at the stage's
+  own level (`resolveLevel(onFrom)`; stored level overrides come with P-23), the timeout from
+  that level, and each file key against the global files.
+- **Attempts are 1.** A failed stage stops the run and Retry is a button (S-15); a job retry
+  marks a stage left running as interrupted. Verify adds one repair of a broken reproduction.
+  Fix check uses its built-in prompt (no instruction file); the Analyst lists none until P-21.
 - **Tests and global files.** Test files share one database, so a test that reads global
   instruction files filters to its own rows or uses its own `createTestDatabase()`.
