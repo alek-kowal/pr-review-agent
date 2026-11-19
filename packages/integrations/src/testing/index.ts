@@ -12,6 +12,12 @@ export {
   type GitHubFixtureName,
   type PullRequestFixtureName,
 } from './github.ts';
+export {
+  FakeOpenRouterClient,
+  openRouterChat,
+  openRouterError,
+  type FakeOpenRouterReply,
+} from './openrouter.ts';
 export { S3_TEST_BUCKET, s3TestClient, s3TestEndpoint } from './s3.ts';
 export { DUMMY_SENTRY_DSN, stubSentryTransport } from './sentry.ts';
 export {

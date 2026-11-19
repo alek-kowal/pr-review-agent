@@ -43,6 +43,11 @@ const modelsResponse: ModelsResponse = {
   models: { ...DEFAULT_MODELS },
   defaults: { ...DEFAULT_MODELS },
   overrides: [],
+  openRouter: {
+    roles: ['judge'],
+    suggested: ['openrouter/typesafe/jev-router'],
+    configured: false,
+  },
 };
 
 const stub = (overrides: LevelOverrides = {}, extra: Record<string, unknown> = {}) =>

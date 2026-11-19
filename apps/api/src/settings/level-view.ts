@@ -4,7 +4,7 @@ import {
   LEVEL_NUMBERS,
   LEVEL_SETTING_KEYS,
   LevelSettingsPatchSchema,
-  ModelNameSchema,
+  modelNameSchemaFor,
   resolveLevelSettings,
   type LevelNumber,
   type LevelOverrides,
@@ -81,10 +81,10 @@ export const LevelValuesSchema = z.object({
   models: z
     .object(
       Object.fromEntries(
-        AGENT_ROLES.map((role) => [role, ownOrInherit(ModelNameSchema)]),
+        AGENT_ROLES.map((role) => [role, ownOrInherit(modelNameSchemaFor(role))]),
       ) as Record<
         (typeof AGENT_ROLES)[number],
-        ReturnType<typeof ownOrInherit<typeof ModelNameSchema>>
+        ReturnType<typeof ownOrInherit<ReturnType<typeof modelNameSchemaFor>>>
       >,
     )
     .optional(),

@@ -1,4 +1,4 @@
-import type { AgentRole } from '@pra/core';
+import type { AgentRole, ModelProvider } from '@pra/core';
 import type { ZodType } from 'zod/v4';
 
 /** Runs one agent session. Adapters exist per SDK; tests use `FakeAgentRunner`. */
@@ -75,6 +75,10 @@ export type AgentRunResult<T> = {
   durationMs: number;
   /** Every message the SDK sent, in order (stored as the session transcript). */
   transcript: unknown[];
+  /** Where the call ran (P-26); unset means Anthropic. */
+  provider?: ModelProvider;
+  /** The model that actually answered, when the provider says (OpenRouter routes); else unset. */
+  answeredModel?: string | null;
 };
 
 export type AgentProgress = {

@@ -1,6 +1,8 @@
 import {
   AGENT_ROLES,
   DEFAULT_MODELS,
+  OPENROUTER_ROLES,
+  OPENROUTER_SUGGESTED_MODELS,
   RoleModelsSchema,
   levelModelOverrides,
   type AgentRole,
@@ -33,6 +35,13 @@ const ModelsResponse = z.object({
   overrides: z.array(
     z.object({ level: LevelSchema, role: z.enum(AGENT_ROLES), model: z.string() }),
   ),
+  /** OpenRouter models (P-26): the roles that may pick one, the suggested ids, the key's state. */
+  openRouter: z.object({
+    roles: z.array(z.enum(AGENT_ROLES)),
+    suggested: z.array(z.string()),
+    /** Whether `OPENROUTER_API_KEY` is set; never the value. */
+    configured: z.boolean(),
+  }),
 });
 
 const ModelsBody = z.object({
@@ -45,7 +54,7 @@ const ModelsBody = z.object({
 
 /** Settings → Models (S-21-T3, FR-075): the model of each agent role, signed. */
 const models: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
-  const { db } = fastify.deps;
+  const { db, openRouterConfigured = false } = fastify.deps;
   const store = modelsStore();
 
   const read = async () => {
@@ -54,6 +63,11 @@ const models: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       models: roleModels,
       defaults: { ...DEFAULT_MODELS },
       overrides: levelModelOverrides(overrides.value),
+      openRouter: {
+        roles: [...OPENROUTER_ROLES],
+        suggested: [...OPENROUTER_SUGGESTED_MODELS],
+        configured: openRouterConfigured,
+      },
     };
   };
 

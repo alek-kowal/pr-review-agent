@@ -1,7 +1,7 @@
 // Production entry and composition root (`pnpm dev`, `pnpm start`): builds the dependencies from
 // env, then the server, and listens. Postgres may be down: the pool connects lazily and the queue
 // keeps retrying in the background, so `/health` can report it.
-import { modelAuthModeOf } from '@pra/core';
+import { modelAuthModeOf, openRouterConfigured } from '@pra/core';
 import { closeDb, createDb, createQueue } from '@pra/db';
 import { createBlobStore, createClickUpGateway, createGitHubGateway } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
@@ -28,6 +28,8 @@ const server = await buildServer({
   clickup: createClickUpGateway(),
   // The worker reads the same `.env`; only the mode's name is shown, never a value.
   modelAuth: modelAuthModeOf(process.env),
+  // Settings → Models says when an OpenRouter judge has no key; the name only.
+  openRouterConfigured: openRouterConfigured(process.env),
 });
 
 let stopping = false;

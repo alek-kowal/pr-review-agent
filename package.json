@@ -18,7 +18,8 @@
     "db:generate": "pnpm --filter @pra/db db:generate",
     "db:migrate": "node --env-file-if-exists=.env packages/db/src/cli/migrate.ts",
     "db:seed-repo": "node --env-file-if-exists=.env packages/db/src/cli/seed-repo.ts",
-    "instructions:import": "node --env-file-if-exists=.env packages/db/src/cli/instructions-import.ts"
+    "instructions:import": "node --env-file-if-exists=.env packages/db/src/cli/instructions-import.ts",
+    "judge:compare": "node --env-file-if-exists=.env apps/worker/src/cli/judge-compare.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

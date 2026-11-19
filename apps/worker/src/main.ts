@@ -1,7 +1,12 @@
 // Worker entry (`pnpm dev`): builds dependencies from env, starts the job handlers and stops
 // gracefully on SIGTERM or SIGINT.
-import { createAnthropicAnalyst, createAnthropicJudge, createClaudeAgentRunner } from '@pra/agents';
-import { modelAuthModeOf } from '@pra/core';
+import {
+  createAnthropicAnalyst,
+  createAnthropicJudge,
+  createClaudeAgentRunner,
+  createOpenRouterJudge,
+} from '@pra/agents';
+import { modelAuthModeOf, openRouterConfigured } from '@pra/core';
 import { closeDb, createDb, createQueue } from '@pra/db';
 import {
   CliGitMirror,
@@ -32,8 +37,9 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const dataDir = path.resolve(repoRoot, process.env.DATA_DIR || '.data');
 // Names only, never the value.
 const authMode = modelAuthModeOf(process.env);
+const openRouter = openRouterConfigured(process.env);
 logger.info(
-  { authMode },
+  { authMode, openRouter },
   authMode === 'none' ? 'model access not configured' : 'model access configured',
 );
 
@@ -49,6 +55,8 @@ try {
     gitMirror: new CliGitMirror({ rootDir: path.join(dataDir, 'git') }),
     agentRunner: createClaudeAgentRunner(),
     judge: createAnthropicJudge(),
+    // An `openrouter/...` judge model; without OPENROUTER_API_KEY it falls back to `judge`.
+    openRouterJudge: createOpenRouterJudge(),
     analyst: createAnthropicAnalyst(),
     sandbox: createSandbox(),
     clickup: createClickUpGateway(),

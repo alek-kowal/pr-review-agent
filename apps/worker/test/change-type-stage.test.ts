@@ -1,4 +1,5 @@
 // S-04-T5: the Change type stage with a `FakeJudge`, and Review cut to the change type's limits.
+import { OpenRouterJudge } from '@pra/agents';
 import { FakeAgentRunner, type FakeJudgeStep } from '@pra/agents/testing';
 import { DEFAULT_CHANGE_TYPE_RULES, type ChangeType, type RepositoryConfig } from '@pra/core';
 import {
@@ -13,11 +14,18 @@ import {
   type Run,
 } from '@pra/db';
 import { aPullRequest, aRun } from '@pra/db/testing';
-import { CliGitMirror } from '@pra/integrations';
-import { createGitFixture, isolatedGitExec, type GitFixture } from '@pra/integrations/testing';
+import { CliGitMirror, HttpOpenRouterClient } from '@pra/integrations';
+import {
+  createGitFixture,
+  FakeOpenRouterClient,
+  isolatedGitExec,
+  openRouterChat,
+  openRouterError,
+  type GitFixture,
+} from '@pra/integrations/testing';
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { executeStage } from '../src/run/execute-stage.ts';
 import { type ChangeTypeOutput } from '../src/stages/change-type.ts';
 import { connectRepository, createTestWorkerDeps, type TestWorkerDeps } from './support.ts';
@@ -45,6 +53,8 @@ type Options = {
   largePrLines?: number;
   forced?: ChangeType;
   instructions?: boolean;
+  /** The judge model the run froze (default: the Claude default). */
+  judgeModel?: string;
 };
 
 /** A level-2 run whose Checks and Task stages already ran; returns the run. */
@@ -73,7 +83,13 @@ async function readyForChangeType(options: Options = {}): Promise<Run> {
   if (options.forced) await setForcedChangeType(deps.db, pullRequest.id, options.forced);
   const run = await insertRun(
     deps.db,
-    aRun(pullRequest.id, { levelNumber: 2, headSha: fixture.headSha }),
+    aRun(pullRequest.id, {
+      levelNumber: 2,
+      headSha: fixture.headSha,
+      ...(options.judgeModel
+        ? { models: { judge: { model: options.judgeModel, source: 'settings', level: null } } }
+        : {}),
+    }),
   );
   expect(await executeStage(deps, run.id, 'checks')).toBe('succeeded');
   expect(await executeStage(deps, run.id, 'task')).toBe('succeeded');
@@ -274,5 +290,133 @@ describe('Change type stage', () => {
     expect(largeOutput).toMatchObject({ largePr: true, largePrLines: 3 });
     expect(largeOutput.lines).toBeGreaterThan(3);
     expect(largeOutput.lines).toBe(smallOutput.lines);
+  });
+});
+
+describe('Change type stage on an OpenRouter judge (P-26)', () => {
+  const JEV = 'openrouter/typesafe/jev-router';
+  const KEY = 'sk-or-v1-worker-test-key';
+
+  afterEach(() => {
+    deps.openRouterJudge = new OpenRouterJudge({ client: null });
+  });
+
+  async function judgeSessions(runId: number) {
+    const execution = await stageRow(runId, 'change_type');
+    return deps.db
+      .select()
+      .from(schema.agentSessions)
+      .where(eq(schema.agentSessions.stageExecutionId, execution.id))
+      .orderBy(asc(schema.agentSessions.id));
+  }
+
+  test('records provider, requested and answered model, tokens, latency and real cost', async () => {
+    const client = new FakeOpenRouterClient(
+      openRouterChat(
+        { tier: 'extends', reason: 'Retries change.' },
+        {
+          model: 'acme/routed-small',
+          usage: { prompt_tokens: 900, completion_tokens: 25, cost: 0.0007 },
+        },
+      ),
+    );
+    deps.openRouterJudge = new OpenRouterJudge({ client });
+    const run = await readyForChangeType({ rules: { usesExistingPaths: ['**'] }, judgeModel: JEV });
+
+    const { outcome, output, judgeCalls } = await changeType(run);
+
+    expect(outcome).toBe('succeeded');
+    expect(judgeCalls).toEqual([]);
+    expect(client.requests[0]).toMatchObject({
+      model: 'typesafe/jev-router',
+      provider: { data_collection: 'deny' },
+    });
+    expect(output).toMatchObject({
+      changeType: 'changes_behaviour',
+      judge: { changeType: 'changes_behaviour', reason: 'Retries change.' },
+      judgeFallback: null,
+    });
+    expect(await judgeSessions(run.id)).toEqual([
+      expect.objectContaining({
+        role: 'judge',
+        provider: 'openrouter',
+        model: JEV,
+        answeredModel: 'acme/routed-small',
+        inputTokens: 900,
+        outputTokens: 25,
+        costUsd: 0.0007,
+        costSource: 'reported',
+        status: 'completed',
+      }),
+    ]);
+    // Real spend: it counts in the run's cost like any session.
+    const [stored] = await deps.db.select().from(schema.runs).where(eq(schema.runs.id, run.id));
+    expect(stored!.costUsd).toBeCloseTo(0.0007, 6);
+  });
+
+  test('an OpenRouter failure falls back to one Claude call; both sessions and the reason are kept', async () => {
+    deps.openRouterJudge = new OpenRouterJudge({
+      client: new FakeOpenRouterClient(
+        openRouterError('openrouter_no_credits', { status: 402, detail: 'Insufficient credits' }),
+      ),
+    });
+    const run = await readyForChangeType({ rules: { usesExistingPaths: ['**'] }, judgeModel: JEV });
+
+    const { outcome, output, judgeCalls } = await changeType(run, {
+      changeType: 'changes_behaviour',
+      reason: 'Claude says it changes behaviour.',
+    });
+
+    expect(outcome).toBe('succeeded');
+    expect(judgeCalls.map((c) => c.model)).toEqual(['claude-haiku-5-5']);
+    expect(output).toMatchObject({
+      changeType: 'changes_behaviour',
+      judgeFallback: {
+        from: JEV,
+        to: 'claude-haiku-5-5',
+        reason: { code: 'openrouter_no_credits', params: { status: 402 } },
+      },
+    });
+    const sessions = await judgeSessions(run.id);
+    expect(sessions.map((s) => [s.provider, s.model, s.status])).toEqual([
+      ['openrouter', JEV, 'failed'],
+      ['anthropic', 'claude-haiku-5-5', 'completed'],
+    ]);
+  });
+
+  test('without the key the judge falls back and the key name is the reason', async () => {
+    const run = await readyForChangeType({ rules: { usesExistingPaths: ['**'] }, judgeModel: JEV });
+    const { output } = await changeType(run, { changeType: 'uses_existing', reason: 'Small.' });
+    expect(output.judgeFallback?.reason).toEqual({
+      code: 'model_access_not_configured',
+      params: { provider: 'openrouter', missing: ['OPENROUTER_API_KEY'] },
+    });
+  });
+
+  test('the key never reaches the stored stage, sessions or transcripts', async () => {
+    const fetch = (async () =>
+      new Response(JSON.stringify({ error: { code: 401, message: `No auth for ${KEY}` } }), {
+        status: 401,
+      })) as unknown as typeof globalThis.fetch;
+    deps.openRouterJudge = new OpenRouterJudge({
+      client: new HttpOpenRouterClient({ apiKey: KEY, fetch }),
+    });
+    const run = await readyForChangeType({ rules: { usesExistingPaths: ['**'] }, judgeModel: JEV });
+    const { output } = await changeType(run, { changeType: 'uses_existing', reason: 'Small.' });
+
+    expect(output.judgeFallback?.reason.code).toBe('openrouter_auth_failed');
+    const sessions = await judgeSessions(run.id);
+    const stored: unknown[] = [await stageRow(run.id, 'change_type'), ...sessions];
+    let blobs = 0;
+    for (const session of sessions) {
+      for (const key of [session.promptBlobKey, session.transcriptBlobKey]) {
+        const blob = key ? await deps.blobStore.get(key) : null;
+        if (blob) stored.push(Buffer.from(blob.body).toString('utf8'));
+        if (blob) blobs += 1;
+      }
+    }
+    expect(blobs).toBeGreaterThanOrEqual(2);
+    expect(JSON.stringify(stored)).toContain('openrouter_auth_failed');
+    expect(JSON.stringify(stored)).not.toContain(KEY);
   });
 });
