@@ -1,11 +1,24 @@
-import { PgBoss, type ConstructorOptions, type Job, type SendOptions } from 'pg-boss';
+import { createHash } from 'node:crypto';
+import {
+  PgBoss,
+  type ConstructorOptions,
+  type Job,
+  type Queue as QueueDefinition,
+  type SendOptions,
+} from 'pg-boss';
 
 /** pg-boss keeps its tables in this schema, next to the Drizzle tables. */
 export const QUEUE_SCHEMA = 'pgboss';
 
-/** Job (queue) names. Slices add theirs here: `github.event`, `run.stage`, `github.comment`. */
+/** Job (queue) names. Each name needs an entry in `JobPayloads`. */
 export const JOBS = {
   smoke: 'smoke',
+  /** One stored GitHub webhook delivery (`github_events` row) to process. */
+  githubEvent: 'github.event',
+  /** One stage of one run; keyed `<runId>:<stage>`. */
+  runStage: 'run.stage',
+  /** The after-round GitHub comment of one run; keyed `<runId>`. */
+  githubComment: 'github.comment',
 } as const;
 
 export type JobName = (typeof JOBS)[keyof typeof JOBS];
@@ -13,6 +26,33 @@ export type JobName = (typeof JOBS)[keyof typeof JOBS];
 /** The data each job carries. Every name in `JOBS` has an entry. */
 export interface JobPayloads {
   smoke: { note: string };
+  'github.event': { eventId: number };
+  'run.stage': { runId: number; stage: string };
+  'github.comment': { runId: number };
+}
+
+type QueueSettings = Omit<QueueDefinition, 'name'>;
+
+/** Longest a stage may run (`LevelSettingsPatchSchema` allows 240 minutes) plus a margin. */
+const STAGE_JOB_EXPIRY_SECONDS = 5 * 60 * 60;
+
+/**
+ * Per-queue settings `migrateQueue` creates the queues with. `exclusive` allows one queued or
+ * active job per `singletonKey`, so a second send for the same run and stage is dropped.
+ * pg-boss's default expiry (15 minutes) would retry a stage that is still running.
+ */
+export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
+  'run.stage': { policy: 'exclusive', expireInSeconds: STAGE_JOB_EXPIRY_SECONDS },
+  'github.comment': { policy: 'exclusive' },
+};
+
+/**
+ * A job id derived from `key` (UUID-shaped hash). pg-boss inserts jobs with `on conflict do
+ * nothing`, so a second send with the same id is a no-op while the first job row exists.
+ */
+export function stableJobId(key: string): string {
+  const hex = createHash('sha256').update(key).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 export type Queue = PgBoss;
@@ -57,7 +97,9 @@ export async function migrateQueue(url: string): Promise<{ schemaVersion: number
   boss.on('error', (error) => (failure ??= error));
   await boss.start();
   try {
-    for (const name of Object.values(JOBS)) await boss.createQueue(name);
+    for (const name of Object.values(JOBS)) {
+      await boss.createQueue(name, QUEUE_SETTINGS[name] ?? {});
+    }
     if (failure) throw failure;
     return { schemaVersion: await boss.schemaVersion() };
   } finally {

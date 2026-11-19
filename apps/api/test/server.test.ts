@@ -3,6 +3,7 @@ import { testDatabaseUrl } from '@pra/db/testing';
 import { Writable } from 'node:stream';
 import { expect, onTestFinished, test } from 'vitest';
 import { buildServer, serverOptions } from '../src/server.ts';
+import { testDoubles } from './helper.ts';
 
 async function serverWithCapturedLogs() {
   const lines: Record<string, unknown>[] = [];
@@ -14,7 +15,7 @@ async function serverWithCapturedLogs() {
   });
   const options = serverOptions({ NODE_ENV: 'production' });
   const db = createDb(testDatabaseUrl(), { max: 1 });
-  const deps = { db, queue: createQueue(testDatabaseUrl()) };
+  const deps = { ...testDoubles(), db, queue: createQueue(testDatabaseUrl()) };
   const server = await buildServer(deps, {
     ...options,
     logger: { ...Object(options.logger), stream },
