@@ -1,6 +1,6 @@
 import './reasons/pr-state.ts';
 import { openQuestions, toDecide, toFix } from './findings.ts';
-import { FEATURE_ON_FROM } from './levels.ts';
+import { implementBlock } from './implement-gate.ts';
 import type { PrSnapshot } from './model.ts';
 import { reason, type Reason } from './reason.ts';
 import { MAX_CHAIN_ROUNDS } from './rounds.ts';
@@ -291,9 +291,7 @@ export function nextStep(input: PrStateInput): NextStep {
           );
     }
     case 'waiting_for_fix': {
-      const need = FEATURE_ON_FROM.implement;
-      const disabled =
-        input.level < need ? reason('implement_below_level', { level: input.level, need }) : null;
+      const disabled = implementBlock(input);
       return step(
         reason('state_waiting_for_fix', { count: toFix(input.findings).length }),
         usuallyAuthor,

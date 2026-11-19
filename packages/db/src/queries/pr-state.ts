@@ -26,6 +26,7 @@ import { currentAnswers, type CurrentAnswer } from './answers.ts';
 import { currentDecisions, type CurrentDecision } from './decisions.ts';
 import { opinionsOf, type OpinionRow } from './reviews.ts';
 import { newestFixChecks, type FixCheck } from './fix-checks.ts';
+import { corePatch, latestPatchesOf, type PatchRow } from './patches.ts';
 import { sensitiveFilesOf, sensitiveState, type SensitiveFile } from './sensitive-files.ts';
 import { runWaitsOf, type RunWait } from './status.ts';
 import { readRepositoryConfig, type PullRequest, type Repository } from './repositories.ts';
@@ -110,6 +111,11 @@ export function coreFinding(
 }
 
 /** `wait`: why the run waits (S-10); a started run that waits before a session reads as queued. */
+/** The newest patch counts only while it applies to the reviewed commit (S-13). */
+function statePatch(patch: PatchRow | undefined, reviewed: Run | null) {
+  return patch && patch.baseSha === reviewed?.headSha ? corePatch(patch) : null;
+}
+
 function activeRun(run: Run | undefined, wait?: RunWait): ActiveRun | null {
   if (!run) return null;
   const status = run.status === 'queued' || wait?.reason ? 'queued' : 'running';
@@ -270,7 +276,7 @@ export async function loadPrStateInputs(
           .orderBy(desc(stageExecutions.id))
       : [],
   ]);
-  const [decisions, fixChecks, sensitiveByPr, answers, opinions] = await Promise.all([
+  const [decisions, fixChecks, sensitiveByPr, answers, opinions, patchByPr] = await Promise.all([
     currentDecisions(
       db,
       findingRows.map((row) => row.id),
@@ -290,6 +296,10 @@ export async function loadPrStateInputs(
     opinionsOf(
       db,
       findingRows.map((row) => row.id),
+    ),
+    latestPatchesOf(
+      db,
+      prRows.map((row) => row.pullRequest.id),
     ),
   ]);
   const chainIds = [...perPr.values()].flatMap((p) =>
@@ -365,7 +375,7 @@ export async function loadPrStateInputs(
       ),
       questions: prQuestions.map((row) => ({ id: String(row.id), answered: answers.has(row.id) })),
       sensitive: sensitiveState(sensitiveByPr.get(pullRequest.id) ?? []),
-      patch: null,
+      patch: statePatch(patchByPr.get(pullRequest.id), reviewed),
       reviewers: new Set(
         prFindings.flatMap((row) => (opinions.get(row.id) ?? []).map((o) => o.signedBy)),
       ).size,

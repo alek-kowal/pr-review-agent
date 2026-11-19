@@ -113,7 +113,7 @@ export interface FailedRound {
   timeoutMinutes: number | null;
 }
 
-export type PatchStatus = 'ready' | 'pushed' | 'discarded';
+export type PatchStatus = 'ready' | 'superseded' | 'pushed' | 'discarded';
 
 export interface Patch {
   status: PatchStatus;
