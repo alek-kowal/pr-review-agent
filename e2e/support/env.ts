@@ -210,3 +210,14 @@ export const commentsFile = (holdDir: string): string =>
 export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };
 /** ...and 3 here. No App installation: nothing is delivered for them. */
 export const INSIGHTS_SIDE = { slug: 'insights-side', fullName: 'acme/insights-side' };
+
+/**
+ * Seeded at level 3 with green CI for the README screenshots (`pnpm readme:shots`,
+ * e2e/readme/shots.readme.ts). No spec uses it or `README_PRS`.
+ */
+export const README_REPOSITORY = {
+  slug: 'readme-demo',
+  fullName: 'acme/readme-demo',
+  installationId: 55500010,
+};
+export const README_PRS = { from: 80, to: 89 };

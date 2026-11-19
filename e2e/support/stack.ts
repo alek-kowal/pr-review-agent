@@ -73,6 +73,7 @@ import {
   MERGE_REPOSITORY,
   NOTIFY_REPOSITORY,
   QUESTION_PRS,
+  README_REPOSITORY,
   REFUSED_MERGE_PRS,
   releaseFile,
   SECOND_REPOSITORY,
@@ -419,6 +420,7 @@ const github = new StackGitHub(db, {
     [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
     [GLOBAL_LEVEL_REPOSITORY.fullName]: GLOBAL_LEVEL_REPOSITORY.installationId,
     [CLICKUP_REPOSITORY.fullName]: CLICKUP_REPOSITORY.installationId,
+    [README_REPOSITORY.fullName]: README_REPOSITORY.installationId,
   },
 });
 // GitHub's compare on the branch's commits, as the worker measures commits since a review.
@@ -532,6 +534,17 @@ await upsertRepository(
   },
   { installationId: NOTIFY_REPOSITORY.installationId },
 );
+// README screenshots (e2e/readme/shots.readme.ts): level 3, so findings carry verdicts, and green CI.
+await upsertRepository(
+  db,
+  { slug: README_REPOSITORY.slug, githubFullName: README_REPOSITORY.fullName, defaultLevel: 3 },
+  { installationId: README_REPOSITORY.installationId },
+);
+github.setCiChecks(README_REPOSITORY.fullName, fixture.headSha, [
+  { name: 'build', source: 'check_run', state: 'passed' },
+  { name: 'lint', source: 'check_run', state: 'passed' },
+  { name: 'e2e', source: 'check_run', state: 'passed' },
+]);
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
   ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
