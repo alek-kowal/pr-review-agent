@@ -13,9 +13,10 @@ describe('review levels', () => {
     expect(onStages(3)).toEqual(['checks', 'task', 'change_type', 'review', 'verify']);
     expect(onStages(6)).toEqual(onStages(3));
     expect(resolveLevel(4).features).toEqual({ implement: true, autofix: false, learning: false });
+    expect(resolveLevel(5).features).toEqual({ implement: true, autofix: true, learning: false });
   });
 
-  it('inherits from the level below and records where each value came from (P levels.test.ts:40)', () => {
+  it('inherits from the level below and records where each value came from (P levels.test.ts:50)', () => {
     const level = resolveLevel(3, { 1: { maxFindings: 5 }, 3: { stageTimeoutMinutes: 45 } });
     expect(level.settings).toEqual({
       brief: null,
@@ -34,7 +35,7 @@ describe('review levels', () => {
     expect(resolveLevel(1, { 1: { maxFindings: 5 } }).settings.maxFindings).toBe(5);
   });
 
-  it('a frozen level is a snapshot that later setting changes do not touch (P levels.test.ts:50)', () => {
+  it('a frozen level is a snapshot that later setting changes do not touch (P levels.test.ts:127)', () => {
     const overrides: LevelOverrides = { 3: { maxFindings: 5 } };
     const frozen = freezeLevel(resolveLevel(3, overrides));
     overrides[3] = { maxFindings: 2 };
@@ -89,7 +90,7 @@ describe('review levels', () => {
     expect(level.origins.settings.autofixMaxPatches).toEqual({ level: 5, source: 'built_in' });
   });
 
-  it('an override set at level 2 is inherited by level 3 with origin 2', () => {
+  it('an override set at level 2 is inherited by level 3 with origin 2, never by level 1 (P levels.test.ts:50)', () => {
     const level = resolveLevel(3, {
       2: { maxQuestions: 1, models: { reviewer: 'claude-sonnet-5-5', judge: '' } },
     });
@@ -97,6 +98,7 @@ describe('review levels', () => {
     expect(level.origins.settings.maxQuestions).toEqual({ level: 2, source: 'override' });
     expect(level.models).toEqual({ reviewer: 'claude-sonnet-5-5' });
     expect(level.origins.models).toEqual({ reviewer: { level: 2, source: 'override' } });
+    expect(resolveLevel(2, { 3: { models: { verifier: 'claude-haiku-5-5' } } }).models).toEqual({});
   });
 
   it('fix-check rounds get their own stages', () => {

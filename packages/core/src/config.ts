@@ -98,9 +98,20 @@ export interface Parsed<T> {
 const isObject = (raw: unknown): raw is Record<string, unknown> =>
   typeof raw === 'object' && raw !== null && !Array.isArray(raw);
 
+/** The object schema under `.default()` and `.optional()`, if there is one. */
+function objectInside(schema: z.ZodType): z.ZodObject | null {
+  let current: z.ZodType = schema;
+  while (current instanceof z.ZodDefault || current instanceof z.ZodOptional) {
+    current = current.unwrap() as z.ZodType;
+  }
+  return current instanceof z.ZodObject ? current : null;
+}
+
 /**
  * Parses stored settings. A broken field falls back to its default with a `config_field_invalid`
- * warning that names the field; the other fields keep their stored values.
+ * warning that names the field; the other fields keep their stored values. Inside a nested object
+ * (change-type rules, models, a level's settings) the fallback is per field too, and the warning
+ * names the path, for example `changeTypeRules.oneWayPaths` or `2.models.reviewer`.
  */
 export function parseWithFallback<S extends z.ZodObject>(
   schema: S,
@@ -117,12 +128,29 @@ export function parseWithFallback<S extends z.ZodObject>(
     const parsed = fieldSchema.safeParse(input[field]);
     if (parsed.success) {
       if (parsed.data !== undefined) value[field] = parsed.data;
-    } else {
-      const fallback = (defaults as Record<string, unknown>)[field];
-      if (fallback !== undefined) value[field] = fallback;
-      const issue = parsed.error.issues[0]?.code ?? 'invalid';
-      warnings.push(reason('config_field_invalid', { field, issue }));
+      continue;
     }
+    const inner = objectInside(fieldSchema);
+    const nested = input[field];
+    const fallback = (defaults as Record<string, unknown>)[field];
+    if (inner && isObject(nested)) {
+      const sub = parseWithFallback(inner, isObject(fallback) ? fallback : {}, nested);
+      const repaired = fieldSchema.safeParse(sub.value);
+      if (repaired.success) {
+        value[field] = repaired.data;
+        for (const w of sub.warnings) {
+          if (w.code === 'config_field_invalid') {
+            warnings.push(
+              reason('config_field_invalid', { ...w.params, field: `${field}.${w.params.field}` }),
+            );
+          }
+        }
+        continue;
+      }
+    }
+    if (fallback !== undefined) value[field] = fallback;
+    const issue = parsed.error.issues[0]?.code ?? 'invalid';
+    warnings.push(reason('config_field_invalid', { field, issue }));
   }
   return { value: value as z.output<S>, warnings };
 }
@@ -155,14 +183,17 @@ export function modelFor(
   return { model: DEFAULT_MODELS[role], source: 'default', level: null };
 }
 
-/** Why a review must wait now: paused, or the daily budget reached. No budget never holds. */
+/**
+ * Why a review must wait now: paused, or the daily budget reached. No budget (null) or a zero
+ * budget never holds (P `control.test.ts:53`: 0 means no limit).
+ */
 export function holdReason(
   settings: Pick<AppSettings, 'paused' | 'pausedReason' | 'dailyBudgetUsd'>,
   spentToday: number,
 ): Reason | null {
   if (settings.paused) return reason('paused', { note: settings.pausedReason });
   const budget = settings.dailyBudgetUsd;
-  if (budget != null && spentToday >= budget) {
+  if (budget != null && budget > 0 && spentToday >= budget) {
     return reason('budget_reached', { spentUsd: spentToday, budgetUsd: budget });
   }
   return null;

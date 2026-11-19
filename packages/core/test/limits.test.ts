@@ -43,7 +43,17 @@ describe('review limits', () => {
     expect(out.reasons).toEqual([{ code: 'over_max_findings', params: { max: 3, dropped: 2 } }]);
   });
 
-  it('drops the questions the limits disallow (P classify.test.ts:152)', () => {
+  it('leaves a review within the limits untouched (P classify.test.ts:152)', () => {
+    const output = { findings: [f('n1', 'nit'), f('b1', 'blocking')], questions: ['q1'] };
+    const out = enforce(output, CHANGE_TYPE_LIMITS.changes_behaviour);
+    expect(out.findings).toEqual(output.findings);
+    expect(out.questions).toEqual(output.questions);
+    expect(out.dropped).toEqual({ severity: 0, overLimit: 0, questions: 0 });
+    expect(out.reasons).toEqual([]);
+  });
+
+  it('drops the questions the limits disallow; Uses existing parts allows none (P classify.test.ts:136)', () => {
+    expect(CHANGE_TYPE_LIMITS.uses_existing.maxQuestions).toBe(0);
     const none = enforce(
       { findings: [], questions: ['q1', 'q2'] },
       { maxFindings: 4, maxQuestions: 0, severities: ALL },
@@ -59,13 +69,25 @@ describe('review limits', () => {
     expect(one.reasons).toEqual([{ code: 'over_max_questions', params: { max: 1, dropped: 2 } }]);
   });
 
-  it('skips verification where the change type turns it off (P classify.test.ts:159)', () => {
-    expect(skipVerification('uses_existing', CHANGE_TYPE_LIMITS.uses_existing)).toEqual({
-      skip: true,
-      reason: { code: 'verify_off_for_change_type', params: { changeType: 'uses_existing' } },
+  it('verifies all findings, only Blocking ones, or none, as the change type says (P classify.test.ts:159)', () => {
+    const skip = (verify: 'all' | 'blocking' | 'none', severity: Severity) =>
+      skipVerification('uses_existing', { verify })({ severity });
+    expect(skip('all', 'nit')).toEqual({
+      skip: false,
+      reason: { code: 'verify_on', params: { changeType: 'uses_existing' } },
     });
-    expect(skipVerification('one_way_door', CHANGE_TYPE_LIMITS.one_way_door).skip).toBe(false);
-    expect(skipVerification(null, CHANGE_TYPE_LIMITS.none).reason.code).toBe('verify_on');
+    expect(skip('blocking', 'blocking').skip).toBe(false);
+    expect(skip('blocking', 'worth_fixing')).toEqual({
+      skip: true,
+      reason: {
+        code: 'verify_off_for_change_type',
+        params: { changeType: 'uses_existing', scope: 'blocking' },
+      },
+    });
+    expect(skip('none', 'blocking').skip).toBe(true);
+    expect(CHANGE_TYPE_LIMITS.uses_existing.verify).toBe('blocking');
+    expect(CHANGE_TYPE_LIMITS.one_way_door.verify).toBe('all');
+    expect(CHANGE_TYPE_LIMITS.none.verify).toBe('all');
   });
 
   it('matches sensitive files against the repository patterns (P review.test.ts:72)', () => {
@@ -73,9 +95,16 @@ describe('review limits', () => {
       'packages/sdk/src/index.ts',
       'packages/sdk/src/edges/edge.ts',
       'packages/ui/package.json',
+      'packages/types/package.json',
       'apps/backend/drizzle/0007_add_runs.sql',
       '.claude/commands/review.md',
+      'apps/demo/.claude/settings.json',
       'docs/CLAUDE.md',
+      'CLAUDE.md',
+      '.github/workflows/pr-check.yml',
+      'apps/e2e/tests/stop-run.spec.ts',
+      'packages/sdk/src/store/store.ts',
+      'README.md',
     ];
     expect(matchSensitiveFiles(files, WB_SENSITIVE_PATTERNS)).toEqual([
       {
@@ -85,7 +114,7 @@ describe('review limits', () => {
       },
       {
         path: 'packages/ui/package.json',
-        pattern: 'packages/*/package.json',
+        pattern: 'packages/(sdk|ui|temporal)/package.json',
         reason: 'Package manifests of published packages.',
       },
       {
@@ -95,13 +124,23 @@ describe('review limits', () => {
       },
       {
         path: '.claude/commands/review.md',
-        pattern: '.claude/',
+        pattern: '/.claude/',
         reason: 'Agent commands and settings.',
       },
       {
         path: 'docs/CLAUDE.md',
         pattern: 'CLAUDE.md',
         reason: 'Instructions that agents follow in this repository.',
+      },
+      {
+        path: 'CLAUDE.md',
+        pattern: 'CLAUDE.md',
+        reason: 'Instructions that agents follow in this repository.',
+      },
+      {
+        path: '.github/workflows/pr-check.yml',
+        pattern: '.github/workflows/',
+        reason: 'CI and release workflows.',
       },
     ]);
   });
@@ -111,7 +150,7 @@ describe('review limits', () => {
       maxFindings: 4,
       maxQuestions: 0,
       severities: ALL,
-      verify: true,
+      verify: 'all',
     });
     // The level sets nothing: the change type's caps stand.
     expect(limitsFor({}, 'uses_existing')).toEqual(CHANGE_TYPE_LIMITS.uses_existing);

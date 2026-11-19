@@ -155,6 +155,9 @@ describe('merge checklist', () => {
     failsOnly(pr, 'nothing_undecided', 'checklist_findings_undecided');
     expect(itemOf(pr, 'nothing_undecided').reason.params).toEqual({ count: 1 });
     expect(itemOf(makePr(), 'nothing_undecided').reason.code).toBe('checklist_no_findings');
+    // A Not proven Worth fixing finding is undecided too (P review.test.ts:130).
+    const unproven = makePr({ findings: [makeFinding({ verdict: 'not_proven' })] });
+    failsOnly(unproven, 'nothing_undecided', 'checklist_findings_undecided');
   });
 
   it('fails while a finding decided Implement is not resolved', () => {
@@ -166,6 +169,9 @@ describe('merge checklist', () => {
     });
     failsOnly(pr, 'nothing_waiting_for_fix', 'checklist_fixes_pending');
     expect(itemOf(pr, 'nothing_waiting_for_fix').reason.params).toEqual({ count: 2 });
+    // A nit decided Implement blocks the merge like any other (P review.test.ts:130).
+    const nit = makePr({ findings: [makeFinding({ severity: 'nit', decision: 'implement' })] });
+    failsOnly(nit, 'nothing_waiting_for_fix', 'checklist_fixes_pending');
   });
 
   it('fails while sensitive files wait or were sent back', () => {

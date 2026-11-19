@@ -16,7 +16,8 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
 
 ## Decisions
 
-- **P's test files were not read.** The session brief forbids touching `~/Projects/wb-factory*`,
+- **P's test files were not read** (superseded: P-02b read them; see "P-02b parity pass" below).
+  The session brief forbids touching `~/Projects/wb-factory*`,
   and the access classifier blocked a read-only listing. The rules come from the PRD Business
   Logic, `docs/01-analysis.md` §2.4, `docs/03-design-decisions.md`, `docs/05-review-triggers.md`,
   `prototype/js/sim.js`, `prototype/js/data.js` and the task text. Each ported test names the P
@@ -151,3 +152,79 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
   `sync.test.ts` are noted. The four `patch-change` tests have no line numbers in the task text,
   so they are rows "1 of 4" to "4 of 4". The file states that parity with P is unverified.
 - No UI was touched, so the package needs `pnpm verify` only, not `pnpm test:e2e`.
+
+## P-02b parity pass
+
+P-02b read every test in `~/Projects/wb-factory/test` and the P source each one calls, and
+compared it with the core test `PORTING.md` mapped to it. Most mapped tests covered a different P
+test than their tag said; tags and rows now point at the P test with the same behaviour. Where
+core differed from P and the PRD and design docs were silent, core now follows P. Where the PRD or
+the design docs decide otherwise, ours stays and the row says why. These decisions supersede the
+T4, T5, T9, T10 and T11 notes above where they disagree.
+
+### Changed to match P
+
+- Change type (P `classify.ts:211`): sensitive patterns are checked before one-way paths. The
+  `sensitive_one_way` params add the pattern's `reason` and the number of matching `files`;
+  `path_one_way` adds `files`; `paths_change_behaviour` adds `files` and `total`.
+- `needsPerson(changeType, rulesPicked)`: files on a one-way path still need a person when a
+  person forces a lower type (`one_way_rules_need_person`), as P keeps `extraGated` whatever tier
+  is forced. A forced One-way door also needs a person (PRD "always"), which P did not require.
+- Limits (P `defaultProfiles`): `ReviewLimits.verify` is `'all' | 'blocking' | 'none'`; Uses
+  existing parts verifies Blocking findings only and allows 0 questions (was 1 question, no
+  Verify). `skipVerification(changeType, limits)` returns a per-finding check;
+  `verify_off_for_change_type` carries the `scope`. Changes behaviour and One-way door keep 3
+  questions (prototype), where P had no cap.
+- `parseWithFallback` falls back per field inside nested objects too (change-type rules, models,
+  each level's patch); the warning names the path (`changeTypeRules.oneWayPaths`,
+  `2.models.reviewer`). A nested value that is not an object still falls back whole.
+- `holdReason`: a zero budget never holds (P: 0 means no limit). The schema already stores 0 as
+  null with a warning.
+- Autofix: `trial` input with the `autofix_trial` hold (FR-081; P held trials). With nothing to
+  fix the only reason is `nothing_to_fix`, so the shadow log does not count the PR as held by
+  questions. `PatchResult.baseSha` and `pushByItself(patch, { headSha, sensitivePatterns })`
+  refuse a patch made on an older head (`head_moved_since_patch`, prd.md:139).
+- `withLesson(text, { title, rule, prs }, { placeholder })` writes `From PRs: #1, #2.` under
+  the rule and drops the placeholder line (P admin.test.ts:79). File text for agents, English.
+- WB fixture (`test/fixtures/wb-config.ts`): sensitive patterns follow P's gate table
+  (`packages/(sdk|ui|temporal)/package.json`, root-anchored `/deploy/` and `/.claude/`), and
+  `usesExistingPaths` adds P's `composesPaths` (`.mdx`, test directories, JS test files,
+  `.changeset/`, `apps/e2e/`). Seeding WB's real settings (S-04) should use the same values.
+
+### Kept, because the PRD or design docs decide otherwise
+
+- No behaviour paths, and the size threshold beats docs-only: FR-002 (prd.md:269) lists only
+  Uses existing paths, a size threshold and One-way paths; source-notes.md:219 says Changes
+  behaviour is "everything else, and any PR above a size threshold". P's 30-line "composes"
+  rule for small code (classify.test.ts:66) is not ported.
+- An unchecked or Not proven Blocking or Worth fixing finding needs a decision at every level,
+  and a confirmed one waits for a person before going to the author (prd.md:106, FR-040); P sent
+  confirmed findings to the author and dropped hypotheses at level 3 and up.
+- An unchecked nit stays optional below level 3 (prd.md:106). prd.md:597 OQ11 (should nits be
+  decidable at all) is still open; ours, like P, lets a nit decided Implement block.
+- A push never starts a review (docs/05:7); only `opened` as ready and `ready_for_review` start
+  round 1 (docs/05:9).
+- After a restart a run between stages is left as it is (docs/01-analysis.md:403, prd.md:404); P
+  failed every running run.
+- Models: level override, then settings, then the built-in default (FR-075); no environment
+  variable layer.
+- Automatic patches are counted per chain, not per PR (docs/05:27). The PR's own sensitive files
+  are not an autofix hold (prd.md:500 names the patch); merge still needs the approval.
+- Sent-back sensitive files stay pending until the author pushes (FR-046); P moved the PR to the
+  author.
+- A running run can be cancelled (prd.md:483); P could not.
+
+### Not done, docs silent, low value
+
+- No judge on/off switch: the judge runs whenever the Change type stage is on (level 2 and up).
+  S-04 can add one if needed.
+- `enforce` reports dropped findings as reason codes per severity, not titles.
+- A repeat of an accepted lesson changes nothing (T11); P added the PR to the accepted one.
+
+### Map changes
+
+- Rows 10 (`autofix:104`, verifier output parsing) and 13 (`autofix:196`, ledger) move to slices
+  S-05 and S-15; rows 14 (`autofix:213`), 18 (`classify:66`) and 60 (`levels:40`) become not
+  ported. Totals: 52 ported, 40 slice, 6 not ported.
+- The four `patch-change` rows get their real lines (43, 48, 77, 83).
+- No UI was touched, so `pnpm verify` is enough; no `pnpm test:e2e`.

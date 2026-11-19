@@ -12,9 +12,11 @@ export interface ReviewLimits {
   maxQuestions: number;
   /** Severities the reviewer may report. */
   severities: readonly Severity[];
-  /** Whether Verify runs for this change type. */
-  verify: boolean;
+  /** Which findings Verify checks for this change type: all, only Blocking ones, or none. */
+  verify: VerifyScope;
 }
+
+export type VerifyScope = 'all' | 'blocking' | 'none';
 
 /** What a review level may narrow. A level narrows only the fields it sets. */
 export type LevelLimits = Partial<
@@ -23,15 +25,15 @@ export type LevelLimits = Partial<
 
 /** Built-in caps per change type; `none` applies when no change type is known (level 1). */
 export const CHANGE_TYPE_LIMITS: Readonly<Record<ChangeType | 'none', ReviewLimits>> = {
-  none: { maxFindings: 7, maxQuestions: 3, severities: SEVERITIES, verify: true },
+  none: { maxFindings: 7, maxQuestions: 3, severities: SEVERITIES, verify: 'all' },
   uses_existing: {
     maxFindings: 3,
-    maxQuestions: 1,
+    maxQuestions: 0,
     severities: ['blocking', 'worth_fixing'],
-    verify: false,
+    verify: 'blocking',
   },
-  changes_behaviour: { maxFindings: 7, maxQuestions: 3, severities: SEVERITIES, verify: true },
-  one_way_door: { maxFindings: 7, maxQuestions: 3, severities: SEVERITIES, verify: true },
+  changes_behaviour: { maxFindings: 7, maxQuestions: 3, severities: SEVERITIES, verify: 'all' },
+  one_way_door: { maxFindings: 7, maxQuestions: 3, severities: SEVERITIES, verify: 'all' },
 };
 
 /** The change type's caps, narrowed by the fields the level sets. */
@@ -120,14 +122,21 @@ export function enforce<F extends { severity: Severity }, Q>(
   };
 }
 
-/** Verify is skipped when the change type's limits turn it off. */
+/**
+ * Whether Verify checks a finding. The change type's scope decides by severity: `all` checks
+ * every finding, `blocking` only Blocking ones, `none` nothing. A skipped finding stays unchecked.
+ */
 export function skipVerification(
   changeType: ChangeType | null,
   limits: Pick<ReviewLimits, 'verify'>,
-): { skip: boolean; reason: Reason } {
-  return limits.verify
-    ? { skip: false, reason: reason('verify_on', { changeType }) }
-    : { skip: true, reason: reason('verify_off_for_change_type', { changeType }) };
+): (finding: { severity: Severity }) => { skip: boolean; reason: Reason } {
+  const scope = limits.verify;
+  return ({ severity }) => {
+    if (scope === 'all' || (scope === 'blocking' && severity === 'blocking')) {
+      return { skip: false, reason: reason('verify_on', { changeType }) };
+    }
+    return { skip: true, reason: reason('verify_off_for_change_type', { changeType, scope }) };
+  };
 }
 
 export interface SensitiveMatch {

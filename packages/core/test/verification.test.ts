@@ -23,7 +23,7 @@ const check = (overrides: Partial<VerifierCheck> = {}): VerifierCheck => ({
 });
 
 describe('verification', () => {
-  it('the verifier never sees the proposed fix (P review.test.ts:96)', () => {
+  it('the verifier never sees the proposed fix', () => {
     const finding = makeFinding({ suggestion: 'Use the profile timeout' });
     Object.assign(finding, { fix: 'heartbeatTimeout || profile.heartbeatTimeout' });
     const input = verifierInput(finding);
@@ -40,7 +40,7 @@ describe('verification', () => {
     });
   });
 
-  it('only the current round is verified, and the newest round decides (P review.test.ts:111)', () => {
+  it('only the current round is verified, and the newest round decides (P classify.test.ts:168, classify.test.ts:197)', () => {
     const old = makeRound({ findings: [makeFinding({ title: 'old' })] });
     const current = makeRound({ findings: [makeFinding({ title: 'new' })] });
     const failed = makeRound({ status: 'failed', findings: [makeFinding({ title: 'partial' })] });
@@ -50,7 +50,7 @@ describe('verification', () => {
     expect(currentFindings([])).toEqual([]);
   });
 
-  it('quotes must exist word for word; no evidence means Not proven (P classify.test.ts:168)', () => {
+  it('quotes must exist in the file; a missing quote or no evidence means Not proven (P review.test.ts:96)', () => {
     expect(checkQuotes(check(), readFile)).toEqual({
       verdict: 'confirmed',
       reason: { code: 'quotes_found', params: { findingId: 'f1', count: 1 } },
@@ -69,9 +69,15 @@ describe('verification', () => {
       verdict: 'not_proven',
       reason: { code: 'no_evidence', params: { findingId: 'f1' } },
     });
+    // A Refuted verdict with a real quote stands, whatever the spacing.
+    const refuted = check({
+      verdict: 'refuted',
+      evidence: [{ file: 'src/edge.ts', line: 2, quote: 'const stroke    = style.stroke;' }],
+    });
+    expect(checkQuotes(refuted, readFile).verdict).toBe('refuted');
   });
 
-  it('the reproduction result beats the verdict: exit 0, 3 or other (P classify.test.ts:197)', () => {
+  it('the reproduction result beats the verdict: exit 0, 3 or other (P review.test.ts:111)', () => {
     const refutedByAgent = check({ verdict: 'refuted' });
     expect(applyReproduction(refutedByAgent, 0)).toEqual({
       verdict: 'confirmed',

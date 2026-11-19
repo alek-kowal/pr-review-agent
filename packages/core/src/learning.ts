@@ -133,14 +133,27 @@ export function canAccept(candidate: LessonCandidate, signer?: Actor | null): Ch
   return { ok: true, reason: reason('can_accept', { prs: have }) };
 }
 
-/** The lessons file with an accepted lesson added at the end; the rest of the text is kept. */
+/**
+ * The lessons file with an accepted lesson added at the end, naming the PRs it came from. The rest
+ * of the text is kept, except the `placeholder` line (for example "No accepted lessons yet."),
+ * which the first lesson replaces.
+ */
 export function withLesson(
   text: string,
-  candidate: Pick<LessonCandidate, 'title' | 'rule'>,
+  candidate: Pick<LessonCandidate, 'title' | 'rule'> & { prs?: readonly number[] },
+  options: { placeholder?: string } = {},
 ): string {
   const heading = `## ${candidate.title.trim()}`;
-  if (text.split('\n').some((line) => line.trim() === heading)) return text;
-  const section = `${heading}\n\n${candidate.rule.trim()}\n`;
-  const kept = text.trimEnd();
+  const lines = text.split('\n');
+  if (lines.some((line) => line.trim() === heading)) return text;
+  const prs = candidate.prs?.length
+    ? `\nFrom PRs: ${candidate.prs.map((n) => `#${n}`).join(', ')}.\n`
+    : '';
+  const section = `${heading}\n\n${candidate.rule.trim()}\n${prs}`;
+  const placeholder = options.placeholder?.trim();
+  const kept = (placeholder ? lines.filter((line) => line.trim() !== placeholder) : lines)
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd();
   return kept ? `${kept}\n\n${section}` : section;
 }

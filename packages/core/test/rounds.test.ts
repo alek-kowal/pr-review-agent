@@ -46,7 +46,7 @@ describe('round starts', () => {
     expect(start).toEqual({ start: false, reason: { code: 'push_never_starts', params: {} } });
   });
 
-  it('only the own fix at the head starts the next round, while the chain has rounds left (P sync.test.ts:90)', () => {
+  it('only the own fix at the head starts the next round, while the chain has rounds left', () => {
     const pr = makePr({ headSha: 'fix0001' });
     const chain = chainState([run(), ownFix('fix0000')]);
     expect(chain.completedRounds).toBe(2);
@@ -87,7 +87,7 @@ describe('round starts', () => {
     );
   });
 
-  it('a fork starts nothing by itself', () => {
+  it('a fork starts nothing by itself (P sync.test.ts:90)', () => {
     expect(
       roundStartForEvent({ action: 'ready_for_review' }, makePr({ fork: true }), null),
     ).toEqual({

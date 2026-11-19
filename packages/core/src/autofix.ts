@@ -10,6 +10,8 @@ import type { ChangeType, LevelNumber } from './vocabulary.ts';
 export interface AutofixInput {
   level: LevelNumber;
   fork: boolean;
+  /** The round is a trial ("Try on a PR"), which never changes the PR (FR-081). */
+  trial?: boolean;
   paused: boolean;
   budgetReached: boolean;
   changeType: ChangeType | null;
@@ -40,10 +42,15 @@ const needsWork = (f: Finding) =>
 export function autofixDecision(input: AutofixInput): AutofixDecision {
   const max = input.maxAutoPatches ?? DEFAULT_AUTOFIX_MAX_PATCHES;
   const work = input.findings.filter(needsWork);
+  const enabled = input.level >= FEATURE_ON_FROM.autofix;
+  // Nothing to fix is not a hold: the shadow log must not count the PR as held by anything else.
+  if (work.length === 0) {
+    return { enabled, go: false, findingIds: [], reasons: [reason('nothing_to_fix')] };
+  }
   const holds: Reason[] = [];
 
   if (input.fork) holds.push(reason('fork_read_only'));
-  if (work.length === 0) holds.push(reason('nothing_to_fix'));
+  if (input.trial) holds.push(reason('autofix_trial'));
   if (input.openQuestions > 0) holds.push(reason('open_questions', { count: input.openQuestions }));
   const unsure = work.filter((f) => f.verdict !== 'confirmed').length;
   if (unsure) holds.push(reason('unsure_verdicts', { count: unsure }));
@@ -60,7 +67,7 @@ export function autofixDecision(input: AutofixInput): AutofixDecision {
   if (input.budgetReached) holds.push(reason('autofix_budget_reached'));
 
   return {
-    enabled: input.level >= FEATURE_ON_FROM.autofix,
+    enabled,
     go: holds.length === 0,
     findingIds: work.map((f) => f.id),
     reasons: holds.length ? holds : [reason('autofix_conditions_met', { count: work.length })],
@@ -68,6 +75,8 @@ export function autofixDecision(input: AutofixInput): AutofixDecision {
 }
 
 export interface PatchResult {
+  /** The PR head the patch was made on. */
+  baseSha: string;
   /** The findings the implementer was asked to fix. */
   findingIds: readonly string[];
   fixedFindingIds: readonly string[];
@@ -77,20 +86,22 @@ export interface PatchResult {
 
 /**
  * Whether the implementer's patch may be pushed without a person: every finding fixed, every
- * reproduction passing on the patched code, and no sensitive file touched.
+ * reproduction passing on the patched code, no sensitive file touched, and the PR head still the
+ * one the patch was made on (a push is never forced).
  */
 export function pushByItself(
   patch: PatchResult,
-  sensitivePatterns: readonly SensitivePattern[] = [],
+  pr: { headSha: string; sensitivePatterns?: readonly SensitivePattern[] },
 ): { go: boolean; reasons: Reason[] } {
   const holds: Reason[] = [];
+  if (patch.baseSha !== pr.headSha) holds.push(reason('head_moved_since_patch'));
   const fixed = patch.findingIds.filter((id) => patch.fixedFindingIds.includes(id)).length;
   if (fixed < patch.findingIds.length) {
     holds.push(reason('not_all_fixed', { fixed, total: patch.findingIds.length }));
   }
   const { total, passed } = patch.reproductions;
   if (passed < total) holds.push(reason('reproductions_fail', { failed: total - passed, total }));
-  for (const hit of matchSensitiveFiles(patch.files, sensitivePatterns)) {
+  for (const hit of matchSensitiveFiles(patch.files, pr.sensitivePatterns ?? [])) {
     holds.push(reason('patch_touches_sensitive', { path: hit.path, pattern: hit.pattern }));
   }
   return {
