@@ -1,4 +1,4 @@
-import type { AgentRunner, Analyst, Judge } from '@pra/agents';
+import { OpenRouterJudge, type AgentRunner, type Analyst, type Judge } from '@pra/agents';
 import type { ModelAuthMode } from '@pra/core';
 import type { Db, Queue } from '@pra/db';
 import type {
@@ -23,6 +23,11 @@ export type WorkerDeps = {
   agentRunner: AgentRunner;
   /** The change-type judge (one Messages API call, no tools). */
   judge: Judge;
+  /**
+   * The judge for an `openrouter/...` model (P-26). When it fails, the stage falls back to
+   * `judge` once. Without `OPENROUTER_API_KEY` every call fails `model_access_not_configured`.
+   */
+  openRouterJudge: Judge;
   /** The analyst after a PR closes (one Messages API call, no tools). */
   analyst: Analyst;
   /** Throwaway containers for the Checks install and Verify's reproductions. */
@@ -43,14 +48,19 @@ export type WorkerDeps = {
   cancellation: RunCancellation;
 };
 
-export type WorkerDepsInput = Omit<WorkerDeps, 'extensions' | 'cancellation'> & {
+export type WorkerDepsInput = Omit<
+  WorkerDeps,
+  'extensions' | 'cancellation' | 'openRouterJudge'
+> & {
   extensions?: Partial<Extensions>;
   cancellation?: RunCancellation;
+  openRouterJudge?: Judge;
 };
 
 export function withDefaults(input: WorkerDepsInput): WorkerDeps {
   return {
     ...input,
+    openRouterJudge: input.openRouterJudge ?? new OpenRouterJudge({ client: null }),
     extensions: { ...DEFAULT_EXTENSIONS, ...input.extensions },
     cancellation: input.cancellation ?? new RunCancellation(),
   };

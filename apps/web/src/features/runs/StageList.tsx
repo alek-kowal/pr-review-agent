@@ -2,7 +2,8 @@ import { cn } from 'cn';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { copy } from '@/copy/index.ts';
-import { duration, money } from '@/copy/format.ts';
+import { amount, duration, money, sessionMoney } from '@/copy/format.ts';
+import { judgeFallbackText } from '@/features/checks/judge-fallback.ts';
 import { isForkOff, offStageText, offStepTexts } from '@/features/round/off-text.ts';
 import { STEP_ICON, STEP_TONE } from '@/features/round/step-style.ts';
 import type { RunDetail, RunSessionView, RunStageView } from '@/lib/api-types.ts';
@@ -109,12 +110,17 @@ function StageBody({ stage, detail }: { stage: RunStageView; detail: RunDetail }
       return <p className="text-sm text-text-3">{d.stageQueued(detail.run.status === 'failed')}</p>;
     case 'running':
       return <p className="text-sm text-text-2">{d.stageRunning}</p>;
-    case 'failed':
+    case 'failed': {
+      const fallback = judgeFallbackText(stage.output);
       return (
-        <p className="text-sm font-medium text-bad">
-          {d.stageFailed(reasonText(stage.errorCode ?? 'stage_error'))}
-        </p>
+        <>
+          <p className="text-sm font-medium text-bad">
+            {d.stageFailed(reasonText(stage.errorCode ?? 'stage_error'))}
+          </p>
+          {fallback && <p className="text-sm text-text-2">{fallback}</p>}
+        </>
       );
+    }
     case 'done': {
       const Output = STAGE_OUTPUTS[stage.key] ?? GenericOutput;
       return (
@@ -125,6 +131,29 @@ function StageBody({ stage, detail }: { stage: RunStageView; detail: RunDetail }
       );
     }
   }
+}
+
+/**
+ * One judge call (P-26): provider, the model asked and the one that answered (a router picks
+ * one), tokens, latency and the exact cost.
+ */
+function JudgeTrace({ session }: { session: RunSessionView }) {
+  const s = copy.runs.detail.session;
+  const facts = [
+    s.provider(session.provider),
+    s.requested(session.model),
+    session.answeredModel && session.answeredModel !== session.model
+      ? s.answeredBy(session.answeredModel)
+      : null,
+    s.tokens(session.tokens.input + session.tokens.cacheRead, session.tokens.output),
+    session.durationMs === null ? null : duration(session.durationMs),
+    s.cost(sessionMoney(session.costUsd, session.provider), session.provider),
+  ].filter(Boolean);
+  return (
+    <p className="text-xs text-text-2" data-testid="judge-trace" aria-label={s.traceLabel}>
+      {facts.join(' · ')}
+    </p>
+  );
 }
 
 /** One agent session: role, model, turns, cost, and what it read and did. */
@@ -145,9 +174,13 @@ export function SessionSummary({ session }: { session: RunSessionView }) {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="font-medium">{s.title(session.role)}</span>
-        <span className="font-semibold tabular-nums">{money(session.costUsd)}</span>
+        <span className="font-semibold tabular-nums">
+          {/* OpenRouter is billed spend: never "API-equivalent". */}
+          {session.provider === 'openrouter' ? amount(session.costUsd) : money(session.costUsd)}
+        </span>
       </div>
       <p className="text-xs text-text-3">{facts.join(' · ')}</p>
+      {session.role === 'judge' && <JudgeTrace session={session} />}
       {!session.hasTranscript && <p className="mt-1 text-xs text-text-3">{s.noTranscript}</p>}
       {session.filesRead.length > 0 && (
         <details className="mt-1">

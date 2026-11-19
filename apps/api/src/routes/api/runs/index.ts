@@ -1,7 +1,7 @@
 // S-03-T6: Run detail and a session's full transcript. S-09: Retry (T2) and Cancel (T4), both
 // unsigned ("by hand").
 import { summarizeTranscript } from '@pra/agents/transcript';
-import { AGENT_ROLES, chainState, HAND, modelFor, roundLabel } from '@pra/core';
+import { AGENT_ROLES, chainState, HAND, MODEL_PROVIDERS, modelFor, roundLabel } from '@pra/core';
 import {
   getRunContext,
   getRunDetail,
@@ -37,7 +37,12 @@ const SessionParams = RunParams.extend({ sessionId: z.coerce.number().int().posi
 const SessionSchema = z.object({
   id: z.number().int(),
   role: z.string(),
+  /** The model the run asked for. */
   model: z.string(),
+  /** Where it ran (P-26): an `openrouter` cost is billed spend, never "API-equivalent". */
+  provider: z.enum(MODEL_PROVIDERS),
+  /** The model that actually answered, when the provider says (a router picks one). */
+  answeredModel: z.string().nullable(),
   status: z.string(),
   costUsd: z.number(),
   costSource: z.string(),
@@ -169,6 +174,8 @@ async function sessionView(blobStore: BlobStore, session: AgentSession) {
     id: session.id,
     role: session.role,
     model: session.model,
+    provider: session.provider,
+    answeredModel: session.answeredModel,
     status: session.status,
     costUsd: session.costUsd,
     costSource: session.costSource,

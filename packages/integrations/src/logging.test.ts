@@ -70,6 +70,22 @@ describe('loggerOptions', () => {
     });
   });
 
+  test('the OpenRouter key never reaches a log line (P-26)', () => {
+    const { logger, lines } = capture();
+    const key = 'sk-or-v1-log-test';
+
+    logger.info(
+      {
+        env: { OPENROUTER_API_KEY: key },
+        openRouter: { apiKey: key },
+        request: { headers: { authorization: `Bearer ${key}` } },
+      },
+      'openrouter configured',
+    );
+
+    expect(lines.join('')).not.toContain(key);
+  });
+
   test('errors still go through the error serializer', () => {
     const { logger, parsed } = capture();
 

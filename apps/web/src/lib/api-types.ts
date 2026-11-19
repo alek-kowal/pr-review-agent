@@ -644,7 +644,12 @@ export type RunStepStatus = 'done' | 'running' | 'failed' | 'queued' | 'off';
 export type RunSessionView = {
   id: number;
   role: string;
+  /** The model the run asked for. */
   model: string;
+  /** Where it ran (P-26); an `openrouter` cost is billed spend. */
+  provider: 'anthropic' | 'openrouter';
+  /** The model that actually answered, when the provider says. */
+  answeredModel: string | null;
   status: string;
   costUsd: number;
   costSource: string;

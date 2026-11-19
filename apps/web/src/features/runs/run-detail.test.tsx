@@ -3,11 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { RunDetail, RunSessionView } from '@/lib/api-types.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
+import { aStatus } from '@/test/fixtures.ts';
 import { renderApp } from '@/test/renderApp.tsx';
 
 const session = (over: Partial<RunSessionView> & { id: number }): RunSessionView => ({
   role: 'judge',
   model: 'claude-sonnet-5-5',
+  provider: 'anthropic',
+  answeredModel: null,
   status: 'completed',
   costUsd: 0.1,
   costSource: 'reported',
@@ -242,5 +245,67 @@ describe('Run detail', () => {
     });
     renderApp('/runs/99');
     expect(await screen.findByRole('heading', { name: 'This run does not exist.' })).toBeVisible();
+  });
+
+  it('shows each judge call and the fallback to Claude; OpenRouter cost is spend (P-26)', async () => {
+    const JEV = 'openrouter/typesafe/jev-router';
+    const changeType = {
+      ...FAILED_RUN.stages[0]!,
+      key: 'change_type',
+      costUsd: 0.0012,
+      output: {
+        changeType: 'changes_behaviour',
+        reason: { code: 'judge_raised', params: {} },
+        rules: { changeType: 'uses_existing', reason: { code: 'paths_uses_existing', params: {} } },
+        judge: { changeType: 'changes_behaviour', reason: 'Claude says so.' },
+        judgeSkipped: null,
+        judgeFallback: {
+          from: JEV,
+          to: 'claude-haiku-5-5',
+          reason: { code: 'openrouter_no_credits', params: { status: 402 } },
+        },
+        forced: null,
+        needsPerson: false,
+        lines: 12,
+        largePr: false,
+        largePrLines: 800,
+      },
+      sessions: [
+        session({
+          id: 7,
+          model: JEV,
+          provider: 'openrouter',
+          answeredModel: 'acme/routed-small',
+          status: 'failed',
+          costUsd: 0.0002,
+          turns: 1,
+          durationMs: 1200,
+          tokens: { input: 1100, output: 0, cacheRead: 100, cacheWrite: 0 },
+        }),
+        session({ id: 8, model: 'claude-haiku-5-5', costUsd: 0.001, turns: 1, durationMs: 900 }),
+      ],
+    };
+    stubFetch({
+      '/api/status': aStatus({ modelAuth: 'subscription' }),
+      '/api/runs/41': { ...FAILED_RUN, stages: [changeType] },
+    });
+    renderApp('/runs/41');
+
+    await userEvent.click(await screen.findByRole('button', { name: /Change type/ }));
+    const [openRouter, claude] = await screen.findAllByRole('region', { name: 'Judge' });
+    // Billed spend: no "API-equivalent", even on a subscription.
+    expect(openRouter).toHaveTextContent('$0.00');
+    expect(openRouter).not.toHaveTextContent('API-equivalent');
+    expect(within(openRouter!).getByTestId('judge-trace')).toHaveTextContent(
+      `OpenRouter · asked ${JEV} · answered by acme/routed-small · 1,200 in / 0 out tokens · 1 s · $0.0002 billed by OpenRouter`,
+    );
+    expect(within(claude!).getByTestId('judge-trace')).toHaveTextContent(
+      'Claude · asked claude-haiku-5-5 · 100 in / 20 out tokens',
+    );
+    expect(within(claude!).getByTestId('judge-trace')).toHaveTextContent('$0.0010 API-equivalent');
+
+    expect(screen.getByTestId('change-type-output')).toHaveTextContent(
+      `${JEV} failed: no OpenRouter credits left. claude-haiku-5-5 answered instead.`,
+    );
   });
 });

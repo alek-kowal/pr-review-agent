@@ -27,6 +27,17 @@ export const amount = (usd: unknown): string => `$${n(usd).toFixed(2)}`;
 /** Dollars with cents: `$1.84`; on a subscription `$1.84 API-equivalent`. */
 export const money = (usd: unknown): string => `${amount(usd)}${basisSuffix()}`;
 
+/** Like `amount`, with four decimals under a cent (a judge call): `$0.0004`. */
+const fineAmount = (usd: unknown): string =>
+  n(usd) > 0 && n(usd) < 0.01 ? `$${n(usd).toFixed(4)}` : amount(usd);
+
+/**
+ * One session's cost (P-26). An OpenRouter session is billed spend, so it never carries the
+ * subscription's "API-equivalent" label; a Claude session reads like `money`.
+ */
+export const sessionMoney = (usd: unknown, provider: string): string =>
+  provider === 'openrouter' ? fineAmount(usd) : `${fineAmount(usd)}${basisSuffix()}`;
+
 /** Two amounts labelled once: `$1.20 of $10.00` (`… API-equivalent` on a subscription). */
 export const moneyOf = (part: unknown, whole: unknown): string =>
   `${amount(part)} of ${amount(whole)}${basisSuffix()}`;

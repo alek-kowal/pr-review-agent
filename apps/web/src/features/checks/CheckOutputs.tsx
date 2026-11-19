@@ -3,6 +3,7 @@ import { copy } from '@/copy/index.ts';
 import { isRecord, str } from '@/features/runs/output-values.ts';
 import { GenericOutput, Kv } from '@/features/runs/StageOutputs.tsx';
 import type { StageOutputProps } from '@/features/runs/stage-outputs.ts';
+import { judgeFallbackText } from './judge-fallback.ts';
 
 const num = (value: unknown): number => (typeof value === 'number' ? value : 0);
 
@@ -64,6 +65,8 @@ export function ChangeTypeOutput({ output }: StageOutputProps) {
   } else if (isRecord(output.judgeSkipped)) {
     rows.push([t.output.judge, t.output.judgeSkipped]);
   }
+  const fallback = judgeFallbackText(output);
+  if (fallback) rows.push([t.output.judgeFallback, fallback]);
   rows.push([t.output.lines, String(num(output.lines))]);
   return (
     <div className="flex flex-col gap-2" data-testid="change-type-output">
