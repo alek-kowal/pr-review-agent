@@ -11,10 +11,11 @@ describe('modelAuthModeOf', () => {
     expect(modelAuthModeOf({})).toBe('none');
   });
 
-  it('lists both secret names', () => {
+  it('lists every model secret name, OpenRouter included', () => {
     expect([...MODEL_SECRET_ENV_NAMES].sort()).toEqual([
       'ANTHROPIC_API_KEY',
       'CLAUDE_CODE_OAUTH_TOKEN',
+      'OPENROUTER_API_KEY',
     ]);
   });
 });

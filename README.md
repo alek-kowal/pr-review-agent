@@ -175,6 +175,13 @@ access not configured"):
 With both set the subscription wins. The worker's start log says `model access configured` and
 the mode; the status chip and Settings → Budget & status show it. There is no fake or demo mode.
 
+Optional: `OPENROUTER_API_KEY` lets the change-type judge run on an OpenRouter model. Pick
+`openrouter/<vendor>/<model>` for the judge in Settings → Models; any OpenRouter failure falls
+back to one Claude judge call, and Run detail shows the provider, the answered model and the cost
+OpenRouter reported. `pnpm judge:compare --models a,b [--limit N] [--yes]` replays stored judge
+prompts on several models against the change types people forced (read-only; without `--yes` it
+prints the call count only).
+
 <details>
 <summary><b>Connect a repository</b></summary>
 
@@ -227,6 +234,7 @@ secret store). The api and the worker read the root `.env`.
 | `DATABASE_URL`                                                                         | Postgres connection                                            |
 | `CLAUDE_CODE_OAUTH_TOKEN`                                                              | Model access on a Claude subscription (wins over the key)      |
 | `ANTHROPIC_API_KEY`                                                                    | Model access for the agents (pay-per-token)                    |
+| `OPENROUTER_API_KEY`                                                                   | Optional: the judge on an OpenRouter model (Claude fallback)   |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_WEBHOOK_SECRET`                | The GitHub App: installation tokens and webhook signatures     |
 | `CLICKUP_API_KEY`                                                                      | Optional: tasks, follow-ups, author notices and alert comments |
 | `APP_BASE_URL`                                                                         | The app's address, for links in ClickUp alert comments         |

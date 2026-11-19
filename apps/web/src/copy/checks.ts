@@ -57,5 +57,24 @@ export const checks = {
     judgeSkipped: 'Judge did not run',
     lines: 'Changed lines',
     needsPerson: 'Needs a person',
+    /** P-26: the OpenRouter judge failed and the Claude judge answered. */
+    judgeFallback: 'Judge fallback',
+    fallbackText: (from: string, to: string, why: string) =>
+      `${from} failed: ${why}. ${to} answered instead.`,
+    fallbackWhy: (code: string): string => FALLBACK_WHY[code] ?? code.replaceAll('_', ' '),
   },
+};
+
+/** Why the OpenRouter judge failed, by reason code (agents `judgeWithFallback`). */
+const FALLBACK_WHY: Record<string, string> = {
+  model_access_not_configured:
+    'OpenRouter access is not configured (OPENROUTER_API_KEY is not set)',
+  openrouter_auth_failed: 'OpenRouter refused the key',
+  openrouter_no_credits: 'no OpenRouter credits left',
+  openrouter_timeout: 'OpenRouter did not answer in time',
+  openrouter_rate_limited: 'OpenRouter rate limit',
+  openrouter_unavailable: 'no OpenRouter provider was available',
+  openrouter_error: 'OpenRouter error',
+  output_invalid: 'its answer was not valid',
+  agent_failed: 'the call failed',
 };

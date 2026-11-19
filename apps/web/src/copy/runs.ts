@@ -138,6 +138,15 @@ export const runs = {
       filesHeading: 'Files read',
       actionsHeading: 'Actions',
       status: (status: string) => (status === 'completed' ? '' : status),
+      /** P-26: one judge call's trace. */
+      traceLabel: 'Judge call',
+      provider: (provider: string) => (provider === 'openrouter' ? 'OpenRouter' : 'Claude'),
+      requested: (model: string) => `asked ${model}`,
+      answeredBy: (model: string) => `answered by ${model}`,
+      tokens: (input: number, output: number) =>
+        `${input.toLocaleString('en-US')} in / ${output.toLocaleString('en-US')} out tokens`,
+      cost: (amount: string, provider: string) =>
+        provider === 'openrouter' ? `${amount} billed by OpenRouter` : amount,
     },
     costPerSession: 'Cost per session',
     get costPerSessionHint() {

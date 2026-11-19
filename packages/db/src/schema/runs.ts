@@ -1,6 +1,7 @@
 import {
   ACTOR_KINDS,
   AGENT_ROLES,
+  MODEL_PROVIDERS,
   RUN_KINDS,
   SEVERITIES,
   VERDICTS,
@@ -193,7 +194,12 @@ export const agentSessions = pgTable(
       .notNull()
       .references(() => stageExecutions.id, { onDelete: 'cascade' }),
     role: text({ enum: AGENT_ROLES }).notNull(),
+    /** The model the run asked for (e.g. `openrouter/typesafe/jev-router`). */
     model: text().notNull(),
+    /** Where it ran (P-26): `anthropic` or `openrouter`; an OpenRouter cost is billed spend. */
+    provider: text({ enum: MODEL_PROVIDERS }).notNull().default('anthropic'),
+    /** The model that actually answered, when the provider says (a router picks one per call). */
+    answeredModel: text('answered_model'),
     inputTokens: integer('input_tokens').notNull().default(0),
     outputTokens: integer('output_tokens').notNull().default(0),
     cacheReadTokens: integer('cache_read_tokens').notNull().default(0),
@@ -212,6 +218,7 @@ export const agentSessions = pgTable(
     index('agent_sessions_stage_execution').on(t.stageExecutionId),
     check('agent_sessions_role', inList(t.role, AGENT_ROLES)),
     check('agent_sessions_cost_source', inList(t.costSource, COST_SOURCES)),
+    check('agent_sessions_provider', inList(t.provider, MODEL_PROVIDERS)),
   ],
 );
 

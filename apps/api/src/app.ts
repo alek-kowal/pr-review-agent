@@ -29,6 +29,8 @@ export type AppDeps = {
   live?: LiveHub;
   /** How the agents reach the model (core `modelAuthModeOf` over the env); `none` by default. */
   modelAuth?: ModelAuthMode;
+  /** Whether `OPENROUTER_API_KEY` is set (core `openRouterConfigured`); false by default. */
+  openRouterConfigured?: boolean;
 };
 
 export type AppOptions = AppDeps & Partial<AutoloadPluginOptions>;
@@ -42,9 +44,28 @@ declare module 'fastify' {
 }
 
 const app: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
-  const { db, queue, github, blobStore, clickup, live, modelAuth, ...autoloadOptions } = opts;
+  const {
+    db,
+    queue,
+    github,
+    blobStore,
+    clickup,
+    live,
+    modelAuth,
+    openRouterConfigured,
+    ...autoloadOptions
+  } = opts;
   // Decorated before the plugins and routes load, so all of them see it.
-  fastify.decorate('deps', { db, queue, github, blobStore, clickup, live, modelAuth });
+  fastify.decorate('deps', {
+    db,
+    queue,
+    github,
+    blobStore,
+    clickup,
+    live,
+    modelAuth,
+    openRouterConfigured,
+  });
   fastify.decorate('signatureFailures', new SignatureFailures());
 
   // Support plugins reused across the application.

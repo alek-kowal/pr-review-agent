@@ -2,7 +2,7 @@
 // set the floor, the judge may raise it (never lower), and a type a person forced wins and skips
 // the judge. Review reads the result to cut its findings to the type's limits; a PR above the
 // repository's line threshold is flagged as large.
-import { judgeRequest } from '@pra/agents';
+import { judgeRequest, judgeWithFallback, type JudgeFallback } from '@pra/agents';
 import {
   classifyChange,
   runModel,
@@ -31,6 +31,12 @@ export type ChangeTypeOutput = {
   judge: { changeType: ChangeType; reason: string } | null;
   /** Why the judge did not run: `forced`, `floor_is_highest` or `judge_instructions_missing`. */
   judgeSkipped: { code: string; params: Record<string, unknown> } | null;
+  /**
+   * The OpenRouter judge failed and the Claude judge answered instead (P-26): the models and
+   * why (`openrouter_no_credits`, `openrouter_timeout`, `output_invalid`, ...). Absent or null
+   * when there was no fallback.
+   */
+  judgeFallback?: JudgeFallback | null;
   forced: ChangeType | null;
   /** A One-way door, or files the rules flagged as one, need a person. */
   needsPerson: boolean;
@@ -67,6 +73,7 @@ async function runChangeType(context: StageContext): Promise<StageResult> {
   const sessions: SessionRecord[] = [];
   let judged: ChangeTypeOutput['judge'] = null;
   let judgeSkipped: ChangeTypeOutput['judgeSkipped'] = null;
+  let judgeFallback: JudgeFallback | null = null;
   if (forced) {
     judgeSkipped = { code: 'forced', params: { forced } };
   } else if (floor.changeType === 'one_way_door') {
@@ -87,14 +94,23 @@ async function runChangeType(context: StageContext): Promise<StageResult> {
         changedFiles: files,
         signal,
       };
-      const result = await deps.judge.judge(input);
+      // An OpenRouter model runs there; if that fails, one Claude call takes over (P-26).
+      const judgedBy = await judgeWithFallback(
+        { claude: deps.judge, openRouter: deps.openRouterJudge },
+        input,
+      );
+      judgeFallback = judgedBy.fallback;
+      // Both providers get the same message.
       const sent = judgeRequest(input).messages[0]?.content;
-      sessions.push({
-        role: 'judge',
-        model,
-        prompt: typeof sent === 'string' ? sent : JSON.stringify(sent),
-        result,
-      });
+      for (const call of judgedBy.calls) {
+        sessions.push({
+          role: 'judge',
+          model: call.model,
+          prompt: typeof sent === 'string' ? sent : JSON.stringify(sent),
+          result: call.result,
+        });
+      }
+      const { result } = judgedBy;
       if (result.status !== 'completed' || !result.output) {
         const error = result.error ?? { code: 'agent_failed', params: {} };
         return {
@@ -104,6 +120,7 @@ async function runChangeType(context: StageContext): Promise<StageResult> {
             params: error.params,
           },
           sessions,
+          ...(judgeFallback ? { output: { judgeFallback } } : {}),
         };
       }
       judged = result.output;
@@ -117,6 +134,7 @@ async function runChangeType(context: StageContext): Promise<StageResult> {
     rules: { changeType: floor.changeType, reason: floor.reason },
     judge: judged,
     judgeSkipped,
+    judgeFallback,
     forced,
     needsPerson: needsPerson(raised.changeType, raised.rulesPicked).needed,
     lines: floor.lines,

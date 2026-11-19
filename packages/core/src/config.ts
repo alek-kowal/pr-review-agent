@@ -4,6 +4,7 @@ import { DEFAULT_MODELS, type ResolvedLevel } from './levels.ts';
 import { isValidGlob } from './glob.ts';
 import { isValidTaskIdPattern } from './task-id.ts';
 import { MAX_FINDINGS } from './limits.ts';
+import { canUseOpenRouter, validOpenRouterModel } from './openrouter.ts';
 import { reason, type Reason } from './reason.ts';
 import {
   AGENT_ROLES,
@@ -20,6 +21,13 @@ import {
 const MODEL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:@[\]-]{0,99}$/;
 export const validModelName = (name: string): boolean => MODEL_NAME.test(name);
 
+/**
+ * A model name `role` may use: a Claude model name, or for the judge also an OpenRouter model
+ * (`openrouter/<vendor>/<model>`, P-26). OpenRouter models never reach an agent runtime.
+ */
+export const validModelNameFor = (role: AgentRole, name: string): boolean =>
+  validModelName(name) || (canUseOpenRouter(role) && validOpenRouterModel(name));
+
 export const LevelNumberSchema = z.union(LEVEL_NUMBERS.map((n) => z.literal(n)));
 const levelNumber = LevelNumberSchema;
 /** A path pattern (glob.ts); `invalid_glob` when the matcher would not read it as meant. */
@@ -29,16 +37,24 @@ export const ModelNameSchema = z
   .string()
   .trim()
   .refine(validModelName, { message: 'invalid_model_name' });
+/** A model name that passes `validModelNameFor(role)`; `invalid_model_name` otherwise. */
+export const modelNameSchemaFor = (role: AgentRole) =>
+  z
+    .string()
+    .trim()
+    .refine((name) => validModelNameFor(role, name), { message: 'invalid_model_name' });
 /** A model per role; an empty value means "not set here" and falls back. */
-const modelName = z
-  .string()
-  .trim()
-  .refine((name) => name === '' || validModelName(name), { message: 'invalid_model_name' });
+const modelNameOrEmpty = (role: AgentRole) =>
+  z
+    .string()
+    .trim()
+    .refine((name) => name === '' || validModelNameFor(role, name), {
+      message: 'invalid_model_name',
+    });
 const modelsByRole = z.object(
-  Object.fromEntries(AGENT_ROLES.map((role) => [role, modelName.optional()])) as Record<
-    AgentRole,
-    z.ZodOptional<typeof modelName>
-  >,
+  Object.fromEntries(
+    AGENT_ROLES.map((role) => [role, modelNameOrEmpty(role).optional()]),
+  ) as Record<AgentRole, z.ZodOptional<ReturnType<typeof modelNameOrEmpty>>>,
 );
 
 export const SensitivePatternSchema = z.object({
@@ -230,9 +246,9 @@ export type RoleModels = Partial<Record<AgentRole, string>>;
 
 /** Model settings per role, as Settings → Models saves them: every name must pass validation. */
 export const RoleModelsSchema = z.object(
-  Object.fromEntries(AGENT_ROLES.map((role) => [role, ModelNameSchema])) as Record<
+  Object.fromEntries(AGENT_ROLES.map((role) => [role, modelNameSchemaFor(role)])) as Record<
     AgentRole,
-    typeof ModelNameSchema
+    ReturnType<typeof modelNameSchemaFor>
   >,
 );
 

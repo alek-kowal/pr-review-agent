@@ -592,6 +592,8 @@ async function storeResultInTx(
       stageExecutionId: executionId,
       role: session.role,
       model: session.model,
+      provider: agent.provider ?? 'anthropic',
+      answeredModel: agent.answeredModel ?? null,
       inputTokens: agent.usage.inputTokens,
       outputTokens: agent.usage.outputTokens,
       cacheReadTokens: agent.usage.cacheReadTokens,

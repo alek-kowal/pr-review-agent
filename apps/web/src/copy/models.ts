@@ -31,8 +31,19 @@ export const models = {
   defaultOption: (model: string) => `${model} (default)`,
   other: 'Other model…',
   customPlaceholder: 'claude-…',
+  /** The judge's typed name may also be an OpenRouter model. */
+  customPlaceholderOpenRouter: 'claude-… or openrouter/vendor/model',
+  /** An OpenRouter model in the Select. */
+  openRouterOption: (model: string) => `${model} (OpenRouter)`,
   invalid:
     'Not a valid model name. Start with a letter or digit, then use letters, digits and . _ : @ [ ] - only (no spaces).',
+  invalidOpenRouter:
+    'Not a valid model name. Use a Claude model name, or an OpenRouter model as openrouter/vendor/model (letters, digits and . _ : @ - in each part).',
+  /** Under a role set to an OpenRouter model. */
+  openRouterNote:
+    'Runs on OpenRouter and is billed there (real spend). If OpenRouter fails, this round uses the Claude default instead.',
+  openRouterKeyMissing:
+    'OpenRouter access is not configured: OPENROUTER_API_KEY is not set. Until it is, every call falls back to the Claude default.',
   invalidSummary: 'Fix the model names marked below before saving.',
   overrideNote: (level: number, model: string) => `Level ${level} uses ${model}`,
   noOverrides: 'None',

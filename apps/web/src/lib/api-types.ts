@@ -644,7 +644,12 @@ export type RunStepStatus = 'done' | 'running' | 'failed' | 'queued' | 'off';
 export type RunSessionView = {
   id: number;
   role: string;
+  /** The model the run asked for. */
   model: string;
+  /** Where it ran (P-26); an `openrouter` cost is billed spend. */
+  provider: 'anthropic' | 'openrouter';
+  /** The model that actually answered, when the provider says. */
+  answeredModel: string | null;
   status: string;
   costUsd: number;
   costSource: string;
@@ -757,6 +762,8 @@ export type ModelsResponse = {
   defaults: Record<AgentRole, string>;
   /** Levels that set their own model for a role ("Level 6 uses claude-opus-5-5"). */
   overrides: { level: LevelNumber; role: AgentRole; model: string }[];
+  /** OpenRouter models (P-26): roles that may pick one, suggested ids, whether the key is set. */
+  openRouter: { roles: AgentRole[]; suggested: string[]; configured: boolean };
 };
 
 /** The settings a review level resolves to (core `LevelSettings`). */
