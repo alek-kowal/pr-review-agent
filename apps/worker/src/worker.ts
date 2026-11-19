@@ -1,8 +1,9 @@
-import { JOBS, type Db, type JobPayloads, type Queue } from '@pra/db';
-import type { Logger } from '@pra/integrations/logging';
+import { JOBS, type JobPayloads } from '@pra/db';
+import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
+import { handleGithubEvents } from './handlers/github-event.ts';
 import { handleSmoke } from './handlers/smoke.ts';
 
-export type WorkerDeps = { db: Db; queue: Queue; logger: Logger };
+export type { WorkerDeps, WorkerDepsInput };
 
 export type WorkerOptions = {
   /** How often each job handler polls for new jobs; pg-boss's default (and minimum 0.5) applies. */
@@ -16,9 +17,10 @@ export type RunningWorker = { stop: () => Promise<void> };
  * `pnpm db:migrate`. `stop()` waits for running jobs, then stops the queue.
  */
 export async function startWorker(
-  deps: WorkerDeps,
+  input: WorkerDepsInput,
   options: WorkerOptions = {},
 ): Promise<RunningWorker> {
+  const deps = withDefaults(input);
   const { queue, logger } = deps;
   // pg-boss rejects an explicit `undefined`, so the key is set only when given.
   const work =
@@ -29,6 +31,9 @@ export async function startWorker(
   queue.on('error', (error) => logger.error({ err: error }, 'queue error'));
   await queue.start();
   await queue.work<JobPayloads['smoke']>(JOBS.smoke, work, (jobs) => handleSmoke(deps, jobs));
+  await queue.work<JobPayloads['github.event']>(JOBS.githubEvent, work, (jobs) =>
+    handleGithubEvents(deps, jobs),
+  );
   logger.info({ jobs: Object.values(JOBS) }, 'worker started');
 
   return {
