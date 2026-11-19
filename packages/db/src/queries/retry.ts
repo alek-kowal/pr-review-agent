@@ -20,7 +20,7 @@ export type RetryRunResult =
 
 export type RetryRunOptions = {
   /** Runs in the transaction that inserts the retry (for example its timeline entry). */
-  inTransaction?: (tx: Executor, retry: Run, failedRun: Run, fromStage: string) => Promise<void>;
+  inTransaction?: (tx: Executor, retry: Run, failedRun: Run, fromStage: string) => Promise<unknown>;
 };
 
 type Inserted = { run: Run; failedRun: Run; fromStage: string };
