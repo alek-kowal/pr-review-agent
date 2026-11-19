@@ -1,17 +1,19 @@
 # P-22 handoff
 
-- Done: plan (`P-22-push-autofix-shadow/plan.md`, brief, change.md Decisions) and S-14-T1 (8fafa59).
-- Partial: S-14-T2 (00aade6). Core `canPush` + `push-rule.test.ts` pass. Migration
-  `0025_patch_push.sql` (patches.pushed_sha/pushed_at/push_refusal); job `patch.push`
-  (`sendPushJob`, exclusive per patch); worker `apps/worker/src/run/push.ts` registered in worker.ts.
-- S-14-T2 fix needed: `apps/worker/test/push-job.test.ts` fails in `readyPatch()`: the bare clone has
-  branch `feature`, which clashes with `feature/edge-labels`. Run `git update-ref -d refs/heads/feature`
-  on the bare before creating the PR branch, then make the 4 cases pass, run prettier, record T2
-  decisions in change.md (codes lower snake_case; signer field `signedBy`; timeline kinds
-  `patch_pushed` / `autofix_pushed` / `patch_push_refused`; no head_changes row, `expectOwnFix`
-  on the latest chain), then commit `feat(S-14-T2)`.
-- Left: S-14-T3, T4, T5, S-15-T1, T2, T3, T5, S-19-T9. Follow `plan.md` phases 3–10.
-- Know: write files only with Write/Edit (no python/sed). Worker tests: no `execa` dep, use
-  `node:child_process`. The commit date is `patch.createdAt` (retry gives the same SHA). The bot
-  can't sign decisions yet (S-15-T1 makes `decision_batches.signed_by` nullable + `actor`).
-  e2e `LEARNING_REPOSITORY` is level 6, so autofix (≥5) may affect its spec.
+- Done: S-14-T1 (8fafa59), T2 (8a8651b), T3 (558a9ac), T4 (02b56fb), T5 (92ca534). Main (with the
+  P-18 review) merged in d6193d3; review items O1/O3/O6/O9 recorded in change.md (O3 applied:
+  `canPush` refuses `pr_closed`). `pnpm verify` green (1494 tests), full `pnpm test:e2e` 77 passed.
+- Left: S-15-T1 (not started, nothing uncommitted), S-15-T2, T3, T5, S-19-T9. Follow `plan.md`
+  phases 6–10; Progress boxes 1.1–5.1 are ticked.
+- S-15-T1 starting points: core `autofixDecision` / `pushByItself` and reason codes in
+  `packages/core/src/autofix.ts`, `reasons/autofix.ts`; `DEFAULT_AUTOFIX_MAX_PATCHES` and level 5
+  `autofixMaxPatches` in `levels.ts`. Add `autofixCheck(point, input)` (act ≥5, shadow 3–4, off
+  below; push adds fork + per-chain cap), the two tables (`pnpm db:generate --name autofix`), and
+  bot-signed decisions (`decision_batches.signed_by` nullable + `actor`, left join in
+  `currentDecisions`).
+- Know: push job `handlePatchPush` (`apps/worker/src/run/push.ts`) with `signedBy: null` = autofix
+  push (`autofix_pushed` timeline kind); queue it with `sendPushJob(queue, patchId, null)`.
+- e2e: `push-repo` (level 4, PRs 265–267) has a bare remote, git-compare and green CI in
+  `StackGitHub`; the sandbox double treats committed `// Fixed:` lines as patched; the
+  implementer hold skips the push repo. Autofix e2e needs its own repos (level 5, level 3).
+- Write files only with Write/Edit (no sed/heredocs). Worker tests: `node:child_process`.
