@@ -177,7 +177,7 @@ the durability test uses a child process. API tests use `apps/api/test/helper.ts
 
 ### Phase 6: Nothing stuck after a restart
 
-- [ ] 6.1 `pnpm --filter @pra/worker test durability.test.ts` passes
+- [x] 6.1 `pnpm --filter @pra/worker test durability.test.ts` passes
 
 ### Phase 7: End-to-end retry and cancel
 

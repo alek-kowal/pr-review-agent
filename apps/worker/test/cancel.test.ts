@@ -213,7 +213,8 @@ test('a cancelled queued run never calls AgentRunner and its stage jobs are gone
   await vi.waitFor(async () =>
     expect(await getRun(deps.db, run.id)).toMatchObject({ status: 'cancelled' }),
   );
-  expect(await queuedJobs(run.id)).toHaveLength(0);
+  // The jobs are deleted right after the status commit.
+  await vi.waitFor(async () => expect(await queuedJobs(run.id)).toHaveLength(0));
   // A stage job that slipped through does nothing.
   expect(['cancelled', 'not_next']).toContain(await executeStage(deps, run.id, 'review'));
   expect(deps.agentRunner.calls).toHaveLength(calls);
