@@ -55,9 +55,9 @@ test('the report lists each step; a failed or timed-out container step fails the
     { name: 'store links (host)', exitCode: null, timedOut: false, wallMs: 4_100, peakBytes: null },
   ];
   const text = formatReport({ header: 'Runtime runc', steps, diskBytes: 30 * 1024 ** 2 });
-  expect(text).toContain('fetch    0        2 min 03 s  800 MiB');
-  expect(text).toContain('install  timeout  15 min 00 s -');
-  expect(text).toContain('store links (host)  -  4.1 s');
+  expect(text).toContain('fetch               0        2 min 03 s   800 MiB');
+  expect(text).toContain('install             timeout  15 min 00 s  -');
+  expect(text).toContain('store links (host)  -        4.1 s        -');
   expect(text).toContain('disk used by fetch and install: 30 MiB');
   expect(benchFailed(steps)).toBe(true);
   expect(benchFailed([steps[0]!, steps[2]!])).toBe(false);

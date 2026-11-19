@@ -11,12 +11,8 @@ import {
   INSTALL_ENV,
   sandboxRuntimeFrom,
   type InstallCommands,
-  type Sandbox,
-  type SandboxResult,
-  type SandboxRunSpec,
 } from '@pra/integrations';
-import { execFile, spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { mkdir, rm, statfs } from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,10 +22,10 @@ import {
   benchFailed,
   formatReport,
   githubFullNameOf,
-  memUsageBytes,
   parseBenchArgs,
   type BenchStep,
 } from '../bench/bench.ts';
+import { MeasuringSandbox } from '../bench/measuring-sandbox.ts';
 import { workerLimitsFromEnv } from '../limits.ts';
 
 const exec = promisify(execFile);
@@ -76,13 +72,12 @@ if (args.ref) await exec('git', ['-C', clone, 'checkout', '--quiet', '--detach',
 const sha = (await exec('git', ['-C', clone, 'rev-parse', '--short', 'HEAD'])).stdout.trim();
 
 const docker = new DockerSandbox({ dockerHost: process.env.SANDBOX_DOCKER_HOST, runtime });
-const measured = new MeasuringSandbox(docker);
+const measured = new MeasuringSandbox(docker, dockerEnv);
 const used = await docker.runtime().catch((error: unknown) => fail((error as Error).message));
 const { cpus, memoryMb, pids } = profile.install;
 write(`Benchmarking ${name} @ ${sha} in ${clone}\n`);
 
 const steps: BenchStep[] = [];
-let diskBytes: number | null = null;
 try {
   const before = await freeBytes(benchRoot);
   const started = Date.now();
@@ -97,7 +92,7 @@ try {
   });
   const total = Date.now() - started;
   const after = await freeBytes(benchRoot);
-  diskBytes = before !== null && after !== null ? before - after : null;
+  const diskBytes = before !== null && after !== null ? before - after : null;
   steps.push(...measured.steps);
   if (profile.sharedStore && result.install) {
     const host = total - measured.steps.reduce((sum, step) => sum + step.wallMs, 0);
@@ -180,82 +175,4 @@ async function freeBytes(dir: string): Promise<number | null> {
   } catch {
     return null;
   }
-}
-
-/**
- * Runs each container through the real sandbox, timing it and sampling its memory with
- * `docker stats` about once a second (found by a label of its own).
- */
-class MeasuringSandbox implements Sandbox {
-  names: string[] = [];
-  steps: BenchStep[] = [];
-  lastFailed: Array<{ name: string; tail: string }> = [];
-  readonly #inner: Sandbox;
-
-  constructor(inner: Sandbox) {
-    this.#inner = inner;
-  }
-
-  async run(spec: SandboxRunSpec): Promise<SandboxResult> {
-    const name = this.names[this.steps.length] ?? `step ${this.steps.length + 1}`;
-    const label = randomUUID();
-    const sampler = sampleMemory(label);
-    const started = Date.now();
-    try {
-      const result = await this.#inner.run({
-        ...spec,
-        labels: { ...spec.labels, 'pra.bench': label },
-      });
-      this.steps.push({
-        name,
-        exitCode: result.exitCode,
-        timedOut: result.timedOut,
-        wallMs: Date.now() - started,
-        peakBytes: sampler.peak(),
-      });
-      if (result.exitCode !== 0) this.lastFailed.push({ name, tail: result.outputTail });
-      return result;
-    } finally {
-      sampler.stop();
-    }
-  }
-}
-
-function sampleMemory(label: string): { peak: () => number | null; stop: () => void } {
-  let peak: number | null = null;
-  let stopped = false;
-  let stats: ReturnType<typeof spawn> | undefined;
-  const find = async () => {
-    while (!stopped && !stats) {
-      const { stdout } = await exec(
-        'docker',
-        ['ps', '--quiet', '--filter', `label=pra.bench=${label}`],
-        { env: dockerEnv },
-      ).catch(() => ({ stdout: '' }));
-      const id = stdout.trim().split('\n')[0];
-      if (id && !stopped) {
-        stats = spawn('docker', ['stats', '--format', '{{.MemUsage}}', id], {
-          env: dockerEnv,
-          stdio: ['ignore', 'pipe', 'ignore'],
-        });
-        stats.stdout?.on('data', (chunk: Buffer) => {
-          // The stream redraws the screen; each value sits on its own line.
-          for (const line of chunk.toString('utf8').split(/[\r\n]+/)) {
-            const bytes = memUsageBytes(line.replace(/\x1b\[[0-9;]*[A-Za-z]/g, ''));
-            if (bytes !== null) peak = Math.max(peak ?? 0, bytes);
-          }
-        });
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-  };
-  void find();
-  return {
-    peak: () => peak,
-    stop: () => {
-      stopped = true;
-      stats?.kill();
-    },
-  };
 }
