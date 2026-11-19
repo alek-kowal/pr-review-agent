@@ -135,3 +135,12 @@ Work package P-02 from `context/foundation/work-packages.md`: roadmap item F-03
 - `actionNeededOrder` is a comparator over `ACTION_NEEDED_ORDER`.
 - `PrSnapshot` arrays that core only reads are `readonly` where tests needed it
   (`SensitiveFiles.files`).
+- T13: `checklist(pr)` returns `{ ok, items }`; each item is `{ item, ok, reason }` with keys from
+  `CHECKLIST_ITEMS` and `checklist_*` codes for both passing and failing rows, so the web can show
+  "all green" and the per-row "why". The review item checks, in the prototype's order: no review
+  (or a round running on an unreviewed PR), commits after the review, a running round, the last
+  round failed, a fix pushed after the review (`reviewedSha !== headSha` with no new commits).
+  Only a running `round` run counts as "a round running"; a queued round passes this item (the
+  queued state keeps the checklist red), and trials and the analyst never count. CI: no checks
+  fails (`checklist_ci_none`); a failed check wins over a running one (`conclusion: null`).
+  `ok` also needs `prState === 'ready_to_merge'`, so a waiting patch or a queued run keeps it red.
