@@ -69,7 +69,10 @@ const webhooks: FastifyPluginAsyncZod = async (fastify) => {
         }
         throw error;
       }
-      if (!verified) return sendError(reply, 401, ApiErrorCode.WebhookSignatureInvalid);
+      if (!verified) {
+        fastify.signatureFailures.record();
+        return sendError(reply, 401, ApiErrorCode.WebhookSignatureInvalid);
+      }
 
       const deliveryId = headers['x-github-delivery'] ?? '';
       const event = headers['x-github-event'] ?? '';

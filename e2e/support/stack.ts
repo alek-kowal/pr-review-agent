@@ -104,6 +104,8 @@ await importInstructionV1(db, {
   content: '# Review rules\n\nReport real problems only.\n',
 });
 
+// One ClickUp double for the api and the worker, like one key on one server.
+const clickup = new FakeClickUpGateway();
 const worker = await startWorker(
   {
     db,
@@ -119,12 +121,12 @@ const worker = await startWorker(
     agentRunner: new ScriptedReviewer(),
     judge: new FakeJudge(),
     sandbox: new FakeSandbox(),
-    clickup: new FakeClickUpGateway(),
+    clickup,
     dataDir: path.join(root, 'data'),
   },
   { pollingIntervalSeconds: 0.5 },
 );
-const api = await buildServer({ db, queue, github, blobStore }, { logger: false });
+const api = await buildServer({ db, queue, github, blobStore, clickup }, { logger: false });
 await api.listen({ port: API_PORT, host: 'localhost' });
 
 const state: StackState = {

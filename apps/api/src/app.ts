@@ -1,9 +1,10 @@
 import * as path from 'node:path';
 import AutoLoad, { type AutoloadPluginOptions } from '@fastify/autoload';
 import type { Db, Queue } from '@pra/db';
-import type { BlobStore, GitHubGateway } from '@pra/integrations';
+import type { BlobStore, ClickUpGateway, GitHubGateway } from '@pra/integrations';
 import { type FastifyPluginAsync } from 'fastify';
 import { fileURLToPath } from 'node:url';
+import { SignatureFailures } from './integrations/signature-failures.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +21,8 @@ export type AppDeps = {
   github: GitHubGateway;
   /** Raw webhook payloads. */
   blobStore: BlobStore;
+  /** Settings → Integrations checks the key with it (`whoAmI`). */
+  clickup: ClickUpGateway;
 };
 
 export type AppOptions = AppDeps & Partial<AutoloadPluginOptions>;
@@ -27,13 +30,16 @@ export type AppOptions = AppDeps & Partial<AutoloadPluginOptions>;
 declare module 'fastify' {
   interface FastifyInstance {
     deps: AppDeps;
+    /** Webhook deliveries refused for their signature, for Settings → Integrations. */
+    signatureFailures: SignatureFailures;
   }
 }
 
 const app: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
-  const { db, queue, github, blobStore, ...autoloadOptions } = opts;
+  const { db, queue, github, blobStore, clickup, ...autoloadOptions } = opts;
   // Decorated before the plugins and routes load, so all of them see it.
-  fastify.decorate('deps', { db, queue, github, blobStore });
+  fastify.decorate('deps', { db, queue, github, blobStore, clickup });
+  fastify.decorate('signatureFailures', new SignatureFailures());
 
   // Support plugins reused across the application.
   void fastify.register(AutoLoad, {

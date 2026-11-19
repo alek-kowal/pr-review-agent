@@ -86,7 +86,7 @@ describe('Checks stage', () => {
       status: 'pending',
     });
 
-    // Task is not next: the stage job for it does nothing while Checks is pending.
+    // Task is not next: the stage job for it only sends the Checks job again (as for a lost send).
     expect(await executeStage(deps, run.id, 'task')).toBe('not_next');
     expect(await executeStage(deps, run.id, 'checks')).toBe('succeeded');
 
@@ -105,7 +105,7 @@ describe('Checks stage', () => {
     expect(await deps.blobStore.get(output.install.logBlobKey!)).toBeTruthy();
 
     const next = await jobsWhere(deps.db, 'run.stage', 'runId', run.id);
-    expect(next.map((job) => job.data.stage)).toEqual(['task']);
+    expect(next.map((job) => job.data.stage).sort()).toEqual(['checks', 'task']);
     expect((await getRun(deps.db, run.id))!.status).toBe('running');
   });
 

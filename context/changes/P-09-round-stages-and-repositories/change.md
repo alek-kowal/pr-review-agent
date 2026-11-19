@@ -155,3 +155,42 @@ listed order.
   repository up on every event. The api test checks the delivery is stored and queued for the new
   repository; `github-event.test.ts` checks the worker then creates its PR row with the same deps.
   There is no reconcile poll yet, so nothing to change there.
+
+### Merge of `main` (P-08 and P-05 review fixes)
+
+- No migration clash (main has 0000–0005; ours are 0006–0007).
+- Main stops a stage at the next step after the stage timeout (`signal.throwIfAborted()` after the
+  fetch). Our review stage checks its worktree out through `runWorktree`, so the check moved
+  there (`WorktreeContext.signal`, optional): every stage that checks out the worktree gets it.
+- Main's `executeStage` sends the next stage's job again on a repeated or early job. Two of our
+  tests now expect that: the Checks test sees a resent `checks` job next to `task`, and the
+  "repeated job" run test sees Verify run (and stop with `verifier_instructions_missing`, as it
+  seeds no verifier instructions) instead of `stage_not_available`.
+
+### S-20-T6 (Integrations status API)
+
+- `AppDeps` gains `clickup: ClickUpGateway` (`createClickUpGateway()` in `main.ts`; the api
+  test helper and the e2e stack pass a `FakeClickUpGateway`, one instance shared by api and
+  worker in the stack). Both gateways expose `missingEnv`; "configured" means it is empty. No
+  call is made to GitHub while its env is missing, so "not configured" is never a fake success.
+- `GET /api/settings/integrations`: GitHub installations are grouped from
+  `listAccessibleRepositories` (id, account, repository count); a listing error is returned as
+  `listError {code, params}` next to the rest. Deliveries come from `github_events`
+  (`githubDeliveryStats`: the newest row and the count since now − 24 h).
+  `lastReconcilePoll` is always null: no reconcile poll exists yet.
+- Signature failures are counted in memory (`SignatureFailures`, decorated on the app, bumped on
+  the webhook's 401). On purpose: an unauthenticated request never writes to the database. The
+  count restarts with the api; the cap is 10 000 entries in the last 24 h.
+- ClickUp "last call" is the newest finished Task stage attempt that reached ClickUp
+  (`lastClickUpCall`: failed, or succeeded with an output status other than `not_configured`).
+  A failed one reports its `errorCode`; there is no separate ClickUp call log.
+- `POST /clickup/test` always answers 200 with `{ok: true, user}` or
+  `{ok: false, error: {code, params}}` (for example `clickup_auth_failed`,
+  `clickup_not_configured` with `missing`): the result of the test is data, not an api error.
+  "Error text" in the task means this reason code; the web maps it to copy.
+- `PUT /api/settings/integrations` takes `{afterRoundGithubComment, before?, signedBy}` and goes
+  through `applySignedSettingsChange` with `integrationsStore` (area `integrations`, entity
+  `app`). Its value is only the area's own fields of `app_settings`, so the logged change shows
+  just them; the write merges into the locked app settings row.
+- The route test uses its own database (`createTestDatabase`): delivery counts and the app
+  settings row are global, and other api test files share theirs.

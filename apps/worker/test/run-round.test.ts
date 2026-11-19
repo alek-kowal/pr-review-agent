@@ -314,10 +314,11 @@ describe('run.stage', () => {
 
     expect(await executeStage(deps, run.id, 'review')).toBe('not_next');
 
-    // The worker takes the job; Verify has no executor in this package.
+    // The worker takes the job; Verify runs and stops, since this test seeds no verifier
+    // instructions.
     expect((await settled(run.id)).status).toBe('failed');
     const verify = (await stagesOf(run.id)).find((s) => s.stage === 'verify');
-    expect(verify).toMatchObject({ status: 'failed', errorCode: 'stage_not_available' });
+    expect(verify).toMatchObject({ status: 'failed', errorCode: 'verifier_instructions_missing' });
   });
 
   test('with the real adapter and no key the run fails with model_access_not_configured', async () => {

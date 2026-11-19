@@ -2,7 +2,7 @@
 import { closeDb, createDb, createQueue } from '@pra/db';
 import { testDatabaseUrl } from '@pra/db/testing';
 import { LocalBlobStore } from '@pra/integrations';
-import { FakeGitHubGateway } from '@pra/integrations/testing';
+import { FakeClickUpGateway, FakeGitHubGateway } from '@pra/integrations/testing';
 import type { FastifyInstance } from 'fastify';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,10 +11,11 @@ import { onTestFinished } from 'vitest';
 import type { AppDeps } from '../src/app.ts';
 import { buildServer } from '../src/server.ts';
 
-/** `FakeGitHubGateway` and a blob store in a fresh temp dir, for deps a test does not pass. */
-function testDoubles(): Pick<AppDeps, 'github' | 'blobStore'> {
+/** The gateway fakes and a blob store in a fresh temp dir, for deps a test does not pass. */
+function testDoubles(): Pick<AppDeps, 'github' | 'blobStore' | 'clickup'> {
   return {
     github: new FakeGitHubGateway(),
+    clickup: new FakeClickUpGateway(),
     blobStore: new LocalBlobStore(mkdtempSync(path.join(tmpdir(), 'pra-api-blobs-'))),
   };
 }
