@@ -1,0 +1,9 @@
+# P-15 handoff
+
+- Plan and decisions: `context/changes/P-15-retry-cancel-stage-outputs/` (plan.md, change.md). Read change.md first.
+- Done: S-09-T1 (ceb14cb): `retryRun` in `packages/db/src/queries/retry.ts`, `runStateOf` moved to `@pra/db` (`queries/run-state.ts`), migrations 0014 (retry/cancel columns) and 0015 (`runs.retry_from`); `run.stage` jobs `retryLimit: 0`, expiry per stage timeout via `sendStageJob(..., run)`.
+- Partial S-09-T2 (e14733e, not verified, lint/typecheck not run): `POST /api/runs/:id/retry` and Run detail fields (`stages[].reused`, `run.retryOf/retryFrom/retriedBy`) in `apps/api/src/routes/api/runs/index.ts`; `ApiErrorCode.RunNotFailed/RunFinished`; PR-state loader sets `activeRun.retryFrom` and `failedRound.timeoutMinutes`.
+- Left for T2: `apps/api/test/routes/retry-route.test.ts` (use `seedRound(..., {failedAt})` + started queue, as `start-review.test.ts`); web: `retry` entry in `MAIN_ACTIONS` (`apps/web/src/features/pr/slots.ts`, run id = `view.latestRound.id`), reused mark and failed-run cost in `features/runs/StageList.tsx`/`RunPage.tsx`, copy (timeline `run_retried`, errors `run_not_failed`/`run_finished`, `interrupted_by_restart`), api-types; tests `retry-banner.test.tsx`, `run-detail-reused.test.tsx`. Then `pnpm verify`, squash nothing, commit T2.
+- Left: S-09-T3–T7, S-03-T14, S-04-T6, S-04-T7 as planned in plan.md (cancel columns already exist: `cancel_requested_at`, `cancelled_by`, `cancelled_by_member_id`, `cancel_reason`).
+- Know: `pnpm install` was needed in this worktree. Edit files only with Edit/Write (sed -i is blocked). `stageExecutionsOfRun` is not in plan order. Reviewer test severities are `blocker|should|nit`.
+- At the end: `git merge main`; if main has a 0014/0015 migration, delete ours (0014_retry_cancel, 0015_retry_from + snapshots/journal entries) and run `pnpm db:generate --name retry_cancel` once.
