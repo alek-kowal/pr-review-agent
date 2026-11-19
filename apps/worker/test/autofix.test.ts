@@ -10,9 +10,11 @@ import {
   getRun,
   insertFindings,
   insertRun,
+  insertStageExecution,
   recordAutofixAttempt,
   runWaitsOf,
   schema,
+  setForcedChangeType,
   shadowOfPr,
   storePatchRevision,
   writeAppSettings,
@@ -314,6 +316,108 @@ describe('autofix at level 5', () => {
       await writeAppSettings(deps.db, DEFAULT_APP_SETTINGS);
     }
   });
+
+  test('a PR lowered below level 5 after its round started gets the shadow, not a run', async () => {
+    const pr = await reviewedPr(5);
+    await deps.db
+      .update(schema.pullRequests)
+      .set({ level: 4 })
+      .where(eq(schema.pullRequests.id, pr.pullRequest.id));
+
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+
+    expect((await runsOf(pr.pullRequest.id)).map((r) => r.kind)).toEqual(['round']);
+    expect(await autofixAttemptsOfPr(deps.db, pr.pullRequest.id)).toEqual([]);
+    expect(await shadowOfPr(deps.db, pr.pullRequest.id)).toEqual([
+      expect.objectContaining({ point: 'start', decision: 'would_start', level: 4 }),
+    ]);
+  });
+
+  test("a person's edit, or a lowered level, before the push job stops the bot's push", async () => {
+    const pr = await reviewedPr(5);
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    const [queued] = (await runsOf(pr.pullRequest.id)).filter((r) => r.kind === 'implementer');
+    const { implementer, patch } = await completeImplementer(pr, queued!, 'src/edited.ts');
+    await autofixOnPatchReady(hookContext(pr, implementer));
+    expect(await jobsWhere(deps.db, 'patch.push', 'patchId', patch.id)).toHaveLength(1);
+    const before = pushCalls();
+
+    // A person edits a file meanwhile: the patch check runs its reproductions again.
+    await deps.db
+      .update(schema.patches)
+      .set({ checking: true })
+      .where(eq(schema.patches.id, patch.id));
+    expect(await handlePatchPush(deps, { patchId: patch.id, signedBy: null })).toEqual({
+      pushed: false,
+      reason: reason('autofix_patch_edited'),
+    });
+
+    await deps.db
+      .update(schema.patches)
+      .set({ checking: false })
+      .where(eq(schema.patches.id, patch.id));
+    await deps.db
+      .update(schema.pullRequests)
+      .set({ level: 4 })
+      .where(eq(schema.pullRequests.id, pr.pullRequest.id));
+    expect(await handlePatchPush(deps, { patchId: patch.id, signedBy: null })).toEqual({
+      pushed: false,
+      reason: reason('autofix_level_lowered', { level: 4 }),
+    });
+    expect(pushCalls() - before).toBe(0);
+    expect(await git(pr.bare, 'rev-parse', `refs/heads/${pr.branch}`)).toBe(fixture.headSha);
+  });
+
+  test("a person's forced One-way door holds autofix over the round's own change type", async () => {
+    const pr = await reviewedPr(5);
+    await insertStageExecution(deps.db, {
+      runId: pr.round.id,
+      stage: 'change_type',
+      status: 'succeeded',
+      output: { changeType: 'changes_behaviour' },
+    });
+    await setForcedChangeType(deps.db, pr.pullRequest.id, 'one_way_door');
+
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+
+    const kinds = (await runsOf(pr.pullRequest.id)).map((r) => r.kind);
+    expect(kinds).not.toContain('implementer');
+    expect((await autofixAttemptsOfPr(deps.db, pr.pullRequest.id)).at(-1)).toMatchObject({
+      point: 'start',
+      outcome: 'waiting',
+      reasons: [reason('one_way_door_hold')],
+    });
+  });
+
+  test('a pause after the autofix run started pushes nothing, at patch ready or in the job', async () => {
+    const pr = await reviewedPr(5);
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    const [queued] = (await runsOf(pr.pullRequest.id)).filter((r) => r.kind === 'implementer');
+    const { implementer, patch } = await completeImplementer(pr, queued!, 'src/paused.ts');
+    const before = pushCalls();
+    await writeAppSettings(deps.db, {
+      ...DEFAULT_APP_SETTINGS,
+      paused: true,
+      pausedReason: 'release freeze',
+    });
+    try {
+      await autofixOnPatchReady(hookContext(pr, implementer));
+      expect(await jobsWhere(deps.db, 'patch.push', 'patchId', patch.id)).toEqual([]);
+      expect((await autofixAttemptsOfPr(deps.db, pr.pullRequest.id)).at(-1)).toMatchObject({
+        point: 'push',
+        outcome: 'waiting',
+        reasons: [reason('autofix_paused')],
+      });
+
+      // A push job queued before the pause checks it again.
+      const outcome = await handlePatchPush(deps, { patchId: patch.id, signedBy: null });
+      expect(outcome).toEqual({ pushed: false, reason: reason('autofix_paused') });
+      expect(pushCalls() - before).toBe(0);
+      expect(await git(pr.bare, 'rev-parse', `refs/heads/${pr.branch}`)).toBe(fixture.headSha);
+    } finally {
+      await writeAppSettings(deps.db, DEFAULT_APP_SETTINGS);
+    }
+  });
 });
 
 describe('the shadow below level 5', () => {
@@ -335,5 +439,56 @@ describe('the shadow below level 5', () => {
       }),
     ]);
     expect(await currentDecisions(deps.db, [pr.findings[0]!.id])).toEqual(new Map());
+  });
+
+  /** A person's implementer run at level 4, completed with a passing patch. */
+  async function personsPatch(pr: Reviewed, file: string) {
+    const implementer = await insertRun(
+      deps.db,
+      aRun(pr.pullRequest.id, {
+        kind: 'implementer',
+        roundNo: null,
+        chainId: null,
+        status: 'running',
+        trigger: 'manual',
+        levelNumber: 4,
+        headSha: fixture.headSha,
+      }),
+    );
+    return completeImplementer(pr, implementer, file);
+  }
+
+  test("a person's passing patch writes would_push when level 5 would have started", async () => {
+    const pr = await reviewedPr(4);
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    const { implementer, patch } = await personsPatch(pr, 'src/shadow.ts');
+
+    await autofixOnPatchReady(hookContext(pr, implementer));
+
+    expect(await jobsWhere(deps.db, 'patch.push', 'patchId', patch.id)).toEqual([]);
+    expect((await shadowOfPr(deps.db, pr.pullRequest.id)).at(-1)).toMatchObject({
+      point: 'push',
+      decision: 'would_push',
+      patchId: patch.id,
+    });
+  });
+
+  test('a passing patch after a held start stays would_wait with the start reason', async () => {
+    const pr = await reviewedPr(4);
+    await setForcedChangeType(deps.db, pr.pullRequest.id, 'one_way_door');
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    const { implementer, patch } = await personsPatch(pr, 'src/held.ts');
+
+    await autofixOnPatchReady(hookContext(pr, implementer));
+
+    expect((await shadowOfPr(deps.db, pr.pullRequest.id)).map((e) => e.decision)).toEqual([
+      'would_wait',
+      'would_wait',
+    ]);
+    expect((await shadowOfPr(deps.db, pr.pullRequest.id)).at(-1)).toMatchObject({
+      point: 'push',
+      patchId: patch.id,
+      reasons: [reason('one_way_door_hold')],
+    });
   });
 });

@@ -18,6 +18,7 @@ export {
   type GitExec,
   type GitIdentity,
   type GitMirror,
+  type PatchCommitInput,
   type PushPatchInput,
   type PushPatchResult,
 } from './git-mirror.ts';

@@ -23,6 +23,7 @@ import { resendLostFollowUps } from '../handlers/clickup-follow-up.ts';
 import { finishCancel, finishRequestedCancels } from './cancel.ts';
 import { afterTransition } from './execute-stage.ts';
 import { interruptRunningStage } from './interrupt.ts';
+import { autofixOnPatchReady } from './autofix.ts';
 import { storePatchOnCompleted } from './patches.ts';
 import { sendStageJob } from './jobs.ts';
 import { runStateOf } from './state.ts';
@@ -140,6 +141,9 @@ export async function resendLostJobs(
     const found = await getRunContext(db, runId);
     if (!found) continue;
     await storePatchOnCompleted({ deps, ...found });
+    // The hooks after it did not see the patch either: the bot's own patch is pushed, or waits
+    // with its reason, and a person's patch gets its shadow entry.
+    await autofixOnPatchReady({ deps, ...found });
     result.patches.push(runId);
   }
 

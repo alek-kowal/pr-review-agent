@@ -1,5 +1,5 @@
 import { execa } from 'execa';
-import { mkdtemp, readdir, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -89,6 +89,17 @@ describe('pushPatch', () => {
 
   it('refuses with head_moved when the branch moved, leaving the remote unchanged', async () => {
     const { mirror: m } = mirror(path.join(root, 'two'));
+    // A person pushed on top of the PR head; this test does not rely on another test's push.
+    const theirs = await git(
+      bare,
+      'commit-tree',
+      `${fixture.headSha}^{tree}`,
+      '-p',
+      fixture.headSha,
+      '-m',
+      'their commit',
+    );
+    await git(bare, 'update-ref', 'refs/heads/feature', theirs);
     await m.fetch('acme/widgets', TOKEN);
     const before = await git(bare, 'rev-parse', 'refs/heads/feature');
 
@@ -121,9 +132,12 @@ describe('pushPatch', () => {
     const head = await git(bare, 'rev-parse', 'refs/heads/feature');
     const patch = input({ baseSha: head, files: [{ path: 'retry.txt', content: 'same\n' }] });
 
+    const built = await m.patchCommit(patch);
+    expect(await git(bare, 'rev-parse', 'refs/heads/feature')).toBe(head);
     const first = await m.pushPatch(patch);
     const second = await m.pushPatch(patch);
 
+    expect(first).toEqual({ ok: true, sha: built });
     expect(second).toEqual(first);
     expect(await git(bare, 'rev-list', '--count', `${head}..refs/heads/feature`)).toBe('1');
   });
@@ -160,5 +174,25 @@ describe('pushPatch', () => {
     ).rejects.toThrow(/inside the repository/);
     expect(await readdir(outside)).toEqual([]);
     await rm(outside, { recursive: true, force: true });
+  });
+
+  it('reports remote_rejected when the remote declines the push (a protected branch)', async () => {
+    const declined = path.join(root, 'declined.git');
+    await execa('git', ['clone', '--quiet', '--bare', fixture.dir, declined], {
+      env: ISOLATED_GIT_ENV,
+    });
+    const hook = '#!/bin/sh\necho "GH013: Commits must have verified signatures." >&2\nexit 1\n';
+    await writeFile(path.join(declined, 'hooks', 'pre-receive'), hook, { mode: 0o755 });
+    const m = new CliGitMirror({
+      rootDir: path.join(root, 'seven'),
+      remoteUrl: () => declined,
+      exec: isolatedGitExec,
+    });
+    await m.fetch('acme/widgets', TOKEN);
+
+    const result = await m.pushPatch(input({ files: [{ path: 'signed.txt', content: 's\n' }] }));
+
+    expect(result).toEqual({ ok: false, reason: 'remote_rejected' });
+    expect(await git(declined, 'rev-parse', 'refs/heads/feature')).toBe(fixture.headSha);
   });
 });

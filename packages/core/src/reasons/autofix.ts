@@ -19,5 +19,9 @@ declare module '../reason.ts' {
     patch_touches_sensitive: { path: string; pattern: string };
     /** A finding autofix was about to decide changed meanwhile (someone decided it). */
     autofix_findings_changed: NoParams;
+    /** The PR's level is now below 5: someone lowered it after the autofix run started. */
+    autofix_level_lowered: { level: number };
+    /** A person edited or reverted a file of the bot's patch: they push it, signed. */
+    autofix_patch_edited: NoParams;
   }
 }

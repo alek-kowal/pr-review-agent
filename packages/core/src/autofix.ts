@@ -1,10 +1,12 @@
 import './reasons/autofix.ts';
+import './reasons/rounds.ts';
 import type { SensitivePattern } from './change-type.ts';
 import { needsDecision } from './findings.ts';
 import { DEFAULT_AUTOFIX_MAX_PATCHES, FEATURE_ON_FROM } from './levels.ts';
 import { matchSensitiveFiles } from './limits.ts';
 import type { Finding } from './model.ts';
 import { reason, type Reason } from './reason.ts';
+import { MAX_CHAIN_ROUNDS } from './rounds.ts';
 import type { ChangeType, LevelNumber } from './vocabulary.ts';
 
 export interface AutofixInput {
@@ -22,6 +24,11 @@ export interface AutofixInput {
   autoPatchesInChain: number;
   /** N, the only editable condition (level 5 setting); 2 by default. */
   maxAutoPatches?: number;
+  /**
+   * Completed rounds in this chain, the deciding one included. At `MAX_CHAIN_ROUNDS` no fix check
+   * would review a pushed patch, so autofix starts none, whatever N allows.
+   */
+  chainRounds: number;
 }
 
 export interface AutofixDecision {
@@ -62,6 +69,9 @@ export function autofixDecision(input: AutofixInput): AutofixDecision {
   }
   if (input.autoPatchesInChain >= max) {
     holds.push(reason('auto_patches_used', { used: input.autoPatchesInChain, max }));
+  }
+  if (input.chainRounds >= MAX_CHAIN_ROUNDS) {
+    holds.push(reason('rounds_used', { used: input.chainRounds, max: MAX_CHAIN_ROUNDS }));
   }
   if (input.paused) holds.push(reason('autofix_paused'));
   if (input.budgetReached) holds.push(reason('autofix_budget_reached'));
@@ -129,10 +139,18 @@ export interface AutofixPushInput {
   patch: PatchResult;
   /** The PR head right now. */
   headSha: string;
+  /** The PR's level right now; `level` is the one frozen for the implementer run. */
+  prLevel: LevelNumber;
   sensitivePatterns?: readonly SensitivePattern[];
   /** Automatic patches made in this chain before this one. */
   autoPatchesInChain: number;
   maxAutoPatches?: number;
+  /**
+   * The agent is paused, or today's budget is reached, right now. A pause or a budget stops the
+   * bot's own push too (a release freeze), although the implementer run it started may finish.
+   */
+  paused: boolean;
+  budgetReached: boolean;
 }
 
 export interface AutofixCheck {
@@ -178,6 +196,11 @@ export function autofixCheck(
   if (push.fork) holds.unshift(reason('fork_read_only'));
   if (push.autoPatchesInChain >= max) {
     holds.push(reason('auto_patches_used', { used: push.autoPatchesInChain, max }));
+  }
+  if (push.paused) holds.push(reason('autofix_paused'));
+  if (push.budgetReached) holds.push(reason('autofix_budget_reached'));
+  if (mode === 'act' && autofixMode(push.prLevel) !== 'act') {
+    holds.push(reason('autofix_level_lowered', { level: push.prLevel }));
   }
   const reasons = holds.length ? holds : rule.reasons;
   return { mode, allowed: holds.length === 0, reasons, reason: reasons[0]!, findingIds: [] };

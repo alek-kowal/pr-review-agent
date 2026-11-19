@@ -29,9 +29,15 @@ export interface GitMirror {
   /**
    * Commits `files` on top of `baseSha` in a fresh worktree and pushes that commit to `branch`,
    * never forced: when the branch is no longer `baseSha` (or a descendant git can fast-forward
-   * from), git refuses and the result is `head_moved` with the remote unchanged.
+   * from), git refuses and the result is `head_moved` with the remote unchanged. A remote that
+   * declines the update (branch protection, rulesets, hooks) gives `remote_rejected`.
    */
   pushPatch(input: PushPatchInput): Promise<PushPatchResult>;
+  /**
+   * The commit `pushPatch` makes for this input, built but not pushed. The same input always
+   * gives the same SHA, so a retried push job can tell its own landed commit from a moved head.
+   */
+  patchCommit(input: PatchCommitInput): Promise<string>;
 }
 
 export type WorktreeChange = { path: string; base: string | null };
@@ -61,7 +67,11 @@ export type PushPatchInput = {
   token?: string;
 };
 
-export type PushPatchResult = { ok: true; sha: string } | { ok: false; reason: 'head_moved' };
+/** What builds the commit: the push input without its target branch and token. */
+export type PatchCommitInput = Omit<PushPatchInput, 'branch' | 'token'>;
+
+export type PushPatchResult =
+  { ok: true; sha: string } | { ok: false; reason: 'head_moved' | 'remote_rejected' };
 
 /**
  * The commit message of every pushed patch. It never names a finding, a decision or the app's
@@ -253,10 +263,40 @@ export class CliGitMirror implements GitMirror {
   }
 
   async pushPatch(input: PushPatchInput): Promise<PushPatchResult> {
-    assertSha(input.baseSha);
     if (!BRANCH.test(input.branch) || input.branch.includes('..')) {
       throw new TypeError(`Not a branch name: ${JSON.stringify(input.branch)}`);
     }
+    return this.#withPatchCommit(input, async (sha) => {
+      // To the URL, never to `origin`: the mirror's remote has `mirror = true`, which would add
+      // git's mirror and force flags. No `--force`, no `--force-with-lease`, no `+` refspec.
+      try {
+        await this.#git(
+          this.mirrorDir(input.repo),
+          [
+            'push',
+            '--porcelain',
+            '--no-verify',
+            this.#remoteUrl(input.repo),
+            `${sha}:refs/heads/${input.branch}`,
+          ],
+          input.token,
+        );
+      } catch (error) {
+        const rejection = rejectionOf(error);
+        if (rejection) return { ok: false, reason: rejection };
+        throw error;
+      }
+      return { ok: true, sha };
+    });
+  }
+
+  async patchCommit(input: PatchCommitInput): Promise<string> {
+    return this.#withPatchCommit(input, async (sha) => sha);
+  }
+
+  /** Builds the patch's commit in a fresh worktree at `baseSha` and hands its SHA to `then`. */
+  async #withPatchCommit<T>(input: PatchCommitInput, then: (sha: string) => Promise<T>) {
+    assertSha(input.baseSha);
     const mirror = this.mirrorDir(input.repo);
     const dir = this.worktreeDir(`push-${randomUUID()}`);
     return this.#locked(input.repo, async () => {
@@ -282,26 +322,7 @@ export class CliGitMirror implements GitMirror {
           undefined,
           identity,
         );
-        const sha = (await this.#git(dir, ['rev-parse', 'HEAD'])).trim();
-        // To the URL, never to `origin`: the mirror's remote has `mirror = true`, which would add
-        // git's mirror and force flags. No `--force`, no `--force-with-lease`, no `+` refspec.
-        try {
-          await this.#git(
-            mirror,
-            [
-              'push',
-              '--porcelain',
-              '--no-verify',
-              this.#remoteUrl(input.repo),
-              `${sha}:refs/heads/${input.branch}`,
-            ],
-            input.token,
-          );
-        } catch (error) {
-          if (isRejectedPush(error)) return { ok: false, reason: 'head_moved' };
-          throw error;
-        }
-        return { ok: true, sha };
+        return await then((await this.#git(dir, ['rev-parse', 'HEAD'])).trim());
       } finally {
         await this.#removeWorktree(input.repo, dir);
       }
@@ -429,11 +450,17 @@ async function writeWorktreeFile(
   await writeFile(target, content, { flag: 'wx' });
 }
 
-/** Git refused the update (non-fast-forward or fetch first): the branch moved. */
-function isRejectedPush(error: unknown): boolean {
+/**
+ * Why git refused the update, if it did: `head_moved` when the branch moved (non-fast-forward or
+ * fetch first); `remote_rejected` when the remote declined it (a protected branch, a ruleset that
+ * asks for signed commits, a pre-receive hook). A retry would be declined again.
+ */
+function rejectionOf(error: unknown): 'head_moved' | 'remote_rejected' | null {
   const output = error as { stdout?: unknown; stderr?: unknown };
   const text = `${String(output.stdout ?? '')}\n${String(output.stderr ?? '')}`;
-  return /\[rejected\]|\(non-fast-forward\)|\(fetch first\)/.test(text);
+  if (/\[rejected\]|\(non-fast-forward\)|\(fetch first\)/.test(text)) return 'head_moved';
+  if (/\[remote rejected\]/.test(text)) return 'remote_rejected';
+  return null;
 }
 
 /** Joins `--name-status -z` and `--numstat -z` output; both list files in the same order. */

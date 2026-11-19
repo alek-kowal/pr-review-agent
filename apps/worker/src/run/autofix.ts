@@ -10,19 +10,24 @@ import {
   type AutofixCheck,
   type AutofixInput,
   type Finding,
+  type LevelNumber,
+  type Reason,
 } from '@pra/core';
 import {
   autofixStartOfRun,
   autoPatchesInChain,
   decideFindings,
   filesToPush,
+  getAppSettings,
   inArray,
   loadPrStateInput,
   patchOfRun,
+  prLevel,
   readRepositoryConfig,
   recordAutofixAttempt,
   recordShadow,
   schema,
+  shadowOfPr,
   sendPushJob,
   startImplementer,
   succeededStageOutput,
@@ -30,6 +35,7 @@ import {
   type PatchWithFiles,
   type PrStateLoad,
 } from '@pra/db';
+import { autofixHolds } from './budget-gate.ts';
 import type { RunHook, RunHookContext } from './hooks.ts';
 
 /** The autofix start inputs core reads, from the PR as the round left it. */
@@ -56,12 +62,15 @@ async function startInput({ deps, run }: RunHookContext, load: PrStateLoad): Pro
     // Pause and budget do not hold autofix: its implementer run queues behind them (S-10).
     paused: false,
     budgetReached: false,
-    changeType: changeType?.changeType ?? load.pullRequest.forcedChangeType ?? null,
+    // A type a person forced wins (as in `raiseChangeType`): forcing One-way door after round 1
+    // must hold autofix at the fix check, whose findings round still says otherwise.
+    changeType: load.pullRequest.forcedChangeType ?? changeType?.changeType ?? null,
     findings,
     openQuestions: load.input.questions.filter((q) => !q.answered).length,
     commitsSinceReview: load.input.commitsSinceReview,
     autoPatchesInChain: used,
     maxAutoPatches: run.level.settings.autofixMaxPatches ?? undefined,
+    chainRounds: load.input.chainRounds,
   };
 }
 
@@ -69,12 +78,16 @@ async function startInput({ deps, run }: RunHookContext, load: PrStateLoad): Pro
 export const autofixOnRoundCompleted: RunHook = async (context) => {
   const { deps, run, pullRequest, repository } = context;
   if (run.kind !== 'round' || run.status !== 'completed') return;
-  const mode = autofixMode(run.level.number);
-  if (mode === 'off') return;
+  if (autofixMode(run.level.number) === 'off') return;
   const load = await loadPrStateInput(deps.db, pullRequest.id);
   // A later round finished meanwhile, or the PR closed: this round no longer decides.
   if (!load || load.pullRequest.state !== 'open' || load.reviewedRound?.id !== run.id) return;
-  const check = autofixCheck('start', await startInput(context, load));
+  // The implementer takes the PR's level now: a PR someone lowered below 5 since the round
+  // started (to stop the bot) gets the shadow entry, not a run.
+  const level = Math.min(run.level.number, load.input.level) as LevelNumber;
+  const mode = autofixMode(level);
+  if (mode === 'off') return;
+  const check = autofixCheck('start', { ...(await startInput(context, load)), level });
   // Nothing to fix is no decision: no attempt, no shadow entry.
   if (check.reason.code === 'nothing_to_fix') return;
 
@@ -83,7 +96,7 @@ export const autofixOnRoundCompleted: RunHook = async (context) => {
       pullRequestId: pullRequest.id,
       repositoryId: repository.id,
       runId: run.id,
-      level: run.level.number,
+      level,
       point: 'start',
       decision: check.allowed ? 'would_start' : 'would_wait',
       reasons: check.reasons,
@@ -109,12 +122,15 @@ export const autofixOnRoundCompleted: RunHook = async (context) => {
     trigger: 'autofix',
     prepare: (tx) => decideAsBot(tx, load, check),
     afterInsert: async (tx, implementer) => {
-      await recordAutofixAttempt(tx, {
+      const started = await recordAutofixAttempt(tx, {
         ...attempt,
         implementerRunId: implementer.id,
         outcome: 'started',
         reasons: check.reasons,
       });
+      // The `started` row is what the cap counts and what lets the bot push the patch: a run
+      // without it (the round already has a start attempt) is rolled back, never left uncounted.
+      if (!started) throw new Error(`Round ${run.id} already has an autofix start attempt`);
     },
   });
   if (!started.started) {
@@ -170,6 +186,48 @@ function patchResult(patch: PatchWithFiles) {
   };
 }
 
+/** The push rule on a patch as things are now: pause, budget, the PR's level, its settings. */
+async function pushCheck(
+  deps: RunHookContext['deps'],
+  { run, pullRequest, repository }: Pick<RunHookContext, 'run' | 'pullRequest' | 'repository'>,
+  patch: PatchWithFiles,
+  start: { chainId: string | null } | null | undefined,
+): Promise<AutofixCheck> {
+  const settings = (await getAppSettings(deps.db)).value;
+  return autofixCheck('push', {
+    level: run.level.number,
+    prLevel: prLevel(repository, pullRequest, settings.defaultLevel),
+    fork: pullRequest.isFork,
+    patch: patchResult(patch),
+    headSha: pullRequest.headSha,
+    sensitivePatterns: readRepositoryConfig(repository).value.sensitivePatterns,
+    // The shadow has no automatic patches: a person made every patch.
+    autoPatchesInChain: start?.chainId
+      ? await autoPatchesInChain(deps.db, start.chainId, { exceptRunId: run.id })
+      : 0,
+    maxAutoPatches: run.level.settings.autofixMaxPatches ?? undefined,
+    ...(await autofixHolds(deps.db)),
+  });
+}
+
+/**
+ * Why the bot must not push its patch now, or null. The push job asks again right before it
+ * pushes: a pause, a budget, a lowered level or a new sensitive pattern may have come since the
+ * patch was ready, and a person's edit or revert makes it their patch, pushed signed.
+ */
+export async function autofixPushHold(
+  deps: RunHookContext['deps'],
+  context: Pick<RunHookContext, 'run' | 'pullRequest' | 'repository'>,
+  patch: PatchWithFiles,
+): Promise<Reason | null> {
+  if (patch.checking || patch.files.some((file) => file.status !== 'changed')) {
+    return reason('autofix_patch_edited');
+  }
+  const start = await autofixStartOfRun(deps.db, context.run.id);
+  const check = await pushCheck(deps, context, patch, start);
+  return check.allowed ? null : check.reason;
+}
+
 /**
  * On a completed implementer run at level 3 or above: push the bot's own patch when the push rule
  * allows it (level 5), or say why not; below level 5 a person's patch gets a shadow entry.
@@ -186,28 +244,23 @@ export const autofixOnPatchReady: RunHook = async ({ deps, run, pullRequest, rep
   // Level 5 pushes only what it started itself; a person's patch waits for a person's push.
   if (mode === 'act' && !start) return;
 
-  const check = autofixCheck('push', {
-    level: run.level.number,
-    fork: pullRequest.isFork,
-    patch: patchResult(patch),
-    headSha: pullRequest.headSha,
-    sensitivePatterns: readRepositoryConfig(repository).value.sensitivePatterns,
-    // The shadow has no automatic patches: a person made every patch.
-    autoPatchesInChain: start?.chainId
-      ? await autoPatchesInChain(deps.db, start.chainId, { exceptRunId: run.id })
-      : 0,
-    maxAutoPatches: run.level.settings.autofixMaxPatches ?? undefined,
-  });
+  const check = await pushCheck(deps, { run, pullRequest, repository }, patch, start);
 
   if (mode === 'shadow') {
+    // Level 5 pushes only a patch it started: when the round's start was held, it would have
+    // made no patch, so a person's passing patch is no "would have fixed and pushed".
+    const started = (await shadowOfPr(deps.db, pullRequest.id)).findLast(
+      (entry) => entry.point === 'start',
+    );
+    const held = started?.decision === 'would_wait' ? started.reasons : null;
     await recordShadow(deps.db, {
       pullRequestId: pullRequest.id,
       repositoryId: repository.id,
       patchId: patch.id,
       level: run.level.number,
       point: 'push',
-      decision: check.allowed ? 'would_push' : 'would_wait',
-      reasons: check.reasons,
+      decision: !held && check.allowed ? 'would_push' : 'would_wait',
+      reasons: held ?? check.reasons,
       fixed: patch.fixedFindingIds.length,
       total: patch.findingIds.length,
     });

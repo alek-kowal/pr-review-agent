@@ -17,6 +17,7 @@ const input = (overrides: Partial<AutofixInput> = {}): AutofixInput => ({
   findings: [makeFinding({ id: 'a' }), makeFinding({ id: 'b', severity: 'blocking' })],
   openQuestions: 0,
   autoPatchesInChain: 0,
+  chainRounds: 1,
   ...overrides,
 });
 const HEAD = 'abc123';
@@ -103,6 +104,14 @@ describe('autofix', () => {
       { code: 'auto_patches_used', params: { used: 2, max: 2 } },
     ]);
     expect(autofixDecision(input({ autoPatchesInChain: 2, maxAutoPatches: 3 })).go).toBe(true);
+  });
+
+  it('starts no patch after the last round of a chain, whatever N allows', () => {
+    expect(autofixDecision(input({ chainRounds: 2, maxAutoPatches: 5 })).go).toBe(true);
+    const third = autofixDecision(
+      input({ chainRounds: 3, autoPatchesInChain: 2, maxAutoPatches: 5 }),
+    );
+    expect(third.reasons).toEqual([{ code: 'rounds_used', params: { used: 3, max: 3 } }]);
   });
 
   it('never pushes a patch that touches a sensitive file (P autofix.test.ts:137)', () => {

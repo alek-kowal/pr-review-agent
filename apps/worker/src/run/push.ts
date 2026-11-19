@@ -18,6 +18,7 @@ import {
 import { noreplyEmail, PUSH_COMMIT_MESSAGE, type GitIdentity } from '@pra/integrations';
 import type { WorkerDeps } from '../deps.ts';
 import { fetchMirror } from '../stages/worktree.ts';
+import { autofixPushHold } from './autofix.ts';
 import { expectOwnFix } from './chains.ts';
 
 export type PushJob = { patchId: number; signedBy: string | null };
@@ -25,9 +26,17 @@ export type PushJob = { patchId: number; signedBy: string | null };
 export type PushOutcome =
   { pushed: true; sha: string } | { pushed: false; reason: Reason | 'not_ready' };
 
-/** Pushes one ready patch; a second delivery finds it pushed and does nothing. */
+/**
+ * Pushes one ready patch. Safe to deliver again: a retry after the commit landed finds the
+ * branch at the commit it builds and finishes the push; one after the patch was marked pushed
+ * only repeats the hand-off to the fix check.
+ */
 export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<PushOutcome> {
   const patch = await getPatch(deps.db, job.patchId);
+  if (patch?.status === 'pushed' && patch.pushedSha) {
+    await handOff(deps, patch.pullRequestId, patch.pushedSha);
+    return { pushed: false, reason: 'not_ready' };
+  }
   if (!patch || patch.status !== 'ready') return { pushed: false, reason: 'not_ready' };
   const found = await getRunContext(deps.db, patch.runId);
   if (!found) return { pushed: false, reason: 'not_ready' };
@@ -51,17 +60,23 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
     pullRequest.number,
     fresh.headSha,
   );
-  if (!gate.allowed) return refuse(deps, job, patch, actor, gate.reason);
+  // Only a moved head is worth a look: it may be this patch's own commit, pushed by an earlier
+  // delivery of this job that stopped before it marked the patch.
+  if (!gate.allowed && (gate.reason.code !== 'head_moved' || files.length === 0)) {
+    return refuse(deps, job, patch, actor, gate.reason);
+  }
+  // The bot's own push asks the autofix push rule again: a pause, a budget, a lowered level or a
+  // person's edit since the patch was ready stops it.
+  if (gate.allowed && job.signedBy === null) {
+    const hold = await autofixPushHold(deps, found, patch);
+    if (hold) return refuse(deps, job, patch, actor, hold);
+  }
 
   await fetchMirror({ deps, repository, run: found.run });
-  const token = repository.installationId
-    ? (await deps.github.getInstallationToken(repository.installationId)).token
-    : undefined;
   const contents = [];
   for (const file of files) contents.push({ path: file.path, content: await blob(deps, file) });
-  const result = await deps.gitMirror.pushPatch({
+  const commit = {
     repo: repository.githubFullName,
-    branch: pullRequest.headRef,
     baseSha: patch.baseSha,
     files: contents,
     message: PUSH_COMMIT_MESSAGE,
@@ -69,25 +84,44 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
     coAuthor: signer ? await coAuthorOf(deps, signer) : null,
     // The patch's own time: a retry rebuilds the same commit instead of a second one.
     date: patch.createdAt,
-    token,
-  });
-  if (!result.ok) {
-    const now = await deps.github.getPullRequestState(
-      repository.githubFullName,
-      pullRequest.number,
-    );
-    return refuse(deps, job, patch, actor, reason('head_moved', { headSha: now.headSha }));
+  };
+  let sha: string;
+  if (!gate.allowed) {
+    if ((await deps.gitMirror.patchCommit(commit)) !== fresh.headSha) {
+      return refuse(deps, job, patch, actor, gate.reason);
+    }
+    sha = fresh.headSha;
+  } else {
+    const token = repository.installationId
+      ? (await deps.github.getInstallationToken(repository.installationId)).token
+      : undefined;
+    const result = await deps.gitMirror.pushPatch({
+      ...commit,
+      branch: pullRequest.headRef,
+      token,
+    });
+    if (!result.ok && result.reason === 'remote_rejected') {
+      return refuse(deps, job, patch, actor, reason('push_rejected'));
+    }
+    if (!result.ok) {
+      const now = await deps.github.getPullRequestState(
+        repository.githubFullName,
+        pullRequest.number,
+      );
+      return refuse(deps, job, patch, actor, reason('head_moved', { headSha: now.headSha }));
+    }
+    sha = result.sha;
   }
 
   const pushed = await deps.db.transaction(async (tx) => {
-    const row = await markPatchPushed(tx, patch.id, result.sha);
+    const row = await markPatchPushed(tx, patch.id, sha);
     if (!row) return false;
     if (job.signedBy === null) {
       await recordAutofixAttempt(tx, {
         ...(await autofixPushAttempt(deps, patch)),
         outcome: 'pushed',
         reasons: [reason('push_conditions_met')],
-        sha: result.sha,
+        sha,
         at: row.pushedAt ?? undefined,
       });
     }
@@ -95,19 +129,24 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
       pullRequestId: pullRequest.id,
       actor,
       kind: signer ? 'patch_pushed' : 'autofix_pushed',
-      params: { sha: result.sha, branch: pullRequest.headRef, patchId: patch.id },
+      params: { sha, branch: pullRequest.headRef, patchId: patch.id },
       at: row.pushedAt ?? new Date(),
       sourceKey: `patch:${patch.id}:pushed`,
     });
     return true;
   });
-  if (pushed) {
-    // FR-016: this commit, and only this one, starts the next round of the chain by itself.
-    const chain = await latestChainOf(deps.db, pullRequest.id);
-    if (chain) await expectOwnFix(deps, chain.id, result.sha);
-  }
-  deps.logger.info({ patchId: patch.id, sha: result.sha }, 'patch pushed');
-  return { pushed: true, sha: result.sha };
+  if (pushed) await handOff(deps, pullRequest.id, sha);
+  deps.logger.info({ patchId: patch.id, sha }, 'patch pushed');
+  return { pushed: true, sha };
+}
+
+/**
+ * FR-016: this commit, and only this one, starts the next round of the chain by itself.
+ * `expectOwnFix` is idempotent, so a redelivered job repeats it safely.
+ */
+async function handOff(deps: WorkerDeps, pullRequestId: number, sha: string): Promise<void> {
+  const chain = await latestChainOf(deps.db, pullRequestId);
+  if (chain) await expectOwnFix(deps, chain.id, sha);
 }
 
 async function refuse(

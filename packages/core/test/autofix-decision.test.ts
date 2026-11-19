@@ -19,6 +19,7 @@ const start = (overrides: Partial<AutofixInput> = {}): AutofixInput => ({
   findings: [makeFinding({ id: 'a' }), makeFinding({ id: 'b', severity: 'blocking' })],
   openQuestions: 0,
   autoPatchesInChain: 0,
+  chainRounds: 1,
   ...overrides,
 });
 const patch = (overrides: Partial<PatchResult> = {}): PatchResult => ({
@@ -34,8 +35,11 @@ const push = (overrides: Partial<AutofixPushInput> = {}): AutofixPushInput => ({
   fork: false,
   patch: patch(),
   headSha: HEAD,
+  prLevel: 5,
   sensitivePatterns: WB_SENSITIVE_PATTERNS,
   autoPatchesInChain: 0,
+  paused: false,
+  budgetReached: false,
   ...overrides,
 });
 const codes = (reasons: { code: string }[]) => reasons.map((r) => r.code);
@@ -128,5 +132,20 @@ describe('autofixCheck', () => {
     const atPush = autofixCheck('push', push({ fork: true }));
     expect(atPush.allowed).toBe(false);
     expect(atPush.reason.code).toBe('fork_read_only');
+  });
+
+  it('a pause or a reached budget holds the push of a ready patch', () => {
+    const paused = autofixCheck('push', push({ paused: true }));
+    expect(paused).toMatchObject({ allowed: false, reason: { code: 'autofix_paused' } });
+    const budget = autofixCheck('push', push({ budgetReached: true }));
+    expect(budget).toMatchObject({ allowed: false, reason: { code: 'autofix_budget_reached' } });
+  });
+
+  it('a PR lowered below level 5 since its autofix run started is not pushed by the bot', () => {
+    expect(autofixCheck('push', push({ prLevel: 4 }))).toMatchObject({
+      allowed: false,
+      reason: { code: 'autofix_level_lowered', params: { level: 4 } },
+    });
+    expect(autofixCheck('push', push({ level: 4, prLevel: 4 })).allowed).toBe(true);
   });
 });
