@@ -33,6 +33,7 @@ export const copy = {
     commits: (n: number) => (n === 1 ? '1 commit' : `${n} commits`),
     notReviewed: 'not reviewed yet',
     tabsLabel: 'PR sections',
+    sideLabel: 'PR status',
     tabs: {
       findings: 'Findings',
       questions: 'Questions',

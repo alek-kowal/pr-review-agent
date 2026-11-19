@@ -115,6 +115,10 @@ export const nextStep = {
   /** Who lines a board card leaves out: the usual case says nothing (docs/03). */
   quietOnCards: ['who_usually_author', 'who_no_one_needs_to_act', 'who_nobody'] as string[],
   label: 'Next step',
+  /** The banner's name on a merged or closed PR, where nothing is next. */
+  stateLabel: 'State',
+  /** The grey line above the banner title. */
+  meta: (who: string) => `Next step · ${who}`,
   unknown: (code: string) => `State ${code}`,
   bot: 'PR Review Agent',
   hand: 'hand',

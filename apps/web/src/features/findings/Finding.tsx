@@ -57,6 +57,7 @@ export function Finding({
 
   return (
     <article
+      data-finding-id={f.id}
       aria-label={`${copy.findings.severities[f.severity].one}: ${f.title}`}
       className="rounded-lg border border-border bg-surface"
     >

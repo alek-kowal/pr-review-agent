@@ -143,8 +143,10 @@ export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
     evidence: [],
     version: 0,
     decision: null,
+    // Core's rule (`needsDecision` in @pra/core): decided, refuted and nit findings need none.
     needsDecision: {
-      needed: (over.severity ?? 'worth_fixing') !== 'nit' && !over.decision,
+      needed:
+        (over.severity ?? 'worth_fixing') !== 'nit' && !over.decision && over.verdict !== 'refuted',
       reason: { code: 'unchecked_needs_person', params: { severity: 'worth_fixing' } },
     },
     ...over,

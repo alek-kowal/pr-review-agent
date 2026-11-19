@@ -17,8 +17,12 @@ export const prViewQuery = (repo: string, number: string) =>
   queryOptions({
     queryKey: prKeys.view(repo, number),
     queryFn: ({ signal }) => apiGet<PrView>(path(repo, number), signal),
+    // Poll while agents work, so the banner and checklist follow the round.
     refetchInterval: (query) =>
-      isActiveStatus(query.state.data?.latestRound?.status) ? ACTIVE_POLL_MS : false,
+      isActiveStatus(query.state.data?.latestRound?.status) ||
+      query.state.data?.nextStep.lane === 'agents_working'
+        ? ACTIVE_POLL_MS
+        : false,
   });
 
 export const findingsQuery = (repo: string, number: string, active: boolean) =>
