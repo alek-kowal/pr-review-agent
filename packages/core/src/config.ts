@@ -1,6 +1,7 @@
 import './reasons/config.ts';
 import { z } from 'zod/v4';
 import { DEFAULT_MODELS, type ResolvedLevel } from './levels.ts';
+import { isValidTaskIdPattern } from './task-id.ts';
 import { MAX_FINDINGS } from './limits.ts';
 import { reason, type Reason } from './reason.ts';
 import { AGENT_ROLES, LEVEL_NUMBERS, type AgentRole, type LevelNumber } from './vocabulary.ts';
@@ -44,14 +45,38 @@ export const DEFAULT_CHANGE_TYPE_RULES: z.output<typeof ChangeTypeRulesSchema> =
 };
 export const DEFAULT_LARGE_PR_LINES = 1000;
 
+/** A repository's ClickUp settings. */
+export const ClickUpSettingsSchema = z.object({
+  /** ClickUp's workspace (team) id. */
+  workspaceId: z.string().trim().min(1),
+  /** Narrows the search for a task that links the PR to one space; null: the whole workspace. */
+  spaceId: z.string().trim().min(1).nullable().default(null),
+  /** Where follow-up tasks go; null: follow-ups cannot be created in ClickUp. */
+  followUpListId: z.string().trim().min(1).nullable().default(null),
+  /** A regular expression for task ids in branch names and PR titles, e.g. `WB-\d+`. */
+  taskIdPattern: z
+    .string()
+    .trim()
+    .min(1)
+    .refine(isValidTaskIdPattern, { message: 'invalid_task_id_pattern' }),
+});
+export type ClickUpSettings = z.output<typeof ClickUpSettingsSchema>;
+
 /** One repository's settings. A new repository needs only these, never code. */
 export const RepositoryConfigSchema = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   githubFullName: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
   defaultBranch: z.string().trim().min(1).default('main'),
   defaultLevel: levelNumber.default(1),
+  /**
+   * Downloads the PR's packages from its lockfile, with network but no PR scripts or hooks
+   * (e.g. `pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile`). Null: no fetch step.
+   */
+  fetchCommand: z.string().trim().min(1).nullable().default(null),
+  /** Installs from the fetched packages with no network (e.g. `pnpm install --offline`). */
   installCommand: z.string().trim().min(1).nullable().default(null),
-  clickupSpace: z.string().trim().min(1).nullable().default(null),
+  /** ClickUp for this repository; null turns ClickUp off for it. */
+  clickup: ClickUpSettingsSchema.nullable().default(null),
   sensitivePatterns: z.array(SensitivePatternSchema).default([]),
   changeTypeRules: ChangeTypeRulesSchema.default(DEFAULT_CHANGE_TYPE_RULES),
   /** Above this many changed lines a PR is flagged as large. */

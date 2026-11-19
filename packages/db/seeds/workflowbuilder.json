@@ -4,8 +4,8 @@
     "githubFullName": "synergycodes/workflowbuilder",
     "defaultBranch": "main",
     "defaultLevel": 1,
-    "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
-    "clickupSpace": "Workflow Builder",
+    "fetchCommand": "pnpm fetch --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+    "installCommand": "pnpm install --offline --frozen-lockfile",
     "sensitivePatterns": [
       {
         "pattern": "packages/(sdk|ui|temporal)/src/index.ts",
@@ -35,7 +35,16 @@
     }
   },
   "instructions": {
-    "global": ["prompt-reviewer.md", "review-rules.md"],
+    "global": [
+      "prompt-reviewer.md",
+      "review-rules.md",
+      "prompt-classifier.md",
+      "classify-rules.md",
+      "prompt-verifier.md",
+      "verify-rules.md",
+      "prompt-implementer.md",
+      "implement-rules.md"
+    ],
     "repository": ["lessons.md", "feature-map/"]
   }
 }

@@ -1,4 +1,5 @@
 export { blobStoreContract } from './blob-store-contract.ts';
+export { FakeClickUpGateway, type ClickUpCall } from './clickup.ts';
 export {
   FakeGitHubGateway,
   fixturePullRequest,
@@ -20,3 +21,10 @@ export {
   type GitFiles,
   type GitFixture,
 } from './git.ts';
+export {
+  dockerSkipReason,
+  ensureDockerImage,
+  FakeSandbox,
+  labelledContainers,
+  type FakeSandboxHandler,
+} from './sandbox.ts';

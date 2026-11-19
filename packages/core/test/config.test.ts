@@ -192,6 +192,7 @@ describe('config resilience', () => {
     expect(REPO_DEFAULTS).toMatchObject({
       defaultBranch: 'main',
       defaultLevel: 1,
+      fetchCommand: null,
       installCommand: null,
       sensitivePatterns: [],
     });

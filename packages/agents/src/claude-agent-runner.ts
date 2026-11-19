@@ -8,11 +8,19 @@ import {
   type SDKResultMessage,
 } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentRole } from '@pra/core';
-import { z } from 'zod/v4';
+import {
+  agentError as error,
+  agentResult as result,
+  detailOf,
+  issuesOf,
+  jsonSchemaOf,
+  toUsage,
+  type ApiUsage,
+} from './agent-result.ts';
+import { pathGuard } from './path-guard.ts';
 import { costOf } from './prices.ts';
 import {
   NO_USAGE,
-  type AgentError,
   type AgentErrorCode,
   type AgentRunInput,
   type AgentRunner,
@@ -24,12 +32,21 @@ import {
 export type QueryFn = (params: { prompt: string; options: Options }) => AsyncIterable<SDKMessage>;
 
 /**
- * Built-in tools per role. Nobody gets a shell; the reviewer only reads its worktree.
- * P-06 adds the verifier and implementer here.
+ * Built-in tools per role. Nobody gets a shell; the reviewer and the verifier only read, the
+ * implementer edits its worktree.
+ * The judge is not here: it is one Messages API call without tools (`AnthropicJudge`).
  */
 export const ROLE_TOOLS: Partial<Record<AgentRole, readonly string[]>> = Object.freeze({
   reviewer: Object.freeze(['Read', 'Grep', 'Glob']),
+  verifier: Object.freeze(['Read', 'Grep', 'Glob']),
+  implementer: Object.freeze(['Read', 'Glob', 'Grep', 'Edit', 'Write']),
 });
+
+/**
+ * Roles whose every tool call goes through the path guard as a permission callback, with nothing
+ * pre-approved: they write, so a read of a secret must never slip through a pre-approval.
+ */
+const GUARDED_EACH_CALL: ReadonlySet<AgentRole> = new Set(['implementer']);
 
 export type ClaudeAgentRunnerOptions = {
   /** `ANTHROPIC_API_KEY`; without it every run fails with `model_access_not_configured`. */
@@ -155,15 +172,22 @@ export class ClaudeAgentRunner implements AgentRunner {
     home: string,
     abort: AbortController,
   ): Options {
+    const guard = pathGuard({ cwd: input.cwd, readDirs: input.readDirs ?? [] });
+    const permissions: Partial<Options> = GUARDED_EACH_CALL.has(input.role)
+      ? // Nothing pre-approved: every call is decided by the guard.
+        { allowedTools: [], permissionMode: 'default', canUseTool: guard.canUseTool }
+      : // Anything not pre-approved is denied, never asked.
+        { allowedTools: [...tools], permissionMode: 'dontAsk' };
     return {
       model: input.model,
       cwd: input.cwd,
       additionalDirectories: input.readDirs ?? [],
       ...(input.systemPrompt === undefined ? {} : { systemPrompt: input.systemPrompt }),
       tools: [...tools],
-      allowedTools: [...tools],
-      // Anything not pre-approved is denied, never asked.
-      permissionMode: 'dontAsk',
+      ...permissions,
+      // Every role: reads stay in `cwd` and the read dirs, writes in `cwd`. A hook deny wins over
+      // a pre-approval.
+      hooks: { PreToolUse: [{ hooks: [guard.hook] }] },
       // No user or project settings: no hooks, skills or CLAUDE.md from the machine or the PR.
       settingSources: [],
       mcpServers: {},
@@ -197,7 +221,7 @@ class UsageMeter {
     this.#model = model;
   }
 
-  add(messageId: string, usage: SdkUsage | undefined): void {
+  add(messageId: string, usage: ApiUsage | undefined): void {
     if (!usage) return;
     this.#byMessage.set(messageId, toUsage(usage));
   }
@@ -223,22 +247,6 @@ class UsageMeter {
     for (const usage of this.#byMessage.values()) total += costOf(this.#model, usage);
     return total;
   }
-}
-
-type SdkUsage = {
-  input_tokens?: number | null;
-  output_tokens?: number | null;
-  cache_read_input_tokens?: number | null;
-  cache_creation_input_tokens?: number | null;
-};
-
-function toUsage(usage: SdkUsage): AgentUsage {
-  return {
-    inputTokens: usage.input_tokens ?? 0,
-    outputTokens: usage.output_tokens ?? 0,
-    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
-    cacheWriteTokens: usage.cache_creation_input_tokens ?? 0,
-  };
 }
 
 const RESULT_ERRORS: Record<Exclude<SDKResultMessage['subtype'], 'success'>, AgentErrorCode> = {
@@ -279,40 +287,9 @@ function fromResult<T>(
       ...reported,
       status: 'failed',
       error: error('output_invalid', {
-        issues: parsed.error.issues.map((issue) => ({ path: issue.path, code: issue.code })),
+        issues: issuesOf(parsed.error),
       }),
     });
   }
   return result<T>({ ...reported, status: 'completed', output: parsed.data });
-}
-
-function result<T>(
-  partial: Partial<AgentRunResult<T>> & Pick<AgentRunResult<T>, 'status'>,
-): AgentRunResult<T> {
-  return {
-    output: null,
-    error: null,
-    usage: { ...NO_USAGE },
-    costUsd: 0,
-    costSource: 'computed',
-    turns: 0,
-    durationMs: 0,
-    transcript: [],
-    ...partial,
-  };
-}
-
-function error(code: AgentErrorCode, params: Record<string, unknown> = {}): AgentError {
-  return { code, params };
-}
-
-function jsonSchemaOf(schema: z.ZodType): Record<string, unknown> {
-  const json = z.toJSONSchema(schema) as Record<string, unknown>;
-  delete json.$schema;
-  return json;
-}
-
-function detailOf(thrown: unknown): string {
-  const text = thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : String(thrown);
-  return text.slice(0, 500);
 }
