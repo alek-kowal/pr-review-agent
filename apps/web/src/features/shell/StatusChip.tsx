@@ -25,9 +25,11 @@ export function StatusChip() {
   useOpenStatusChip(useCallback(() => setOpen(true), []));
   if (!status.data) return null;
 
-  const { state, queuedCount } = status.data;
+  const { state, queuedCount, activeAlertCount } = status.data;
   const tone = CHIP_TONES[state] ?? 'running';
   const text = copy.status.states[state](status.data);
+  // The segments are marks only; the button's label names the alert count for screen readers.
+  const label = `${copy.status.label}: ${text}${activeAlertCount > 0 ? `, ${copy.alerts.count(activeAlertCount)}` : ''}`;
   const close = () => setOpen(false);
 
   return (
@@ -36,7 +38,7 @@ export function StatusChip() {
         <button
           type="button"
           data-status-chip={state}
-          aria-label={`${copy.status.label}: ${text}`}
+          aria-label={label}
           className={`inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium ${TONE_CLASS[tone]}`}
         >
           {tone === 'running' && (

@@ -2,6 +2,7 @@
 // (apps/api/src/routes/api, apps/api/src/pr-view); the web may not import server packages.
 import type {
   AgentRole,
+  AlertConfig,
   ChecklistItemKey,
   Decision,
   Lane,
@@ -150,7 +151,37 @@ export type PrView = {
   roundProgress: RoundProgressView | null;
   task: TaskSectionView;
   checks: ChecksSectionView;
+  /** The PR's active alerts, newest first (S-18). */
+  alerts: AlertView[];
 };
+
+/** One alert (S-18): `GET /api/alerts`, Dismiss and the PR view's `alerts`. */
+export type AlertView = {
+  id: number;
+  kind: 'failed' | 'rounds' | 'cost' | 'budget';
+  status: 'active' | 'resolved' | 'dismissed';
+  title: ReasonView;
+  nextStep: ReasonView;
+  /** The failed round (Retry from its stage); null for the other kinds. */
+  runId: number | null;
+  /** Null for the daily budget alert. */
+  pullRequest: { repository: { slug: string }; number: number; title: string } | null;
+  delivery: {
+    status: 'pending' | 'sent' | 'not_configured' | 'failed';
+    taskId: string | null;
+    toGeneralTask: boolean;
+    postedAt: string | null;
+  };
+  createdAt: string;
+  endedAt: string | null;
+  endedBy: 'bot' | 'hand' | null;
+  endNote: ReasonView | null;
+};
+
+export type AlertsResponse = { alerts: AlertView[]; activeCount: number; pastCount: number };
+
+/** `GET/PUT /api/settings/alerts` (S-21-T9). */
+export type AlertSettingsResponse = { config: AlertConfig };
 
 export type ChangeType = 'uses_existing' | 'changes_behaviour' | 'one_way_door';
 
@@ -215,6 +246,8 @@ export type BoardCard = {
   round: { number: number; max: number };
   nextStep: NextStepView;
   badges: ReasonView[];
+  /** Active alerts on the PR; the card shows one bell when above 0. */
+  alertCount: number;
 };
 
 export type BoardResponse = {
@@ -489,6 +522,8 @@ export type StatusResponse = {
   since: string;
   /** Rounds that wait for their start. */
   queuedCount: number;
+  /** Active alerts (S-18). */
+  activeAlertCount: number;
 };
 
 /** `GET /api/activity/in-progress`: queued and running runs, oldest first. */

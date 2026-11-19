@@ -1,4 +1,5 @@
 import { buildSections, sectionsSchema, type PrViewContext } from './section.ts';
+import { alertsSection } from './sections/alerts.ts';
 import { checksSection } from './sections/checks.ts';
 import { headSection } from './sections/head.ts';
 import { latestRoundSection } from './sections/latest-round.ts';
@@ -20,6 +21,7 @@ export const PR_VIEW_SECTIONS = [
   roundProgressSection,
   taskSection,
   checksSection,
+  alertsSection,
 ] as const;
 
 export const PrViewSchema = sectionsSchema(PR_VIEW_SECTIONS);

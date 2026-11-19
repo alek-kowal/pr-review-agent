@@ -106,6 +106,9 @@ export const ApiErrorCode = {
   MergeRefused: 'merge_refused',
   /** GitHub did not answer as expected (`params.status` when it answered). */
   GithubError: 'github_error',
+  AlertNotFound: 'alert_not_found',
+  /** Dismissing an alert that was already cleared or dismissed. */
+  AlertNotActive: 'alert_not_active',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

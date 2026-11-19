@@ -9,7 +9,9 @@ import {
   type LevelNumber,
 } from '@pra/core';
 import {
+  activeAlertCountsByPr,
   boardPullRequestIds,
+  getAppSettings,
   listRepositories,
   loadPrStateInputs,
   readRepositoryConfig,
@@ -37,6 +39,8 @@ export const BoardCardSchema = z.object({
   round: z.object({ number: z.number().int().nonnegative(), max: z.number().int() }),
   nextStep: NextStepSchema,
   badges: z.array(ReasonSchema),
+  /** Active alerts on this PR (S-18); the card shows one bell when it is above 0. */
+  alertCount: z.number().int(),
 });
 export type BoardCard = z.output<typeof BoardCardSchema>;
 
@@ -90,11 +94,15 @@ export async function buildBoard(
   query: BoardQuery = {},
 ): Promise<Board> {
   const { level, ...filter } = query;
-  const [ids, repositories] = await Promise.all([
+  const [ids, repositories, appSettings] = await Promise.all([
     boardPullRequestIds(db, now, filter),
     listRepositories(db),
+    getAppSettings(db),
   ]);
-  const loads = await loadPrStateInputs(db, ids);
+  const [loads, alertCounts] = await Promise.all([
+    loadPrStateInputs(db, ids),
+    activeAlertCountsByPr(db, ids),
+  ]);
 
   const lanes = Object.fromEntries(LANES.map((lane) => [lane, [] as BoardCard[]])) as Record<
     Lane,
@@ -119,11 +127,15 @@ export async function buildBoard(
       openedAt: load.pullRequest.openedAt.toISOString(),
       level: {
         number: load.input.level as LevelNumber,
-        repositoryDefault: readRepositoryConfig(load.repository).value.defaultLevel,
+        // A repository on "Global default" follows Settings → Review levels.
+        repositoryDefault:
+          readRepositoryConfig(load.repository).value.defaultLevel ??
+          appSettings.value.defaultLevel,
       },
       round: { number: load.input.chainRounds, max: MAX_CHAIN_ROUNDS },
       nextStep: nextStepView(step),
       badges: cardBadges({ load, nextStep: step }),
+      alertCount: alertCounts.get(load.pullRequest.id) ?? 0,
     };
     if (step.lane === null) mergedOrClosed.push(card);
     else if (step.state === 'draft') drafts.push(card);

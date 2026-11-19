@@ -13,3 +13,4 @@ export * from './instructions.ts';
 export * from './trials.ts';
 export * from './reviews.ts';
 export * from './status.ts';
+export * from './alerts.ts';

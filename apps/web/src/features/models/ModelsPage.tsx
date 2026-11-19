@@ -91,7 +91,7 @@ function ModelsForm({ data }: { data: ModelsResponse }) {
           {t.invalidSummary}
         </p>
       )}
-      <div className="rounded-lg border border-border bg-surface">
+      <div data-work-start className="rounded-lg border border-border bg-surface">
         <Table>
           <TableHeader>
             <TableRow>
