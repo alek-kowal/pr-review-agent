@@ -78,3 +78,17 @@ See `plan.md` "Key decisions"; implementation-time decisions are appended here a
 - Local services are `depends_on` with `required: false`, so on the VM (no `local` profile) api
   and worker start against the external database alone. Only `web` publishes a port, on
   `127.0.0.1:${PRA_WEB_PORT:-8080}`.
+
+### F-04-T3 S3 BlobStore
+
+- MinIO is `cgr.dev/chainguard/minio` here too (profile `s3` in `docker-compose.yml`, host port
+  ephemeral, data on tmpfs). Tests find it through `S3_TEST_ENDPOINT` (CI) or
+  `docker port pra-minio-1 9000`, create bucket `pra-test` if needed, and skip with a message
+  when MinIO is not running. Helpers are in `@pra/integrations/testing` (`s3TestEndpoint`,
+  `s3TestClient`).
+- CI starts MinIO in a step with `docker run` (service containers cannot pass `server /data`).
+- `createBlobStore(env)` is exported but not yet wired into api and worker deps: nothing stores
+  blobs before P-05 (webhook payloads, S-01-T5), and the api composition root is edited by P-04 in
+  this wave. P-05 calls `createBlobStore()` where it builds its deps.
+- S3 credentials come only from the AWS default chain (it reads `process.env`, not the `env`
+  argument); `S3_ENDPOINT` turns on path-style URLs for MinIO and other S3-compatible stores.

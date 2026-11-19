@@ -253,17 +253,17 @@ Compose checks are run by hand once per phase, on free ports and own project nam
 
 #### Automated
 
-- [x] 5.1 `compose config` shows no secrets on `web`
-- [x] 5.2 local rehearsal: `/health` 200 and `/prs` SPA through the proxy
-- [x] 5.3 `pnpm verify` passes
+- [x] 5.1 `compose config` shows no secrets on `web` — 1834935
+- [x] 5.2 local rehearsal: `/health` 200 and `/prs` SPA through the proxy — 1834935
+- [x] 5.3 `pnpm verify` passes — 1834935
 
 ### Phase 6: S3 BlobStore
 
 #### Automated
 
-- [ ] 6.1 `pnpm --filter @pra/integrations test s3-blob-store` passes against MinIO
-- [ ] 6.2 `createBlobStore` picks S3 only with `S3_BUCKET`
-- [ ] 6.3 `pnpm verify` passes
+- [x] 6.1 `pnpm --filter @pra/integrations test s3-blob-store` passes against MinIO
+- [x] 6.2 `createBlobStore` picks S3 only with `S3_BUCKET`
+- [x] 6.3 `pnpm verify` passes
 
 ### Phase 7: CSRF guard
 

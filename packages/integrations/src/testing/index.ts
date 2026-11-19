@@ -9,3 +9,4 @@ export {
   type GitHubFixture,
   type GitHubFixtureName,
 } from './github.ts';
+export { S3_TEST_BUCKET, s3TestClient, s3TestEndpoint } from './s3.ts';

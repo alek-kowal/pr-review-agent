@@ -22,5 +22,20 @@ services:
       timeout: 5s
       retries: 30
 
+  # S3 for the S3BlobStore tests: `docker compose --profile s3 up -d minio`. The host port is
+  # ephemeral (tests find it with `docker port pra-minio-1 9000`); data lives only in the container.
+  minio:
+    profiles: [s3]
+    image: cgr.dev/chainguard/minio:latest
+    command: ['server', '/data']
+    environment:
+      # Local, non-secret credentials (the test helper in @pra/integrations/testing uses them).
+      MINIO_ROOT_USER: pra
+      MINIO_ROOT_PASSWORD: pra-local-only
+    ports:
+      - '127.0.0.1::9000'
+    tmpfs:
+      - /data
+
 volumes:
   db-data:
