@@ -15,6 +15,11 @@ const TESTING_ONLY_IN_TESTS = [
     regex: '^@pra/[^/]+/testing(/|$)',
     message: 'Test doubles from @pra/*/testing are for *.test.ts(x), test/ and e2e/ only.',
   },
+  {
+    // The same rule for a relative path into a package's own `testing/` folder.
+    regex: '^\\.{1,2}/(.*/)?testing(/|$)',
+    message: 'Test doubles in testing/ are for *.test.ts(x), test/ and e2e/ only.',
+  },
 ];
 const CORE_STAYS_PURE = [
   { regex: '^node:', message: 'packages/core is pure domain code: no Node APIs.' },
