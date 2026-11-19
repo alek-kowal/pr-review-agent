@@ -4,7 +4,8 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-const apiOrigin = 'http://localhost:3000';
+// The e2e stack runs the api on its own port (playwright.config.ts).
+const apiOrigin = process.env.API_PROXY_TARGET || 'http://localhost:3000';
 
 // https://vite.dev/config/
 export default defineConfig({
