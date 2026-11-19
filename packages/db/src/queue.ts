@@ -55,6 +55,10 @@ export function stableJobId(key: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
+/** The `github.event` job id of one delivery: the api and the worker's resend agree on it. */
+export const githubEventJobId = (deliveryId: string): string =>
+  stableJobId(`${JOBS.githubEvent}:${deliveryId}`);
+
 export type Queue = PgBoss;
 /** A job as a handler receives it. */
 export type QueueJob<N extends JobName> = Job<JobPayloads[N]>;

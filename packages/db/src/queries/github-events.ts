@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, lt, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { githubEvents } from '../schema/repositories.ts';
 
@@ -56,4 +56,27 @@ export async function markGithubEventProcessed(
     .update(githubEvents)
     .set({ outcome, processedAt: sql`now()` })
     .where(eq(githubEvents.id, id));
+}
+
+/**
+ * Events received between `from` and `to` that no job processed yet, oldest first: the api may
+ * have stored the row and then failed to send its job.
+ */
+export async function unprocessedGithubEvents(
+  db: Executor,
+  { from, to }: { from: Date; to: Date },
+  limit = 500,
+): Promise<Pick<GithubEvent, 'id' | 'deliveryId'>[]> {
+  return db
+    .select({ id: githubEvents.id, deliveryId: githubEvents.deliveryId })
+    .from(githubEvents)
+    .where(
+      and(
+        isNull(githubEvents.processedAt),
+        gt(githubEvents.receivedAt, from),
+        lt(githubEvents.receivedAt, to),
+      ),
+    )
+    .orderBy(asc(githubEvents.id))
+    .limit(limit);
 }

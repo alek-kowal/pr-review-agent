@@ -6,6 +6,7 @@ import { freezeLevel, resolveLevel, type LevelNumber, type LevelOverrides } from
 import {
   asc,
   eq,
+  getGithubEvent,
   getRun,
   insertRun,
   insertStageExecution,
@@ -21,10 +22,15 @@ import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { sendStageJob } from '../src/run/jobs.ts';
 import { executeStage } from '../src/run/execute-stage.ts';
-import { recoverRuns } from '../src/run/recover.ts';
+import { recoverRuns, resendLostJobs } from '../src/run/recover.ts';
 import { startRound } from '../src/run/start-round.ts';
 import { startWorker, type RunningWorker } from '../src/worker.ts';
-import { connectRepository, createTestWorkerDeps, type TestWorkerDeps } from './support.ts';
+import {
+  connectRepository,
+  createTestWorkerDeps,
+  storeGithubEvent,
+  type TestWorkerDeps,
+} from './support.ts';
 
 let database: TestDatabase;
 let fixture: GitFixture;
@@ -405,5 +411,22 @@ describe('restart', () => {
 
     expect(recovered.resent).toContain(run.id);
     expect((await settled(run.id)).status).toBe('completed');
+  });
+
+  test('a stored event whose job was never sent is processed after the resend', async () => {
+    const repository = await connectRepository(deps.db);
+    const event = await storeGithubEvent(deps, 'ping', { fullName: repository.githubFullName });
+    // The api wrote the row two minutes ago, then its send failed.
+    await deps.db
+      .update(schema.githubEvents)
+      .set({ receivedAt: new Date(Date.now() - 120_000) })
+      .where(eq(schema.githubEvents.id, event.id));
+
+    expect((await resendLostJobs(deps)).events).toContain(event.id);
+
+    await vi.waitFor(
+      async () => expect((await getGithubEvent(deps.db, event.id))?.processedAt).not.toBeNull(),
+      { timeout: 20_000, interval: 100 },
+    );
   });
 });
