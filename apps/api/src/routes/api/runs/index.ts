@@ -19,10 +19,12 @@ import type { BlobStore } from '@pra/integrations';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
+import { offStepsOf } from '../../../pr-view/off-steps.ts';
 import { runSteps, stageRows } from '../../../pr-view/stepper.ts';
 import {
   ActorSchema,
   iso,
+  OffStepSchema,
   ReasonSchema,
   roundLevel,
   RoundLevelSchema,
@@ -61,6 +63,8 @@ const RunStageSchema = z.object({
   costUsd: z.number(),
   errorCode: z.string().nullable(),
   offReason: ReasonSchema.nullable(),
+  /** Steps inside the stage the plan turns off: a fork's install and reproductions (S-16-T3). */
+  offSteps: z.array(OffStepSchema),
   startedAt: timestamp.nullable(),
   finishedAt: timestamp.nullable(),
   /** The latest attempt's stored output (the stage's readable result). */
@@ -220,6 +224,7 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
           costUsd: step.costUsd,
           errorCode: step.errorCode,
           offReason: step.offReason,
+          offSteps: offStepsOf(run, context.pullRequest.isFork, step),
           startedAt: iso(step.startedAt),
           finishedAt: iso(step.finishedAt),
           output: latest?.output ?? null,
