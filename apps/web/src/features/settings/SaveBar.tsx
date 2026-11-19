@@ -19,13 +19,17 @@ type Props = {
   onDiscard: () => void;
   /** Opens the page's SignedSaveDialog. */
   onSave: () => void;
+  /** Replaces "N unsaved changes" (for example on a connect, where nothing is stored yet). */
+  message?: string;
+  /** Replaces "Save…". */
+  saveLabel?: string;
 };
 
 /**
  * The sticky "N unsaved changes" bar with Discard and Save…. While the page has unsaved changes,
  * leaving it (a link, Back, or closing the tab) asks first.
  */
-export function SaveBar({ count, onDiscard, onSave }: Props) {
+export function SaveBar({ count, onDiscard, onSave, message, saveLabel }: Props) {
   const blocker = useBlocker({
     shouldBlockFn: () => count > 0,
     enableBeforeUnload: () => count > 0,
@@ -41,7 +45,7 @@ export function SaveBar({ count, onDiscard, onSave }: Props) {
           className="sticky bottom-0 z-40 -mx-4 mt-4 flex items-center justify-between gap-3 border-t border-border bg-surface px-4 py-3 shadow-[0_-4px_12px_rgba(21,21,22,0.06)] sm:mx-0 sm:rounded-lg sm:border"
         >
           <span className="text-sm font-semibold" aria-live="polite">
-            {copy.settings.unsaved(count)}
+            {message ?? copy.settings.unsaved(count)}
           </span>
           <span className="flex gap-2">
             <Button type="button" variant="ghost" onClick={onDiscard}>
@@ -49,7 +53,7 @@ export function SaveBar({ count, onDiscard, onSave }: Props) {
             </Button>
             <Button type="button" onClick={onSave}>
               <Save aria-hidden="true" />
-              {copy.settings.saveBar.save}
+              {saveLabel ?? copy.settings.saveBar.save}
             </Button>
           </span>
         </div>

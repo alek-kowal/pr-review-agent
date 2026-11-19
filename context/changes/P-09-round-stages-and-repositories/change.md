@@ -194,3 +194,32 @@ listed order.
   just them; the write merges into the locked app settings row.
 - The route test uses its own database (`createTestDatabase`): delivery counts and the app
   settings row are global, and other api test files share theirs.
+
+### S-20-T4 (Repository settings pages)
+
+- Routes: `/settings/repositories` (list), `/settings/repositories/connect?fullName=…` (connect
+  form) and `/settings/repositories/$id` (edit). Repositories is registered in the Settings page
+  registry (group `repositories`).
+- The list shows repository, default level ("2 · With context"), ClickUp on/off, sensitive file
+  count and default branch. "Open PRs" from the prototype is left out: the api has no such count.
+  When the App cannot list repositories (`availableError`, e.g. `github_not_configured`) the list
+  still shows, with a status line instead of the picker.
+- "Connect a repository" is a Combobox (Popover + Command, like the signature field) of
+  `available`; it also hides any name already connected, in case the list is out of date. Picking
+  one opens the connect form with the defaults (branch from GitHub, level 1, ClickUp off); one
+  signed save posts it and opens the new repository's page (`ignoreBlocker`).
+- One form for connect and edit (`RepositoryForm`), sections General, ClickUp, Sensitive files,
+  Change-type rules; it covers every RepositoryConfig field, including P-06's fetch and install
+  commands and ClickUp ids. ClickUp has an on/off Switch (off sends `clickup: null`); its fields
+  show only while on.
+- Change-type rules are one editable table of path patterns, each with its rule ("Uses existing
+  parts" or "One-way door"), plus the size threshold; the prototype's comma-separated inputs
+  became the table the task asks for.
+- The form is flattened (`form-model.ts`) so the save dialog has one row per field; sensitive
+  files and change-type paths each count as one change. A connect lists every field with an
+  empty "Now" and shows the save bar from the start ("Not connected yet", "Connect…": `SaveBar`
+  gained optional `message` and `saveLabel`).
+- Validation runs in the web on Save (core's `isValidGlob` and `isValidTaskIdPattern`, required
+  fields, whole numbers above 0): marked fields block the dialog with a message; a sensitive row
+  without a reason says "Each sensitive file pattern needs a reason." The api validates again.
+- Added the shadcn `Switch` primitive (`components/ui/switch.tsx`, radix-ui).
