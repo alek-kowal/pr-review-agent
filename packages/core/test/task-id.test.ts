@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findTaskId, isValidTaskIdPattern, RepositoryConfigSchema } from '../src/index.ts';
+import {
+  findTaskId,
+  isValidTaskIdPattern,
+  RepositoryConfigSchema,
+  taskIdFromRef,
+} from '../src/index.ts';
 
 const WB = 'WB-\\d+';
 const CU = 'CU-[a-z0-9]+';
@@ -69,5 +74,24 @@ describe('ClickUp settings in RepositoryConfig', () => {
       clickup: { workspaceId: '9012', taskIdPattern: 'WB-(' },
     });
     expect(parsed.success).toBe(false);
+  });
+});
+
+describe('taskIdFromRef', () => {
+  it('reads an id as typed', () => {
+    expect(taskIdFromRef(' WB-123 ')).toBe('WB-123');
+    expect(taskIdFromRef('#86c1abc')).toBe('86c1abc');
+  });
+
+  it('reads the id from a task link', () => {
+    expect(taskIdFromRef('https://app.clickup.com/t/86c1abc')).toBe('86c1abc');
+    expect(taskIdFromRef('https://app.clickup.com/t/9012/WB-123?comment=5')).toBe('WB-123');
+    expect(taskIdFromRef('app.clickup.com/t/86c1abc/')).toBe('86c1abc');
+  });
+
+  it('rejects anything else', () => {
+    expect(taskIdFromRef('')).toBeNull();
+    expect(taskIdFromRef('fix the edge labels')).toBeNull();
+    expect(taskIdFromRef('https://example.com/t/86c1abc')).toBeNull();
   });
 });

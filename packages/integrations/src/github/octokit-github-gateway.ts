@@ -16,6 +16,7 @@ import {
   type CiCheck,
   type CiStatus,
   type CommitComparison,
+  type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,
   type InstallationToken,
@@ -155,6 +156,20 @@ export class OctokitGitHubGateway implements GitHubGateway {
     });
   }
 
+  async getCommit(fullName: string, sha: string): Promise<GitHubCommit> {
+    return this.#withInstallation(fullName, async (octokit) => {
+      const { data } = await octokit.request('GET /repos/{owner}/{repo}/commits/{ref}', {
+        ...splitFullName(fullName),
+        ref: sha,
+      });
+      return {
+        sha: data.sha,
+        parents: data.parents.map((parent) => parent.sha),
+        message: data.commit.message,
+      };
+    });
+  }
+
   async listAccessibleRepositories(): Promise<AccessibleRepository[]> {
     const repositories: AccessibleRepository[] = [];
     for (let page = 1; page <= MAX_PAGES; page++) {
@@ -270,6 +285,9 @@ export class UnconfiguredGitHubGateway implements GitHubGateway {
     return this.#fail();
   }
   listAccessibleRepositories(): Promise<AccessibleRepository[]> {
+    return this.#fail();
+  }
+  getCommit(): Promise<GitHubCommit> {
     return this.#fail();
   }
 

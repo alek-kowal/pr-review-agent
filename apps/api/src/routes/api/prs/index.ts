@@ -9,7 +9,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
 import { buildPrView, PrViewSchema } from '../../../pr-view/index.ts';
-import { FindingsResponse, findingsView } from '../../../pr-view/findings.ts';
+import { FindingsResponse, loadFindingsView } from '../../../pr-view/findings.ts';
 import { RepositoryRefSchema } from '../../../pr-view/sections/pull-request.ts';
 import { timelineRoutes } from '../../../pr-view/timeline.ts';
 
@@ -93,7 +93,7 @@ const prs: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
 
       const load = await loadPrStateInput(db, found.pullRequest.id);
       if (!load) return sendError(reply, 404, ApiErrorCode.PrNotFound, request.params);
-      return findingsView(load);
+      return loadFindingsView(db, load);
     },
   );
 };

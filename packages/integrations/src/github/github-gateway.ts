@@ -17,6 +17,8 @@ export interface GitHubGateway {
   listAccessibleRepositories(): Promise<AccessibleRepository[]>;
   /** How `head` relates to `base`: commits `head` has that `base` lacks, and the reverse. */
   compareCommits(fullName: string, base: string, head: string): Promise<CommitComparison>;
+  /** One commit's parents and message (metric 5 tells "Update branch" merges apart). */
+  getCommit(fullName: string, sha: string): Promise<GitHubCommit>;
 }
 
 /** GitHub's compare of two commits (`GET /repos/{owner}/{repo}/compare/{base}...{head}`). */
@@ -25,6 +27,8 @@ export type CommitComparison = {
   aheadBy: number;
   behindBy: number;
 };
+
+export type GitHubCommit = { sha: string; parents: string[]; message: string };
 
 /** A repository one of the App's installations can act on. */
 export type AccessibleRepository = {
@@ -111,6 +115,10 @@ export type GitHubPullRequest = {
   commitsCount: number;
   openedAt: string;
   updatedAt: string;
+  /** Set once closed; `mergedAt` and `mergeSha` only when merged. */
+  closedAt: string | null;
+  mergedAt: string | null;
+  mergeSha: string | null;
 };
 
 export const GITHUB_NOT_CONFIGURED = 'github_not_configured';
@@ -131,6 +139,8 @@ export type RawPullRequest = {
   draft?: boolean;
   merged?: boolean | null;
   merged_at?: string | null;
+  closed_at?: string | null;
+  merge_commit_sha?: string | null;
   commits?: number;
   created_at: string;
   updated_at: string;
@@ -161,6 +171,9 @@ export function toPullRequest(raw: RawPullRequest): GitHubPullRequest {
     commitsCount: raw.commits ?? 0,
     openedAt: raw.created_at,
     updatedAt: raw.updated_at,
+    closedAt: raw.closed_at ?? null,
+    mergedAt: merged ? (raw.merged_at ?? raw.closed_at ?? raw.updated_at) : null,
+    mergeSha: merged ? (raw.merge_commit_sha ?? null) : null,
   };
 }
 

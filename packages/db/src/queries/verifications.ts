@@ -1,7 +1,7 @@
 // Verdicts the Verify stage (S-05-T2) writes on a round's findings, with how it reached them.
 import type { Evidence, Verdict } from '@pra/core';
 import { and, asc, eq, sql } from 'drizzle-orm';
-import type { Db } from '../client.ts';
+import type { Db, Executor } from '../client.ts';
 import { findings, findingVerifications } from '../schema/runs.ts';
 import { lockRun } from './run-engine.ts';
 import type { FindingRow } from './runs.ts';
@@ -53,7 +53,7 @@ export async function saveVerifications(
 }
 
 /** A run's verification rows, by finding id. */
-export function verificationsOfRun(db: Db, runId: number): Promise<FindingVerification[]> {
+export function verificationsOfRun(db: Executor, runId: number): Promise<FindingVerification[]> {
   return db
     .select()
     .from(findingVerifications)

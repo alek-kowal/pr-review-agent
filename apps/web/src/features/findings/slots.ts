@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { FindingView, FindingsResponse, PrView } from '@/lib/api-types.ts';
+import { FollowUpLine } from '@/features/clickup/FollowUpLine.tsx';
 import { FixBadge, FixNote } from '@/features/rounds/FixStatus.tsx';
 import { DecideRow, DecisionBadge } from './DecisionSlots.tsx';
 
@@ -27,9 +28,11 @@ export const FINDING_LINE_SLOTS: FindingSlot[] = [
 
 /**
  * `Finding` action slots (extension point from P-04): rows at the bottom of an open finding, in
- * order. Opinion and decision forms (P-08) and implementer actions (P-18) go here.
+ * order. Opinion and decision forms (P-08) and implementer actions (P-18) go here. A finding
+ * deferred to ClickUp shows its follow-up task first (S-06-T5).
  */
 export const FINDING_ACTION_SLOTS: FindingSlot[] = [
   { key: 'fix-note', Component: FixNote },
+  { key: 'follow-up', Component: FollowUpLine },
   { key: 'decide', Component: DecideRow },
 ];

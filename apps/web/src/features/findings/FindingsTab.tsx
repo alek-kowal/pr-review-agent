@@ -25,8 +25,7 @@ import { SeverityMark } from './SeverityMark.tsx';
 /** The latest completed round's findings, grouped by severity, then what it did not check. */
 export function FindingsTab({ repo, number, view }: PrTabProps) {
   const latest = view.latestRound;
-  const active = isActiveStatus(latest?.status);
-  const query = useQuery(findingsQuery(repo, number, active));
+  const query = useQuery(findingsQuery(repo, number));
   const failedLine = latest?.status === 'failed' && latest.error && <RoundFailed round={latest} />;
 
   if (query.isPending) return <p className="text-text-3">{copy.findings.loading}</p>;
@@ -44,7 +43,11 @@ export function FindingsTab({ repo, number, view }: PrTabProps) {
     return (
       <div className="flex flex-col gap-3">
         {failedLine}
-        <EmptyTab text={active ? copy.findings.empty.waiting : copy.findings.empty.none} />
+        <EmptyTab
+          text={
+            isActiveStatus(latest?.status) ? copy.findings.empty.waiting : copy.findings.empty.none
+          }
+        />
         {hint && <p className="text-sm text-text-3">{hint}</p>}
       </div>
     );

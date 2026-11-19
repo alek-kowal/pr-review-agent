@@ -1,5 +1,6 @@
 // Response builders for web tests. Shapes follow `@/lib/api-types.ts`.
 import type {
+  TaskSectionView,
   AuthorView,
   BoardCard,
   BoardResponse,
@@ -10,6 +11,7 @@ import type {
   NextStepView,
   PrView,
   RepositoryRef,
+  RoundProgressView,
   RoundView,
   SensitiveView,
 } from '@/lib/api-types.ts';
@@ -106,9 +108,12 @@ export const aPrView = (
     author?: AuthorView;
     head?: Partial<HeadView>;
     sensitive?: Partial<SensitiveView>;
+    roundProgress?: RoundProgressView | null;
+    task?: TaskSectionView;
   } = {},
 ): PrView => ({
   pullRequest: {
+    id: 7,
     repository: aRepository(),
     number: over.number ?? 12,
     title: 'Add node grouping',
@@ -130,6 +135,8 @@ export const aPrView = (
   author: over.author ?? anAuthor(),
   head: aHead(over.head),
   sensitive: aSensitive(over.sensitive),
+  roundProgress: over.roundProgress ?? null,
+  task: over.task ?? { configured: true, link: null },
 });
 
 /** No sensitive file by default. */
@@ -167,6 +174,7 @@ export const aFinding = (over: Partial<FindingView> = {}): FindingView => {
     suggestion: `Suggestion ${id}`,
     verdict: 'unchecked',
     evidence: [],
+    verification: null,
     version: 0,
     decision: null,
     // Core's rule (`needsDecision` in @pra/core): decided, refuted and nit findings need none.
@@ -187,5 +195,6 @@ export const aFindingsResponse = (over: Partial<FindingsResponse> = {}): Finding
   findings: [],
   questions: [],
   notChecked: [],
+  unchecked: null,
   ...over,
 });

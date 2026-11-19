@@ -12,6 +12,7 @@ export {
   type CiState,
   type CiStatus,
   type CommitComparison,
+  type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,
   type InstallationToken,

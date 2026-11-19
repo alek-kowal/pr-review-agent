@@ -40,6 +40,7 @@ const decisionBy = (member: TeamMember, over: Partial<DecisionView> = {}): Decis
   reason: null,
   signedBy: { id: member.id, name: member.name },
   decidedAt: '2026-11-19T12:00:00.000Z',
+  followUp: null,
   ...over,
 });
 

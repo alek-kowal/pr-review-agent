@@ -1,33 +1,32 @@
 import { queryOptions } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api.ts';
-import { isActiveStatus, type FindingsResponse, type PrView } from '@/lib/api-types.ts';
+import type { FindingsResponse, PrView, TimelineResponse } from '@/lib/api-types.ts';
 
-/** Pages poll this often while a round is active. Live updates (SSE) replace it in S-03. */
-export const ACTIVE_POLL_MS = 5_000;
+// No polling: live updates (`src/live`) invalidate these keys when the PR's rows change.
 
 export const prKeys = {
   view: (repo: string, number: string) => ['pr', repo, number] as const,
   findings: (repo: string, number: string) => ['pr', repo, number, 'findings'] as const,
+  timeline: (repo: string, number: string) => ['pr', repo, number, 'timeline'] as const,
 };
 
-const path = (repo: string, number: string) =>
+export const prPath = (repo: string, number: string) =>
   `/api/prs/${encodeURIComponent(repo)}/${encodeURIComponent(number)}`;
 
 export const prViewQuery = (repo: string, number: string) =>
   queryOptions({
     queryKey: prKeys.view(repo, number),
-    queryFn: ({ signal }) => apiGet<PrView>(path(repo, number), signal),
-    // Poll while agents work, so the banner and checklist follow the round.
-    refetchInterval: (query) =>
-      isActiveStatus(query.state.data?.latestRound?.status) ||
-      query.state.data?.nextStep.lane === 'agents_working'
-        ? ACTIVE_POLL_MS
-        : false,
+    queryFn: ({ signal }) => apiGet<PrView>(prPath(repo, number), signal),
   });
 
-export const findingsQuery = (repo: string, number: string, active: boolean) =>
+export const findingsQuery = (repo: string, number: string) =>
   queryOptions({
     queryKey: prKeys.findings(repo, number),
-    queryFn: ({ signal }) => apiGet<FindingsResponse>(`${path(repo, number)}/findings`, signal),
-    refetchInterval: active ? ACTIVE_POLL_MS : false,
+    queryFn: ({ signal }) => apiGet<FindingsResponse>(`${prPath(repo, number)}/findings`, signal),
+  });
+
+export const timelineQuery = (repo: string, number: string) =>
+  queryOptions({
+    queryKey: prKeys.timeline(repo, number),
+    queryFn: ({ signal }) => apiGet<TimelineResponse>(`${prPath(repo, number)}/timeline`, signal),
   });

@@ -1,6 +1,6 @@
 {
-  "id": "c69efd0b-6c43-48d1-8729-6d23f391f8db",
-  "prevId": "b446f743-3bb0-488d-80c4-8b42e1b233eb",
+  "id": "eb98c8d9-acef-4148-b975-b5ab4b716ad1",
+  "prevId": "c15b0f29-5edb-4859-8c75-d70e9a41f7e0",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -424,12 +424,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "level": {
-          "name": "level",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "opened_at": {
           "name": "opened_at",
           "type": "timestamp with time zone",
@@ -441,6 +435,30 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "ready_at": {
+          "name": "ready_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "merged_at": {
+          "name": "merged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "merge_sha": {
+          "name": "merge_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1445,18 +1463,6 @@
           "notNull": true,
           "default": "'[]'::jsonb"
         },
-        "commits_since": {
-          "name": "commits_since",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "commits_since_head": {
-          "name": "commits_since_head",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "not_checked": {
           "name": "not_checked",
           "type": "text[]",
@@ -1912,6 +1918,30 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "follow_up_status": {
+          "name": "follow_up_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_task_id": {
+          "name": "follow_up_task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_url": {
+          "name": "follow_up_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_error": {
+          "name": "follow_up_error",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1970,7 +2000,12 @@
       },
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "finding_decisions_follow_up_status": {
+          "name": "finding_decisions_follow_up_status",
+          "value": "follow_up_status in ('creating', 'created', 'failed')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.team_members": {
@@ -2472,16 +2507,26 @@
       },
       "isRLSEnabled": false
     },
-    "public.round_chains": {
-      "name": "round_chains",
+    "public.head_changes": {
+      "name": "head_changes",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "integer",
           "primaryKey": true,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "identity": {
+            "type": "always",
+            "name": "head_changes_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "pull_request_id": {
           "name": "pull_request_id",
@@ -2489,14 +2534,44 @@
           "primaryKey": false,
           "notNull": true
         },
-        "expected_head_sha": {
-          "name": "expected_head_sha",
+        "github_event_id": {
+          "name": "github_event_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "before_sha": {
+          "name": "before_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "after_sha": {
+          "name": "after_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pusher": {
+          "name": "pusher",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
+        "by_bot": {
+          "name": "by_bot",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_base_merge": {
+          "name": "is_base_merge",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "at": {
+          "name": "at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -2504,8 +2579,8 @@
         }
       },
       "indexes": {
-        "round_chains_pull_request": {
-          "name": "round_chains_pull_request",
+        "head_changes_pull_request": {
+          "name": "head_changes_pull_request",
           "columns": [
             {
               "expression": "pull_request_id",
@@ -2514,7 +2589,13 @@
               "nulls": "last"
             },
             {
-              "expression": "created_at",
+              "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2527,9 +2608,9 @@
         }
       },
       "foreignKeys": {
-        "round_chains_pull_request_id_pull_requests_id_fk": {
-          "name": "round_chains_pull_request_id_pull_requests_id_fk",
-          "tableFrom": "round_chains",
+        "head_changes_pull_request_id_pull_requests_id_fk": {
+          "name": "head_changes_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "head_changes",
           "tableTo": "pull_requests",
           "columnsFrom": [
             "pull_request_id"
@@ -2539,10 +2620,31 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "head_changes_github_event_id_github_events_id_fk": {
+          "name": "head_changes_github_event_id_github_events_id_fk",
+          "tableFrom": "head_changes",
+          "tableTo": "github_events",
+          "columnsFrom": [
+            "github_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "head_changes_github_event": {
+          "name": "head_changes_github_event",
+          "nullsNotDistinct": false,
+          "columns": [
+            "github_event_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

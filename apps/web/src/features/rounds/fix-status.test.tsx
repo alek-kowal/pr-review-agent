@@ -16,6 +16,7 @@ const implement: DecisionView = {
   reason: null,
   signedBy: { id: 'm-kasia', name: 'Kasia' },
   decidedAt: '2026-11-19T12:00:00.000Z',
+  followUp: null,
 };
 const decided = { needed: false, reason: { code: 'decided', params: {} } };
 

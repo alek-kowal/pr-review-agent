@@ -47,6 +47,7 @@ export type RoundView = {
 };
 
 export type PullRequestView = {
+  id: number;
   repository: RepositoryRef;
   number: number;
   title: string;
@@ -88,6 +89,28 @@ export type ChecklistView = {
 /** The PR author, and the Team member with their GitHub login. */
 export type AuthorView = { login: string; memberId: string | null; name: string | null };
 
+/** A step of the PR page's stepper (core `stepperModel`). */
+export type RoundStepView = {
+  key: string;
+  status: RunStepStatus;
+  /** Every attempt of the stage. */
+  costUsd: number;
+  errorCode: string | null;
+  offReason: ReasonView | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+};
+
+/** The latest round's stepper and label; the cost grows per agent turn. */
+export type RoundProgressView = {
+  runId: number;
+  /** `round_label`. */
+  label: ReasonView | null;
+  steps: RoundStepView[];
+  current: string | null;
+  costUsd: number;
+};
+
 /** `GET /api/prs/:repo/:number`: one key per PR view section. */
 /** What the PR's results were measured on (`head` section, S-07-T4). */
 export type HeadView = {
@@ -123,6 +146,8 @@ export type PrView = {
   author: AuthorView;
   head: HeadView;
   sensitive: SensitiveView;
+  roundProgress: RoundProgressView | null;
+  task: TaskSectionView;
 };
 
 /** `POST .../sensitive/approve` and `.../sensitive/send-back`: what changed on the PR page. */
@@ -134,6 +159,21 @@ export type StartReviewResponse = {
   chainId: string;
   roundNumber: number;
   level: LevelNumber;
+};
+
+/** The PR's ClickUp task (`task` section of the PR view, S-06-T4). */
+export type TaskLinkView = {
+  /** As ClickUp knows it: a custom id such as `WB-123`, or the task's own id. */
+  taskId: string;
+  name: string;
+  url: string;
+  how: 'branch' | 'title' | 'search' | 'hand';
+  linkedBy: ActorView['kind'];
+};
+export type TaskSectionView = {
+  /** The repository has ClickUp settings. */
+  configured: boolean;
+  link: TaskLinkView | null;
 };
 
 /** A board card: `GET /api/board`. */
@@ -167,6 +207,16 @@ export type DecisionView = {
   reason: string | null;
   signedBy: { id: string; name: string };
   decidedAt: string;
+  /** Defer to ClickUp only: the follow-up task, or why there is none (S-06-T5). */
+  followUp: FollowUpView | null;
+};
+
+export type FollowUpView = {
+  /** Null until the follow-up job ran. */
+  status: 'creating' | 'created' | 'failed' | null;
+  taskId: string | null;
+  url: string | null;
+  error: ReasonView | null;
 };
 
 export type FindingView = {
@@ -180,6 +230,17 @@ export type FindingView = {
   suggestion: string;
   verdict: Verdict;
   evidence: { file: string; line: number | null; quote: string }[];
+  /** How Verify reached the verdict (level 3 and up); null when Verify did not run. */
+  verification: {
+    reason: ReasonView;
+    verifierReason: string | null;
+    reproduction: {
+      exitCode: number | null;
+      timedOut: boolean;
+      outputTail: string | null;
+      repaired: boolean;
+    } | null;
+  } | null;
   /** Sent back with a decision; a decision made in between gives 409 `decision_conflict`. */
   version: number;
   decision: DecisionView | null;
@@ -211,6 +272,8 @@ export type FindingsResponse = {
   findings: FindingView[];
   questions: QuestionView[];
   notChecked: string[];
+  /** Below level 3: how many findings no verifier checked; null at level 3 and up. */
+  unchecked: number | null;
 };
 
 export const isActiveStatus = (status: RunStatus | null | undefined): boolean =>
@@ -305,3 +368,117 @@ export type IntegrationSettings = { afterRoundGithubComment: boolean };
 /** `POST /api/settings/integrations/clickup/test`. */
 export type ClickUpTestResponse =
   { ok: true; user: { id: string; username: string } } | { ok: false; error: ReasonView };
+
+/** `GET /api/status`: the status chip. Paused and budget states arrive with S-10. */
+export type StatusResponse = {
+  state: 'running' | (string & {});
+  todaySpendUsd: number;
+  /** Start of the day the spend counts from. */
+  since: string;
+};
+
+/** `GET /api/activity/in-progress`: queued and running runs, oldest first. */
+export type InProgressRun = {
+  id: number;
+  kind: string;
+  status: RunStatus;
+  roundNumber: number | null;
+  level: { number: number; key: string };
+  /** The running stage, or the next one between two stages; null while queued. */
+  currentStage: string | null;
+  /** Grows per agent turn while a session runs. */
+  costUsd: number;
+  createdAt: string;
+  startedAt: string | null;
+  pullRequest: { repository: { slug: string }; number: number; title: string };
+};
+export type InProgressResponse = { runs: InProgressRun[] };
+
+export type RunStepStatus = 'done' | 'running' | 'failed' | 'queued' | 'off';
+
+/** An agent session of a run (`GET /api/runs/:id`). */
+export type RunSessionView = {
+  id: number;
+  role: string;
+  model: string;
+  status: string;
+  costUsd: number;
+  costSource: string;
+  turns: number | null;
+  durationMs: number | null;
+  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
+  /** Paths the session read; empty when its transcript is not stored. */
+  filesRead: string[];
+  actions: { tool: string; target: string | null }[];
+  hasTranscript: boolean;
+};
+
+export type RunStageView = {
+  key: string;
+  status: RunStepStatus;
+  attempt: number | null;
+  /** Every attempt of the stage. */
+  costUsd: number;
+  errorCode: string | null;
+  offReason: ReasonView | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  /** The latest attempt's stored output (the stage's readable result). */
+  output: unknown;
+  sessions: RunSessionView[];
+};
+
+/** `GET /api/runs/:id`. */
+export type RunDetail = {
+  run: {
+    id: number;
+    kind: string;
+    status: RunStatus;
+    level: { number: number; key: string };
+    startedBy: ActorView;
+    trigger: string;
+    createdAt: string;
+    startedAt: string | null;
+    finishedAt: string | null;
+    currentStage: string | null;
+    notChecked: string[];
+    instructionVersions: { id: number; scope: string; fileKey: string; version: number }[];
+    error: { stage: string; code: string } | null;
+  };
+  pullRequest: { repository: { slug: string }; number: number; title: string };
+  /** `round_label`; null for a run that is not a round. */
+  label: ReasonView | null;
+  stages: RunStageView[];
+  /** Sum of the run's session costs: for a failed run, what it spent up to the failure. */
+  totalCostUsd: number;
+};
+
+/** `GET /api/prs/:repo/:number/timeline`. */
+export type TimelineResponse = {
+  summary: {
+    /** First ready-for-review state; null while the PR was never ready. */
+    readyAt: string | null;
+    outcome: 'open' | 'merged' | 'closed';
+    /** Ready → merged / closed, or open for (until now). */
+    totalMs: number;
+    agentsWorkedMs: number;
+    waitingMs: number;
+    byLane: Record<string, number>;
+    /** Cost of the PR's finished runs. */
+    costUsd: number;
+  };
+  entries: TimelineEntryView[];
+};
+
+export type TimelineEntryView = {
+  id: number;
+  at: string;
+  actor: ActorView;
+  /** The signer's name for member entries (kept after they leave the team). */
+  memberName: string | null;
+  kind: string;
+  params: Record<string, unknown>;
+  runId: number | null;
+  /** A finished run's final cost. */
+  costUsd: number | null;
+};

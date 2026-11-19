@@ -96,6 +96,7 @@ export async function handlePullRequestEvent({
           snapshot,
           action,
           eventId: event.id,
+          payload,
         });
       }
     }

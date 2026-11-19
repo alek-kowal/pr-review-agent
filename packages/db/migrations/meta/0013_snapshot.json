@@ -1,6 +1,6 @@
 {
-  "id": "64edd3df-f2f7-40ff-ab33-40ba80b8eb77",
-  "prevId": "c69efd0b-6c43-48d1-8729-6d23f391f8db",
+  "id": "6be5f6fc-d6ba-4de0-b7b1-50ddbead479d",
+  "prevId": "eb98c8d9-acef-4148-b975-b5ab4b716ad1",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -430,6 +430,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "sensitive_version": {
+          "name": "sensitive_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "opened_at": {
           "name": "opened_at",
           "type": "timestamp with time zone",
@@ -441,6 +448,30 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "ready_at": {
+          "name": "ready_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "merged_at": {
+          "name": "merged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "merge_sha": {
+          "name": "merge_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1912,6 +1943,30 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "follow_up_status": {
+          "name": "follow_up_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_task_id": {
+          "name": "follow_up_task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_url": {
+          "name": "follow_up_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "follow_up_error": {
+          "name": "follow_up_error",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1970,7 +2025,12 @@
       },
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "finding_decisions_follow_up_status": {
+          "name": "finding_decisions_follow_up_status",
+          "value": "follow_up_status in ('creating', 'created', 'failed')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.team_members": {
@@ -2656,6 +2716,285 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sensitive_files": {
+      "name": "sensitive_files",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "sensitive_files_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pattern": {
+          "name": "pattern",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "member_id": {
+          "name": "member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "head_sha": {
+          "name": "head_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sensitive_files_pull_request_id_pull_requests_id_fk": {
+          "name": "sensitive_files_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "sensitive_files",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "sensitive_files_member_id_team_members_id_fk": {
+          "name": "sensitive_files_member_id_team_members_id_fk",
+          "tableFrom": "sensitive_files",
+          "tableTo": "team_members",
+          "columnsFrom": [
+            "member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sensitive_files_pull_request_path": {
+          "name": "sensitive_files_pull_request_path",
+          "nullsNotDistinct": false,
+          "columns": [
+            "pull_request_id",
+            "path"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "sensitive_files_status": {
+          "name": "sensitive_files_status",
+          "value": "\"sensitive_files\".\"status\" in ('pending', 'approved', 'sent_back')"
+        },
+        "sensitive_files_member": {
+          "name": "sensitive_files_member",
+          "value": "(\"sensitive_files\".\"actor\" = 'member') = (\"sensitive_files\".\"member_id\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.head_changes": {
+      "name": "head_changes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "head_changes_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "pull_request_id": {
+          "name": "pull_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "github_event_id": {
+          "name": "github_event_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "before_sha": {
+          "name": "before_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "after_sha": {
+          "name": "after_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pusher": {
+          "name": "pusher",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "by_bot": {
+          "name": "by_bot",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_base_merge": {
+          "name": "is_base_merge",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "head_changes_pull_request": {
+          "name": "head_changes_pull_request",
+          "columns": [
+            {
+              "expression": "pull_request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "head_changes_pull_request_id_pull_requests_id_fk": {
+          "name": "head_changes_pull_request_id_pull_requests_id_fk",
+          "tableFrom": "head_changes",
+          "tableTo": "pull_requests",
+          "columnsFrom": [
+            "pull_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "head_changes_github_event_id_github_events_id_fk": {
+          "name": "head_changes_github_event_id_github_events_id_fk",
+          "tableFrom": "head_changes",
+          "tableTo": "github_events",
+          "columnsFrom": [
+            "github_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "head_changes_github_event": {
+          "name": "head_changes_github_event",
+          "nullsNotDistinct": false,
+          "columns": [
+            "github_event_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

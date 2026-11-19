@@ -14,6 +14,7 @@ import {
   unprocessedGithubEvents,
 } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
+import { resendLostFollowUps } from '../handlers/clickup-follow-up.ts';
 import { afterTransition } from './execute-stage.ts';
 import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
@@ -23,7 +24,7 @@ import { runStateOf } from './state.ts';
 const EVENT_RESEND_AFTER_MS = 60_000;
 const EVENT_RESEND_WITHIN_MS = 24 * 60 * 60_000;
 
-export type ResendResult = { resent: number[]; events: number[] };
+export type ResendResult = { resent: number[]; events: number[]; followUps: number[] };
 export type RecoveryResult = ResendResult & { interrupted: number[] };
 
 /** Only at worker start: before it, no handler of this process runs a stage. */
@@ -56,7 +57,7 @@ export async function resendLostJobs(
   now: Date = new Date(),
 ): Promise<ResendResult> {
   const { db } = deps;
-  const result: ResendResult = { resent: [], events: [] };
+  const result: ResendResult = { resent: [], events: [], followUps: [] };
 
   for (const run of await runsWithStatus(db, ['queued', 'running'])) {
     const state = runStateOf(run, await stageExecutionsOfRun(db, run.id));
@@ -83,5 +84,7 @@ export async function resendLostJobs(
     );
     result.events.push(event.id);
   }
+
+  result.followUps = await resendLostFollowUps(deps, now);
   return result;
 }

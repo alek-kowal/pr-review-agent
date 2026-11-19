@@ -1,6 +1,7 @@
 import { JOBS, type JobPayloads } from '@pra/db';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
 import { handleGithubComments } from './handlers/github-comment.ts';
+import { handleFollowUps } from './handlers/clickup-follow-up.ts';
 import { handleGithubEvents } from './handlers/github-event.ts';
 import { handleSmoke } from './handlers/smoke.ts';
 import { handleRunStages } from './run/execute-stage.ts';
@@ -48,6 +49,9 @@ export async function startWorker(
   await queue.work<JobPayloads['github.comment']>(JOBS.githubComment, work, (jobs) =>
     handleGithubComments(deps, jobs),
   );
+  await queue.work<JobPayloads['clickup.follow-up']>(JOBS.clickupFollowUp, work, (jobs) =>
+    handleFollowUps(deps, jobs),
+  );
   logger.info({ jobs: Object.values(JOBS) }, 'worker started');
 
   // A send that failed after its row was committed (the api's event job, a next stage job) is
@@ -58,7 +62,9 @@ export async function startWorker(
     resending = true;
     resendLostJobs(deps)
       .then((result) => {
-        if (result.resent.length || result.events.length) logger.info(result, 'lost jobs sent');
+        if (result.resent.length || result.events.length || result.followUps.length) {
+          logger.info(result, 'lost jobs sent');
+        }
       })
       .catch((error: unknown) => logger.warn({ err: error }, 'resending lost jobs failed'))
       .finally(() => (resending = false));

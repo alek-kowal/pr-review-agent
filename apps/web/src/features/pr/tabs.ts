@@ -2,7 +2,8 @@ import type { ComponentType } from 'react';
 import { copy } from '@/copy/index.ts';
 import type { PrView } from '@/lib/api-types.ts';
 import { FindingsTab } from '@/features/findings/FindingsTab.tsx';
-import { PatchTab, QuestionsTab, TimelineTab } from './tab-panels.tsx';
+import { TimelineTab } from '@/features/timeline/TimelineTab.tsx';
+import { PatchTab, QuestionsTab } from './tab-panels.tsx';
 
 export type PrTabProps = { repo: string; number: string; view: PrView };
 

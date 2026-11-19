@@ -248,7 +248,13 @@ describe('GET /api/prs/:repo/:number/findings', () => {
     const empty = await app.inject({ url: `/api/prs/${alpha}/2/findings` });
     const missing = await app.inject({ url: `/api/prs/${alpha}/999/findings` });
 
-    expect(empty.json()).toEqual({ round: null, findings: [], questions: [], notChecked: [] });
+    expect(empty.json()).toEqual({
+      round: null,
+      findings: [],
+      questions: [],
+      notChecked: [],
+      unchecked: null,
+    });
     expect(missing.statusCode).toBe(404);
     expect(missing.json().error.code).toBe('pr_not_found');
   });
@@ -329,6 +335,16 @@ test('the endpoints and their schemas appear in /docs/json', async () => {
   };
   expect(
     Object.keys(view.responses['200']!.content['application/json']!.schema.properties),
-  ).toEqual(['pullRequest', 'latestRound', 'nextStep', 'checklist', 'author', 'head', 'sensitive']);
+  ).toEqual([
+    'pullRequest',
+    'latestRound',
+    'nextStep',
+    'checklist',
+    'author',
+    'head',
+    'sensitive',
+    'roundProgress',
+    'task',
+  ]);
   expect(view.responses['404']).toBeDefined();
 });

@@ -29,5 +29,33 @@ export type StackState = {
 /** PR numbers from this one up get a failing reviewer. */
 export const FAILING_PR_FROM = 400;
 
+/**
+ * PR numbers in this range get a held reviewer: it reports one turn costing `HELD_TURN_COST_USD`,
+ * then waits until the spec creates `releaseFile(number)` before it answers (live-progress.spec.ts).
+ */
+export const HELD_PRS = { from: 350, to: 399 };
+export const HELD_TURN_COST_USD = 0.12;
+export const releaseFile = (number: number): string =>
+  path.join(tmpdir(), `pra-e2e-${WEB_PORT}-release-${number}`);
+
 /** A repository the GitHub App double reaches that no seed connects. */
 export const SECOND_REPOSITORY = { fullName: 'acme/second-repo', installationId: 55500002 };
+
+/** Seeded at level 3 with the migration as a sensitive file, so Verify checks every finding. */
+export const VERIFIED_REPOSITORY = {
+  slug: 'verified-repo',
+  fullName: 'acme/verified-repo',
+  installationId: 55500003,
+};
+
+/** Seeded at level 2: rounds run the checks and the change type, but no Verify. */
+export const LEVEL_TWO_REPOSITORY = {
+  slug: 'level-two-repo',
+  fullName: 'acme/level-two-repo',
+  installationId: 55500004,
+};
+
+/** Insights history (insights.spec.ts): 17 merged PRs here... */
+export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };
+/** ...and 3 here. No App installation: nothing is delivered for them. */
+export const INSIGHTS_SIDE = { slug: 'insights-side', fullName: 'acme/insights-side' };

@@ -1,17 +1,20 @@
 import { checklist, DECISIONS, nextStep } from '@pra/core';
 import {
   decideFindings,
+  FOLLOW_UP_DELAY_SECONDS,
   findPullRequest,
   getDecisionBatch,
   loadPrStateInput,
+  JOBS,
   lockActiveTeamMember,
+  sendJob,
   undoDecisionBatch,
   type Executor,
 } from '@pra/db';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
-import { decisionView, FindingsResponse, findingsView } from '../../../pr-view/findings.ts';
+import { decisionView, FindingsResponse, loadFindingsView } from '../../../pr-view/findings.ts';
 import {
   ChecklistSchema,
   checklistView,
@@ -58,7 +61,7 @@ async function refreshedView(db: Executor, pullRequestId: number) {
   return {
     nextStep: nextStepView(nextStep(load.input)),
     checklist: checklistView(checklist(load.input)),
-    findings: findingsView(load),
+    findings: await loadFindingsView(db, load),
   };
 }
 
@@ -68,7 +71,7 @@ async function refreshedView(db: Executor, pullRequestId: number) {
  * nothing is written to GitHub.
  */
 const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
-  const { db } = fastify.deps;
+  const { db, queue } = fastify.deps;
 
   fastify.post(
     '/prs/:repo/:number/decisions',
@@ -118,6 +121,18 @@ const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
               })),
             });
         }
+      }
+      if (decision === 'defer') {
+        // ClickUp follow-up tasks (S-06-T5), after the Undo window. A lost send is resent by the
+        // worker (`resendLostFollowUps`), so the decision stands either way.
+        await sendJob(
+          queue,
+          JOBS.clickupFollowUp,
+          { batchId: result.batch.id },
+          { singletonKey: `${result.batch.id}`, startAfter: FOLLOW_UP_DELAY_SECONDS },
+        ).catch((error: unknown) =>
+          request.log.warn({ err: error, batchId: result.batch.id }, 'follow-up job not sent'),
+        );
       }
       return { batchId: result.batch.id, ...(await refreshedView(db, found.pullRequest.id)) };
     },
