@@ -351,10 +351,11 @@ export async function loadPrStateInputs(
       questions: prQuestions.map((row) => ({ id: String(row.id), answered: false })),
       sensitive: sensitiveState(sensitiveByPr.get(pullRequest.id) ?? []),
       patch: null,
-      // Opinions arrive in S-08, CI checks and reviews with the merge checklist (S-12).
+      // Opinions arrive in S-08.
       reviewers: 0,
-      ci: [],
-      changesRequestedBy: [],
+      // CI counts only for the head it was reported on (S-12): a push empties the row.
+      ci: pullRequest.ciSha === pullRequest.headSha ? pullRequest.ciChecks : [],
+      changesRequestedBy: pullRequest.changesRequestedBy,
     };
 
     loads.set(pullRequest.id, {

@@ -77,3 +77,12 @@ questions (orchestrator rule: decide and record).
   no agent session; the three `settings_changes` rows (pause, resume, budget) carry the signer.
   The spec restores the state through the api in `finally` (resume, budget null) and then sees the
   budget-held round start by itself. PR numbers 260–269 belong to this spec.
+- **Merge with S-12 (P-19, main):** main's `0014_pr_checks` migration and its snapshot stay
+  untouched. This package's migration was regenerated on top as `0015_pause_budget_queue`
+  (`pnpm db:generate --name pause_budget_queue`); the generated SQL equals the old 0014 and the
+  hand-written tail (the `app_settings` row and the two notify triggers) is carried over verbatim.
+  Both sides kept in `ApiErrorCode` (pause/resume plus merge codes), `MAIN_ACTIONS` (`resume` and
+  `merge`), the `@pra/db` queries barrel (`status.ts`, `merge.ts`) and the e2e stack imports.
+  `NextStepBanner.test.tsx` keeps this package's `renderBanner` (QueryClient for the status query)
+  and drops `aChecklist`, since main moved the checklist tests to `checklist.test.tsx`.
+  `routeTree.gen.ts` was regenerated with `vite build`; it did not change.

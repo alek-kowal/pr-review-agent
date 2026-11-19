@@ -1,5 +1,5 @@
 {
-  "id": "df880af5-72ff-4a39-b4d3-86939a771ebd",
+  "id": "479ad126-310d-48f1-8ae3-a6f1d81c8c90",
   "prevId": "6be5f6fc-d6ba-4de0-b7b1-50ddbead479d",
   "version": "7",
   "dialect": "postgresql",
@@ -470,6 +470,32 @@
         "merge_sha": {
           "name": "merge_sha",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_sha": {
+          "name": "ci_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_checks": {
+          "name": "ci_checks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "changes_requested_by": {
+          "name": "changes_requested_by",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "checks_refreshed_at": {
+          "name": "checks_refreshed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
@@ -2995,64 +3021,6 @@
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.run_waits": {
-      "name": "run_waits",
-      "schema": "",
-      "columns": {
-        "run_id": {
-          "name": "run_id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "admitted_at": {
-          "name": "admitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason": {
-          "name": "reason",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "waiting_since": {
-          "name": "waiting_since",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "run_waits_run_id_runs_id_fk": {
-          "name": "run_waits_run_id_runs_id_fk",
-          "tableFrom": "run_waits",
-          "tableTo": "runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

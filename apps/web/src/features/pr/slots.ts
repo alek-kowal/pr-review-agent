@@ -3,6 +3,7 @@ import type { MainActionCode } from '@pra/core';
 import type { NextStepView, PrView } from '@/lib/api-types.ts';
 import { ResumeAction } from '@/features/budget/ResumeAction.tsx';
 import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
+import { MergeAction } from '@/features/merge/MergeAction.tsx';
 import { RoundProgress } from '@/features/round/RoundProgress.tsx';
 import { Checklist } from './Checklist.tsx';
 import { DecideAction } from './DecideAction.tsx';
@@ -25,6 +26,7 @@ export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActi
   start_review: StartReviewMainAction,
   approve_sensitive: SensitiveAction,
   resume: ResumeAction,
+  merge: MergeAction,
 };
 
 /**
