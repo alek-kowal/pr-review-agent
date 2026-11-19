@@ -85,3 +85,20 @@ tries, rejects (signed) or accepts (signed) them, and an accepted lesson becomes
 - Live updates: the learning migration adds `pra_notify_change` triggers on `analyses` (PR view
   and Learning) and `lesson_candidates` (Learning); the web maps them in `LIVE_TARGETS`.
 - "Merged by <name>" already comes from the merged state's banner (P-19); nothing added.
+
+### S-23-T7 (end to end)
+
+- A new e2e repository `learning-repo` at level 6. The merged PR is #247, not the prototype's
+  #278: 278 is in `QUESTION_PRS`, whose reviewer asks questions. Earlier closed PRs #241 and #244
+  give the prior candidates; #250 is the next round after the accept. Each number shifts by the
+  Playwright retry (0–2), so a retry starts from fresh PRs.
+- The prior candidates come from the real path (the spec delivers `closed` for #241 and #244 and
+  the bot runs the analyst), not from stack seeds, so a retry can rebuild them. The spec clears
+  the repository's candidates first and expects lessons.md "newest + 1".
+- The in-app merge does not start the analyst; the spec then delivers `pull_request.closed`
+  (merged) as GitHub would (`deliverPullRequest(..., 'merged', ...)`).
+- The e2e analyst double (`ScriptedAnalyst`) writes its input to the hold dir and waits while a
+  hold file exists, so the spec sees "Analyst is running" before "Analyst finished".
+- "The next round gets the lesson" is checked on the `lessons.md` in the reviewer's knowledge
+  folder: the reviewer prompt points to that folder and does not inline the lessons.
+- The candidate title follows the prototype: "Snapshot tables must be generated or tested".

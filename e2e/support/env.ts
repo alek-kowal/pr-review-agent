@@ -33,6 +33,10 @@ export type StackState = {
 export const briefFile = (holdDir: string, number: number, k: number): string =>
   path.join(holdDir, `brief-${number}-${k}.md`);
 
+/** The `lessons.md` that review read, when its knowledge folder had one (learning.spec.ts). */
+export const lessonsFile = (holdDir: string, number: number, k: number): string =>
+  path.join(holdDir, `lessons-${number}-${k}.md`);
+
 /**
  * PR numbers in this range get a reviewer that asks 2 questions; once the brief carries the
  * team's answers it asks none and adds one finding (questions-reviews.spec.ts). Level 1 drops
@@ -180,6 +184,59 @@ export const NOTIFY_REPOSITORY = {
 };
 export const commentsFile = (holdDir: string): string =>
   path.join(holdDir, 'clickup-comments.jsonl');
+
+/**
+ * Seeded at level 6 with a `lessons.md` v1 (learning.spec.ts): closing or merging a PR starts the
+ * analyst. Its double keeps each input (`analystInputFile`), waits while `analystHoldFile` exists,
+ * then proposes the lesson of the PR's range in `LEARNING_PRS`, or none.
+ */
+export const LEARNING_REPOSITORY = {
+  slug: 'learning-repo',
+  fullName: 'acme/learning-repo',
+  installationId: 55500009,
+};
+/** Each range is one PR number plus the retry (0 to 2). */
+export const LEARNING_PRS = {
+  /** Closed earlier; the analyst proposes `LEARNING_LESSONS.source`. */
+  source: { from: 241, to: 243 },
+  /** Closed earlier; the analyst proposes `LEARNING_LESSONS.snapshot`. */
+  snapshot: { from: 244, to: 246 },
+  /** Merged in the app; the analyst proposes `LEARNING_LESSONS.snapshot` again. */
+  merged: { from: 247, to: 249 },
+  /** Reviewed after the lesson is accepted. */
+  next: { from: 250, to: 252 },
+};
+/** Lessons of prototype flow E: one proposed on 2 PRs, one on a single PR. */
+export const LEARNING_LESSONS = {
+  snapshot: {
+    title: 'Snapshot tables must be generated or tested',
+    lesson:
+      'When a README table lists files that a build script copies, ask for a test that compares the table with the script.',
+  },
+  source: {
+    title: 'Fix at the source, not at the consumer',
+    lesson:
+      'When a PR works around a visual mismatch with an override in one place of use, check whether the component renders wrongly elsewhere too.',
+  },
+};
+/**
+ * GitHub comments on each PR in `LEARNING_PRS.merged`: one by the PR's author (`wb-dev`, the
+ * fixtures' author), which the analyst must not read, and one by a reviewer on a line.
+ */
+export const LEARNING_COMMENTS = {
+  author: { login: 'wb-dev', body: 'I will regenerate the table by hand next time.' },
+  reviewer: {
+    login: 'tomek-wb',
+    body: 'Same gap as in #244: the snapshot table and the build drifted apart.',
+    place: { path: 'apps/demo/src/edges.ts', line: 1 },
+  },
+};
+/** What the analyst double got for PR `number`, as JSON. */
+export const analystInputFile = (holdDir: string, number: number): string =>
+  path.join(holdDir, `analyst-input-${number}.json`);
+/** While this file exists, the analyst double holds PR `number`'s analysis. */
+export const analystHoldFile = (holdDir: string, number: number): string =>
+  path.join(holdDir, `hold-analyst-${number}`);
 
 /** Insights history (insights.spec.ts): 17 merged PRs here... */
 export const INSIGHTS_MAIN = { slug: 'insights-main', fullName: 'acme/insights-main' };

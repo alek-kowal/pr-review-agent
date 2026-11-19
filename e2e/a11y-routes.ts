@@ -12,4 +12,6 @@ export const A11Y_ROUTES: readonly A11yRoute[] = [
   { name: 'Settings → Instructions', path: '/settings/instructions' },
   { name: 'Settings → Experiments', path: '/settings/experiments' },
   { name: 'Settings → Pipeline', path: '/settings/pipeline' },
+  // S-23: learning.
+  { name: 'Settings → Learning', path: '/settings/learning' },
 ];
