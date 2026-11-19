@@ -8,13 +8,7 @@ import {
   type Lane,
   type LevelNumber,
 } from '@pra/core';
-import {
-  boardPullRequestIds,
-  listRepositories,
-  loadPrStateInputs,
-  readRepositoryConfig,
-  type Executor,
-} from '@pra/db';
+import { boardPullRequestIds, listRepositories, loadPrStateInputs, type Executor } from '@pra/db';
 import { z } from 'zod/v4';
 import { ReasonSchema } from '../pr-view/round.ts';
 import { AuthorSchema, authorView, NextStepSchema, nextStepView } from '../pr-view/state.ts';
@@ -119,7 +113,7 @@ export async function buildBoard(
       openedAt: load.pullRequest.openedAt.toISOString(),
       level: {
         number: load.input.level as LevelNumber,
-        repositoryDefault: readRepositoryConfig(load.repository).value.defaultLevel,
+        repositoryDefault: load.defaultLevel,
       },
       round: { number: load.input.chainRounds, max: MAX_CHAIN_ROUNDS },
       nextStep: nextStepView(step),
