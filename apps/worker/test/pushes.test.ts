@@ -15,7 +15,7 @@ import {
 import { aFinding, seedTeamMember } from '@pra/db/testing';
 import { afterAll, beforeEach, describe, expect, test } from 'vitest';
 import { processGithubEvent } from '../src/handlers/github-event.ts';
-import { chainsOnRunCompleted } from '../src/run/chains.ts';
+import { chainsOnRunCompleted, expectOwnFix, startFixCheckOnPush } from '../src/run/chains.ts';
 import { startRound } from '../src/run/start-round.ts';
 import { connectRepository, createTestWorkerDeps, storeGithubEvent } from './support.ts';
 import type { GitHubFixtureName } from '@pra/integrations/testing';
@@ -174,6 +174,39 @@ describe('pushes', () => {
     const load = await loadPrStateInput(deps.db, (await pr()).id);
     expect(load!.input.commitsSinceReview).toBe(1);
     expect(nextStep(load!.input).state).toBe('new_commits');
+  });
+
+  test('the fix check starts when the push is recorded after its webhook was handled', async () => {
+    const round = await reviewedRound();
+    expect(await deliver('pull_request.synchronize', sha('c'))).toBe('push_never_starts');
+
+    const started = await expectOwnFix(deps, round.chainId!, sha('c'));
+    expect(started).toMatchObject({ started: true, roundNumber: 2 });
+    const [, fix] = await runsOfPr();
+    expect(fix).toMatchObject({ roundNo: 2, trigger: 'own_fix', chainId: round.chainId });
+    // A retried push job records the same commit again: nothing more starts.
+    expect(await expectOwnFix(deps, round.chainId!, sha('c'))).toBeNull();
+    expect(await runsOfPr()).toHaveLength(2);
+  });
+
+  test('the fix push recorded before its webhook starts the round on the webhook', async () => {
+    const round = await reviewedRound();
+    expect(await expectOwnFix(deps, round.chainId!, sha('c'))).toBeNull();
+    expect(await deliver('pull_request.synchronize', sha('c'))).toBe('round_started');
+    expect(await runsOfPr()).toHaveLength(2);
+  });
+
+  test('two starts on the same fix push make one round', async () => {
+    const round = await reviewedRound();
+    await deliver('pull_request.synchronize', sha('c'));
+    await setChainExpectedHead(deps.db, round.chainId!, sha('c'));
+    const pullRequest = await pr();
+    const both = await Promise.all([
+      startFixCheckOnPush(deps, pullRequest, undefined),
+      startFixCheckOnPush(deps, pullRequest, undefined),
+    ]);
+    expect(both.filter((r) => r?.started)).toHaveLength(1);
+    expect(await runsOfPr()).toHaveLength(2);
   });
 
   test('a fix push while a run holds the PR starts nothing new', async () => {

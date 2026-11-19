@@ -6,8 +6,10 @@ import {
   and,
   eq,
   getPullRequest,
+  getRoundChain,
   schema,
   latestChainOf,
+  setChainExpectedHead,
   type PullRequest,
   type Repository,
   type Run,
@@ -97,4 +99,38 @@ export async function startFixCheckOnPush(
     startedBy: BOT,
     inTransaction,
   });
+}
+
+/**
+ * S-14's push job records the commit it pushed here, after the push. GitHub's `synchronize` for
+ * that commit may already have been handled and started nothing; then the fix check starts now.
+ * Idempotent: a commit a round of the chain already checked is not expected again.
+ */
+export async function expectOwnFix(
+  deps: Pick<WorkerDeps, 'db' | 'queue' | 'logger'>,
+  chainId: string,
+  sha: string,
+): Promise<StartRoundResult | null> {
+  const chain = await getRoundChain(deps.db, chainId);
+  if (!chain) return null;
+  const [checked] = await deps.db
+    .select({ id: schema.runs.id })
+    .from(schema.runs)
+    .where(
+      and(
+        eq(schema.runs.chainId, chainId),
+        eq(schema.runs.trigger, 'own_fix'),
+        eq(schema.runs.headSha, sha),
+      ),
+    )
+    .limit(1);
+  if (checked) return null;
+  await setChainExpectedHead(deps.db, chainId, sha);
+  const [pullRequest] = await deps.db
+    .select()
+    .from(schema.pullRequests)
+    .where(eq(schema.pullRequests.id, chain.pullRequestId));
+  // Not there yet: the webhook for the commit starts the round.
+  if (pullRequest?.headSha !== sha) return null;
+  return startFixCheckOnPush(deps, pullRequest, undefined);
 }
