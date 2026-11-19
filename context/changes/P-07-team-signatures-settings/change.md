@@ -34,3 +34,15 @@ tasks' "Done when" checks are the plan. One commit per task.
   another PR give `not_found`. Undo bumps the versions too, so a form opened before it conflicts.
 - The current decision is read in JS from the non-undone batches, newest batch id first; there
   are only a few batches per finding.
+- `settings_changes.actor` is `member`, `bot` or `hand` (core `ACTOR_KINDS`) with `signer_id`
+  set exactly for `member` (check constraint); `area` and `entity` are free text, so a new area
+  needs no migration.
+- `applySignedSettingsChange(db, { store, entity, before, after, signer, signAsCreated?, note? })`
+  lives in `apps/api/src/settings/signed-change.ts`. The task's signature has no way to read or
+  write an area, so each area passes a `SettingsStore` (`read` locks the current value, `write`
+  applies `after`; `teamStore` is the first). It returns a result, not an HTTP reply: `{ ok: false,
+  status, code, params }` for `signature_required`, `signer_unknown` and `settings_stale` (409,
+  with the stored value as `params.current`). `before` is compared as JSON, ignoring key order and
+  treating a missing field as null. Saving what is stored writes no row (`change: null`).
+- The first Team member signs as themselves through `signAsCreated`, checked inside the same
+  transaction: refused with `signature_required` once Team has an active member.

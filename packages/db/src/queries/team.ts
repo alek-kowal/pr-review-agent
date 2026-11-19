@@ -104,3 +104,17 @@ export async function removeTeamMember(
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Member ids are uuids; anything else would make Postgres fail the query. */
 export const isUuid = (value: string): boolean => UUID.test(value);
+
+/** An active member, locked until the transaction ends, so a concurrent change waits for it. */
+export async function lockActiveTeamMember(
+  tx: Executor,
+  id: string,
+): Promise<TeamMember | undefined> {
+  if (!isUuid(id)) return undefined;
+  const [row] = await tx
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.id, id), isNull(teamMembers.removedAt)))
+    .for('update');
+  return row;
+}

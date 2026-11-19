@@ -11,6 +11,12 @@ export const ApiErrorCode = {
   PrNotFound: 'pr_not_found',
   /** A state-changing request without `X-PRA-Request: 1` and a same-host `Origin` (csrf.ts). */
   CsrfRejected: 'csrf_rejected',
+  /** A signed action without `signedBy`. */
+  SignatureRequired: 'signature_required',
+  /** `signedBy` is not an active Team member. */
+  SignerUnknown: 'signer_unknown',
+  /** A settings save whose `before` is no longer current: someone saved in between. */
+  SettingsStale: 'settings_stale',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];
