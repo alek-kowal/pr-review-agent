@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Check, ChevronsUpDown, PenLine } from 'lucide-react';
 import { useId, useState } from 'react';
 import { cn } from 'cn';
@@ -40,9 +41,9 @@ export function SignatureField({ signature, error, className }: Props) {
         <span className="text-sm font-medium">{copy.signature.label}</span>
         <p className="text-sm text-text-3">
           {copy.signature.emptyTeam}{' '}
-          <a href="/settings/team" className="font-medium text-brand-text underline">
+          <Link to="/settings/team" className="font-medium text-brand-text underline">
             {copy.signature.addYourself}
-          </a>
+          </Link>
         </p>
       </div>
     );

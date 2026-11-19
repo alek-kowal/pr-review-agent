@@ -15,6 +15,7 @@ import { Route as InsightsRouteImport } from './routes/insights.tsx'
 import { Route as PrsRouteImport } from './routes/prs.tsx'
 import { Route as SettingsRouteImport } from './routes/settings.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
+import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
 import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsTeamRoute = SettingsTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const PrRepoNumberRoute = PrRepoNumberRouteImport.update({
   id: '/pr/$repo/$number',
   path: '/pr/$repo/$number',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/insights': typeof InsightsRoute
   '/prs': typeof PrsRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/settings/team': typeof SettingsTeamRoute
   '/settings/': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
 }
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/insights': typeof InsightsRoute
   '/prs': typeof PrsRoute
+  '/settings/team': typeof SettingsTeamRoute
   '/settings': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
 }
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/insights': typeof InsightsRoute
   '/prs': typeof PrsRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/settings/team': typeof SettingsTeamRoute
   '/settings/': typeof SettingsIndexRoute
   '/pr/$repo/$number': typeof PrRepoNumberRoute
 }
@@ -88,11 +97,18 @@ export interface FileRouteTypes {
     | '/insights'
     | '/prs'
     | '/settings'
+    | '/settings/team'
     | '/settings/'
     | '/pr/$repo/$number'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/activity' | '/insights' | '/prs' | '/settings' | '/pr/$repo/$number'
+    | '/'
+    | '/activity'
+    | '/insights'
+    | '/prs'
+    | '/settings/team'
+    | '/settings'
+    | '/pr/$repo/$number'
   id:
     | '__root__'
     | '/'
@@ -100,6 +116,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/prs'
     | '/settings'
+    | '/settings/team'
     | '/settings/'
     | '/pr/$repo/$number'
   fileRoutesById: FileRoutesById
@@ -157,6 +174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/team': {
+      id: '/settings/team'
+      path: '/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof SettingsTeamRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/pr/$repo/$number': {
       id: '/pr/$repo/$number'
       path: '/pr/$repo/$number'
@@ -168,10 +192,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteChildren {
+  SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 

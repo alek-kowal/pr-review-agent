@@ -207,6 +207,53 @@ export const copy = {
       leave: 'Discard and leave',
     },
   },
+  team: {
+    title: 'Team',
+    affects:
+      'the names offered in every signature field. Nobody logs in: a signature is a name picked from this list.',
+    loading: 'Loading Team…',
+    empty: 'Nobody is in Team yet. Add yourself first: the first person signs as themselves.',
+    tableLabel: 'Team members',
+    columns: {
+      name: 'Name',
+      githubLogin: 'GitHub login',
+      clickupUser: 'ClickUp user',
+      actions: 'Actions',
+    },
+    login: (login: string) => `@${login}`,
+    none: '—',
+    add: 'Add a person',
+    edit: (name: string) => `Edit ${name}`,
+    remove: (name: string) => `Remove ${name}`,
+    fields: {
+      name: 'Name',
+      githubLogin: 'GitHub login',
+      githubLoginHint: 'Links the person to the pull requests they open.',
+      clickupUser: 'ClickUp user ID',
+      clickupUserHint: 'Who Notify author mentions in ClickUp. Optional.',
+    },
+    addDialog: {
+      title: 'Add a person to Team',
+      description: 'They appear in every signature field. The change is signed.',
+      confirm: 'Add person',
+    },
+    editDialog: {
+      title: (name: string) => `Edit ${name}`,
+      description: 'The change is signed and recorded in the Audit log.',
+      confirm: 'Save changes',
+    },
+    removeDialog: {
+      title: (name: string) => `Remove ${name} from Team?`,
+      description: (name: string) =>
+        `${name} is no longer offered in signature fields. Past signatures keep the name.`,
+      confirm: 'Remove',
+    },
+    firstMember: 'You are the first person in Team, so you sign as yourself.',
+    required: 'A person needs a name and a GitHub login.',
+    cancel: 'Cancel',
+    saving: 'Saving…',
+    close: 'Close',
+  },
   signature: {
     label: 'Signed by',
     hint: 'Nobody logs in: a signature is your name picked from Team.',

@@ -1,11 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { copy } from '@/copy/index.ts';
 import type { TeamMember } from '@/lib/api-types.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
+import { renderInRouter } from '@/test/renderInRouter.tsx';
 import { LAST_SIGNER_KEY } from './last-signer.ts';
 import { SignatureField } from './SignatureField.tsx';
 import { useSignature } from './use-signature.ts';
@@ -44,12 +44,7 @@ function SignedForm({ onSubmit }: { onSubmit: (signedBy: string) => void }) {
 
 function renderForm() {
   const onSubmit = vi.fn();
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
-    <QueryClientProvider client={queryClient}>
-      <SignedForm onSubmit={onSubmit} />
-    </QueryClientProvider>,
-  );
+  renderInRouter(<SignedForm onSubmit={onSubmit} />);
   return { onSubmit };
 }
 

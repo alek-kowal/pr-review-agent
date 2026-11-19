@@ -1,7 +1,7 @@
 ---
 change_id: P-07
 title: Team, signatures and Settings shell (S-02-T1, S-20-T1, S-02-T3, S-02-T5, S-20-T2, S-02-T8)
-status: in_progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -73,3 +73,21 @@ tasks' "Done when" checks are the plan. One commit per task.
   fields)` gives the draft, `changes` (before/after rows) and `discard`. `SignedSaveDialog` mounts
   its form per opening, refuses confirm without a signer, keeps the dialog open with the api
   error's copy when the save fails, and remembers the signer only after success.
+- Team page (`/settings/team`, `features/team`): a table plus Add/Edit (Dialog) and Remove
+  (AlertDialog), each with its own SignatureField, as the task says, rather than the prototype's
+  inline table with a SaveBar. Edit and Remove send `before`, so a change made in between shows
+  the `settings_stale` copy. With an empty Team, Add shows "you sign as yourself" instead of the
+  field and posts without `signedBy`. Every change invalidates the `['team']` query. Team is the
+  first entry in the Settings registry, so `/settings` opens on it.
+- `stubFetch` (web tests) also matches `'METHOD /path'` keys, records JSON bodies and answers 204
+  without a body; `renderInRouter` renders one component inside a router (for `Link`).
+- `e2e/settings-team.spec.ts` covers adding the first member and a signed second one with
+  `page.route` mocks, like the smoke spec. In the browser the popover logs the benign
+  "ResizeObserver loop completed with undelivered notifications" warning, which Vite forwards to
+  its console; it does not affect the page.
+
+## Verify
+
+- `pnpm verify`: lint, typecheck and 431 tests pass.
+- `pnpm test:e2e`: 2 specs pass (smoke, settings-team).
+
