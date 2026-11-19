@@ -260,7 +260,21 @@ export type QuestionView = {
   options: string[];
   recommended: number | null;
   why: string | null;
+  /** The current answer; null while open. Its id goes back as `expectedAnswerId`. */
+  answer: AnswerView | null;
 };
+
+export type AnswerView = {
+  id: number;
+  /** The picked option; null for an own answer. */
+  option: number | null;
+  text: string;
+  signedBy: { id: string; name: string };
+  savedAt: string;
+};
+
+/** One question of a 409 `answer_conflict`, with the answer saved in the meantime. */
+export type AnswerConflict = { questionId: number; answer: AnswerView | null };
 
 export type FindingsResponse = {
   round: {

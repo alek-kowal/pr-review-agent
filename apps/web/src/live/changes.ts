@@ -59,6 +59,9 @@ export const LIVE_TARGETS: Record<string, readonly QueryFamilyKey[]> = {
   finding_decisions: ['prFindings'],
   timeline_entries: ['prTimeline'],
   pr_state_changes: ['prView', 'prTimeline', 'board'],
+  answers: ['prFindings', 'prView', 'board'],
+  opinions: ['prFindings', 'prView'],
+  reviews: ['prView'],
 };
 
 const DEFAULT_TARGETS: readonly QueryFamilyKey[] = ['pr', 'board'];

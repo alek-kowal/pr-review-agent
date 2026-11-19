@@ -10,6 +10,7 @@ import type {
   HeadView,
   NextStepView,
   PrView,
+  QuestionView,
   RepositoryRef,
   RoundProgressView,
   RoundView,
@@ -196,5 +197,16 @@ export const aFindingsResponse = (over: Partial<FindingsResponse> = {}): Finding
   questions: [],
   notChecked: [],
   unchecked: null,
+  ...over,
+});
+
+export const aQuestion = (over: Partial<QuestionView> = {}): QuestionView => ({
+  id: 1,
+  ordinal: 1,
+  text: 'Should the cache survive a restart?',
+  options: ['Yes', 'No'],
+  recommended: 0,
+  why: 'Restarts are frequent.',
+  answer: null,
   ...over,
 });

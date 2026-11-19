@@ -5,6 +5,7 @@ import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
 import { RoundProgress } from '@/features/round/RoundProgress.tsx';
 import { Checklist } from './Checklist.tsx';
 import { DecideAction } from './DecideAction.tsx';
+import { AnswerAction } from '@/features/questions/AnswerAction.tsx';
 import { StartReviewHeaderAction, StartReviewMainAction } from '@/features/rounds/StartReview.tsx';
 import { SensitiveAction } from '@/features/sensitive/SensitiveAction.tsx';
 import { SensitiveBannerLine, SensitivePanel } from '@/features/sensitive/SensitivePanel.tsx';
@@ -23,6 +24,7 @@ export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActi
   decide: DecideAction,
   start_review: StartReviewMainAction,
   approve_sensitive: SensitiveAction,
+  answer: AnswerAction,
 };
 
 /**
