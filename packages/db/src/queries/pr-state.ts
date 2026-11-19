@@ -13,6 +13,7 @@ import {
   type RoundTrigger,
   type RunRecord,
   type StageKey,
+  usuallyDecidedBy,
 } from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
@@ -307,9 +308,8 @@ export async function loadPrStateInputs(
             timeoutMinutes: null,
           }
         : null;
-    const authorMember =
-      members.find((m) => m.githubLogin.toLowerCase() === pullRequest.authorLogin.toLowerCase()) ??
-      null;
+    const { memberId: authorMemberId } = usuallyDecidedBy(pullRequest, members);
+    const authorMember = members.find((m) => m.id === authorMemberId) ?? null;
 
     const input: PrStateInput = {
       state: pullRequest.state,

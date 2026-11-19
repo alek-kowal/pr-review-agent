@@ -207,6 +207,10 @@ export type DecisionView = {
   reason: string | null;
   signedBy: { id: string; name: string };
   decidedAt: string;
+  /** The PR author when it was decided (S-08-T5). */
+  author: AuthorView;
+  /** The names its label shows; `author` is null when the author signed it. */
+  label: { signer: string; author: string | null };
   /** Defer to ClickUp only: the follow-up task, or why there is none (S-06-T5). */
   followUp: FollowUpView | null;
 };
@@ -244,6 +248,8 @@ export type FindingView = {
   /** Sent back with a decision; a decision made in between gives 409 `decision_conflict`. */
   version: number;
   decision: DecisionView | null;
+  /** Who usually decides it (the author); null when it needs no decision. */
+  usuallyDecidedBy: AuthorView | null;
   needsDecision: { needed: boolean; reason: ReasonView };
   /** The head SHA of the round that found it. */
   sourceSha: string;

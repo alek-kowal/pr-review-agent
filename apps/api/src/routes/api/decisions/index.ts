@@ -7,6 +7,7 @@ import {
   loadPrStateInput,
   JOBS,
   lockActiveTeamMember,
+  prAuthor,
   sendJob,
   undoDecisionBatch,
   type Executor,
@@ -113,14 +114,16 @@ const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
             return sendError(reply, 404, ApiErrorCode.FindingNotFound, {
               missing: result.missing,
             });
-          case 'conflict':
+          case 'conflict': {
+            const author = await prAuthor(db, found.pullRequest.id);
             return sendError(reply, 409, ApiErrorCode.DecisionConflict, {
               conflicts: result.conflicts.map((conflict) => ({
                 findingId: conflict.findingId,
                 version: conflict.version,
-                decision: conflict.current ? decisionView(conflict.current) : null,
+                decision: conflict.current ? decisionView(conflict.current, author) : null,
               })),
             });
+          }
         }
       }
       if (decision === 'defer') {

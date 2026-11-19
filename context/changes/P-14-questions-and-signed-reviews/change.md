@@ -34,7 +34,15 @@ checks are the plan. One commit per task.
   runs (`runId < run.id`) to the brief; fix checks get the same list as `answers.md` plus one
   prompt line (`FIX_CHECK_ANSWERS_LINE`). The text renderer lives in `@pra/agents`
   (`teamAnswersBody`).
-- T4 (in progress): one opinion row per finding and signer (upsert), so a signer's newer opinion
+- T4: one opinion row per finding and signer (upsert), so a signer's newer opinion
   replaces only their own and concurrent signers both persist. `from_round` is the finding's
   round number in its chain (`runs.round_no`); a carried copy sets `carried_from_id`. `reviews`
   keeps the counts as saved; `reviewers` in the state input = distinct opinion signers.
+  `saveReview` and `saveAnswers` lock the PR row first (`lockPullRequestRow`): rows pointing at
+  the PR take a key-share lock and `recordStateChange` then locks it for update, which deadlocked
+  two concurrent saves.
+- T5: core `usuallyDecidedBy` (active member by login, case-insensitive, else the login) also
+  feeds the loader's `authorMember`. `decideFindings` stores the author (`prAuthor`). The api
+  sends `finding.usuallyDecidedBy` (null when no decision is needed) and `decision.author` +
+  `decision.label { signer, author|null }` (core `decisionLabelNames`); decisions stored before
+  T5 fall back to the PR's current author. The web shows the label from the api.
