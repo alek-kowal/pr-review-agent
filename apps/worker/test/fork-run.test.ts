@@ -154,15 +154,16 @@ describe('nothing starts a round for a fork by itself', () => {
     expect(await processGithubEvent(deps, event.id)).toBe('fork');
 
     expect(await stageJobs()).toHaveLength(before);
-    const runs = await deps.db.select().from(schema.runs);
-    const pr = runs.length
-      ? await deps.db.select().from(schema.pullRequests).where(eq(schema.pullRequests.isFork, true))
-      : [];
-    for (const fork of pr) {
-      expect(runs.filter((run) => run.pullRequestId === fork.id && run.trigger !== 'manual')).toEqual(
-        [],
-      );
-    }
+    const [fork] = await deps.db
+      .select()
+      .from(schema.pullRequests)
+      .where(eq(schema.pullRequests.repositoryId, repository.id));
+    expect(fork?.isFork).toBe(true);
+    const runs = await deps.db
+      .select()
+      .from(schema.runs)
+      .where(eq(schema.runs.pullRequestId, fork!.id));
+    expect(runs).toEqual([]);
   });
 
   test('a poll that finds a ready fork PR imports it and queues nothing', async () => {
