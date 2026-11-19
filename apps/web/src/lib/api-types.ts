@@ -533,6 +533,48 @@ export type InstructionVersionView = InstructionVersionRef & {
   }[];
 };
 
+// Trials (apps/api/src/routes/api/trials).
+export type TrialStatus = 'running' | 'completed' | 'failed' | 'cancelled';
+
+export type TrialSummaryView = {
+  id: number;
+  pr: { repo: string; number: number; title: string };
+  draft: { id: number; fileId: number; fileKey: string; version: number; status: string };
+  status: TrialStatus;
+  startedBy: 'member' | 'bot' | 'hand';
+  headSha: string;
+  createdAt: string;
+};
+
+export type TrialFindingView = {
+  id: number;
+  severity: Severity;
+  title: string;
+  file: string;
+  line: number | null;
+  verdict: Verdict;
+};
+
+export type TrialRunSide = { id: number; status: string; costUsd: number };
+
+export type TrialsListResponse = { trials: TrialSummaryView[] };
+
+export type TrialDetailResponse = {
+  trial: TrialSummaryView & {
+    runs: { a: TrialRunSide | null; b: TrialRunSide | null };
+    compare: {
+      onlyA: TrialFindingView[];
+      onlyB: TrialFindingView[];
+      both: { a: TrialFindingView; b: TrialFindingView }[];
+    };
+    diff: {
+      fileKey: string;
+      before: { version: number; content: string } | null;
+      after: { version: number; content: string };
+    };
+  };
+};
+
 export type InstructionDetailResponse = {
   file: InstructionFileView;
   /** Newest first. */
