@@ -43,7 +43,8 @@
   --brand-line: #99b3ff;
   --coral: #ed4c46;
   /* semantic */
-  --ok: #15803d;
+  /* #15803d in the prototype; darker for AA (4.5:1) on --ok-bg over --bg and --surface (S-17-T9) */
+  --ok: #14773a;
   --ok-bg: rgba(22, 163, 74, 0.1);
   --ok-line: #86d9a5;
   --ok-solid: #16a34a;

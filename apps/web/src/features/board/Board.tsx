@@ -49,7 +49,7 @@ export function Board({
       {board.isPending ? (
         <p className="text-text-3">{copy.board.loading}</p>
       ) : board.isError ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {errorText(board.error instanceof ApiError ? board.error.code : 'http_error')}
         </p>
       ) : (
@@ -74,7 +74,10 @@ const sortByUrgency = (cards: Card[]) =>
 function Lanes({ board, now, filtered }: { board: BoardResponse; now: number; filtered: boolean }) {
   const showRepository = board.repositoryCount > 1;
   return (
-    <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_2fr_1fr]">
+    <div
+      data-work-start
+      className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_2fr_1fr]"
+    >
       {LANES.map((lane) => {
         const hot = lane === 'action_needed';
         const cards = hot ? sortByUrgency(board.lanes[lane].cards) : board.lanes[lane].cards;

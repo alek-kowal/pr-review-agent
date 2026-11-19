@@ -1,7 +1,7 @@
 ---
 change_id: P-24
 title: Board filters, search and shortcuts (S-17-T1–T9)
-status: in_progress
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -95,3 +95,27 @@ when" checks are the plan. One commit per task, in the listed order.
   questions), a failing PR at `FAILING_PR_FROM + 10`, and #272 for search (fixed; a retry
   delivers it again). The prefilled signature comes from an init script that sets the last
   signer, as if this browser had signed as Kasia before.
+- **T9 placeholders in `a11y-routes.ts`.** PR pages and Run detail need records, so a path may
+  hold `{pr}` (PR #253 on workflowbuilder, delivered once and waited for until round 1 is done),
+  `{run}` (that round), and `{repository}`, `{instruction}`, `{trial}` (the first one stored).
+  A route whose record does not exist yet is skipped with the reason: `{trial}` is skipped on a
+  fresh stack, since `instructions.spec.ts` creates the only trial. The spec runs its routes in
+  one worker (`mode: 'default'`), so the PR is delivered once. `/settings/repositories/connect`
+  has no `?fullName=`, so its work start is the "not reachable" alert; the form itself is
+  checked on the Repository page (same `RepositoryForm`).
+- **T9 the focus probe** counts an outline or ring on the element, or on its rendered
+  `::before`/`::after`: the board card's title is a stretched link whose focus ring is drawn
+  around the whole card by `::after`. Tab walks at most 60 stops per route, in the light theme.
+- **T9 work start** sits on the first working block under each page's heading: the board's
+  lanes, the active PR tab panel, Run detail's tab grid, Activity's In progress section, each
+  Insights tab's content under the filters, each Settings page's table, form or first card.
+  Error and empty states carry the marker; Loading does not. All are at 129–304 px at
+  1440×900, so no layout change was needed.
+- **T9 fixes.** Tab panels (`TabsContent`, focusable by Radix) and Recharts surfaces (focusable)
+  get a `focus-visible` ring; Button skips its transition under `prefers-reduced-motion` (axe
+  measured contrast mid-fade from disabled); light `--ok` goes from the prototype's `#15803d` to
+  `#14773a` (4.49:1 → 5.05:1 on `--ok-bg`; dark unchanged); React Flow's attribution link uses
+  `text-text-3` (its own `#999` fails AA in both themes).
+- **Verify at close:** `git merge main` (clean, no migration clash) at the start of this
+  session, `pnpm verify` green (1175 tests), `pnpm test:e2e` 55 passed, 1 skipped (the
+  `{trial}` route above).

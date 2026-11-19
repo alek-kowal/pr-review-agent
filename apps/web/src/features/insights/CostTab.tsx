@@ -22,15 +22,17 @@ export function CostTab({ search }: { search: InsightsSearch }) {
   return (
     <div className="flex flex-col gap-4">
       <InsightsFilters search={search} show={['range', 'repo']} />
-      {query.isPending ? (
-        <p className="text-text-3">{t.loading}</p>
-      ) : query.isError ? (
-        <p role="alert" className="text-bad">
-          {t.failed}
-        </p>
-      ) : (
-        <CostView data={query.data} repo={search.repo} />
-      )}
+      <div data-work-start className="flex flex-col gap-4">
+        {query.isPending ? (
+          <p className="text-text-3">{t.loading}</p>
+        ) : query.isError ? (
+          <p role="alert" className="text-bad">
+            {t.failed}
+          </p>
+        ) : (
+          <CostView data={query.data} repo={search.repo} />
+        )}
+      </div>
     </div>
   );
 }

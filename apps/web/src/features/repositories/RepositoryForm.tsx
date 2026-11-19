@@ -38,7 +38,7 @@ export function RepositoryForm({ draft, set, errors }: Props) {
   );
 
   return (
-    <div className="flex flex-col gap-5">
+    <div data-work-start className="flex flex-col gap-5">
       <Section title={t.sections.general}>
         <Row label={t.fields.defaultLevel} help={t.help.defaultLevel}>
           {(id) => (

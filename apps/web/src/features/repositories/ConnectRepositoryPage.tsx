@@ -29,11 +29,11 @@ export function ConnectRepositoryPage({ fullName }: { fullName: string }) {
       {query.isPending ? (
         <p className="text-text-3">{t.loading}</p>
       ) : query.isError ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
         </p>
       ) : !target || !saved ? (
-        <p role="alert" className="text-bad">
+        <p role="alert" data-work-start className="text-bad">
           {t.connectPage.notReachable(fullName)}
         </p>
       ) : (
