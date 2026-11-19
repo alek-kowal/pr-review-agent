@@ -22,6 +22,7 @@ import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
 import { Route as SettingsBudgetRouteImport } from './routes/settings.budget.tsx'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
+import { Route as SettingsLearningRouteImport } from './routes/settings.learning.tsx'
 import { Route as SettingsPipelineRouteImport } from './routes/settings.pipeline.tsx'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
 import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
@@ -98,6 +99,11 @@ const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
   path: '/integrations',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsLearningRoute = SettingsLearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsPipelineRoute = SettingsPipelineRouteImport.update({
   id: '/pipeline',
   path: '/pipeline',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights': typeof InsightsIndexRoute
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/runs/$runId': typeof RunsRunIdRoute
   '/settings/budget': typeof SettingsBudgetRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
   '/settings/pipeline': typeof SettingsPipelineRoute
   '/settings/team': typeof SettingsTeamRoute
   '/insights/': typeof InsightsIndexRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/runs/$runId'
     | '/settings/budget'
     | '/settings/integrations'
+    | '/settings/learning'
     | '/settings/pipeline'
     | '/settings/team'
     | '/insights/'
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/runs/$runId'
     | '/settings/budget'
     | '/settings/integrations'
+    | '/settings/learning'
     | '/settings/pipeline'
     | '/settings/team'
     | '/insights'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/runs/$runId'
     | '/settings/budget'
     | '/settings/integrations'
+    | '/settings/learning'
     | '/settings/pipeline'
     | '/settings/team'
     | '/insights/'
@@ -406,6 +418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIntegrationsRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/learning': {
+      id: '/settings/learning'
+      path: '/learning'
+      fullPath: '/settings/learning'
+      preLoaderRoute: typeof SettingsLearningRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/pipeline': {
       id: '/settings/pipeline'
       path: '/pipeline'
@@ -500,6 +519,7 @@ const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
 interface SettingsRouteChildren {
   SettingsBudgetRoute: typeof SettingsBudgetRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
+  SettingsLearningRoute: typeof SettingsLearningRoute
   SettingsPipelineRoute: typeof SettingsPipelineRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -515,6 +535,7 @@ interface SettingsRouteChildren {
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBudgetRoute: SettingsBudgetRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
+  SettingsLearningRoute: SettingsLearningRoute,
   SettingsPipelineRoute: SettingsPipelineRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,

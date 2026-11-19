@@ -62,3 +62,15 @@ tries, rejects (signed) or accepts (signed) them, and an accepted lesson becomes
 - **"Try on a PR…"** is `POST /api/learning/candidates/:id/draft`: it saves the `lessons.md`
   draft with the lesson (unsigned) and returns `{ fileId, versionId }`; the web then starts
   `POST /api/trials` with that draft. Accepting later creates a fresh version, not this draft.
+
+### S-23-T5 (Settings → Learning)
+
+- One page with three lists: open candidates (cards with Edit, Try on a PR…, Reject…, Accept…),
+  Accepted lessons (with `lessons.md vN` and who accepted), and Rejected (with the reason).
+- Below 2 PRs the card's PR count itself reads "1 of 2 PRs: waits for one more" and Accept is
+  disabled with the same text in a Tooltip (on a focusable wrapper, since a disabled button gets
+  no pointer events). Added the shadcn `tooltip` primitive; there was none.
+- "Try on a PR…" reuses the S-22 form: `TryOnPrDialog` now builds a small `TrialTarget` (file
+  key, repository, draft) and its form is exported as `TryOnPrForm`. The Learning card first
+  saves the lessons draft, then opens that form limited to the candidate's repository.
+- Reject and Accept send the text the signer saw, so an edit in between is 409 `settings_stale`.

@@ -714,3 +714,28 @@ export type PipelineStageView = {
 };
 
 export type PipelineResponse = { stages: PipelineStageView[] };
+
+/** `GET /api/learning/candidates` (apps/api/src/routes/api/learning). */
+export type LessonCandidateView = {
+  id: number;
+  repo: string;
+  title: string;
+  text: string;
+  evidence: string;
+  status: 'proposed' | 'accepted' | 'rejected';
+  prCount: number;
+  /** PRs a candidate needs before it can be accepted. */
+  need: number;
+  sources: { repo: string; number: number; title: string; evidence: string }[];
+  rejectReason: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  lessonsVersion: number | null;
+  editedAt: string | null;
+  createdAt: string;
+};
+
+export type LearningCandidatesResponse = { candidates: LessonCandidateView[] };
+
+/** `POST /api/learning/candidates/:id/draft`: the lessons.md draft with the lesson added. */
+export type LessonDraftResponse = { fileId: number; versionId: number; version: number };

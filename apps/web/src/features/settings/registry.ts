@@ -6,6 +6,7 @@ import {
   FlaskConical,
   FolderGit2,
   Gauge,
+  Lightbulb,
   Plug,
   Users,
   Workflow,
@@ -42,6 +43,7 @@ export const settingsPages: readonly SettingsPageEntry[] = [
   { id: 'instructions', to: '/settings/instructions', icon: FileText },
   { id: 'pipeline', to: '/settings/pipeline', icon: Workflow },
   { id: 'experiments', to: '/settings/experiments', icon: FlaskConical },
+  { id: 'learning', to: '/settings/learning', icon: Lightbulb },
 ];
 
 export const groupOf = (id: SettingsPageId): SettingsGroup =>
