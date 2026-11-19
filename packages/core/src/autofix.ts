@@ -139,6 +139,8 @@ export interface AutofixPushInput {
   patch: PatchResult;
   /** The PR head right now. */
   headSha: string;
+  /** The PR's level right now; `level` is the one frozen for the implementer run. */
+  prLevel: LevelNumber;
   sensitivePatterns?: readonly SensitivePattern[];
   /** Automatic patches made in this chain before this one. */
   autoPatchesInChain: number;
@@ -197,6 +199,9 @@ export function autofixCheck(
   }
   if (push.paused) holds.push(reason('autofix_paused'));
   if (push.budgetReached) holds.push(reason('autofix_budget_reached'));
+  if (mode === 'act' && autofixMode(push.prLevel) !== 'act') {
+    holds.push(reason('autofix_level_lowered', { level: push.prLevel }));
+  }
   const reasons = holds.length ? holds : rule.reasons;
   return { mode, allowed: holds.length === 0, reasons, reason: reasons[0]!, findingIds: [] };
 }

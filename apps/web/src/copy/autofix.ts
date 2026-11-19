@@ -27,6 +27,8 @@ const reasons: Record<string, (p: Params) => string> = {
   not_all_fixed: (p) => `${n(p.fixed)} of ${n(p.total)} findings fixed`,
   reproductions_fail: (p) => `${n(p.failed)} of ${n(p.total)} reproductions still fail`,
   autofix_findings_changed: () => 'someone decided a finding meanwhile',
+  autofix_level_lowered: (p) => `the PR is now at level ${n(p.level)}`,
+  autofix_patch_edited: () => 'a person changed the patch; they push it',
   // Refusals of the push job and of the implementer start.
   head_moved: (p) => `the head moved to ${sha7(p.headSha)}`,
   pr_closed: () => 'the PR is closed',

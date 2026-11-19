@@ -317,6 +317,57 @@ describe('autofix at level 5', () => {
     }
   });
 
+  test('a PR lowered below level 5 after its round started gets the shadow, not a run', async () => {
+    const pr = await reviewedPr(5);
+    await deps.db
+      .update(schema.pullRequests)
+      .set({ level: 4 })
+      .where(eq(schema.pullRequests.id, pr.pullRequest.id));
+
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+
+    expect((await runsOf(pr.pullRequest.id)).map((r) => r.kind)).toEqual(['round']);
+    expect(await autofixAttemptsOfPr(deps.db, pr.pullRequest.id)).toEqual([]);
+    expect(await shadowOfPr(deps.db, pr.pullRequest.id)).toEqual([
+      expect.objectContaining({ point: 'start', decision: 'would_start', level: 4 }),
+    ]);
+  });
+
+  test("a person's edit, or a lowered level, before the push job stops the bot's push", async () => {
+    const pr = await reviewedPr(5);
+    await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    const [queued] = (await runsOf(pr.pullRequest.id)).filter((r) => r.kind === 'implementer');
+    const { implementer, patch } = await completeImplementer(pr, queued!, 'src/edited.ts');
+    await autofixOnPatchReady(hookContext(pr, implementer));
+    expect(await jobsWhere(deps.db, 'patch.push', 'patchId', patch.id)).toHaveLength(1);
+    const before = pushCalls();
+
+    // A person edits a file meanwhile: the patch check runs its reproductions again.
+    await deps.db
+      .update(schema.patches)
+      .set({ checking: true })
+      .where(eq(schema.patches.id, patch.id));
+    expect(await handlePatchPush(deps, { patchId: patch.id, signedBy: null })).toEqual({
+      pushed: false,
+      reason: reason('autofix_patch_edited'),
+    });
+
+    await deps.db
+      .update(schema.patches)
+      .set({ checking: false })
+      .where(eq(schema.patches.id, patch.id));
+    await deps.db
+      .update(schema.pullRequests)
+      .set({ level: 4 })
+      .where(eq(schema.pullRequests.id, pr.pullRequest.id));
+    expect(await handlePatchPush(deps, { patchId: patch.id, signedBy: null })).toEqual({
+      pushed: false,
+      reason: reason('autofix_level_lowered', { level: 4 }),
+    });
+    expect(pushCalls() - before).toBe(0);
+    expect(await git(pr.bare, 'rev-parse', `refs/heads/${pr.branch}`)).toBe(fixture.headSha);
+  });
+
   test("a person's forced One-way door holds autofix over the round's own change type", async () => {
     const pr = await reviewedPr(5);
     await insertStageExecution(deps.db, {

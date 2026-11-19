@@ -22,7 +22,7 @@ const start = (overrides: Partial<AutofixInput> = {}): AutofixInput => ({
   chainRounds: 1,
   ...overrides,
 });
-const patch =(overrides: Partial<PatchResult> = {}): PatchResult => ({
+const patch = (overrides: Partial<PatchResult> = {}): PatchResult => ({
   baseSha: HEAD,
   findingIds: ['a', 'b'],
   fixedFindingIds: ['a', 'b'],
@@ -35,6 +35,7 @@ const push = (overrides: Partial<AutofixPushInput> = {}): AutofixPushInput => ({
   fork: false,
   patch: patch(),
   headSha: HEAD,
+  prLevel: 5,
   sensitivePatterns: WB_SENSITIVE_PATTERNS,
   autoPatchesInChain: 0,
   paused: false,
@@ -138,5 +139,13 @@ describe('autofixCheck', () => {
     expect(paused).toMatchObject({ allowed: false, reason: { code: 'autofix_paused' } });
     const budget = autofixCheck('push', push({ budgetReached: true }));
     expect(budget).toMatchObject({ allowed: false, reason: { code: 'autofix_budget_reached' } });
+  });
+
+  it('a PR lowered below level 5 since its autofix run started is not pushed by the bot', () => {
+    expect(autofixCheck('push', push({ prLevel: 4 }))).toMatchObject({
+      allowed: false,
+      reason: { code: 'autofix_level_lowered', params: { level: 4 } },
+    });
+    expect(autofixCheck('push', push({ level: 4, prLevel: 4 })).allowed).toBe(true);
   });
 });
