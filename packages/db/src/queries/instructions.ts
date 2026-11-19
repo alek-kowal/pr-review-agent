@@ -6,14 +6,17 @@ import {
   type LevelNumber,
   type Reason,
 } from '@pra/core';
-import { and, asc, eq, getTableColumns, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, max, or } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Executor } from '../client.ts';
 import {
   instructionFiles,
   instructionVersions,
   runInstructionVersions,
 } from '../schema/instructions.ts';
-import type { RunInstructionVersion } from '../schema/runs.ts';
+import { pullRequests, repositories } from '../schema/repositories.ts';
+import { runs, type RunInstructionVersion } from '../schema/runs.ts';
+import { teamMembers } from '../schema/team.ts';
 
 export type InstructionFileRow = typeof instructionFiles.$inferSelect;
 export type InstructionVersionRow = typeof instructionVersions.$inferSelect;
@@ -257,4 +260,255 @@ export async function runInstructions(
     level: run.level.number,
   });
   return { files: new Map(files.map((f) => [f.fileKey, f.content])), warnings };
+}
+
+// Settings → Instructions (S-22-T4).
+
+/** A file with its repository's slug (repository copies). */
+export type InstructionFileWithRepository = InstructionFileRow & { repositorySlug: string | null };
+
+/** A file with its active version and its draft, for the list. */
+export type InstructionFileSummary = InstructionFileWithRepository & {
+  active: InstructionVersionRow | null;
+  draft: InstructionVersionRow | null;
+};
+
+const SCOPE_ORDER: Record<string, number> = { global: 0, repository: 1, level: 2 };
+
+function selectFiles(db: Executor) {
+  return db
+    .select({ ...getTableColumns(instructionFiles), repositorySlug: repositories.slug })
+    .from(instructionFiles)
+    .leftJoin(repositories, eq(repositories.id, instructionFiles.repositoryId));
+}
+
+/** Every file: global first, then repository copies by slug, then level copies by level. */
+export async function listInstructionFiles(db: Executor): Promise<InstructionFileSummary[]> {
+  const files = await selectFiles(db);
+  if (!files.length) return [];
+  const current = await db
+    .select()
+    .from(instructionVersions)
+    .where(
+      and(
+        inArray(
+          instructionVersions.fileId,
+          files.map((f) => f.id),
+        ),
+        inArray(instructionVersions.status, ['active', 'draft']),
+      ),
+    );
+  const of = (fileId: number, status: string) =>
+    current.find((v) => v.fileId === fileId && v.status === status) ?? null;
+  return files
+    .sort(
+      (a, b) =>
+        SCOPE_ORDER[a.scope]! - SCOPE_ORDER[b.scope]! ||
+        (a.repositorySlug ?? '').localeCompare(b.repositorySlug ?? '') ||
+        (a.level ?? 0) - (b.level ?? 0) ||
+        a.fileKey.localeCompare(b.fileKey),
+    )
+    .map((f) => ({ ...f, active: of(f.id, 'active'), draft: of(f.id, 'draft') }));
+}
+
+export async function getInstructionFile(
+  db: Executor,
+  id: number,
+): Promise<InstructionFileWithRepository | null> {
+  const [file] = await selectFiles(db).where(eq(instructionFiles.id, id));
+  return file ?? null;
+}
+
+/** A run that read a version. */
+export type InstructionVersionRun = {
+  runId: number;
+  kind: string;
+  prNumber: number;
+  repositorySlug: string;
+  createdAt: Date;
+};
+
+/** A version with its author's and signer's names and the runs that read it (newest first). */
+export type InstructionVersionDetail = InstructionVersionRow & {
+  createdByName: string | null;
+  activatedByName: string | null;
+  runCount: number;
+  runs: InstructionVersionRun[];
+};
+
+/** How many runs a version lists; `runCount` has the total. */
+export const VERSION_RUNS_LISTED = 20;
+
+/** A file's versions, newest first. */
+export async function instructionFileVersions(
+  db: Executor,
+  fileId: number,
+): Promise<InstructionVersionDetail[]> {
+  const author = alias(teamMembers, 'author');
+  const signer = alias(teamMembers, 'signer');
+  const versions = await db
+    .select({
+      ...getTableColumns(instructionVersions),
+      createdByName: author.name,
+      activatedByName: signer.name,
+    })
+    .from(instructionVersions)
+    .leftJoin(author, eq(author.id, instructionVersions.createdByMemberId))
+    .leftJoin(signer, eq(signer.id, instructionVersions.activatedByMemberId))
+    .where(eq(instructionVersions.fileId, fileId))
+    .orderBy(desc(instructionVersions.version));
+  if (!versions.length) return [];
+  const used = await db
+    .select({
+      versionId: runInstructionVersions.versionId,
+      runId: runs.id,
+      kind: runs.kind,
+      prNumber: pullRequests.number,
+      repositorySlug: repositories.slug,
+      createdAt: runs.createdAt,
+    })
+    .from(runInstructionVersions)
+    .innerJoin(runs, eq(runs.id, runInstructionVersions.runId))
+    .innerJoin(pullRequests, eq(pullRequests.id, runs.pullRequestId))
+    .innerJoin(repositories, eq(repositories.id, pullRequests.repositoryId))
+    .where(
+      inArray(
+        runInstructionVersions.versionId,
+        versions.map((v) => v.id),
+      ),
+    )
+    .orderBy(desc(runs.id));
+  return versions.map((v) => {
+    const mine = used
+      .filter((u) => u.versionId === v.id)
+      .map((u) => ({
+        runId: u.runId,
+        kind: u.kind,
+        prNumber: u.prNumber,
+        repositorySlug: u.repositorySlug,
+        createdAt: u.createdAt,
+      }));
+    return { ...v, runCount: mine.length, runs: mine.slice(0, VERSION_RUNS_LISTED) };
+  });
+}
+
+export async function getInstructionVersion(
+  db: Executor,
+  id: number,
+): Promise<InstructionVersion | null> {
+  const [version] = await selectVersions(db).where(eq(instructionVersions.id, id));
+  return version ?? null;
+}
+
+/** A file's version by its number. */
+export async function findInstructionVersion(
+  db: Executor,
+  fileId: number,
+  version: number,
+): Promise<InstructionVersionRow | null> {
+  const [row] = await db
+    .select()
+    .from(instructionVersions)
+    .where(and(eq(instructionVersions.fileId, fileId), eq(instructionVersions.version, version)));
+  return row ?? null;
+}
+
+/** The file's active version, locked until the transaction ends. */
+export async function lockActiveInstructionVersion(
+  tx: Executor,
+  fileId: number,
+): Promise<InstructionVersionRow | null> {
+  const [active] = await tx
+    .select()
+    .from(instructionVersions)
+    .where(and(eq(instructionVersions.fileId, fileId), eq(instructionVersions.status, 'active')))
+    .for('update');
+  return active ?? null;
+}
+
+/**
+ * Saves the file's draft, unsigned ("by hand"): a file has at most one draft, so this updates it
+ * or adds the next version number as the draft. Returns null when the file does not exist.
+ */
+export async function saveInstructionDraft(
+  db: Executor,
+  fileId: number,
+  draft: { content: string; note: string | null },
+): Promise<InstructionVersionRow | null> {
+  const [file] = await db
+    .select({ id: instructionFiles.id })
+    .from(instructionFiles)
+    .where(eq(instructionFiles.id, fileId))
+    .for('update');
+  if (!file) return null;
+  const [updated] = await db
+    .update(instructionVersions)
+    .set({ content: draft.content, note: draft.note, createdBy: 'hand', createdAt: new Date() })
+    .where(and(eq(instructionVersions.fileId, fileId), eq(instructionVersions.status, 'draft')))
+    .returning();
+  if (updated) return updated;
+  const [{ last }] = (await db
+    .select({ last: max(instructionVersions.version) })
+    .from(instructionVersions)
+    .where(eq(instructionVersions.fileId, fileId))) as [{ last: number | null }];
+  const [inserted] = await db
+    .insert(instructionVersions)
+    .values({
+      fileId,
+      version: (last ?? 0) + 1,
+      status: 'draft',
+      content: draft.content,
+      note: draft.note,
+      createdBy: 'hand',
+    })
+    .returning();
+  return inserted!;
+}
+
+/** Where a copy goes: one repository's or one level's. */
+export type InstructionCopyTarget =
+  { scope: 'repository'; repositoryId: number } | { scope: 'level'; level: LevelNumber };
+
+/**
+ * Starts a repository or level copy of a file as a draft version 1 with the source's active text.
+ * `exists` when the copy is already there; `no_active` when the source has no active version.
+ */
+export async function startInstructionCopy(
+  db: Executor,
+  source: InstructionFileRow,
+  target: InstructionCopyTarget,
+): Promise<
+  | { ok: true; file: InstructionFileRow; draft: InstructionVersionRow }
+  | { ok: false; reason: 'exists' | 'no_active' }
+> {
+  const [active] = await db
+    .select()
+    .from(instructionVersions)
+    .where(
+      and(eq(instructionVersions.fileId, source.id), eq(instructionVersions.status, 'active')),
+    );
+  if (!active) return { ok: false, reason: 'no_active' };
+  const [file] = await db
+    .insert(instructionFiles)
+    .values({
+      scope: target.scope,
+      repositoryId: target.scope === 'repository' ? target.repositoryId : null,
+      level: target.scope === 'level' ? target.level : null,
+      fileKey: source.fileKey,
+    })
+    .onConflictDoNothing()
+    .returning();
+  if (!file) return { ok: false, reason: 'exists' };
+  const [draft] = await db
+    .insert(instructionVersions)
+    .values({
+      fileId: file.id,
+      version: 1,
+      status: 'draft',
+      content: active.content,
+      note: null,
+      createdBy: 'hand',
+    })
+    .returning();
+  return { ok: true, file, draft: draft! };
 }

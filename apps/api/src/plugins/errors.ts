@@ -62,6 +62,15 @@ export const ApiErrorCode = {
   ClickupAuthFailed: 'clickup_auth_failed',
   /** ClickUp did not answer as expected. */
   ClickupError: 'clickup_error',
+  InstructionFileNotFound: 'instruction_file_not_found',
+  /** A version id that is not one of the file's versions. */
+  InstructionVersionNotFound: 'instruction_version_not_found',
+  /** Activate a version that is not the draft, or roll back to one that is not archived. */
+  InstructionVersionStatus: 'instruction_version_status',
+  /** A repository or level copy of this file is already there (`params.fileId`). */
+  InstructionCopyExists: 'instruction_copy_exists',
+  /** A copy of a file that has no active version to start from. */
+  InstructionNoActive: 'instruction_no_active',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

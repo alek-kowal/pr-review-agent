@@ -29,3 +29,11 @@ decide and record).
   keeps the `runs.instruction_versions` jsonb snapshot (Run detail and Insights read it). Stages
   read the frozen set, so activating a version never changes a running run. Runs started before
   this package (no rows) fall back to the active versions.
+- **Trials take the draft only.** Trial B overrides one file with its draft; a lesson candidate as
+  trial B comes with P-21 (S-23), which adds the lesson text variant to the same override.
+- **Trial runs skip the PR.** Trial runs write no timeline events, GitHub comments or ClickUp
+  notices, and never touch the PR state table, chains or PR cost.
+- **The pipeline lists global files.** `GET /api/pipeline` shows the global active instruction
+  files per stage; a per-repository view is out of scope.
+- **Tests and global files.** Test files share one database, so a test that reads global
+  instruction files filters to its own rows or uses its own `createTestDatabase()`.
