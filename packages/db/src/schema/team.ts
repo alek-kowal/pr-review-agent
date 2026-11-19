@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -65,6 +66,10 @@ export const decisionBatches = pgTable(
   ],
 );
 
+/** Where a Defer to ClickUp finding's follow-up task stands (S-06-T5); null before the job. */
+export const FOLLOW_UP_STATUSES = ['creating', 'created', 'failed'] as const;
+export type FollowUpStatus = (typeof FOLLOW_UP_STATUSES)[number];
+
 /**
  * The findings a batch decided. A finding's current decision is its latest batch that is not
  * undone. `version` is the finding's version right after this batch, so undo can tell whether the
@@ -80,9 +85,22 @@ export const findingDecisions = pgTable(
       .notNull()
       .references(() => decisionBatches.id, { onDelete: 'cascade' }),
     version: integer().notNull(),
+    /** Defer to ClickUp only: the follow-up task (S-06-T5). */
+    followUpStatus: text('follow_up_status', { enum: FOLLOW_UP_STATUSES }),
+    followUpTaskId: text('follow_up_task_id'),
+    followUpUrl: text('follow_up_url'),
+    /** Why there is no follow-up task: a reason code with params. */
+    followUpError: jsonb('follow_up_error').$type<{
+      code: string;
+      params: Record<string, unknown>;
+    }>(),
   },
   (t) => [
     primaryKey({ columns: [t.findingId, t.batchId] }),
     index('finding_decisions_batch').on(t.batchId),
+    check(
+      'finding_decisions_follow_up_status',
+      sql.raw(`follow_up_status in (${FOLLOW_UP_STATUSES.map((s) => `'${s}'`).join(', ')})`),
+    ),
   ],
 );

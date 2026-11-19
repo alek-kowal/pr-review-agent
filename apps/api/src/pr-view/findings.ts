@@ -1,7 +1,7 @@
 // The Findings tab: the newest completed round's findings with their current decisions, its
 // questions and what it did not check.
 import { DECISIONS, needsDecision, SEVERITIES, VERDICTS } from '@pra/core';
-import { coreFinding, type CurrentDecision, type PrStateLoad } from '@pra/db';
+import { coreFinding, FOLLOW_UP_STATUSES, type CurrentDecision, type PrStateLoad } from '@pra/db';
 import { z } from 'zod/v4';
 import { iso, ReasonSchema, roundLevel, RoundLevelSchema } from './round.ts';
 
@@ -15,6 +15,16 @@ export const DecisionSchema = z.object({
   /** The signer, named even after they left the team. */
   signedBy: z.object({ id: z.string(), name: z.string() }),
   decidedAt: timestamp,
+  /** Defer to ClickUp only: the follow-up task, or why there is none (S-06-T5). */
+  followUp: z
+    .object({
+      /** Null until the follow-up job ran. */
+      status: z.enum(FOLLOW_UP_STATUSES).nullable(),
+      taskId: z.string().nullable(),
+      url: z.string().nullable(),
+      error: ReasonSchema.nullable(),
+    })
+    .nullable(),
 });
 
 export const FindingSchema = z.object({
@@ -69,6 +79,7 @@ export function decisionView(decision: CurrentDecision): z.output<typeof Decisio
     reason: decision.reason,
     signedBy: { id: decision.signedBy, name: decision.signerName },
     decidedAt: decision.decidedAt.toISOString(),
+    followUp: decision.followUp,
   };
 }
 

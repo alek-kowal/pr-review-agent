@@ -2,7 +2,7 @@ import { HAND, type Decision } from '@pra/core';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db, Executor } from '../client.ts';
 import { findings } from '../schema/runs.ts';
-import { decisionBatches, findingDecisions, teamMembers } from '../schema/team.ts';
+import { decisionBatches, findingDecisions, teamMembers, type FollowUpStatus } from '../schema/team.ts';
 import { recordStateChange, recordTimelineEntry } from './timeline.ts';
 
 export type DecisionBatch = typeof decisionBatches.$inferSelect;
@@ -20,6 +20,13 @@ export type CurrentDecision = {
   /** Kept after the signer leaves the team. */
   signerName: string;
   decidedAt: Date;
+  /** Defer to ClickUp: the follow-up task (S-06-T5); status null until its job ran. */
+  followUp: {
+    status: FollowUpStatus | null;
+    taskId: string | null;
+    url: string | null;
+    error: { code: string; params: Record<string, unknown> } | null;
+  } | null;
 };
 
 /** Current decisions of these findings; a finding without one is missing from the map. */
@@ -37,6 +44,10 @@ export async function currentDecisions(
       signedBy: decisionBatches.signedBy,
       signerName: teamMembers.name,
       decidedAt: decisionBatches.createdAt,
+      followUpStatus: findingDecisions.followUpStatus,
+      followUpTaskId: findingDecisions.followUpTaskId,
+      followUpUrl: findingDecisions.followUpUrl,
+      followUpError: findingDecisions.followUpError,
     })
     .from(findingDecisions)
     .innerJoin(decisionBatches, eq(decisionBatches.id, findingDecisions.batchId))
@@ -47,7 +58,17 @@ export async function currentDecisions(
     .orderBy(desc(decisionBatches.id));
   // Newest batch first: the first row of each finding is its current decision.
   const current = new Map<number, CurrentDecision>();
-  for (const row of rows) if (!current.has(row.findingId)) current.set(row.findingId, row);
+  for (const row of rows) {
+    if (current.has(row.findingId)) continue;
+    const { followUpStatus, followUpTaskId, followUpUrl, followUpError, ...decision } = row;
+    current.set(row.findingId, {
+      ...decision,
+      followUp:
+        decision.decision === 'defer'
+          ? { status: followUpStatus, taskId: followUpTaskId, url: followUpUrl, error: followUpError }
+          : null,
+    });
+  }
   return current;
 }
 
