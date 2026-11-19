@@ -1,7 +1,8 @@
 // Rows for tests. Test files share one database per run, so names and numbers are unique.
 import { randomBytes, randomUUID } from 'node:crypto';
 import { freezeLevel, resolveLevel, type LevelNumber, type RepositoryConfig } from '@pra/core';
-import type { Db } from '../client.ts';
+import type { Db, Executor } from '../client.ts';
+import { insertTeamMember, type TeamMember, type TeamMemberFields } from '../queries/team.ts';
 import { upsertPullRequest, upsertRepository } from '../queries/repositories.ts';
 import type { PullRequest, PullRequestSnapshot, Repository } from '../queries/repositories.ts';
 import type { NewFinding, NewQuestion, NewRun } from '../queries/runs.ts';
@@ -110,4 +111,13 @@ export async function seedPullRequest(
     aPullRequest(repository.id, options.pullRequest),
   );
   return { repository, pullRequest };
+}
+
+/** A Team member with a unique GitHub login. */
+export async function seedTeamMember(
+  db: Executor,
+  patch: Partial<TeamMemberFields> = {},
+): Promise<TeamMember> {
+  const id = uniqueId();
+  return insertTeamMember(db, { name: `Member ${id}`, githubLogin: `member-${id}`, ...patch });
 }
