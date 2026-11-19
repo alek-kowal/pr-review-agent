@@ -122,3 +122,19 @@ in the listed order.
 - Timeline: `alert_raised` "Alert posted as a ClickUp comment on WB-123: <title>" and
   `alert_dismissed` "Dismissed the alert: <title>" (actor column: By hand).
 - The "Alert settings" link in Activity → Alerts comes with the Settings page (S-21-T9).
+
+### S-18-T8 (end-to-end alerts)
+
+- The stack passes `appBaseUrl: WEB_URL` to the worker and sets the general alerts task
+  (`GENERAL_ALERTS_TASK`, WB-700) in `alert_config` at start, with `writeAlertConfig` instead of raw
+  SQL. Alerts are global, so every spec's failing PR now posts a comment to WB-700 too; the specs
+  that read the comments file filter by PR, so nothing else changes.
+- New PR range `COSTLY_RETRY_PRS` (160–169): the reviewer fails its first session and the retry
+  costs $5.50, which passes the $5 cost alert. The PR is in `CLICKUP_REPOSITORY` on a branch naming
+  WB-4821, so both alerts go to the PR's task. The no-task case uses a failing PR
+  (`FAILING_PR_FROM + 60`) in the main repository.
+- ClickUp check: the PR has exactly two comments (the failed run and the cost), both on WB-4821;
+  the cost comment carries `<WEB_URL>/pr/clickup-repo/<n>` and "pr-review-agent"; the clear and
+  Dismiss add none.
+- The chip count is checked through its accessible name (the count is global across parallel
+  specs, so the spec checks that a count shows, not its value).

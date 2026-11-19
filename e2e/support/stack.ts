@@ -14,11 +14,13 @@ import {
   closeDb,
   createDb,
   createQueue,
+  getAlertConfig,
   getAppSettings,
   getPullRequest,
   getRepositoryByFullName,
   importInstructionV1,
   upsertRepository,
+  writeAlertConfig,
   writeAppSettings,
   type Db,
 } from '@pra/db';
@@ -57,8 +59,11 @@ import {
   CLICKUP_TASKS,
   commentsFile,
   FAIL_ONCE_PRS,
+  COSTLY_RETRY_PRS,
+  COSTLY_RETRY_USD,
   FAILING_PR_FROM,
   FIXTURE_CI,
+  GENERAL_ALERTS_TASK,
   GLOBAL_LEVEL_REPOSITORY,
   HELD_PRS,
   LARGE_PR_REPOSITORY,
@@ -77,6 +82,7 @@ import {
   TRIAL_RULE_FINDING,
   trialRule,
   VERIFIED_REPOSITORY,
+  WEB_URL,
   type StackState,
 } from './env.ts';
 import { seedInsightsHistory } from './insights-seed.ts';
@@ -302,8 +308,10 @@ class ScriptedAgents implements AgentRunner {
       const spent = held ? { costUsd: HELD_TURN_COST_USD, turns: 1 } : { turns: 0 };
       return new FakeAgentRunner([{ fail: 'cancelled', ...spent }]).run(input);
     }
+    const costly = number >= COSTLY_RETRY_PRS.from && number <= COSTLY_RETRY_PRS.to;
     const failOnce =
-      number >= FAIL_ONCE_PRS.from && number <= FAIL_ONCE_PRS.to && !this.#failedOnce.has(number);
+      ((number >= FAIL_ONCE_PRS.from && number <= FAIL_ONCE_PRS.to) || costly) &&
+      !this.#failedOnce.has(number);
     if (failOnce) this.#failedOnce.add(number);
     const output =
       number >= QUESTION_PRS.from && number <= QUESTION_PRS.to
@@ -312,7 +320,7 @@ class ScriptedAgents implements AgentRunner {
     const step =
       number >= FAILING_PR_FROM || failOnce
         ? { output: { summary: 'not a review' }, costUsd: 0.04 }
-        : { output, costUsd: 0.31, turns: 6 };
+        : { output, costUsd: costly ? COSTLY_RETRY_USD : 0.31, turns: 6 };
     return new FakeAgentRunner([step]).run(input);
   }
 
@@ -534,6 +542,8 @@ await seedInsightsHistory(db);
 // Specs run in parallel on one stack: with every agent slot open no round waits for another
 // spec's (pause-budget.spec.ts covers the queue). 20 is the most Settings allows.
 await writeAppSettings(db, { ...(await getAppSettings(db)).value, agentSlots: 20 });
+// Alerts of PRs without a task, and the daily budget, go to this task (alerts.spec.ts).
+await writeAlertConfig(db, { ...(await getAlertConfig(db)), generalTaskId: GENERAL_ALERTS_TASK });
 
 /** The ClickUp double; it also writes each comment to `commentsFile` for the specs. */
 class RecordingClickUp extends FakeClickUpGateway {
@@ -579,6 +589,8 @@ const worker = await startWorker(
     judge: new FakeJudge(),
     sandbox,
     clickup,
+    // Alert comments link to the web app the specs open.
+    appBaseUrl: WEB_URL,
     dataDir: path.join(root, 'data'),
   },
   { pollingIntervalSeconds: 0.5 },
