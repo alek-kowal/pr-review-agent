@@ -1,14 +1,9 @@
 # P-11 handoff
 
-- Done (each with `pnpm verify` green, 786 tests; e2e 7/7 after T5 and T6): S-07-T1 `bcbd436`, T2 `3154946`, T3 `c30bf3b`, T4 `5c550e7`, T5 `7b20c3b`, T6 `d6452aa`. Main merged in (`16f1203`, no conflicts). Plan, decisions: `context/changes/P-11-manual-start-chains-sensitive/{plan,change}.md`.
-- Next: S-07-T7 (`e2e/chains.spec.ts`), not started, working tree clean. Then S-11-T1 to T4 as in `plan.md`.
-- T7 notes:
-  - `createGitFixture` (`packages/integrations/src/testing/git.ts`) makes only base plus one feature commit. Add an option for extra commits on `feature` (fix 1 and fix 2) and return their SHAs. Put them in `StackState` (`e2e/support/env.ts`). The mirror fetches all of `origin`.
-  - `deliverPullRequest` (`e2e/support/github.ts`) needs a `synchronize` variant with head SHA and `commits` count. The fixture `pull_request.synchronize.json` exists. With no `setComparison`, `FakeGitHubGateway.compareCommits` throws and commits since falls back to the commit-count difference.
-  - The expected head is seeded with SQL on `round_chains.expected_head_sha` (S-14 sets it later).
-  - `ScriptedReviewer` (`e2e/support/stack.ts`) reads `brief.md`. A fix check has no brief: its cwd holds `findings.json` and `diff.patch`. Answer `{ fixes: [...] }` with every id resolved. For "push during a running round", hold the session for a PR-number range until a flag row appears (poll the DB).
-- Code state:
-  - Fix check stages are in `apps/worker/src/stages/fix-check.ts`, the adapter in `packages/agents/src/reviewer/fix-check.ts` and the queries in `packages/db/src/queries/fix-checks.ts`.
-  - The api write routes are in `apps/api/src/routes/api/rounds/`. The PR view has a `head` section.
-  - The web code is in `apps/web/src/features/rounds/` (StartReview, FixStatus).
-- S-11 has not started. WB has no sensitive patterns; S-11-T4 needs a seeded repository with patterns matching `db/migrations/0001_edge_labels.sql`.
+- Done (verify green, 797 tests; e2e 11/11 after T7): S-07-T1–T6, S-07-T7 `00ea996`, S-11-T1 `de7c008`, S-11-T2 `adf2a91`. Decisions per task in `context/changes/P-11-manual-start-chains-sensitive/change.md`; plan progress in `plan.md`.
+- Partial: S-11-T3 `671e2e9` (wip). Written: `apps/web/src/features/sensitive/` (`sensitive.ts` mutations, `SensitiveAction.tsx` Approve changes + Send back… Dialog with comment and SignatureField, `SensitivePanel.tsx` panel + `SensitiveBannerLine`), slots registered in `features/pr/slots.ts`, `NextStepBanner` passes the sent-back signer's name to `stepContext`, `copy.sensitive`, error copy, `SensitiveView` in `api-types.ts`, `aSensitive` in `test/fixtures.ts`. Web typecheck passes; `pnpm verify` not run since.
+- Left for T3: write `apps/web/src/features/sensitive/sensitive-banner.test.tsx` (pending, approved, sent-back fixtures; pattern from `features/rounds/start-review.test.tsx`, `stubFetch` with `'/api/team': { members }`, `POST /api/prs/wb/12/sensitive/approve`). Then run verify + e2e, add T3 decisions to change.md, tick 10.1, commit `feat(S-11): ... (T3)`.
+- T3 decisions to record: banner sent-back copy is "Sent back by Tomek: Kasia changes 2 sensitive files" (author from context); checklist approved copy now "N sensitive files approved by hand."; panel status words need approval / approved by hand / sent back; banner line shows the pending hint or the quoted comment.
+- Then S-11-T4: `e2e/sensitive-files.spec.ts`. The e2e stack seeds WB with no sensitive patterns; seed a second repository (or update WB's config) with patterns matching 2 fixture files, e.g. `db/migrations/**` plus one more path added to the fixture's feature files. `chains.spec.ts` helpers (`signer`, `decide` via api, `sql`, `deliverPush`) are worth reusing (move them to `e2e/support/`).
+- Code: approve/send-back routes `apps/api/src/routes/api/sensitive/index.ts`; PR view section `pr-view/sections/sensitive.ts`; db `queries/sensitive-files.ts` (`settleSensitiveFiles`, `addSensitiveFiles`, `resetSentBackSensitiveFiles`), migration `0014_sensitive_files`; worker hooks `apps/worker/src/run/sensitive-files.ts`.
+- Last commit of the package: delete this file and make sure change.md has every decision.
