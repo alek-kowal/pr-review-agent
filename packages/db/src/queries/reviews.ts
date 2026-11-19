@@ -1,6 +1,6 @@
 // S-08-T4: signed opinions on findings, saved together as one signed review (FR-037, FR-038).
 import { matchFindings } from '@pra/core';
-import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { pullRequests } from '../schema/repositories.ts';
 import { opinions, reviews, type OpinionValue } from '../schema/reviews.ts';
@@ -91,6 +91,31 @@ export async function getReview(db: Executor, id: number): Promise<ReviewRow | n
     .innerJoin(teamMembers, eq(teamMembers.id, reviews.signedBy))
     .where(eq(reviews.id, id));
   return row ? { ...row.review, signerName: row.signerName } : null;
+}
+
+/**
+ * S-08-T10: claims the review's one ClickUp notification, so concurrent Notify author calls post
+ * once. `null` when it was claimed (or posted) already. A failed post gives it back with
+ * `releaseReviewNotification`.
+ */
+export async function claimReviewNotification(
+  db: Executor,
+  reviewId: number,
+  taskId: string,
+): Promise<Review | null> {
+  const [row] = await db
+    .update(reviews)
+    .set({ notifiedAt: sql`now()`, notifiedTaskId: taskId })
+    .where(and(eq(reviews.id, reviewId), isNull(reviews.notifiedAt)))
+    .returning();
+  return row ?? null;
+}
+
+export async function releaseReviewNotification(db: Executor, reviewId: number): Promise<void> {
+  await db
+    .update(reviews)
+    .set({ notifiedAt: null, notifiedTaskId: null })
+    .where(eq(reviews.id, reviewId));
 }
 
 /**

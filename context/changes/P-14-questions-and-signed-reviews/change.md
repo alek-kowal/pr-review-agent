@@ -72,3 +72,15 @@ checks are the plan. One commit per task.
   from round 1"); a fix check would carry nothing. The double writes each full review's brief to
   `holdDir` (`briefFile`), which is how the spec sees that the reviewer got the answers. Team
   members are added through the api (`teamMember`).
+- T10: core `notifyText` returns prose, against the "reason codes only" rule, because it is the
+  ClickUp comment itself (bot output in ClickUp, not app copy) and the task names it; the web
+  shows the api's text as is. The text starts "@Kasia:"; the HTTP gateway posts a leading
+  "@Name:" as the ClickUp mention tag, so ClickUp shows one mention and the preview equals the
+  posted `text`. The action is unsigned (timeline actor "by hand", kind `author_notified`).
+  Checks, all before any gateway call: review of this PR (404 `review_not_found`), linked task
+  (409 `no_linked_task`), author is an active Team member with a ClickUp user (409
+  `author_has_no_clickup_user`, also when the author is not in Team). Once per review: an
+  already notified review returns 200 with its stored notification; concurrent posts claim
+  `reviews.notified_at` first, and a failed post (502, or 422 when ClickUp is not configured)
+  gives the claim back. `integrationFailure` moved to `apps/api/src/integration-failure.ts` for
+  both ClickUp routes.
