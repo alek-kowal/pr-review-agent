@@ -79,6 +79,8 @@ questions (orchestrator rule: decide and record).
   carries `isFork`; `deliverPullRequest` takes a fork owner for the head repository. The
   implementer hold flag is global (`IMPLEMENTER_HOLD`), so `implement-patch.spec.ts` runs
   serially.
-- **Merge with main (P-20 alerts):** alerts kept migration 0022; the implementer migration was
-  regenerated as 0023 with its hand-added `patches_notify_change` trigger. The board keeps main's
-  level resolution (repository default, else the global default).
+- **Merges with main (P-20 alerts, P-21 learning):** alerts kept 0022 and learning 0023; the
+  implementer migration is `0024_implementer_patches.sql`, regenerated with its hand-added
+  `patches_notify_change` trigger. The board keeps main's level resolution (repository default,
+  else the global default); the stage registry holds the analyst's `analyse` next to the
+  implementer's `<kind>:<stage>` keys.
