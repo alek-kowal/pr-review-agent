@@ -333,6 +333,16 @@ export type DecisionResult = {
 };
 export type DecideResponse = DecisionResult & { batchId: number };
 
+/** A signed review: the opinions one signer saved together (S-08-T4). */
+export type ReviewView = {
+  id: number;
+  signedBy: { id: string; name: string };
+  worth: number;
+  notWorth: number;
+  createdAt: string;
+};
+export type ReviewResponse = DecisionResult & { review: ReviewView };
+
 /** One finding of a `decision_conflict` error: who decided it in the meantime. */
 export type DecisionConflict = {
   findingId: number;

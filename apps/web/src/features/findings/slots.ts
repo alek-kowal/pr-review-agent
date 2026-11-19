@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { FindingView, FindingsResponse, PrView } from '@/lib/api-types.ts';
 import { FollowUpLine } from '@/features/clickup/FollowUpLine.tsx';
+import { OpinionCounts, OpinionsBlock } from '@/features/opinions/OpinionSlots.tsx';
 import { FixBadge, FixNote } from '@/features/rounds/FixStatus.tsx';
 import { DecideRow, DecisionBadge } from './DecisionSlots.tsx';
 
@@ -22,6 +23,7 @@ export type FindingSlot = { key: string; Component: ComponentType<FindingSlotPro
  * one entry; a slot renders nothing when it has nothing to show.
  */
 export const FINDING_LINE_SLOTS: FindingSlot[] = [
+  { key: 'opinions', Component: OpinionCounts },
   { key: 'decision', Component: DecisionBadge },
   { key: 'fix', Component: FixBadge },
 ];
@@ -34,5 +36,6 @@ export const FINDING_LINE_SLOTS: FindingSlot[] = [
 export const FINDING_ACTION_SLOTS: FindingSlot[] = [
   { key: 'fix-note', Component: FixNote },
   { key: 'follow-up', Component: FollowUpLine },
+  { key: 'opinions', Component: OpinionsBlock },
   { key: 'decide', Component: DecideRow },
 ];

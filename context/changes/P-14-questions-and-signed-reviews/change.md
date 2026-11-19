@@ -46,3 +46,8 @@ checks are the plan. One commit per task.
   sends `finding.usuallyDecidedBy` (null when no decision is needed) and `decision.author` +
   `decision.label { signer, author|null }` (core `decisionLabelNames`); decisions stored before
   T5 fall back to the PR's current author. The web shows the label from the api.
+- T6: drafted opinions live in a small in-memory store per PR (`features/opinions/draft.ts`),
+  so they survive tab switches like the prototype's `UI.draft`. Opinions are line and action
+  slots; the tray shows only while nothing is selected for bulk (as in the prototype) and only
+  while the PR is open. No bulk "opinion for all selected" and no Undo of a saved review (no api
+  for it); the toast says the author is not notified yet (T11 adds the card).

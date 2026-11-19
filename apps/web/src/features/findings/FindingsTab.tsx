@@ -18,6 +18,7 @@ import { EmptyTab } from '@/features/pr/EmptyTab.tsx';
 import { BulkBar } from './BulkBar.tsx';
 import { canDecide } from './decision-ui.ts';
 import { FindingsStrips } from '@/features/rounds/FixStatus.tsx';
+import { ReviewTray } from '@/features/opinions/ReviewTray.tsx';
 import { Finding } from './Finding.tsx';
 import { FILTER_FROM, FINDING_FILTERS, needsDecision, type FindingFilterKey } from './filters.ts';
 import { SeverityMark } from './SeverityMark.tsx';
@@ -204,6 +205,15 @@ function FindingList({ findings, slotProps }: { findings: FindingView[]; slotPro
           number={slotProps.number}
           selected={selectedFindings}
           onClear={() => setSelected(new Set())}
+        />
+      )}
+      {/* The review tray waits while the bulk bar is up, as in the prototype. */}
+      {decidable && selectedFindings.length === 0 && (
+        <ReviewTray
+          repo={slotProps.repo}
+          number={slotProps.number}
+          view={slotProps.view}
+          findings={inShownOrder(findings)}
         />
       )}
     </div>

@@ -7,6 +7,7 @@ import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
 import { integrations } from './integrations.ts';
 import { nextStep } from './nextStep.ts';
+import { opinions } from './opinions.ts';
 import { questions } from './questions.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
@@ -35,6 +36,7 @@ export const copy = {
   clickup,
   timeline,
   questions,
+  opinions,
   pr: {
     loading: 'Loading the pull request…',
     notFound: 'This pull request is not in PR Review Agent.',
