@@ -1,12 +1,43 @@
-// Production entry (`pnpm dev`, `pnpm start`): builds the api from env and listens.
+// Production entry and composition root (`pnpm dev`, `pnpm start`): builds the dependencies from
+// env, then the server, and listens. Postgres may be down: the pool connects lazily and the queue
+// keeps retrying in the background, so `/health` can report it.
+import { closeDb, createDb, createQueue } from '@pra/db';
 import { buildServer } from './server.ts';
 
-const server = await buildServer();
+const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error('api: DATABASE_URL is not set (see .env.example).');
+  process.exit(1);
+}
 
+const db = createDb(url, {
+  onPoolError: (error) => server.log.warn({ err: error }, 'idle database connection failed'),
+});
+// Sending only: the worker runs supervision and schedules.
+const queue = createQueue(url, { supervise: false, schedule: false });
+const server = await buildServer({ db, queue });
+
+let stopping = false;
+
+queue.on('error', (error) => server.log.error({ err: error }, 'queue error'));
+queue.on('warning', (warning) => server.log.warn({ warning }, 'queue warning'));
+// Retries with backoff (up to 30 s apart) until Postgres is reachable; `stop()` cancels it.
+queue.start({ attempts: Number.MAX_SAFE_INTEGER }).then(
+  () => server.log.info('queue started'),
+  (error: unknown) => {
+    if (!stopping) server.log.error({ err: error }, 'queue failed to start');
+  },
+);
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.once(signal, () => {
+  process.on(signal, () => {
+    if (stopping) return;
+    stopping = true;
     server.log.info({ signal }, 'api stopping');
-    void server.close().then(() => process.exit(0));
+    void server
+      .close()
+      .then(() => queue.stop({ graceful: false }))
+      .then(() => closeDb(db))
+      .then(() => process.exit(0));
   });
 }
 

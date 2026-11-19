@@ -1,35 +1,27 @@
-// This file contains code that we reuse between our tests.
-import helper from 'fastify-cli/helper.js';
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+// Builds the api the way `src/main.ts` does, on test dependencies.
+import { closeDb, createDb, createQueue } from '@pra/db';
+import { testDatabaseUrl } from '@pra/db/testing';
+import type { FastifyInstance } from 'fastify';
 import { onTestFinished } from 'vitest';
+import type { AppDeps } from '../src/app.ts';
+import { buildServer } from '../src/server.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const AppPath = path.join(__dirname, '..', 'src', 'app.ts');
+/**
+ * The api on this test run's database (lazy pool) and a queue that is never started. Pass
+ * `deps` to replace either; whatever the helper creates it also closes after the test.
+ */
+async function build(deps: Partial<AppDeps> = {}): Promise<FastifyInstance> {
+  const url = testDatabaseUrl();
+  const db = deps.db ?? createDb(url, { max: 2 });
+  const queue = deps.queue ?? createQueue(url);
+  const app = await buildServer({ db, queue }, { logger: false });
+  await app.ready();
 
-// Fill in this config with all the configurations
-// needed for testing the application
-function config() {
-  return {
-    skipOverride: true, // Register our application with fastify-plugin
-  };
-}
-
-// Automatically build and tear down our instance
-async function build() {
-  // you can set all the options supported by the fastify CLI command
-  const argv = [AppPath];
-
-  // fastify-plugin ensures that all decorators
-  // are exposed for testing purposes, this is
-  // different from the production setup
-  const app = await helper.build(argv, config());
-
-  // Tear down our app after the current test
-  onTestFinished(() => app.close());
-
+  onTestFinished(async () => {
+    await app.close();
+    if (!deps.db) await closeDb(db);
+  });
   return app;
 }
 
-export { config, build };
+export { build };

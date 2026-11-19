@@ -1,7 +1,7 @@
 import { loggerOptions } from '@pra/integrations/logging';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import app from './app.ts';
+import app, { type AppDeps } from './app.ts';
 
 /** Fastify options for the api: shared pino options and a request id on every request. */
 export function serverOptions(env: NodeJS.ProcessEnv = process.env): FastifyServerOptions {
@@ -13,11 +13,12 @@ export function serverOptions(env: NodeJS.ProcessEnv = process.env): FastifyServ
   };
 }
 
-/** A Fastify instance with the app registered, not yet listening. */
+/** A Fastify instance with the app registered on `deps`, not yet listening. */
 export async function buildServer(
+  deps: AppDeps,
   options: FastifyServerOptions = serverOptions(),
 ): Promise<FastifyInstance> {
   const server = Fastify(options);
-  await server.register(app);
+  await server.register(app, deps);
   return server;
 }

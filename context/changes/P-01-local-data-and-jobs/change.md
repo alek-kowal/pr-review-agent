@@ -78,3 +78,20 @@ Plan: no. The tasks' "Done when" checks are the plan; one commit per task.
 - Ctrl-C was checked in a real pseudo-terminal (`pnpm --filter @pra/worker dev`, then `^C`): it
   logs `worker stopping` and `worker stopped` and leaves no process. A plain `kill -INT` on the pnpm
   process does not reach Node, because pnpm 12 runs scripts in their own process group.
+- Composition root (T5): the app plugin takes `AppDeps` (`db`, `queue`) as its options and
+  decorates `fastify.deps` before autoload, so every plugin and route sees them.
+  `buildServer(deps, options)` builds the instance; `src/main.ts` builds deps from env and owns
+  their shutdown (server, then queue, then pool). Tests use `test/helper.ts` `build(deps?)`: the run's
+  test database (lazy pool) and a queue that is never started, either replaceable. `fastify-cli`
+  is no longer a dependency.
+- The api's queue only sends (`supervise: false`, `schedule: false`; the worker supervises) and
+  starts in the background with pg-boss's own retry (`attempts: Number.MAX_SAFE_INTEGER`, backoff
+  up to 30 s), so the api listens and answers `/health` while Postgres is down.
+- `GET /health` runs `select 1`: 200 `{ status: "ok", db: "ok" }` or 503
+  `{ status: "degraded", db: "down" }`, both described with Zod for the OpenAPI document. The 503
+  test points a pool at `127.0.0.1:1` (refused at once, nothing listens).
+- Manual checks ran on a free random port, not 3000, because other worktrees may be using it:
+  with the compose db up `/health` returned 200 and `queue started` was logged; with
+  `DATABASE_URL` on port 1 the api still listened, `/health` returned 503, and SIGTERM stopped it.
+- `pnpm test:e2e` was not run: P-01 does not touch the UI, and Playwright's web server uses the
+  fixed port 5173.

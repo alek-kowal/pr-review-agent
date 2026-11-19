@@ -1,40 +1,49 @@
 import * as path from 'node:path';
 import AutoLoad, { type AutoloadPluginOptions } from '@fastify/autoload';
+import type { Db, Queue } from '@pra/db';
 import { type FastifyPluginAsync } from 'fastify';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export type AppOptions = {
-  // Place your custom options for app below here.
-} & Partial<AutoloadPluginOptions>;
+/**
+ * What the api needs from outside. `src/main.ts` builds these from env; tests pass test instances
+ * or doubles. S-01 adds the blob store and GitHub.
+ */
+export type AppDeps = {
+  db: Db;
+  /** Used to send jobs; the composition root starts and stops it. */
+  queue: Queue;
+};
 
-// Pass --options via CLI arguments in command to enable these options.
-const options: AppOptions = {};
+export type AppOptions = AppDeps & Partial<AutoloadPluginOptions>;
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    deps: AppDeps;
+  }
+}
 
 const app: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
-  // Place here your custom code!
+  const { db, queue, ...autoloadOptions } = opts;
+  // Decorated before the plugins and routes load, so all of them see it.
+  fastify.decorate('deps', { db, queue });
 
-  // Do not touch the following lines
-
-  // This loads all plugins defined in plugins
-  // those should be support plugins that are reused
-  // through your application
+  // Support plugins reused across the application.
   void fastify.register(AutoLoad, {
     dir: path.join(__dirname, 'plugins'),
-    options: opts,
+    options: autoloadOptions,
     forceESM: true,
   });
 
-  // This loads all plugins defined in routes
-  // define your routes in one of these
+  // Routes; folder names become path prefixes.
   void fastify.register(AutoLoad, {
     dir: path.join(__dirname, 'routes'),
-    options: opts,
+    options: autoloadOptions,
     forceESM: true,
   });
 };
 
 export default app;
-export { app, options };
+export { app };
