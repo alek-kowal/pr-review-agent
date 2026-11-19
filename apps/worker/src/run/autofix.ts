@@ -63,6 +63,7 @@ async function startInput({ deps, run }: RunHookContext, load: PrStateLoad): Pro
     commitsSinceReview: load.input.commitsSinceReview,
     autoPatchesInChain: used,
     maxAutoPatches: run.level.settings.autofixMaxPatches ?? undefined,
+    chainRounds: load.input.chainRounds,
   };
 }
 

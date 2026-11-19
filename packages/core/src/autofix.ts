@@ -1,10 +1,12 @@
 import './reasons/autofix.ts';
+import './reasons/rounds.ts';
 import type { SensitivePattern } from './change-type.ts';
 import { needsDecision } from './findings.ts';
 import { DEFAULT_AUTOFIX_MAX_PATCHES, FEATURE_ON_FROM } from './levels.ts';
 import { matchSensitiveFiles } from './limits.ts';
 import type { Finding } from './model.ts';
 import { reason, type Reason } from './reason.ts';
+import { MAX_CHAIN_ROUNDS } from './rounds.ts';
 import type { ChangeType, LevelNumber } from './vocabulary.ts';
 
 export interface AutofixInput {
@@ -22,6 +24,11 @@ export interface AutofixInput {
   autoPatchesInChain: number;
   /** N, the only editable condition (level 5 setting); 2 by default. */
   maxAutoPatches?: number;
+  /**
+   * Completed rounds in this chain, the deciding one included. At `MAX_CHAIN_ROUNDS` no fix check
+   * would review a pushed patch, so autofix starts none, whatever N allows.
+   */
+  chainRounds: number;
 }
 
 export interface AutofixDecision {
@@ -62,6 +69,9 @@ export function autofixDecision(input: AutofixInput): AutofixDecision {
   }
   if (input.autoPatchesInChain >= max) {
     holds.push(reason('auto_patches_used', { used: input.autoPatchesInChain, max }));
+  }
+  if (input.chainRounds >= MAX_CHAIN_ROUNDS) {
+    holds.push(reason('rounds_used', { used: input.chainRounds, max: MAX_CHAIN_ROUNDS }));
   }
   if (input.paused) holds.push(reason('autofix_paused'));
   if (input.budgetReached) holds.push(reason('autofix_budget_reached'));

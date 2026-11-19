@@ -19,9 +19,10 @@ const start = (overrides: Partial<AutofixInput> = {}): AutofixInput => ({
   findings: [makeFinding({ id: 'a' }), makeFinding({ id: 'b', severity: 'blocking' })],
   openQuestions: 0,
   autoPatchesInChain: 0,
+  chainRounds: 1,
   ...overrides,
 });
-const patch = (overrides: Partial<PatchResult> = {}): PatchResult => ({
+const patch =(overrides: Partial<PatchResult> = {}): PatchResult => ({
   baseSha: HEAD,
   findingIds: ['a', 'b'],
   fixedFindingIds: ['a', 'b'],

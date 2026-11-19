@@ -20,6 +20,7 @@ const reasons: Record<string, (p: Params) => string> = {
   autofix_budget_reached: () => 'the daily budget is reached',
   head_moved_since_review: (p) => `${plural(n(p.commits), 'new commit')} since the review`,
   auto_patches_used: (p) => `automatic patches used (${n(p.used)} of ${n(p.max)})`,
+  rounds_used: (p) => `no fix check left in this chain (${n(p.used)} of ${n(p.max)} rounds)`,
   fork_read_only: () => 'fork PRs stay read-only',
   autofix_trial: () => 'a trial never changes the PR',
   head_moved_since_patch: () => 'the head moved after the patch was made',
