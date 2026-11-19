@@ -18,4 +18,5 @@ WORKDIR /app
 COPY --from=build /out ./
 USER node
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# instrument.js first: OpenTelemetry patches http, Fastify and pg before the app loads them.
+CMD ["node", "--import", "./dist/instrument.js", "dist/main.js"]

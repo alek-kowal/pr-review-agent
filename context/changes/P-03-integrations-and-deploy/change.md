@@ -1,7 +1,7 @@
 ---
 change_id: P-03
 title: Integrations and deploy (S-01-T4, S-01-T7, S-01-T8, F-04-T1 to F-04-T5)
-status: planned
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -19,7 +19,9 @@ below was made while planning or implementing.
 
 ## Decisions
 
-See `plan.md` "Key decisions"; implementation-time decisions are appended here as tasks land.
+Planning decisions are in `plan.md` "Key decisions" (not-configured error, GitHub token cache,
+GitMirror shape, AgentRunner contract and error codes, image build, deploy env, S3 tests, CSRF,
+observability). Implementation-time decisions, per task:
 
 ### S-01-T4 GitHubGateway (f06677e)
 
@@ -104,3 +106,26 @@ See `plan.md` "Key decisions"; implementation-time decisions are appended here a
   `Host`, so the check works without trusting `X-Forwarded-Host`.
 - `apps/web` is untouched: P-04's `api.ts` sends `X-PRA-Request: 1` (no `api.ts` exists here).
   API tests send `SAME_ORIGIN` from `test/helper.ts` on state-changing calls.
+
+### F-04-T5 Sentry and OpenTelemetry
+
+- OpenTelemetry 3.x (`@opentelemetry/sdk-trace` 3.1, `instrumentation-*` 0.301) with our own
+  `TracerProvider`, `AsyncLocalStorageContextManager` and W3C propagator instead of `NodeSDK`:
+  `NodeSDK` creates an OTLP exporter from env defaults even without an endpoint. No span processor
+  without `OTEL_EXPORTER_OTLP_ENDPOINT`, so spans exist (for `trace_id` in logs) but never leave.
+- Instrumentations: http, pg and `@fastify/otel` (`registerOnInitialization`, no app change). The
+  ESM loader hook (`@opentelemetry/instrumentation/hook.mjs`) is registered by
+  `startObservability`; `pg` is imported from ESM (drizzle) and is not patched without it.
+- Sentry 11 reports errors only: `enableOpenTelemetrySetup: false` (no competing provider) and
+  `enableRuntimeChannelInjection: false` (one loader hook, ours). `SENTRY_ENVIRONMENT` (default
+  `NODE_ENV`) and `SENTRY_RELEASE` are new env names. The api error handler reports 500s with
+  `reportError` (a no-op without a client).
+- pino gets `trace_id` and `span_id` from a `mixin` reading `@opentelemetry/api`, so it works the
+  same in tests (where Vitest's module runner skips the patching).
+- `instrument.ts` in api and worker is loaded with `node --import` in `dev`, `start` and the
+  Dockerfile `CMD`. Its tests re-import it with a mocked `startObservability` that injects the
+  stub transport (`stubSentryTransport`, `DUMMY_SENTRY_DSN` in `@pra/integrations/testing`).
+- Spans are not flushed on shutdown yet (the apps call `process.exit` after stopping); add an
+  `observability.shutdown()` in the stop paths when traces matter (P-10 or later).
+- Checked by hand: the api with a local OTLP stub exported `GET /health`, Fastify and `pg.query`
+  spans; the api and worker images start with `--import ./dist/instrument.js`.

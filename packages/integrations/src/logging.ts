@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { isSpanContextValid, trace } from '@opentelemetry/api';
 import { hostname } from 'node:os';
 import { pino, type Logger, type LoggerOptions } from 'pino';
 
@@ -36,6 +37,8 @@ export function loggerOptions(
       ],
       censor: REDACTED,
     },
+    // Lines written inside an OpenTelemetry span carry its ids (observability.ts starts tracing).
+    mixin: traceFields,
     // Key patterns pino's `redact` cannot express: walks each entry's plain objects and arrays.
     // Pino does not run formatters on `logger.child({...})` bindings, so bindings carry ids only.
     formatters: { log: (object) => redactSecrets(object) },
@@ -47,6 +50,13 @@ export function loggerOptions(
       },
     }),
   };
+}
+
+/** `trace_id` and `span_id` of the active span, or nothing outside a span. */
+export function traceFields(): Record<string, string> {
+  const spanContext = trace.getActiveSpan()?.spanContext();
+  if (!spanContext || !isSpanContextValid(spanContext)) return {};
+  return { trace_id: spanContext.traceId, span_id: spanContext.spanId };
 }
 
 /** A pino logger with `loggerOptions(service)`, for processes that are not Fastify (the worker). */

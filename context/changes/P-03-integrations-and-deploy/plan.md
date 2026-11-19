@@ -269,17 +269,17 @@ Compose checks are run by hand once per phase, on free ports and own project nam
 
 #### Automated
 
-- [x] 7.1 `pnpm --filter @pra/api test csrf` passes
-- [x] 7.2 `pnpm verify` passes
+- [x] 7.1 `pnpm --filter @pra/api test csrf` passes — 363aab0
+- [x] 7.2 `pnpm verify` passes — 363aab0
 
 ### Phase 8: Sentry and OpenTelemetry
 
 #### Automated
 
-- [ ] 8.1 `instrument` tests pass in api and worker
-- [ ] 8.2 pino lines carry `trace_id` inside a span
-- [ ] 8.3 `pnpm verify` passes
+- [x] 8.1 `instrument` tests pass in api and worker
+- [x] 8.2 pino lines carry `trace_id` inside a span
+- [x] 8.3 `pnpm verify` passes
 
 #### Manual
 
-- [ ] 8.4 spans reach a local OTLP stub
+- [x] 8.4 spans reach a local OTLP stub

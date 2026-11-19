@@ -23,4 +23,5 @@ COPY --from=build /out ./
 # The only writable app path: the git mirrors and worktrees (a volume in deploy/compose.yaml).
 RUN mkdir -p /app/.data/git && chown -R node:node /app/.data
 USER node
-CMD ["node", "dist/main.js"]
+# instrument.js first: OpenTelemetry patches http, Fastify and pg before the app loads them.
+CMD ["node", "--import", "./dist/instrument.js", "dist/main.js"]
