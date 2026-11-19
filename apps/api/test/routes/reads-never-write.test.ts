@@ -144,6 +144,7 @@ test('no GET route changes any table', { timeout: 30_000 }, async () => {
       '/api/settings/levels/:n',
       '/api/audit/',
       '/api/alerts/',
+      '/api/settings/alerts/',
     ]),
   );
 
