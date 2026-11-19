@@ -1,7 +1,7 @@
 // S-07-T2: what a push changes. Commits since a review are measured with GitHub's compare (FR-017,
 // FR-020); a push never cancels a running round, and only the commit PR Review Agent pushed as a
 // fix starts the next round (FR-016).
-import { BOT } from '@pra/core';
+import { BOT, runPolicy } from '@pra/core';
 import {
   and,
   eq,
@@ -91,6 +91,8 @@ export async function startFixCheckOnPush(
   pullRequest: PullRequest,
   inTransaction: Parameters<typeof startRound>[1]['inTransaction'],
 ): Promise<StartRoundResult | null> {
+  // A fork never starts a round by itself (S-16 run policy).
+  if (!runPolicy({ fork: pullRequest.isFork }).autoStart) return null;
   const chain = await latestChainOf(deps.db, pullRequest.id);
   if (!chain?.expectedHeadSha || chain.expectedHeadSha !== pullRequest.headSha) return null;
   return startRound(deps, {

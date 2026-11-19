@@ -3,6 +3,13 @@ import { duration, money, plural } from './format.ts';
 import { shortSha } from './nextStep.ts';
 
 type Params = Record<string, unknown>;
+
+/** The steps inside a stage that run the PR's code (core `PR_CODE_STEPS_BY_STAGE`). */
+const PR_CODE_STEPS: Record<string, string> = {
+  install: 'Install',
+  reproductions: 'Reproductions',
+};
+
 const n = (value: unknown): number => (typeof value === 'number' ? value : Number(value) || 0);
 
 /** "Round 2 of 3 · started by PR Review Agent after fix abc1234", from `round_label` params. */
@@ -70,6 +77,8 @@ export const runs = {
     running: 'working',
     done: 'done',
   },
+  /** A step the plan turns off inside a running stage: "Install: off for forks" (S-16). */
+  offStep: (step: string, why: string) => `${PR_CODE_STEPS[step] ?? step}: ${why}`,
   stepCost: (usd: number) => money(usd),
   stepDuration: (ms: number) => duration(ms),
   statusWords: {
@@ -113,6 +122,7 @@ export const runs = {
     stageCode: 'code',
     stageAgent: (models: string) => `agent · ${models}`,
     stageOff: (level: number) => `Off at level ${level}.`,
+    stageOffForFork: 'Off for forks: a fork PR is reviewed read-only, its code never runs.',
     stageQueued: (failed: boolean) =>
       failed ? 'Not run: an earlier stage failed.' : 'Not run yet.',
     stageRunning: 'Running now. Output appears when the stage finishes.',

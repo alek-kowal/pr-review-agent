@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { Decision } from '@pra/core';
 import { cn } from 'cn';
@@ -7,6 +8,8 @@ import { copy } from '@/copy/index.ts';
 import { ApiError } from '@/lib/api.ts';
 import type { FindingView } from '@/lib/api-types.ts';
 import { errorText } from '@/lib/reasons.ts';
+import { WithAgentField } from '@/features/implementer/WithAgentField.tsx';
+import { prViewQuery } from '@/features/pr/queries.ts';
 import { SignatureField } from '@/features/signature/SignatureField.tsx';
 import { useSignature } from '@/features/signature/use-signature.ts';
 import { conflictNames, useDecide } from './decisions.ts';
@@ -44,6 +47,14 @@ export function DecisionForm({
   const count = findings.length;
   const withReason = decision !== 'implement';
   const reasonMissing = decision === 'reject' && !reason.trim();
+  // The PR page has the view cached; the form only reads whether the PR allows the implementer.
+  const implementer = useQuery({
+    ...prViewQuery(repo, number),
+    enabled: decision === 'implement',
+    refetchOnMount: false,
+  }).data?.implementer;
+  const [withAgent, setWithAgent] = useState(false);
+  const agentBlock = implementer?.block ?? null;
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -59,6 +70,7 @@ export function DecisionForm({
         reason,
         signedBy: signature.signedBy,
         signerName: signer?.name ?? '',
+        withAgent: withAgent && implementer !== undefined && agentBlock === null,
       });
     } catch (failure) {
       const code = failure instanceof ApiError ? failure.code : 'http_error';
@@ -113,6 +125,15 @@ export function DecisionForm({
             {copy.decisions.enterHint}
           </p>
         </div>
+      )}
+      {decision === 'implement' && implementer && (
+        <WithAgentField
+          repo={repo}
+          number={number}
+          block={agentBlock}
+          checked={withAgent}
+          onChange={setWithAgent}
+        />
       )}
       <SignatureField
         signature={{

@@ -27,7 +27,7 @@ import {
   writeAppSettings,
   type Db,
 } from '@pra/db';
-import type { PullRequestFreshState } from '@pra/integrations';
+import type { GitHubPullRequest, PullRequestFreshState, Sandbox } from '@pra/integrations';
 import { createTestDatabase } from '@pra/db/testing';
 import { CliGitMirror, LocalBlobStore } from '@pra/integrations';
 import { createLogger } from '@pra/integrations/logging';
@@ -71,6 +71,8 @@ import {
   GENERAL_ALERTS_TASK,
   GLOBAL_LEVEL_REPOSITORY,
   HELD_PRS,
+  IMPLEMENTER_HOLD,
+  IMPLEMENTER_REPOSITORY,
   LARGE_PR_REPOSITORY,
   HELD_TURN_COST_USD,
   LEARNING_COMMENTS,
@@ -210,9 +212,20 @@ async function verifierAnswer(cwd: string) {
   };
 }
 
+/** Whether a reproduction's worktree carries a patch: tracked files differ from the checkout. */
+const patched = async (dir: string): Promise<boolean> =>
+  (
+    await isolatedGitExec('git', ['status', '--porcelain', '--untracked-files=no'], {
+      cwd: dir,
+      env: {},
+      timeout: 10_000,
+    })
+  ).stdout.trim() !== '';
+
 /**
  * A Checks install step (`sh -c ...`, checks-change-type.spec.ts) succeeds; a reproduction exits
- * with the code its script ends with (see `reproduction`).
+ * with the code its script ends with (see `reproduction`), except on a patched worktree (the
+ * implementer's, implement-patch.spec.ts), where the bug no longer happens (exit 3).
  */
 const sandbox = new FakeSandbox(async (spec) => {
   if (spec.command[0] === 'sh')
@@ -221,9 +234,23 @@ const sandbox = new FakeSandbox(async (spec) => {
   const script = spec.command[1];
   if (!mount || !script) return { exitCode: 1, output: 'no script' };
   const source = await readFile(path.join(mount.hostPath, path.basename(script)), 'utf8');
-  const exitCode = Number(/process\.exit\((\d+)\)/.exec(source)?.[1] ?? 1);
+  const exitCode = (await patched(mount.hostPath))
+    ? 3
+    : Number(/process\.exit\((\d+)\)/.exec(source)?.[1] ?? 1);
   const output = exitCode === 0 ? 'label: ""\nbug reproduced' : `repro exited with ${exitCode}`;
   return { exitCode, output, outputTail: output };
+});
+
+/**
+ * The sandbox double, logging each call to `log` as a JSON line `{ command, mounts }` (the host
+ * paths; a run's worktree ends in `run-<id>`), so a spec can count a run's calls (fork-pr.spec.ts).
+ */
+const loggedSandbox = (log: string): Sandbox => ({
+  async run(spec) {
+    const mounts = spec.mounts.map((mount) => mount.hostPath);
+    await appendFile(log, `${JSON.stringify({ command: spec.command, mounts })}\n`);
+    return sandbox.run(spec);
+  },
 });
 
 /**
@@ -317,6 +344,7 @@ class ScriptedAgents implements AgentRunner {
       const output = await verifierAnswer(input.cwd);
       return new FakeAgentRunner([{ output, costUsd: 0.05, turns: 3 }]).run(input);
     }
+    if (input.role === 'implementer') return this.#implement(input);
     const brief = await readFile(path.join(input.cwd, 'brief.md'), 'utf8').catch(() => null);
     if (brief === null) return this.#checkFixes(input);
 
@@ -367,6 +395,39 @@ class ScriptedAgents implements AgentRunner {
     return new FakeAgentRunner([{ output: { fixes }, costUsd: 0.12 }]).run(input);
   }
 
+  /**
+   * Appends a fix line per finding to the finding's file in the worktree and claims every finding
+   * fixed; a revise note lands in the first file. While `IMPLEMENTER_HOLD` exists in the hold
+   * folder it waits, and a cancel ends the session with no answer (implement-patch.spec.ts).
+   */
+  async #implement<T>(input: AgentRunInput<T>): Promise<AgentRunResult<T>> {
+    const dir = input.readDirs?.[0] ?? '';
+    const findings = JSON.parse(await readFile(path.join(dir, 'findings.json'), 'utf8')) as {
+      id: string | number;
+      title: string;
+      file: string;
+    }[];
+    const note = await readFile(path.join(dir, 'revise-note.md'), 'utf8').catch(() => null);
+    await whileExists(path.join(this.#holdDir, IMPLEMENTER_HOLD), input.signal);
+    if (input.signal?.aborted) {
+      return new FakeAgentRunner([{ fail: 'cancelled', turns: 0 }]).run(input);
+    }
+    for (const [i, finding] of findings.entries()) {
+      const file = path.join(input.cwd, finding.file);
+      await mkdir(path.dirname(file), { recursive: true });
+      const before = await readFile(file, 'utf8').catch(() => '');
+      const revised = i === 0 && note ? `// Revised: ${note.trim()}\n` : '';
+      await writeFile(file, `${before}// Fixed: ${finding.title}\n${revised}`);
+    }
+    const output = {
+      decisions: findings.map((f) => ({ id: String(f.id), action: 'fixed', why: 'Fixed it.' })),
+      commitMessage: 'Fix the review findings',
+      summary: `Fixed ${findings.length} findings.`,
+      notChecked: [],
+    };
+    return new FakeAgentRunner([{ output, costUsd: 0.2, turns: 4 }]).run(input);
+  }
+
   async #whileHeld(number: number, signal?: AbortSignal): Promise<void> {
     await whileExists(path.join(this.#holdDir, `hold-${number}`), signal);
   }
@@ -407,7 +468,8 @@ class ScriptedAnalyst implements Analyst {
 
 /**
  * The GitHub double, plus fresh PR state for PRs the specs only delivered as webhooks: GitHub
- * would answer what those webhooks said, which is the stored row (merge.spec.ts).
+ * would answer what those webhooks said, which is the stored row (merge.spec.ts, and the
+ * implementer's fresh fork check in implement-patch.spec.ts).
  */
 class StackGitHub extends FakeGitHubGateway {
   readonly #db: Db;
@@ -415,6 +477,38 @@ class StackGitHub extends FakeGitHubGateway {
   constructor(db: Db, options: ConstructorParameters<typeof FakeGitHubGateway>[0]) {
     super(options);
     this.#db = db;
+  }
+
+  override async getPullRequest(fullName: string, number: number): Promise<GitHubPullRequest> {
+    if (this.pullRequests.has(`${fullName}#${number}`)) {
+      return super.getPullRequest(fullName, number);
+    }
+    const repository = await getRepositoryByFullName(this.#db, fullName);
+    const pr = repository && (await getPullRequest(this.#db, repository.id, number));
+    if (!pr) return super.getPullRequest(fullName, number);
+    const iso = (date: Date | null) => date?.toISOString() ?? null;
+    return {
+      fullName,
+      number,
+      title: pr.title,
+      body: pr.body ?? '',
+      authorLogin: pr.authorLogin,
+      htmlUrl: `https://github.com/${fullName}/pull/${number}`,
+      headSha: pr.headSha,
+      headRef: pr.headRef,
+      headRepoFullName: pr.isFork ? `fork-owner/${fullName.split('/')[1]}` : fullName,
+      baseSha: pr.baseSha,
+      baseRef: pr.baseRef,
+      isDraft: pr.isDraft,
+      isFork: pr.isFork,
+      state: pr.state,
+      commitsCount: pr.commitsCount,
+      openedAt: pr.openedAt.toISOString(),
+      updatedAt: pr.updatedAt.toISOString(),
+      closedAt: iso(pr.closedAt),
+      mergedAt: iso(pr.mergedAt),
+      mergeSha: pr.mergeSha,
+    };
   }
 
   override async getPullRequestState(
@@ -440,6 +534,7 @@ const root = await mkdtemp(path.join(tmpdir(), 'pra-e2e-'));
 const holdDir = path.join(root, 'hold');
 await mkdir(holdDir);
 const agentCalls = path.join(root, 'agent-calls.jsonl');
+const sandboxCalls = path.join(root, 'sandbox-calls.jsonl');
 // The feature branch also adds a migration: a sensitive file for a repository whose settings say
 // so (connect-repo.spec.ts), an ordinary file for the others. Three pushes follow the reviewed
 // head (chains.spec.ts).
@@ -473,6 +568,7 @@ const github = new StackGitHub(db, {
     // Reachable but not connected: Settings → Repositories connects it (connect-repo.spec.ts).
     [SECOND_REPOSITORY.fullName]: SECOND_REPOSITORY.installationId,
     [VERIFIED_REPOSITORY.fullName]: VERIFIED_REPOSITORY.installationId,
+    [IMPLEMENTER_REPOSITORY.fullName]: IMPLEMENTER_REPOSITORY.installationId,
     [LEVEL_TWO_REPOSITORY.fullName]: LEVEL_TWO_REPOSITORY.installationId,
     [LARGE_PR_REPOSITORY.fullName]: LARGE_PR_REPOSITORY.installationId,
     [SENSITIVE_REPOSITORY.fullName]: SENSITIVE_REPOSITORY.installationId,
@@ -530,6 +626,16 @@ await upsertRepository(
     sensitivePatterns: [{ pattern: 'db/migrations/**', reason: 'Migrations cannot be undone.' }],
   },
   { installationId: VERIFIED_REPOSITORY.installationId },
+);
+// implement-patch.spec.ts: level 3 without sensitive files, raised to level 4 per PR.
+await upsertRepository(
+  db,
+  {
+    slug: IMPLEMENTER_REPOSITORY.slug,
+    githubFullName: IMPLEMENTER_REPOSITORY.fullName,
+    defaultLevel: 3,
+  },
+  { installationId: IMPLEMENTER_REPOSITORY.installationId },
 );
 await upsertRepository(
   db,
@@ -615,6 +721,11 @@ github.setCiChecks(README_REPOSITORY.fullName, fixture.headSha, [
 for (const [fileKey, content] of [
   ['prompt-verifier.md', 'Verify the finding in finding.json. Rules: {{knowledgeDir}}.\n'],
   ['verify-rules.md', '# Verify rules\n\nQuote the code word for word.\n'],
+  [
+    'prompt-implementer.md',
+    'Fix the findings in {{runDir}}/findings.json. Rules: {{knowledgeDir}}.\n',
+  ],
+  ['implement-rules.md', '# Implement rules\n\nChange only what a finding needs.\n'],
   ['prompt-analyst.md', 'Propose lessons from the closed PR. Rules: {{knowledgeDir}}.\n'],
   ['analyst-rules.md', '# Analyst rules\n\nPropose a lesson only when the PR shows it.\n'],
 ] as const) {
@@ -695,7 +806,7 @@ const worker = await startWorker(
     agentRunner: new ScriptedAgents(holdDir, fixture.fixShas, agentCalls),
     judge: new FakeJudge(),
     analyst: new ScriptedAnalyst(holdDir),
-    sandbox,
+    sandbox: loggedSandbox(sandboxCalls),
     clickup,
     // Alert comments link to the web app the specs open.
     appBaseUrl: WEB_URL,
@@ -716,6 +827,7 @@ const state: StackState = {
   fixShas: fixture.fixShas,
   holdDir,
   agentCalls,
+  sandboxCalls,
 };
 await writeFile(STATE_FILE, JSON.stringify(state, null, 2));
 logger.warn({ api: API_URL, database: database.name }, 'e2e stack ready');

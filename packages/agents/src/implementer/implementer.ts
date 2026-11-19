@@ -34,6 +34,8 @@ export type RunImplementerInput = {
   answers: ImplementerAnswer[];
   /** Version 1 of `prompt-implementer.md` and `implement-rules.md`, as stored. */
   instructions: { prompt: string; rules: string };
+  /** A revise run: what a person asked to change in the earlier patch the worktree holds. */
+  reviseNote?: string | null;
   maxTurns: number;
   maxCostUsd: number;
   /** From the frozen level (`settings.stageTimeoutMinutes`); the session is stopped past it. */
@@ -82,6 +84,7 @@ export function runImplementer(
     [`${RULES_DIR}/implement-rules.md`]: input.instructions.rules,
     'findings.json': `${JSON.stringify(input.findings.map(findingForSession), null, 2)}\n`,
     'answers.json': `${JSON.stringify(input.answers, null, 2)}\n`,
+    ...(input.reviseNote ? { 'revise-note.md': `${input.reviseNote}\n` } : {}),
   };
   return withSessionDir(files, async (dir) => {
     const prompt = renderPrompt(input.instructions.prompt, {
@@ -91,12 +94,15 @@ export function runImplementer(
     const answersLine = input.answers.length
       ? ` The PR's earlier questions and answers are in ${dir}/answers.json.`
       : '';
+    const reviseLine = input.reviseNote
+      ? ` The worktree already holds your earlier patch; a person asked for this change to it: ${dir}/revise-note.md.`
+      : '';
     const result = await runner.run({
       role: 'implementer',
       model: input.model,
       cwd: input.worktree,
       readDirs: [dir],
-      prompt: `${prompt}${answersLine}`,
+      prompt: `${prompt}${answersLine}${reviseLine}`,
       outputSchema: ImplementerAnswerSchema,
       maxTurns: input.maxTurns,
       maxCostUsd: input.maxCostUsd,

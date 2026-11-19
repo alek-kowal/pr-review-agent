@@ -1,8 +1,9 @@
 // The round summary shared by the PR page sections: status, frozen level, who started it, cost,
 // and every planned stage with its latest attempt (stages the level turns off show as `off`).
-import { stagesFor, type Reason } from '@pra/core';
+import { reason, stagesFor, type Reason } from '@pra/core';
 import { RUN_STATUSES, STAGE_STATUSES, type Run, type StageExecution } from '@pra/db';
 import { z } from 'zod/v4';
+import { offStepsOf } from './off-steps.ts';
 
 export const ReasonSchema = z.object({
   code: z.string(),
@@ -19,6 +20,9 @@ const timestamp = z.iso.datetime({ offset: true });
 
 export const RoundLevelSchema = z.object({ number: z.number().int(), key: z.string() });
 
+/** A step inside a running stage that the plan turns off (S-16-T3), with its reason. */
+export const OffStepSchema = z.object({ step: z.string(), reason: ReasonSchema });
+
 export const StageSchema = z.object({
   key: z.string(),
   status: z.enum(STAGE_STATUSES),
@@ -26,6 +30,8 @@ export const StageSchema = z.object({
   attempt: z.number().int().nullable(),
   /** Why the level turns the stage off (`off_at_level`). */
   offReason: ReasonSchema.nullable(),
+  /** Steps inside a running stage the plan turns off: a fork's install and reproductions. */
+  offSteps: z.array(OffStepSchema),
   errorCode: z.string().nullable(),
   startedAt: timestamp.nullable(),
   finishedAt: timestamp.nullable(),
@@ -61,8 +67,11 @@ function startedBy(run: Run): z.output<typeof ActorSchema> {
   return { kind: run.startedBy };
 }
 
-/** The round as the PR page shows it; `executions` are all of the run's stage attempts. */
-export function roundView(run: Run, executions: StageExecution[]): RoundView {
+/**
+ * The round as the PR page shows it; `executions` are all of the run's stage attempts. On a fork
+ * the plan turns install and reproductions off, and a fix check's Reproductions stage too.
+ */
+export function roundView(run: Run, executions: StageExecution[], fork = false): RoundView {
   const latest = new Map<string, StageExecution>();
   for (const execution of executions) {
     const seen = latest.get(execution.stage);
@@ -78,12 +87,20 @@ export function roundView(run: Run, executions: StageExecution[]): RoundView {
   const stages = keys.map((key) => {
     const plan = planned.find((stage) => stage.key === key);
     const execution = latest.get(key);
-    const offReason: Reason | null = plan?.off ? plan.reason : null;
+    const forkOff = fork && plan && !plan.off && key === 'reproductions';
+    const off = plan?.off || forkOff;
+    const offReason: Reason | null = plan?.off
+      ? plan.reason
+      : forkOff
+        ? reason('fork_read_only')
+        : null;
+    const status = execution?.status ?? (off ? 'off' : 'pending');
     return {
       key,
-      status: execution?.status ?? (plan?.off ? 'off' : 'pending'),
+      status,
       attempt: execution?.attempt ?? null,
       offReason,
+      offSteps: offStepsOf(run, fork, { key, status }),
       errorCode: execution?.errorCode ?? null,
       startedAt: iso(execution?.startedAt ?? null),
       finishedAt: iso(execution?.finishedAt ?? null),

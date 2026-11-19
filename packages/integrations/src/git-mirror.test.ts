@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { execa } from 'execa';
@@ -86,6 +86,24 @@ describe('CliGitMirror', () => {
     expect(await git(dir, 'rev-parse', 'HEAD')).toBe(headSha);
     expect(await readFile(path.join(dir, 'c.txt'), 'utf8')).toBe('new file\n');
     expect(existsSync(path.join(dir, 'b.txt'))).toBe(false);
+  });
+
+  test('worktree changes list edited, added and deleted files with their base content', async () => {
+    const { mirror } = mirrorWithSpy('changes');
+    await mirror.ensureMirror(REPO, TOKEN);
+    const dir = await mirror.addWorktree(REPO, 'run-1', headSha);
+    expect(await mirror.worktreeChanges(dir)).toEqual([]);
+
+    await writeFile(path.join(dir, 'a.txt'), 'one\nfixed\n');
+    await mkdir(path.join(dir, 'src'), { recursive: true });
+    await writeFile(path.join(dir, 'src', 'new.ts'), 'export {};\n');
+    await rm(path.join(dir, 'c.txt'));
+
+    expect(await mirror.worktreeChanges(dir)).toEqual([
+      { path: 'a.txt', base: 'one\nTWO\nthree\nfour\n' },
+      { path: 'c.txt', base: 'new file\n' },
+      { path: 'src/new.ts', base: null },
+    ]);
   });
 
   test('the diff runs from the merge base and lists the changed files', async () => {

@@ -15,12 +15,19 @@ import {
   runModel,
   reproRepairAllowed,
   skipVerification,
+  stepOff,
   type Evidence,
   type Reason,
   type Verdict,
   type VerifierCheck,
 } from '@pra/core';
-import { findingsOfRun, saveVerifications, type FindingRow, type VerificationWrite } from '@pra/db';
+import {
+  findingsOfRun,
+  runPlanOf,
+  saveVerifications,
+  type FindingRow,
+  type VerificationWrite,
+} from '@pra/db';
 import { DEFAULT_SANDBOX_IMAGE, type SandboxLimits, type SandboxResult } from '@pra/integrations';
 import { randomUUID } from 'node:crypto';
 import { constants, readFileSync, realpathSync } from 'node:fs';
@@ -120,7 +127,8 @@ async function runVerify(context: StageContext): Promise<StageResult> {
     run.headSha,
   );
   const model = runModel(run, 'verifier');
-  const runScripts = !pullRequest.isFork;
+  // A fork's plan turns reproductions off: the verifier judges from quotes only (S-16).
+  const runScripts = !stepOff(runPlanOf(run, pullRequest), 'verify', 'reproductions');
   const base = {
     model,
     worktree,

@@ -96,10 +96,12 @@ export function StartReview({
             {blocked}
           </p>
         )}
-        <p className="text-xs text-text-3">
-          {t.hint(shortSha(pr.headSha))}
-          {pr.isFork && ` ${t.forkHint}`}
-        </p>
+        {pr.isFork && (
+          <p data-testid="start-review-fork-note" className="text-xs text-text-2">
+            {t.forkHint}
+          </p>
+        )}
+        <p className="text-xs text-text-3">{t.hint(shortSha(pr.headSha))}</p>
       </PopoverContent>
     </Popover>
   );

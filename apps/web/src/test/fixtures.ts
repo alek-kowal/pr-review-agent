@@ -12,7 +12,9 @@ import type {
   FindingView,
   FindingsResponse,
   HeadView,
+  ImplementerView,
   NextStepView,
+  PatchSummaryView,
   PrView,
   QuestionView,
   RepositoryRef,
@@ -122,6 +124,8 @@ export const aPrView = (
     roundProgress?: RoundProgressView | null;
     task?: TaskSectionView;
     checks?: ChecksSectionView;
+    implementer?: Partial<ImplementerView>;
+    isFork?: boolean;
     learning?: LearningSectionView;
     state?: PrView['pullRequest']['state'];
     alerts?: AlertView[];
@@ -135,7 +139,7 @@ export const aPrView = (
     authorLogin: 'octocat',
     state: over.state ?? 'open',
     isDraft: false,
-    isFork: false,
+    isFork: over.isFork ?? false,
     headRef: 'feature/grouping',
     baseRef: 'main',
     headSha: 'abc123',
@@ -153,8 +157,38 @@ export const aPrView = (
   roundProgress: over.roundProgress ?? null,
   task: over.task ?? { configured: true, link: null },
   checks: over.checks ?? aChecks(),
+  implementer: anImplementer(over.implementer),
   learning: over.learning ?? { levelLearns: false, analysis: null },
   alerts: over.alerts ?? [],
+});
+
+/** A level 4 PR with nothing to implement yet and no patch. */
+export const anImplementer = (over: Partial<ImplementerView> = {}): ImplementerView => ({
+  block: null,
+  gate: { allowed: false, reason: { code: 'no_implement_decisions', params: {} }, findingIds: [] },
+  activeRun: null,
+  patch: null,
+  ...over,
+});
+
+export const aPatchSummary = (over: Partial<PatchSummaryView> = {}): PatchSummaryView => ({
+  id: 5,
+  revision: 1,
+  status: 'ready',
+  baseSha: 'abc123',
+  fixed: 2,
+  total: 2,
+  fixedFindingIds: [1, 2],
+  findingIds: [1, 2],
+  reproductions: 'pass',
+  reproductionsByFinding: { '1': 'pass', '2': 'pass' },
+  checking: false,
+  checkVersion: 0,
+  summary: 'Fixed both findings.',
+  reviseNote: null,
+  createdAt: '2026-11-19T10:00:00.000Z',
+  updatedAt: '2026-11-19T10:00:00.000Z',
+  ...over,
 });
 
 /** A PR with no completed round yet: nothing to show in the Change type panel. */

@@ -10,6 +10,7 @@ import { handleReconcile } from './handlers/reconcile.ts';
 import { handleSmoke } from './handlers/smoke.ts';
 import { listenForCancels } from './run/cancel.ts';
 import { drainQueue } from './run/drain.ts';
+import { handlePatchCheck } from './run/patches.ts';
 import { handleRunStages } from './run/execute-stage.ts';
 import { recoverRuns, resendLostJobs } from './run/recover.ts';
 
@@ -68,6 +69,9 @@ export async function startWorker(
   await queue.work<JobPayloads['run.drain']>(JOBS.runDrain, work, async () => {
     const result = await drainQueue(deps);
     if (result.started.length || result.resumed.length) logger.info(result, 'queued runs started');
+  });
+  await queue.work<JobPayloads['patch.check']>(JOBS.patchCheck, work, async (jobs) => {
+    for (const job of jobs) await handlePatchCheck(deps, job.data.patchId);
   });
   // Every minute: a budget that resets at local midnight and a lost wake-up start runs anyway.
   await queue.schedule(JOBS.runDrain, '* * * * *', {});

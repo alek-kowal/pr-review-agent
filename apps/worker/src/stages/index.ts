@@ -5,6 +5,11 @@ import { analyseStage } from './analyse.ts';
 import { changeTypeStage } from './change-type.ts';
 import { checksStage } from './checks.ts';
 import { checkFixesStage, fixDiffStage, reproductionsStage } from './fix-check.ts';
+import {
+  implementStage,
+  implementerReproductionsStage,
+  implementerWorktreeStage,
+} from './implementer.ts';
 import { reviewStage } from './review/index.ts';
 import { taskStage } from './task.ts';
 import type { StageExecutor } from './stage.ts';
@@ -22,4 +27,12 @@ export const STAGE_EXECUTORS: StageExecutors = {
   [checkFixesStage.key]: checkFixesStage,
   [reproductionsStage.key]: reproductionsStage,
   [analyseStage.key]: analyseStage,
+  // Executors of one run kind are keyed `<kind>:<stage>` and win over the shared stage key.
+  'implementer:worktree': implementerWorktreeStage,
+  'implementer:implement': implementStage,
+  'implementer:reproductions': implementerReproductionsStage,
 };
+
+/** The executor of a run kind's stage: the kind's own first, then the shared one. */
+export const executorFor = (executors: StageExecutors, kind: string, stage: string) =>
+  executors[`${kind}:${stage}`] ?? executors[stage];

@@ -7,6 +7,7 @@ export const aStep = (over: Partial<RoundStepView> & { key: string }): RoundStep
   costUsd: 0,
   errorCode: null,
   offReason: null,
+  offSteps: [],
   startedAt: null,
   finishedAt: null,
   ...over,

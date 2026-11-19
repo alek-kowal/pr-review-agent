@@ -23,11 +23,15 @@ export type ActorView = { kind: 'member'; memberId: string } | { kind: 'bot' } |
 export type RepositoryRef = { slug: string; name: string; githubFullName: string };
 export type RepositoriesResponse = { repositories: RepositoryRef[] };
 
+/** A step inside a running stage that the plan turns off: a fork's install and reproductions. */
+export type OffStepView = { step: string; reason: ReasonView };
+
 export type StageView = {
   key: string;
   status: StageStatus;
   attempt: number | null;
   offReason: ReasonView | null;
+  offSteps: OffStepView[];
   errorCode: string | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -99,6 +103,7 @@ export type RoundStepView = {
   costUsd: number;
   errorCode: string | null;
   offReason: ReasonView | null;
+  offSteps: OffStepView[];
   startedAt: string | null;
   finishedAt: string | null;
 };
@@ -151,10 +156,73 @@ export type PrView = {
   roundProgress: RoundProgressView | null;
   task: TaskSectionView;
   checks: ChecksSectionView;
+  implementer: ImplementerView;
   learning: LearningSectionView;
   /** The PR's active alerts, newest first (S-18). */
   alerts: AlertView[];
 };
+
+export type PatchReproduction = 'pass' | 'fail' | 'not_run';
+
+/** The patch line on the PR page: "N of M fixed · reproductions pass | fail | not run". */
+export type PatchSummaryView = {
+  id: number;
+  revision: number;
+  status: 'ready' | 'superseded' | 'pushed' | 'discarded';
+  baseSha: string;
+  fixed: number;
+  total: number;
+  fixedFindingIds: number[];
+  findingIds: number[];
+  reproductions: PatchReproduction;
+  /** Each fixed finding's reproduction on the patched code, by finding id. */
+  reproductionsByFinding: Record<string, PatchReproduction>;
+  /** A patch check is rerunning the reproductions after an edit or a revert. */
+  checking: boolean;
+  /** Bumped by each finished patch check; a new value means new results. */
+  checkVersion: number;
+  summary: string;
+  reviseNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** The PR view's `implementer` section (S-13-T4). */
+export type ImplementerView = {
+  /** Why the PR itself refuses the implementer (a fork, a level below 4), or null. */
+  block: ReasonView | null;
+  /** Whether Implement with agent may start now, and on which findings. */
+  gate: { allowed: boolean; reason: ReasonView | null; findingIds: number[] };
+  /** The queued or running implementer run: Fixing shows it with Cancel. */
+  activeRun: {
+    id: number;
+    status: 'queued' | 'running';
+    findingIds: number[];
+    revisesPatchId: number | null;
+  } | null;
+  /** The newest patch revision, whatever its status. */
+  patch: PatchSummaryView | null;
+};
+
+/** One file of a patch: `changed` by the agent, `edited` by a person, or `reverted`. */
+export type PatchFileView = {
+  path: string;
+  status: 'changed' | 'edited' | 'reverted';
+  /** Sent back with an edit or a revert, so a stale page gets 409 `patch_stale`. */
+  blobKey: string | null;
+  /** Null when the patch adds the file. */
+  base: string | null;
+  /** Null when the patch deletes the file. */
+  content: string | null;
+  /** Unified diff against the base; empty for a reverted file. */
+  diff: string;
+};
+
+/** `GET /api/patches/:id`, and the answer of an edit or a revert. */
+export type PatchDetail = { patch: PatchSummaryView; files: PatchFileView[] };
+
+/** `POST /api/prs/:repo/:number/implement` and `POST /api/patches/:id/revise` (202). */
+export type ImplementResponse = { runId: number; findingIds: number[] };
 
 /** The PR's latest analysis (S-23-T6), for the learning line of a closed PR. */
 export type LearningSectionView = {
@@ -423,7 +491,11 @@ export type DecisionResult = {
   checklist: ChecklistView;
   findings: FindingsResponse;
 };
-export type DecideResponse = DecisionResult & { batchId: number };
+export type DecideResponse = DecisionResult & {
+  batchId: number;
+  /** The implementer run a decision `withAgent` started. */
+  implementerRunId: number | null;
+};
 
 /** A signed review: the opinions one signer saved together (S-08-T4). */
 export type ReviewView = {
@@ -587,6 +659,7 @@ export type RunStageView = {
   costUsd: number;
   errorCode: string | null;
   offReason: ReasonView | null;
+  offSteps: OffStepView[];
   startedAt: string | null;
   finishedAt: string | null;
   /** The latest attempt's stored output (the stage's readable result). */

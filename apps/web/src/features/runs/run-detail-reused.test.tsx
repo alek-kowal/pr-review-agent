@@ -15,6 +15,7 @@ const stage = (key: string, over: Partial<RunStageView> = {}): RunStageView => (
   costUsd: 0,
   errorCode: null,
   offReason: null,
+  offSteps: [],
   startedAt: at(1),
   finishedAt: at(2),
   output: null,

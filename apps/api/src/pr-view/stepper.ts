@@ -1,6 +1,13 @@
 // The stepper of a run, shared by Run detail and the PR page's round progress: core's
 // `stepperModel` over the run's stored stage attempts and their sessions' cost.
-import { stepperModel, stepStatus, type StageRow, type StageStatus, type Step } from '@pra/core';
+import {
+  reason,
+  stepperModel,
+  stepStatus,
+  type StageRow,
+  type StageStatus,
+  type Step,
+} from '@pra/core';
 import type { AgentSession, Run, StageExecution } from '@pra/db';
 
 /** Stage rows as core's stepper reads them, with each attempt's session cost. */
@@ -31,10 +38,20 @@ export type RunStep = Omit<Step, 'key'> & { key: string };
 export function runSteps(
   run: Pick<Run, 'kind' | 'level' | 'roundNo'>,
   rows: readonly StageRow[],
+  fork = false,
 ): RunStep[] {
   if (run.kind === 'round' || run.kind === 'trial') {
-    return stepperModel(rows, run.level.number, (run.roundNo ?? 1) > 1 ? 'fix_check' : 'full')
-      .steps;
+    const { steps } = stepperModel(
+      rows,
+      run.level.number,
+      (run.roundNo ?? 1) > 1 ? 'fix_check' : 'full',
+    );
+    // A fork's plan turns a fix check's Reproductions stage off (S-16): it never gets a row.
+    return steps.map((step) =>
+      fork && step.key === 'reproductions' && step.status !== 'off' && step.attempt === null
+        ? { ...step, status: 'off', offReason: reason('fork_read_only') }
+        : step,
+    );
   }
   return rows.map((row) => ({
     key: row.stage,

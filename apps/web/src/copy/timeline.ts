@@ -117,6 +117,12 @@ export const timeline = {
     task_linked: (p) => `Linked ClickUp task ${String(p.taskId ?? '')}`,
     follow_up_created: (p) =>
       `Created ClickUp follow-up ${String(p.taskId ?? '')} for a deferred finding`,
+    patch_ready: (p) =>
+      `Patch revision ${Number(p.revision) || 1} ready: ${Number(p.fixed) || 0} of ${Number(p.total) || 0} fixed`,
+    patch_file_edited: (p) => `Edited ${String(p.path ?? '')} in the patch`,
+    patch_file_reverted: (p) => `Reverted ${String(p.path ?? '')} in the patch`,
+    patch_revise_requested: (p) =>
+      `Asked for a new patch revision${p.note ? `: ${String(p.note)}` : ''}`,
     pr_level_changed: (p) => `PR level set to ${prLevel(p.to)} (was ${prLevel(p.from)})`,
     sensitive_approved: (p) => `Approved ${plural(n(p.count), 'sensitive file')}`,
     sensitive_sent_back: (p) =>

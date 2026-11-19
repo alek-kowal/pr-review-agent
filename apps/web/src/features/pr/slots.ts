@@ -5,6 +5,7 @@ import { PrAlertLine } from '@/features/alerts/PrAlertLine.tsx';
 import { ResumeAction } from '@/features/budget/ResumeAction.tsx';
 import { ChangeTypePanel } from '@/features/checks/ChangeTypePanel.tsx';
 import { TaskPanel } from '@/features/clickup/TaskPanel.tsx';
+import { ImplementAction } from '@/features/implementer/ImplementAction.tsx';
 import { LearningBannerLine, RunAnalystHeaderAction } from '@/features/learning/LearningStatus.tsx';
 import { MergeAction } from '@/features/merge/MergeAction.tsx';
 import { RoundProgress } from '@/features/round/RoundProgress.tsx';
@@ -36,6 +37,7 @@ export const MAIN_ACTIONS: Partial<Record<MainActionCode, ComponentType<MainActi
   answer: AnswerAction,
   resume: ResumeAction,
   merge: MergeAction,
+  implement_with_agent: ImplementAction,
 };
 
 /**

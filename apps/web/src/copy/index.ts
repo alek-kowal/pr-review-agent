@@ -7,6 +7,7 @@ import { checklist } from './checklist.ts';
 import { checks } from './checks.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
+import { implementer } from './implementer.ts';
 import { insights } from './insights.ts';
 import { learning } from './learning.ts';
 import { audit } from './audit.ts';
@@ -83,7 +84,6 @@ export const copy = {
     },
     empty: {
       questions: 'No questions for this pull request.',
-      patch: 'No patch yet.',
     },
   },
   startReview: {
@@ -92,7 +92,7 @@ export const copy = {
     level: (n: number, name: string, isDefault: boolean) =>
       `${n} · ${name}${isDefault ? ' (repo default)' : ''}`,
     hint: (sha: string) => `New chain, round 1 on ${sha}. Not signed.`,
-    forkHint: 'Fork: read-only review.',
+    forkHint: 'Read-only review: no install, reproductions, implementer or push.',
     queued: 'A round is already queued for this PR.',
     running: 'A run is in progress. Cancel it first, or wait.',
     started: (round: number, level: number) => `Review started: round ${round} at level ${level}.`,
@@ -229,6 +229,9 @@ export const copy = {
     cancelled: 'it was cancelled',
     review_output_invalid: "the reviewer's answer was not valid",
     github_not_configured: 'GitHub is not configured',
+    fork_read_only: 'off for forks',
+    implement_below_level: 'needs a higher level',
+    no_implement_decisions: 'no finding is decided Implement',
   } as Record<string, string>,
   unknownReason: (code: string) => `error ${code}`,
   errors: {
@@ -290,6 +293,14 @@ export const copy = {
     answer_conflict: 'Someone answered in the meantime.',
     review_not_found: 'This review no longer exists.',
     no_linked_task: 'This pull request has no linked ClickUp task.',
+    implement_below_level: 'Implement with agent needs a higher review level for this PR.',
+    fork_read_only: 'Fork PRs stay read-only: no implementer and no push.',
+    no_implement_decisions: 'No open finding is decided Implement.',
+    with_agent_needs_implement: 'Only an Implement decision can go to the agent.',
+    patch_not_found: 'This patch no longer exists. Reload the page.',
+    patch_file_not_found: 'This file is no longer part of the patch. Reload the page.',
+    patch_stale: 'The patch changed in the meantime. Reload it to see the new revision.',
+    note_required: 'Write a note for the implementer.',
     author_has_no_clickup_user:
       'The author has no ClickUp user in Team. Add it in Settings → Team, then notify.',
     lesson_candidate_not_found: 'This lesson candidate no longer exists.',
@@ -301,6 +312,7 @@ export const copy = {
   } as Record<string, string>,
   unknownError: (code: string) => `Something went wrong (${code}).`,
   activity,
+  implementer,
   alerts,
   insights,
   instructions,

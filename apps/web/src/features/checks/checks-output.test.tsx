@@ -16,6 +16,7 @@ const stage = (key: string, output: unknown): RunStageView => ({
   costUsd: 0,
   errorCode: null,
   offReason: null,
+  offSteps: [],
   startedAt: at,
   finishedAt: at,
   output,

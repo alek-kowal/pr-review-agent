@@ -22,6 +22,8 @@ export type DecideInput = {
   signedBy: string;
   /** For the toast: "Signed by Kasia." */
   signerName: string;
+  /** Implement only: start the implementer under the same signature (S-13-T5). */
+  withAgent?: boolean;
 };
 
 const prPath = (repo: string, number: string) =>
@@ -87,12 +89,16 @@ export function useDecide(repo: string, number: string) {
           ...(input.reason.trim() ? { reason: input.reason.trim() } : {}),
           signedBy: input.signedBy,
           expectedVersions: Object.fromEntries(input.findings.map((f) => [f.id, f.version])),
+          ...(input.withAgent ? { withAgent: true } : {}),
         },
       }),
     onSuccess: (result, input) => {
       applyResult(queryClient, repo, number, result);
+      const signed = copy.decisions.toast.signed(input.signerName);
       toast(copy.decisions.toast.decided(input.decision, input.findings.length), {
-        description: copy.decisions.toast.signed(input.signerName),
+        description: result.implementerRunId
+          ? `${signed} ${copy.implementer.startedWithDecision}`
+          : signed,
         // Long enough to notice a wrong decision and undo it.
         duration: 10_000,
         action: {

@@ -2,6 +2,7 @@ import { cn } from 'cn';
 import { Alert } from '@/components/ui/alert.tsx';
 import { copy } from '@/copy/index.ts';
 import { usePauseNames } from '@/features/budget/wait-text.ts';
+import { useTeamNames } from '@/features/team/names.ts';
 import { bannerText, stepContext, whoText } from '@/lib/next-step.ts';
 import { BANNER_LINES, MAIN_ACTIONS, type PrSlotProps } from './slots.ts';
 import { BANNER_ICON, BANNER_ICON_TONE, BANNER_TONE } from './tone.ts';
@@ -13,13 +14,19 @@ import { BANNER_ICON, BANNER_ICON_TONE, BANNER_TONE } from './tone.ts';
 export function NextStepBanner(props: PrSlotProps) {
   const { view } = props;
   const step = view.nextStep;
-  // The banner names people from the view (who sent the sensitive files back) and the status
-  // (who paused).
+  // The banner names people from the view (who sent the sensitive files back), the status (who
+  // paused) and Team (who started the implementer).
   const sentBack = view.sensitive?.sentBack;
   const pauseNames = usePauseNames();
+  const startedBy = step.banner.params.startedBy as { kind?: string } | null | undefined;
+  const teamNames = useTeamNames(startedBy?.kind === 'member');
   const context = stepContext(
     view.author,
-    new Map([...pauseNames, ...(sentBack ? [[sentBack.by.id, sentBack.by.name] as const] : [])]),
+    new Map([
+      ...teamNames,
+      ...pauseNames,
+      ...(sentBack ? [[sentBack.by.id, sentBack.by.name] as const] : []),
+    ]),
   );
   const done = step.lane === null;
   const who = whoText(step, context);

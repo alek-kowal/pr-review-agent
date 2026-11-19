@@ -53,6 +53,7 @@ const decisionBy = (member: TeamMember, over: Partial<DecisionView> = {}): Decis
 
 const decided = (findings: FindingView[], decision: DecisionView): DecideResponse => ({
   batchId: decision.batchId,
+  implementerRunId: null,
   nextStep: aNextStep({
     state: 'waiting_for_fix',
     banner: { code: 'state_waiting_for_fix', params: { count: findings.length } },

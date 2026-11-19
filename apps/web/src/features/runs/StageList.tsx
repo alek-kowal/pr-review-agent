@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { copy } from '@/copy/index.ts';
 import { duration, money } from '@/copy/format.ts';
+import { isForkOff, offStageText, offStepTexts } from '@/features/round/off-text.ts';
 import { STEP_ICON, STEP_TONE } from '@/features/round/step-style.ts';
 import type { RunDetail, RunSessionView, RunStageView } from '@/lib/api-types.ts';
 import { reasonText, stageName } from '@/lib/reasons.ts';
@@ -54,10 +55,19 @@ export function StageList({ detail }: { detail: RunDetail }) {
                   {copy.runs.detail.reused}
                 </span>
               )}
+              {offStepTexts(stage.offSteps).map((text) => (
+                <span
+                  key={text}
+                  data-testid="off-step"
+                  className="rounded bg-inset px-1.5 py-0.5 text-xs text-text-2"
+                >
+                  {text}
+                </span>
+              ))}
               <span className="flex-1" />
               <span className="text-sm text-text-3 tabular-nums">
                 {stage.status === 'off'
-                  ? copy.runs.step.off(detail.run.level.number)
+                  ? offStageText(stage.offReason, detail.run.level.number)
                   : ms === null
                     ? '—'
                     : duration(ms)}
@@ -90,7 +100,11 @@ function StageBody({ stage, detail }: { stage: RunStageView; detail: RunDetail }
   const d = copy.runs.detail;
   switch (stage.status) {
     case 'off':
-      return <p className="text-sm text-text-3">{d.stageOff(detail.run.level.number)}</p>;
+      return (
+        <p className="text-sm text-text-3">
+          {isForkOff(stage.offReason) ? d.stageOffForFork : d.stageOff(detail.run.level.number)}
+        </p>
+      );
     case 'queued':
       return <p className="text-sm text-text-3">{d.stageQueued(detail.run.status === 'failed')}</p>;
     case 'running':

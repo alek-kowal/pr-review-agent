@@ -37,6 +37,9 @@ type Logger = { info: (data: Record<string, unknown>, message: string) => void }
 
 export type RunStartDeps = { db: Db; queue: Queue; logger?: Logger };
 
+/** The transaction `createRun` inserts the run in; it can open nested transactions (savepoints). */
+export type RunTx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
 /** A stage job expires after the run's stage timeout plus this margin (the backstop, S-09-T6). */
 const STAGE_JOB_EXPIRY_MARGIN_SECONDS = 10 * 60;
 
@@ -78,7 +81,7 @@ export type CreateRunInput = {
   roundNo?: number | null;
   chainId?: string | null;
   /** Runs in the transaction that inserts the run, before it (for example a new chain row). */
-  beforeInsert?: (tx: Executor) => Promise<void>;
+  beforeInsert?: (tx: RunTx) => Promise<void>;
   /** Runs in the transaction that inserts the run (for example to record what started it). */
   inTransaction?: (tx: Executor, run: Run) => Promise<void>;
 };
@@ -255,6 +258,8 @@ export async function startRound(
         level,
         roundKind: roundNumber > 1 ? 'fix_check' : 'full',
         roundNumber,
+        // A fork may start by hand; its plan stays read-only (S-16).
+        fork: pullRequest.isFork,
       }),
       trigger: input.trigger,
       startedBy: input.startedBy,

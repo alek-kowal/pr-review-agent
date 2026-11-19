@@ -1,6 +1,9 @@
-import { checklist, DECISIONS, nextStep } from '@pra/core';
+import { checklist, DECISIONS, member, nextStep } from '@pra/core';
 import {
   decideFindings,
+  startImplementer,
+  type DecideFindingsResult,
+  type Transactor,
   FOLLOW_UP_DELAY_SECONDS,
   findPullRequest,
   getDecisionBatch,
@@ -22,6 +25,7 @@ import {
   NextStepSchema,
   nextStepView,
 } from '../../../pr-view/state.ts';
+import { sendRefusal } from '../patches/index.ts';
 import { PrParams } from '../prs/index.ts';
 
 /** Routes sit under `/api/prs/...` and `/api/decision-batches/...`, so not under the folder name. */
@@ -41,6 +45,8 @@ const DecideBody = z.object({
   signedBy: z.string().trim().optional(),
   /** The version of each finding the signer saw, by finding id. */
   expectedVersions: z.record(z.string(), z.number().int().nonnegative()),
+  /** Implement only: the same signature also starts the implementer (FR-047). */
+  withAgent: z.boolean().optional(),
 });
 
 /** The PR view after a decision or an undo: what changed on the PR page and the board. */
@@ -52,7 +58,19 @@ export const DecisionResult = z.object({
 export const DecideResponse = DecisionResult.extend({
   /** The batch the decision wrote; Undo takes this id. */
   batchId: z.number().int(),
+  /** The implementer run a decision `withAgent` started. */
+  implementerRunId: z.number().int().nullable(),
 });
+
+/** A decision the transaction refused; thrown so a `withAgent` run rolls back with it. */
+class DecisionRefused extends Error {
+  readonly result:
+    Exclude<DecideFindingsResult, { ok: true }> | { ok: false; reason: 'signer_unknown' };
+  constructor(result: DecisionRefused['result']) {
+    super(result.reason);
+    this.result = result;
+  }
+}
 
 const errors = { 400: ApiErrorSchema, 404: ApiErrorSchema, 409: ApiErrorSchema };
 
@@ -81,10 +99,13 @@ const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       schema: { params: PrParams, body: DecideBody, response: { 200: DecideResponse, ...errors } },
     },
     async (request, reply) => {
-      const { findingIds, decision, reason, signedBy, expectedVersions } = request.body;
+      const { findingIds, decision, reason, signedBy, expectedVersions, withAgent } = request.body;
       if (!signedBy) return sendError(reply, 400, ApiErrorCode.SignatureRequired);
       if (decision === 'reject' && !reason) {
         return sendError(reply, 400, ApiErrorCode.ReasonRequired);
+      }
+      if (withAgent && decision !== 'implement') {
+        return sendError(reply, 400, ApiErrorCode.WithAgentNeedsImplement);
       }
       const found = await findPullRequest(db, request.params.repo, request.params.number);
       if (!found) return sendError(reply, 404, ApiErrorCode.PrNotFound, request.params);
@@ -92,7 +113,7 @@ const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       const versions = Object.fromEntries(
         Object.entries(expectedVersions).map(([id, version]) => [Number(id), version]),
       );
-      const result = await db.transaction(async (tx) => {
+      const decideIn = async (tx: Executor & Transactor) => {
         // Locked, so the signer cannot be removed while their decision is written.
         const signer = await lockActiveTeamMember(tx, signedBy);
         if (!signer) return { ok: false, reason: 'signer_unknown' } as const;
@@ -104,7 +125,35 @@ const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
           reason,
           signedBy: signer.id,
         });
-      });
+      };
+
+      let result: Awaited<ReturnType<typeof decideIn>>;
+      let implementerRunId: number | null = null;
+      if (withAgent) {
+        // One signature: the decisions and the implementer run commit together or not at all.
+        let decided: Awaited<ReturnType<typeof decideIn>> | undefined;
+        try {
+          const started = await startImplementer(
+            { db, queue },
+            {
+              pullRequestId: found.pullRequest.id,
+              startedBy: member(signedBy),
+              prepare: async (tx) => {
+                decided = await decideIn(tx);
+                if (!decided.ok) throw new DecisionRefused(decided);
+              },
+            },
+          );
+          if (!started.started) return sendRefusal(reply, started.reason);
+          implementerRunId = started.run.id;
+          result = decided!;
+        } catch (error) {
+          if (!(error instanceof DecisionRefused)) throw error;
+          result = error.result;
+        }
+      } else {
+        result = await db.transaction((tx) => decideIn(tx));
+      }
 
       if (!result.ok) {
         switch (result.reason) {
@@ -138,7 +187,11 @@ const decisions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
           request.log.warn({ err: error, batchId: result.batch.id }, 'follow-up job not sent'),
         );
       }
-      return { batchId: result.batch.id, ...(await refreshedView(db, found.pullRequest.id)) };
+      return {
+        batchId: result.batch.id,
+        implementerRunId,
+        ...(await refreshedView(db, found.pullRequest.id)),
+      };
     },
   );
 

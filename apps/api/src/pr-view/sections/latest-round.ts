@@ -9,6 +9,6 @@ export const latestRoundSection = defineSection({
   async build({ db, pullRequest }) {
     const run = await latestRound(db, pullRequest.id);
     if (!run) return null;
-    return roundView(run, await stageExecutionsOf(db, run.id));
+    return roundView(run, await stageExecutionsOf(db, run.id), pullRequest.isFork);
   },
 });

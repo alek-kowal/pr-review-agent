@@ -25,6 +25,8 @@ export const JOBS = {
   reconcile: 'reconcile',
   /** Starts queued runs that may start now, oldest first, and refreshes why the others wait. */
   runDrain: 'run.drain',
+  /** Reruns a patch's reproductions after an edit or revert, no model spend; keyed `<patchId>`. */
+  patchCheck: 'patch.check',
   /** Re-evaluates every alert (S-18-T3): after run changes, and every minute for the budget. */
   alertsEvaluate: 'alerts.evaluate',
   /** The ClickUp comment of one new alert (S-18-T4); keyed `<alertId>`. */
@@ -48,6 +50,7 @@ export interface JobPayloads {
   'clickup.follow-up': { batchId: number };
   reconcile: Record<string, never>;
   'run.drain': Record<string, never>;
+  'patch.check': { patchId: number };
   'alerts.evaluate': Record<string, never>;
   'alerts.deliver': { alertId: number };
 }
@@ -73,6 +76,8 @@ export const QUEUE_SETTINGS: Partial<Record<JobName, QueueSettings>> = {
   reconcile: { retryLimit: 0 },
   // One drain runs at a time and one more waits: wakes during a drain are merged into the next.
   'run.drain': { policy: 'stately', retryLimit: 1 },
+  // One check per patch at a time and one more waits: edits during a check queue the next one.
+  'patch.check': { policy: 'stately', retryLimit: 1 },
   // Like the drain: requests during an evaluation merge into the next one.
   'alerts.evaluate': { policy: 'stately', retryLimit: 1 },
   'alerts.deliver': { policy: 'exclusive', retryLimit: 5, retryDelay: 30, retryBackoff: true },
