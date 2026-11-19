@@ -25,7 +25,8 @@ import {
 import * as path from 'node:path';
 import { afterAll, beforeEach, describe, expect, test } from 'vitest';
 import { processGithubEvent } from '../src/handlers/github-event.ts';
-import { sensitiveOnRunCompleted } from '../src/run/sensitive-files.ts';
+import { executeStage } from '../src/run/execute-stage.ts';
+import { sensitiveFilesGate } from '../src/run/sensitive-files.ts';
 import { connectRepository, createTestWorkerDeps, storeGithubEvent } from './support.ts';
 
 const MIGRATION = 'db/migrations/0001_edge_labels.sql';
@@ -68,7 +69,7 @@ async function pr(): Promise<PullRequest> {
   return (await getPullRequest(deps.db, repository.id, 312))!;
 }
 
-/** Round 1 from a ready event on the fixture's feature commit, completed with its hook run. */
+/** Round 1 from a ready event on the fixture's feature commit, scanned at its start, completed. */
 async function reviewedRound(): Promise<{ run: Run; pullRequest: PullRequest }> {
   await deliver('pull_request.ready_for_review', fixture.headSha);
   // The fixture payload's base is not in the git fixture.
@@ -82,7 +83,13 @@ async function reviewedRound(): Promise<{ run: Run; pullRequest: PullRequest }> 
     .set({ status: 'completed', finishedAt: new Date() })
     .where(eq(schema.runs.pullRequestId, pullRequest!.id))
     .returning();
-  await sensitiveOnRunCompleted({ deps, run: run!, pullRequest: pullRequest!, repository });
+  await sensitiveFilesGate({
+    deps,
+    run: run!,
+    pullRequest: pullRequest!,
+    repository,
+    stage: 'review',
+  });
   return { run: run!, pullRequest: pullRequest! };
 }
 
@@ -126,7 +133,7 @@ describe('sensitive files', () => {
     expect((await pr()).sensitiveVersion).toBe(1);
 
     // The same round again adds nothing and keeps the version.
-    await sensitiveOnRunCompleted({ deps, run, pullRequest, repository });
+    await sensitiveFilesGate({ deps, run, pullRequest, repository, stage: 'review' });
     expect(await files()).toHaveLength(1);
     expect((await pr()).sensitiveVersion).toBe(1);
   });
@@ -210,5 +217,23 @@ describe('sensitive files', () => {
       sentBackBy: null,
     });
     expect(after.row).toMatchObject({ ok: false, reason: { code: 'checklist_sensitive_pending' } });
+  });
+
+  test('a round whose scan fails stays queued: it never completes unscanned', async () => {
+    await deliver('pull_request.ready_for_review', fixture.headSha);
+    const [run] = await deps.db
+      .select()
+      .from(schema.runs)
+      .where(eq(schema.runs.pullRequestId, (await pr()).id));
+    const diff = deps.gitMirror.diff.bind(deps.gitMirror);
+    deps.gitMirror.diff = () => Promise.reject(new Error('git failed'));
+    try {
+      await expect(executeStage(deps, run!.id, 'review')).rejects.toThrow('git failed');
+    } finally {
+      deps.gitMirror.diff = diff;
+    }
+    const [after] = await deps.db.select().from(schema.runs).where(eq(schema.runs.id, run!.id));
+    expect(after!.status).toBe('queued');
+    expect(await files()).toEqual([]);
   });
 });
