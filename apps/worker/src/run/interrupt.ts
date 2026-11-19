@@ -1,6 +1,6 @@
 // A stage attempt that no handler runs any more (the worker restarted, or the handler threw after
 // the start) fails `interrupted`, and its run fails with it (core `recoverAfterRestart`).
-import { recoverAfterRestart, type RunState } from '@pra/core';
+import { recoverAfterRestart, STAGE_ERROR, type RunState } from '@pra/core';
 import {
   endRunningSessions,
   updateRun,
@@ -19,9 +19,10 @@ export async function interruptRunningStage(
   tx: Executor,
   run: Run,
   executions: readonly StageExecution[],
+  code: string = STAGE_ERROR.interrupted,
 ): Promise<RunState | null> {
   const state = runStateOf(run, executions);
-  const recovered = recoverAfterRestart(state);
+  const recovered = recoverAfterRestart(state, code);
   if (recovered === state) return null;
   const stage = recovered.error!.stage;
   const execution = executions.filter((e) => e.stage === stage && e.status === 'running').at(-1);

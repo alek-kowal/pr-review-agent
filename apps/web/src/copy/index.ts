@@ -3,6 +3,7 @@ import { activity } from './activity.ts';
 import { board } from './board.ts';
 import { budget } from './budget.ts';
 import { checklist } from './checklist.ts';
+import { checks } from './checks.ts';
 import { clickup } from './clickup.ts';
 import { decisions } from './decisions.ts';
 import { insights } from './insights.ts';
@@ -41,6 +42,7 @@ export const copy = {
   status,
   runs,
   clickup,
+  checks,
   timeline,
   questions,
   opinions,
@@ -210,6 +212,7 @@ export const copy = {
     stage_not_available: 'this stage is not available yet',
     stage_timeout: 'the stage ran out of time',
     interrupted: 'the app restarted while it ran',
+    interrupted_by_restart: 'the app restarted while it ran',
     stage_error: 'an unexpected error stopped it',
     cancelled: 'it was cancelled',
     review_output_invalid: "the reviewer's answer was not valid",
@@ -242,6 +245,9 @@ export const copy = {
     repository_already_connected: 'This repository is already connected.',
     clickup_not_configured: 'ClickUp is not configured on this server.',
     run_active: 'A round is already queued or running for this PR.',
+    run_not_failed: 'Only a failed round can be retried. Reload the page.',
+    run_not_retryable: 'A trial is not retried. Start it again from Experiments.',
+    run_finished: 'This run already ended. Reload the page.',
     pr_closed: 'This pull request is closed.',
     comment_required:
       'A comment is required to send files back, so the author knows what to change.',

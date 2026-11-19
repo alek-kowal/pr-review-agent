@@ -1,12 +1,10 @@
 import { copy } from '@/copy/index.ts';
 import type { StageOutputProps } from './stage-outputs.ts';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+import { isRecord, str } from './output-values.ts';
 
-const str = (value: unknown): string | null => (typeof value === 'string' ? value : null);
-
-function Kv({ rows }: { rows: [string, React.ReactNode][] }) {
+/** Keys and values of a stage output, two columns. */
+export function Kv({ rows }: { rows: [string, React.ReactNode][] }) {
   return (
     <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
       {rows.map(([key, value]) => (

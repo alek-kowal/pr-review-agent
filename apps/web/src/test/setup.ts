@@ -1,7 +1,11 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { toast } from 'sonner';
 import { afterEach } from 'vitest';
+
+// `pnpm verify` runs lint, typecheck and every package's tests at once; under that load a route's
+// first render can take longer than Testing Library's default 1 s wait for `findBy*`.
+configure({ asyncUtilTimeout: 4_000 });
 
 // Vitest globals are off, so Testing Library cannot register its own cleanup. Sonner keeps its
 // toasts in module state, and a new Toaster shows the ones still there: drop them.

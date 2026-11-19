@@ -346,6 +346,7 @@ test('the endpoints and their schemas appear in /docs/json', async () => {
     'sensitive',
     'roundProgress',
     'task',
+    'checks',
   ]);
   expect(view.responses['404']).toBeDefined();
 });

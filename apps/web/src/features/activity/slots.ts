@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { CancelRowAction } from '@/features/runs/CancelAction.tsx';
 import type { InProgressRun } from '@/lib/api-types.ts';
 
 /**
@@ -16,4 +17,4 @@ export const ACTIVITY_SECTIONS: {
 export const IN_PROGRESS_ROW_ACTIONS: {
   key: string;
   Component: ComponentType<{ run: InProgressRun }>;
-}[] = [];
+}[] = [{ key: 'cancel', Component: CancelRowAction }];

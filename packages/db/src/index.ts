@@ -26,6 +26,7 @@ export {
   JOBS,
   QUEUE_SCHEMA,
   QUEUE_SETTINGS,
+  RECONCILE_CRON,
   sendDrainJob,
   sendJob,
   stableJobId,

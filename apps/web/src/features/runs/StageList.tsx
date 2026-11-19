@@ -49,6 +49,11 @@ export function StageList({ detail }: { detail: RunDetail }) {
                   ? copy.runs.detail.stageAgent(agentModels)
                   : copy.runs.detail.stageCode}
               </span>
+              {stage.reused && (
+                <span className="rounded bg-inset px-1.5 py-0.5 text-xs text-text-2">
+                  {copy.runs.detail.reused}
+                </span>
+              )}
               <span className="flex-1" />
               <span className="text-sm text-text-3 tabular-nums">
                 {stage.status === 'off'
@@ -98,7 +103,12 @@ function StageBody({ stage, detail }: { stage: RunStageView; detail: RunDetail }
       );
     case 'done': {
       const Output = STAGE_OUTPUTS[stage.key] ?? GenericOutput;
-      return <Output output={stage.output} stage={stage} run={detail} />;
+      return (
+        <>
+          {stage.reused && <p className="text-sm text-text-3">{d.stageReused}</p>}
+          <Output output={stage.output} stage={stage} run={detail} />
+        </>
+      );
     }
   }
 }

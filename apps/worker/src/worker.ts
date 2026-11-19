@@ -1,9 +1,11 @@
-import { JOBS, sendDrainJob, type JobPayloads } from '@pra/db';
+import { JOBS, RECONCILE_CRON, sendDrainJob, type JobPayloads } from '@pra/db';
 import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
 import { handleGithubComments } from './handlers/github-comment.ts';
 import { handleFollowUps } from './handlers/clickup-follow-up.ts';
 import { handleGithubEvents } from './handlers/github-event.ts';
+import { handleReconcile } from './handlers/reconcile.ts';
 import { handleSmoke } from './handlers/smoke.ts';
+import { listenForCancels } from './run/cancel.ts';
 import { drainQueue } from './run/drain.ts';
 import { handleRunStages } from './run/execute-stage.ts';
 import { recoverRuns, resendLostJobs } from './run/recover.ts';
@@ -39,6 +41,10 @@ export async function startWorker(
 
   queue.on('error', (error) => logger.error({ err: error }, 'queue error'));
   await queue.start();
+  // Cancel requests arrive on `pra_change` (S-09-T3); listening starts before recovery, so a
+  // request made during it is not missed.
+  const cancels = listenForCancels(deps);
+  await cancels.ready;
   await recoverRuns(deps);
   await queue.work<JobPayloads['smoke']>(JOBS.smoke, work, (jobs) => handleSmoke(deps, jobs));
   await queue.work<JobPayloads['github.event']>(JOBS.githubEvent, work, (jobs) =>
@@ -53,6 +59,9 @@ export async function startWorker(
   await queue.work<JobPayloads['clickup.follow-up']>(JOBS.clickupFollowUp, work, (jobs) =>
     handleFollowUps(deps, jobs),
   );
+  await queue.work<JobPayloads['reconcile']>(JOBS.reconcile, work, () => handleReconcile(deps));
+  // pg-boss keeps one schedule per queue; a restart only rewrites it.
+  await queue.schedule(JOBS.reconcile, RECONCILE_CRON);
   await queue.work<JobPayloads['run.drain']>(JOBS.runDrain, work, async () => {
     const result = await drainQueue(deps);
     if (result.started.length || result.resumed.length) logger.info(result, 'queued runs started');
@@ -81,6 +90,7 @@ export async function startWorker(
   return {
     async stop() {
       clearInterval(resend);
+      await cancels.close();
       await queue.stop({ graceful: true });
       logger.info('worker stopped');
     },
