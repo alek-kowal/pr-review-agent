@@ -102,6 +102,28 @@ or pause the queue in the app first. Roll back with `--ref <older commit>`; migr
 forward, so roll back code only across additive migrations. The last three SPA builds stay on
 disk so open tabs still load their assets.
 
+### First install: instruction files
+
+Once, after the first deploy and after connecting the repository in Settings → Repositories
+(the default map, `packages/db/src/testing/fixtures/instructions-import.json`, files the copy
+under the repository it names), import the instruction files from a local copy of the old
+knowledge folder:
+
+```sh
+deploy/mikrus/import-instructions.sh <knowledge-dir> --dry-run   # prints what it would run
+deploy/mikrus/import-instructions.sh <knowledge-dir>
+```
+
+It uses the SSH settings of `deploy.sh`, copies the folder (without `.git`) to
+`/srv/pra/knowledge-import/<timestamp>` and runs `pnpm instructions:import --from <copy>` in
+`/srv/pra/app` as `pra` (the app's `.env` link gives it the database; nothing prints it). It
+is safe to run again: files that already have a version are kept. Without this step the
+database holds no instruction file: the reviewer falls back to its built-in prompt, but every
+round at level 3 or higher stops before its first stage with the missing files named, and
+Settings → Instructions and Start review warn about them. After the import, Settings →
+Instructions lists the files, and its "Missing instruction files" warning names any required
+file the folder did not hold. Change the files later in Settings → Instructions.
+
 ## Operate
 
 | Task                 | Command (on the server)                                                          |

@@ -137,6 +137,10 @@ Then:
   Without the App yet: Settings → Integrations shows "GitHub polling"; connect the repository by
   `owner/name` in Settings → Repositories and press Poll now once (the first poll imports the
   open PRs without reviewing them).
+- After connecting the repository, import the instruction files once:
+  `deploy/mikrus/import-instructions.sh <knowledge-dir>` (docs/deploy-mikrus.md, "First install:
+  instruction files"). Settings → Instructions then lists them; its "Missing instruction files"
+  warning names any required file still missing.
 - `systemctl list-timers 'pra-*'` lists four timers; `journalctl -u pra-worker -n 50` is quiet.
 - Size the sandbox on the real repository (docs/deploy-mikrus.md, "Measure"):
   `sudo -iu pra sh -c 'cd app && pnpm sandbox:bench --repo <git url> --slug <slug>'`.
