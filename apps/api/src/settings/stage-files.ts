@@ -4,6 +4,7 @@
 import { slotsOf, stageFilesFor } from '@pra/agents';
 import {
   BUILT_IN_FILE,
+  defaultKindOf,
   FILE_STAGE_KEYS,
   INSTRUCTION_KINDS,
   INSTRUCTION_SCOPES,
@@ -172,7 +173,8 @@ export function fileOptionAt(
   const global = same.find((f) => f.scope === 'global');
   const file =
     (own?.active ? own : undefined) ?? (global?.active ? global : undefined) ?? own ?? global;
-  const kind = (file ?? same[0])?.kind ?? 'document';
+  // A key with no file yet takes the kind a new file of that name would get.
+  const kind = (file ?? same[0])?.kind ?? defaultKindOf(fileKey);
   const option: FileOption = {
     fileKey,
     kind: kind as InstructionKind,

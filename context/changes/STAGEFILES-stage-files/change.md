@@ -83,3 +83,14 @@ Taken during `/10x-implement`:
     assigned prompt and rules.
 22. **Discard archives a draft that a trial or a run read** (never active, no `activatedAt`), and
     "Make active" accepts such a version.
+23. **`GET /api/instructions` also returns the connected `repositories`**, so New file can offer a
+    repository scope without a second request (`/api/settings/repositories` also asks GitHub).
+24. **A key with no file at any scope takes `defaultKindOf`** in the pipeline's file options, so
+    a missing `prompt-verifier.md` still shows as an instruction.
+25. **A slot is edited in the Sheet and saved per stage**: picking the value it already reads is no
+    change; Reset on a slot stored at this scope saves it back to inheriting, on a slot only
+    changed in the form it undoes the change. Documents are a checkbox list of the scope's
+    documents. The editor keeps "Activate version N…" next to Save as draft and adds "Make vN
+    active…" to every draft or archived row of the history.
+26. **After an instruction change only the list and the pipeline refetch**; the file itself is
+    set from the answer, so a file discarded with its only version is not fetched again (404).

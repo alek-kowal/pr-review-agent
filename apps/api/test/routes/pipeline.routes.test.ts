@@ -99,15 +99,26 @@ test('the prompt lists the global instruction files with their active versions',
   await activateInstructionVersion(db, draft!.id, null);
 
   const { review, verify } = await pipeline();
-  expect(review!.instructions).toContainEqual({
-    fileKey: 'review-rules.md',
-    fileId: v1.fileId,
-    version: 2,
-  });
+  const rules = review!.files!.slots.find((s) => s.name === 'rules');
+  expect(rules?.files).toEqual([
+    {
+      fileKey: 'review-rules.md',
+      kind: 'instruction',
+      fileId: v1.fileId,
+      version: 2,
+      scope: 'global',
+    },
+  ]);
   // A file the database does not have yet is listed without a version.
-  expect(verify!.instructions).toEqual([
-    { fileKey: 'prompt-verifier.md', fileId: null, version: null },
-    { fileKey: 'verify-rules.md', fileId: null, version: null },
+  expect(verify!.files!.slots.flatMap((s) => s.files)).toEqual([
+    {
+      fileKey: 'prompt-verifier.md',
+      kind: 'instruction',
+      fileId: null,
+      version: null,
+      scope: null,
+    },
+    { fileKey: 'verify-rules.md', kind: 'instruction', fileId: null, version: null, scope: null },
   ]);
 });
 

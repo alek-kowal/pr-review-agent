@@ -65,6 +65,8 @@ export const InstructionsListResponse = z.object({
       draft: VersionRefSchema.nullable(),
     }),
   ),
+  /** Connected repositories, by slug: where New file can put a repository file (STAGEFILES). */
+  repositories: z.array(z.object({ id: z.number().int(), slug: z.string() })),
   /** Connected repositories whose runs would miss required files (INSTR), by slug. */
   gaps: z.array(
     z.object({
@@ -133,8 +135,8 @@ const errors = { 400: ApiErrorSchema, 404: ApiErrorSchema, 409: ApiErrorSchema }
 
 /**
  * Instructions in Settings (S-22-T4, FR-079): files by scope with their versions. A draft is saved
- * unsigned ("by hand") and changes nothing; activate and rollback are signed and logged through
- * `applySignedSettingsChange`, and only change runs that start afterwards.
+ * unsigned ("by hand") and changes nothing; activate ("Make active") is signed and logged through
+ * `applySignedSettingsChange`, and only changes runs that start afterwards.
  */
 const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
   const { db } = fastify.deps;
@@ -157,6 +159,7 @@ const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
         active: f.active && versionRef(f.active),
         draft: f.draft && versionRef(f.draft),
       })),
+      repositories: repositories.map((r) => ({ id: r.id, slug: r.slug })),
       gaps: gaps.filter((g) => g.gaps.length > 0),
     };
   });
@@ -191,52 +194,45 @@ const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
     },
   );
 
-  for (const action of ['activate', 'rollback'] as const) {
-    fastify.post(
-      `/:id/${action}`,
-      {
-        schema: {
-          params: FileParams,
-          body: ActivateBody,
-          response: { 200: InstructionDetailResponse, ...errors },
-        },
+  fastify.post(
+    '/:id/activate',
+    {
+      schema: {
+        params: FileParams,
+        body: ActivateBody,
+        response: { 200: InstructionDetailResponse, ...errors },
       },
-      async (request, reply) => {
-        const { id } = request.params;
-        const file = await getInstructionFile(db, id);
-        if (!file) return fileNotFound(reply, id);
-        const { versionId, activeVersion, signedBy, note } = request.body;
-        const target = await getInstructionVersion(db, versionId);
-        if (!target || target.fileId !== id) {
-          return sendError(reply, 404, ApiErrorCode.InstructionVersionNotFound, { versionId });
-        }
-        // Activate ("Make active", STAGEFILES) takes any version that is not active: the draft or
-        // an archived one. Rollback (until the web moves to activate) re-activates a version that
-        // was active before.
-        const refused =
-          action === 'activate'
-            ? target.status === 'active'
-            : target.status !== 'archived' || !target.activatedAt;
-        if (refused) {
-          return sendError(reply, 409, ApiErrorCode.InstructionVersionStatus, {
-            status: target.status,
-          });
-        }
-        const store = instructionsStore(signedBy || null);
-        const current = activeVersion === undefined ? await currentActive(id) : activeVersion;
-        const result = await applySignedSettingsChange(db, {
-          store,
-          entity: String(id),
-          before: { fileKey: file.fileKey, version: current },
-          after: { fileKey: file.fileKey, version: target.version },
-          signer: signedBy,
-          note: note || target.note,
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const file = await getInstructionFile(db, id);
+      if (!file) return fileNotFound(reply, id);
+      const { versionId, activeVersion, signedBy, note } = request.body;
+      const target = await getInstructionVersion(db, versionId);
+      if (!target || target.fileId !== id) {
+        return sendError(reply, 404, ApiErrorCode.InstructionVersionNotFound, { versionId });
+      }
+      // "Make active" (STAGEFILES) takes any version that is not active: the draft or an archived
+      // one, whether it was active before or not.
+      if (target.status === 'active') {
+        return sendError(reply, 409, ApiErrorCode.InstructionVersionStatus, {
+          status: target.status,
         });
-        if (!result.ok) return sendError(reply, result.status, result.code, result.params);
-        return detail(reply, id);
-      },
-    );
-  }
+      }
+      const store = instructionsStore(signedBy || null);
+      const current = activeVersion === undefined ? await currentActive(id) : activeVersion;
+      const result = await applySignedSettingsChange(db, {
+        store,
+        entity: String(id),
+        before: { fileKey: file.fileKey, version: current },
+        after: { fileKey: file.fileKey, version: target.version },
+        signer: signedBy,
+        note: note || target.note,
+      });
+      if (!result.ok) return sendError(reply, result.status, result.code, result.params);
+      return detail(reply, id);
+    },
+  );
 
   fastify.post(
     '/:id/copies',

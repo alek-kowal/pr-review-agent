@@ -20,7 +20,7 @@ export function InstructionGaps({ gaps }: { gaps: InstructionsListResponse['gaps
         <p className="text-xs">{t.gaps.hint}</p>
         {gaps.map(({ repository, gaps: repositoryGaps }) => (
           <div key={repository.id}>
-            <h3 className="font-medium">{t.groups.repository(repository.slug)}</h3>
+            <h3 className="font-medium">{t.gaps.repository(repository.slug)}</h3>
             <ul className="list-disc pl-5">
               {groupGaps(repositoryGaps).map((line) => (
                 <li key={`${line.stage}:${line.missing.join(',')}`}>

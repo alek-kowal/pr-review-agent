@@ -157,7 +157,7 @@ describe('PUT /api/instructions/:id/draft', () => {
   });
 });
 
-describe('POST /api/instructions/:id/activate and /rollback', () => {
+describe('POST /api/instructions/:id/activate', () => {
   test('activate writes one settings change and archives the old active version', async () => {
     const draftId = detailOf((await saveDraft()).json()).versions[0]!.id;
 
@@ -185,14 +185,14 @@ describe('POST /api/instructions/:id/activate and /rollback', () => {
     });
   });
 
-  test('rollback re-activates an older version', async () => {
+  test('activate re-activates an older version', async () => {
     const draftId = detailOf((await saveDraft()).json()).versions[0]!.id;
     await send('POST', `/api/instructions/${fileId}/activate`, {
       versionId: draftId,
       signedBy: signer.id,
     });
 
-    const response = await send('POST', `/api/instructions/${fileId}/rollback`, {
+    const response = await send('POST', `/api/instructions/${fileId}/activate`, {
       versionId: v1Id,
       activeVersion: 2,
       signedBy: signer.id,

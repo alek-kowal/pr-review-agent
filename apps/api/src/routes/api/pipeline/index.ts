@@ -42,17 +42,6 @@ const StageSchema = z.object({
     .nullable(),
   tools: z.array(z.string()),
   integrations: z.array(z.string()),
-  /**
-   * The global files of the prompt and rules slots' defaults, with the active version (null when
-   * none is active). Kept until the web reads `files` (STAGEFILES Phase 4).
-   */
-  instructions: z.array(
-    z.object({
-      fileKey: z.string(),
-      fileId: z.number().int().nullable(),
-      version: z.number().int().nullable(),
-    }),
-  ),
   /** The instruction files the stage reads at this scope, by slot; null when it reads none. */
   files: StageFilesViewSchema.nullable(),
   output: z.object({ schema: z.string(), fields: z.array(z.string()) }),
@@ -126,9 +115,6 @@ const pipelineRoutes: FastifyPluginAsyncZod = async (fastify): Promise<void> => 
         listRepositories(db),
         stageFilesAt(db, repository?.id ?? null),
       ]);
-      const global = new Map(
-        scoped.files.filter((f) => f.scope === 'global').map((f) => [f.fileKey, f] as const),
-      );
       return {
         scope: { repository: repository && { id: repository.id, slug: repository.slug } },
         repositories: repositories.map((r) => ({ id: r.id, slug: r.slug })),
@@ -142,16 +128,6 @@ const pipelineRoutes: FastifyPluginAsyncZod = async (fastify): Promise<void> => 
             model: stage.role ? modelFor(roleModels, level, stage.role) : null,
             tools: [...stage.tools],
             integrations: [...stage.integrations],
-            instructions: stage.slots
-              .flatMap((slot) => (slot.name === 'documents' ? [] : [slot.default]))
-              .map((fileKey) => {
-                const file = global.get(fileKey);
-                return {
-                  fileKey,
-                  fileId: file?.id ?? null,
-                  version: file?.active?.version ?? null,
-                };
-              }),
             files: isFileStageKey(stage.key) ? (scoped.views.get(stage.key) ?? null) : null,
             output: { schema: stage.output.schema, fields: [...stage.output.fields] },
             timeoutMinutes: level.settings.stageTimeoutMinutes,

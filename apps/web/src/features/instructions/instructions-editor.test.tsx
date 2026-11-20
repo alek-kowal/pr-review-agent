@@ -1,8 +1,10 @@
-// S-22-T5: Settings → Instructions and the instruction editor.
+// S-22-T5: Settings → Instructions and the instruction editor. STAGEFILES: sections by kind, Read
+// by, the unused toggle, New file, Make active on any version and Discard draft.
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { copy } from '@/copy/index.ts';
+import { LAST_SIGNER_KEY } from '@/features/signature/last-signer.ts';
 import type {
   InstructionDetailResponse,
   InstructionsListResponse,
@@ -20,6 +22,8 @@ const file = {
   repository: { id: 1, slug: 'workflowbuilder' },
   level: null,
   fileKey: 'review-rules.md',
+  kind: 'instruction' as const,
+  readBy: [{ stage: 'review' as const, repository: 'workflowbuilder' }],
 };
 
 const version = (patch: Partial<InstructionVersionView>): InstructionVersionView => ({
@@ -80,11 +84,38 @@ const list: InstructionsListResponse = {
       scope: 'global',
       repository: null,
       fileKey: 'prompt-reviewer.md',
+      readBy: [{ stage: 'review', repository: null }],
       active: v1,
       draft: null,
     },
     { ...file, active: v1, draft: v2Draft },
+    {
+      ...file,
+      id: 2,
+      scope: 'global',
+      repository: null,
+      fileKey: 'lessons.md',
+      kind: 'document',
+      readBy: [
+        { stage: 'review', repository: null },
+        { stage: 'analyst', repository: null },
+      ],
+      active: v1,
+      draft: null,
+    },
+    {
+      ...file,
+      id: 3,
+      scope: 'global',
+      repository: null,
+      fileKey: 'review-levels.json',
+      kind: 'document',
+      readBy: [],
+      active: v1,
+      draft: null,
+    },
   ],
+  repositories: [{ id: 1, slug: 'workflowbuilder' }],
   gaps: [],
 };
 
@@ -95,16 +126,93 @@ const callsTo = (calls: FetchCall[], method: string, path: string) =>
   calls.filter((call) => call.method === method && call.path === path);
 
 describe('Settings → Instructions', () => {
-  test('lists files grouped by scope with the active version and the draft', async () => {
+  test('lists instructions apart from documents, with scope, readers and versions', async () => {
     stubFetch({ '/api/instructions': list });
     renderApp('/settings/instructions');
 
-    const global = await screen.findByRole('region', { name: t.groups.global });
-    expect(within(global).getByRole('link', { name: 'prompt-reviewer.md' })).toBeInTheDocument();
-    const wb = screen.getByRole('region', { name: t.groups.repository('workflowbuilder') });
-    const row = within(wb).getByRole('row', { name: /review-rules\.md/ });
-    expect(row).toHaveTextContent('v1v2Name the API rule');
+    const instructions = await screen.findByRole('region', {
+      name: t.sections.instruction!.title,
+    });
+    const prompt = within(instructions).getByRole('row', { name: /prompt-reviewer\.md/ });
+    expect(prompt).toHaveTextContent(t.aboutPrompt('reviewer'));
+    expect(prompt).toHaveTextContent(`${t.scope.global}Review`);
+    const row = within(instructions).getByRole('row', { name: /review-rules\.md/ });
+    expect(row).toHaveTextContent(t.about['review-rules.md']!);
+    expect(row).toHaveTextContent('workflowbuilderReview (workflowbuilder)v1v2');
+
+    const documents = screen.getByRole('region', { name: t.sections.document!.title });
+    expect(within(documents).getByRole('row', { name: /lessons\.md/ })).toHaveTextContent(
+      'Review, Analyst',
+    );
+    expect(within(documents).queryByRole('link', { name: 'review-levels.json' })).toBeNull();
     expect(screen.queryByRole('region', { name: t.gaps.title })).toBeNull();
+  });
+
+  test('files no stage reads show behind the toggle', async () => {
+    stubFetch({ '/api/instructions': list });
+    renderApp('/settings/instructions');
+
+    await userEvent.click(await screen.findByRole('button', { name: t.showUnused(1) }));
+    const documents = screen.getByRole('region', { name: t.sections.document!.title });
+    expect(within(documents).getByRole('row', { name: /review-levels\.json/ })).toHaveTextContent(
+      t.notUsed,
+    );
+    expect(screen.getByRole('button', { name: t.hideUnused })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  test('New file creates an unsigned draft and opens the editor', async () => {
+    const created = detail(v2Draft);
+    const { calls } = stubFetch({
+      '/api/instructions': list,
+      'POST /api/instructions': { status: 201, body: { ...created, file: { ...file, id: 7 } } },
+      '/api/instructions/7': created,
+    });
+    const user = userEvent.setup();
+    renderApp('/settings/instructions');
+
+    await user.click(await screen.findByRole('button', { name: t.newFile.open }));
+    const dialog = await screen.findByRole('dialog', { name: t.newFile.title });
+    await user.type(
+      within(dialog).getByRole('textbox', { name: t.newFile.key }),
+      'strict-rules.md',
+    );
+    await user.click(within(dialog).getByRole('combobox', { name: t.newFile.scope }));
+    await user.click(await screen.findByRole('option', { name: 'workflowbuilder' }));
+    await user.type(within(dialog).getByRole('textbox', { name: t.newFile.content }), 'Be strict.');
+    await user.click(within(dialog).getByRole('button', { name: t.newFile.create }));
+
+    expect(await screen.findByRole('textbox', { name: t.editor.contentLabel })).toBeVisible();
+    expect(callsTo(calls, 'POST', '/api/instructions')[0]!.body).toEqual({
+      fileKey: 'strict-rules.md',
+      kind: 'instruction',
+      scope: 'repository',
+      repository: 'workflowbuilder',
+      content: 'Be strict.',
+      note: null,
+    });
+  });
+
+  test('New file shows why a name is refused', async () => {
+    stubFetch({
+      '/api/instructions': list,
+      'POST /api/instructions': {
+        status: 409,
+        body: { error: { code: 'instruction_kind_conflict', params: { kind: 'document' } } },
+      },
+    });
+    const user = userEvent.setup();
+    renderApp('/settings/instructions');
+
+    await user.click(await screen.findByRole('button', { name: t.newFile.open }));
+    const dialog = await screen.findByRole('dialog', { name: t.newFile.title });
+    await user.type(within(dialog).getByRole('textbox', { name: t.newFile.key }), 'lessons.md');
+    await user.click(within(dialog).getByRole('button', { name: t.newFile.create }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      copy.errors.instruction_kind_conflict!,
+    );
   });
 
   test('warns per repository about the files its rounds would miss, even with no file yet', async () => {
@@ -112,6 +220,7 @@ describe('Settings → Instructions', () => {
     stubFetch({
       '/api/instructions': {
         files: [],
+        repositories: [{ id: 1, slug: 'acme' }],
         gaps: [
           {
             repository: { id: 1, slug: 'acme' },
@@ -127,9 +236,7 @@ describe('Settings → Instructions', () => {
     renderApp('/settings/instructions');
 
     const warning = await screen.findByRole('region', { name: t.gaps.title });
-    expect(
-      within(warning).getByRole('heading', { name: t.groups.repository('acme') }),
-    ).toBeVisible();
+    expect(within(warning).getByRole('heading', { name: t.gaps.repository('acme') })).toBeVisible();
     const lines = within(warning).getAllByRole('listitem');
     expect(lines.map((li) => li.textContent)).toEqual([
       'Levels 3 and 4: Verify: prompt-verifier.md and verify-rules.md are missing',
@@ -211,7 +318,7 @@ describe('the instruction editor', () => {
     });
   });
 
-  test('the history lists the runs that used each version, and offers rollback', async () => {
+  test('the history lists the runs that used each version, and offers Make active', async () => {
     stubFetch({
       '/api/instructions/7': detail(
         { ...v2Draft, status: 'active' },
@@ -221,6 +328,7 @@ describe('the instruction editor', () => {
     renderApp('/settings/instructions/7');
 
     const history = await screen.findByRole('table', { name: t.history.tableLabel });
+    expect(screen.getByText(t.history.hint)).toBeInTheDocument();
     const row = within(history).getByRole('row', { name: /^v1/ });
     expect(
       within(row).getByRole('link', { name: t.history.run('workflowbuilder', 272, 41) }),
@@ -228,8 +336,75 @@ describe('the instruction editor', () => {
     expect(
       within(row).getByRole('link', { name: t.history.run('workflowbuilder', 268, 40) }),
     ).toBeInTheDocument();
-    expect(within(row).getByRole('button', { name: t.history.rollback(1) })).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: t.history.makeActive(1) })).toBeInTheDocument();
     const v2Row = within(history).getByRole('row', { name: /^v2/ });
     expect(v2Row).toHaveTextContent(t.history.noRuns);
+    expect(within(v2Row).queryByRole('button')).toBeNull();
+  });
+
+  test('Make active on an archived version that was never active posts it signed', async () => {
+    const neverActive = { ...v2Draft, status: 'archived' as const };
+    const { calls } = stubFetch({
+      '/api/instructions/7': detail(neverActive, v1),
+      '/api/team': { members: [ola] },
+      'POST /api/instructions/7/activate': detail(
+        { ...neverActive, status: 'active' },
+        { ...v1, status: 'archived' },
+      ),
+      '/api/instructions': list,
+    });
+    window.localStorage.setItem(LAST_SIGNER_KEY, ola.id);
+    renderApp('/settings/instructions/7');
+
+    const history = await screen.findByRole('table', { name: t.history.tableLabel });
+    await userEvent.click(within(history).getByRole('button', { name: t.history.makeActive(2) }));
+    const dialog = await screen.findByRole('alertdialog', { name: t.activateDialog.title(2) });
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('combobox', { name: copy.signature.label }),
+      ).toHaveTextContent('Ola'),
+    );
+    await userEvent.click(within(dialog).getByRole('button', { name: t.activateDialog.confirm }));
+
+    await waitFor(() =>
+      expect(callsTo(calls, 'POST', '/api/instructions/7/activate')).toHaveLength(1),
+    );
+    expect(callsTo(calls, 'POST', '/api/instructions/7/activate')[0]!.body).toEqual({
+      versionId: 71,
+      activeVersion: 1,
+      signedBy: 'm-ola',
+    });
+  });
+
+  test('Discard draft deletes it unsigned and the form goes back to the active text', async () => {
+    const { calls } = stubFetch({
+      '/api/instructions/7': detail(v2Draft, v1),
+      'DELETE /api/instructions/7/draft': detail(v1),
+      '/api/instructions': list,
+    });
+    renderApp('/settings/instructions/7');
+
+    const text = await screen.findByRole('textbox', { name: t.editor.contentLabel });
+    expect(text).toHaveValue(v2Draft.content);
+    await userEvent.click(screen.getByRole('button', { name: t.editor.discardDraft }));
+
+    expect(await screen.findByText(t.editor.draftDiscarded)).toBeInTheDocument();
+    expect(text).toHaveValue(v1.content);
+    expect(callsTo(calls, 'DELETE', '/api/instructions/7/draft')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: t.editor.discardDraft })).toBeNull();
+  });
+
+  test("discarding a file's only version goes back to the list", async () => {
+    stubFetch({
+      '/api/instructions/7': detail({ ...v2Draft, version: 1 }),
+      'DELETE /api/instructions/7/draft': { status: 204, body: null },
+      '/api/instructions': list,
+    });
+    renderApp('/settings/instructions/7');
+
+    await userEvent.click(await screen.findByRole('button', { name: t.editor.discardDraft }));
+    expect(
+      await screen.findByRole('region', { name: t.sections.instruction!.title }),
+    ).toBeInTheDocument();
   });
 });

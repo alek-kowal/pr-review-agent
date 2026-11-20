@@ -5,6 +5,9 @@ import type {
   AlertConfig,
   ChecklistItemKey,
   Decision,
+  FileStageKey,
+  FrozenStageFiles,
+  InstructionKind,
   Lane,
   LevelInstructionGap,
   LevelNumber,
@@ -757,6 +760,8 @@ export type RunDetail = {
       level?: number | null;
       fileId?: number | null;
     }[];
+    /** The files each stage read, frozen when the run started (STAGEFILES); null before. */
+    stageFiles?: FrozenStageFiles | null;
     error: { stage: string; code: string; params?: Record<string, unknown> } | null;
     /** The model of every role, frozen when the run was created. */
     models: ModelChoiceView[];
@@ -874,12 +879,28 @@ export type ModelChoiceView = {
 export type InstructionScope = 'global' | 'repository' | 'level';
 export type InstructionVersionStatus = 'active' | 'draft' | 'archived';
 
+/** A stage that reads a file; `repository` is the slug of the override, null for the global choice. */
+export type FileReadBy = { stage: FileStageKey; repository: string | null };
+
 export type InstructionFileView = {
   id: number;
   scope: InstructionScope;
   repository: { id: number; slug: string } | null;
   level: LevelNumber | null;
   fileKey: string;
+  kind: InstructionKind;
+  /** Empty: not used by any stage. */
+  readBy: FileReadBy[];
+};
+
+/** `POST /api/instructions` (New file). */
+export type NewInstructionFileBody = {
+  fileKey: string;
+  kind: InstructionKind;
+  scope: 'global' | 'repository';
+  repository?: string;
+  content: string;
+  note?: string | null;
 };
 
 export type InstructionVersionRef = {
@@ -895,6 +916,8 @@ export type InstructionsListResponse = {
     active: InstructionVersionRef | null;
     draft: InstructionVersionRef | null;
   })[];
+  /** Connected repositories, where New file can put a repository file. */
+  repositories: { id: number; slug: string }[];
   /** Connected repositories whose runs would miss required files (INSTR). */
   gaps: { repository: { id: number; slug: string }; gaps: LevelInstructionGap[] }[];
 };
@@ -963,9 +986,51 @@ export type InstructionDetailResponse = {
   versions: InstructionVersionView[];
 };
 
-// The read-only pipeline (apps/api/src/routes/api/pipeline).
+// The pipeline (apps/api/src/routes/api/pipeline, apps/api/src/settings/stage-files.ts).
 export type PipelineStageKey =
   'checks' | 'task' | 'change_type' | 'review' | 'verify' | 'implement' | 'fix_check' | 'analyst';
+
+/** A connected repository in the pipeline's scope picker. */
+export type ScopeRepository = { id: number; slug: string };
+
+/** One file key at a scope: the repository's copy, else the global file (null fields: none). */
+export type FileOption = {
+  fileKey: string;
+  kind: InstructionKind;
+  fileId: number | null;
+  /** The active version; null when the file or its active version is missing. */
+  version: number | null;
+  scope: InstructionScope | null;
+  /** At Global scope, a key with no global file: the repositories that hold a copy. */
+  copies?: string[];
+};
+
+export type StageSlotName = 'prompt' | 'rules' | 'documents';
+
+/** A stored choice for one stage at one scope; a missing or null slot inherits. */
+export type StageFileChoice = {
+  prompt?: string | null;
+  rules?: string | null;
+  documents?: string[] | null;
+};
+
+export type StageSlotView = {
+  name: StageSlotName;
+  kind: InstructionKind;
+  /** The prompt may be the built-in one (`@built-in`). */
+  builtIn: boolean;
+  required: boolean;
+  source: 'default' | 'global' | 'repository';
+  /** The keys read: one for prompt and rules, the documents' keys. */
+  value: string[];
+  files: FileOption[];
+};
+
+export type StageFilesView = {
+  /** The stored choices, sent back as `before` on a save at that scope. */
+  choice: { global: StageFileChoice | null; repository: StageFileChoice | null };
+  slots: StageSlotView[];
+};
 
 export type PipelineStageView = {
   key: PipelineStageKey;
@@ -974,8 +1039,8 @@ export type PipelineStageView = {
   model: { model: string; source: 'level' | 'settings' | 'default'; level: number | null } | null;
   tools: string[];
   integrations: string[];
-  /** Global files; `version` is the active one, null when the file or its active version is missing. */
-  instructions: { fileKey: string; fileId: number | null; version: number | null }[];
+  /** The instruction files the stage reads at this scope; null when it reads none. */
+  files: StageFilesView | null;
   output: { schema: string; fields: string[] };
   timeoutMinutes: number;
   attempts: number;
@@ -983,7 +1048,20 @@ export type PipelineStageView = {
   onFrom: LevelNumber;
 };
 
-export type PipelineResponse = { stages: PipelineStageView[] };
+export type PipelineResponse = {
+  scope: { repository: ScopeRepository | null };
+  repositories: ScopeRepository[];
+  options: { instruction: FileOption[]; document: FileOption[] };
+  stages: PipelineStageView[];
+};
+
+/** `PUT /api/settings/stage-files/:stage`. */
+export type StageFilesSaveBody = {
+  repository: string | null;
+  before: StageFileChoice | null;
+  after: StageFileChoice | null;
+  signedBy: string;
+};
 
 /** `GET /api/learning/candidates` (apps/api/src/routes/api/learning). */
 export type LessonCandidateView = {

@@ -584,9 +584,9 @@ import is not needed; the two JSON files stay as unused documents.
 
 #### Automated
 
-- [ ] 4.1 Component tests for the Pipeline sheet
-- [ ] 4.2 Component tests for Instructions page and editor
-- [ ] 4.3 `pnpm verify` passes
+- [x] 4.1 Component tests for the Pipeline sheet — phase 4 commit
+- [x] 4.2 Component tests for Instructions page and editor — phase 4 commit
+- [x] 4.3 `pnpm verify` passes — phase 4 commit
 
 #### Manual
 

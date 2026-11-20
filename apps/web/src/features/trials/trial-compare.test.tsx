@@ -50,6 +50,8 @@ const editorDetail: InstructionDetailResponse = {
     repository: { id: 1, slug: 'workflowbuilder' },
     level: null,
     fileKey: 'review-rules.md',
+    kind: 'instruction',
+    readBy: [{ stage: 'review', repository: 'workflowbuilder' }],
   },
   versions: [v2Draft, v1],
 };

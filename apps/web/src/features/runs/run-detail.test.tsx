@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
+import { copy } from '@/copy/index.ts';
 import type { RunDetail, RunSessionView } from '@/lib/api-types.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
 import { aStatus } from '@/test/fixtures.ts';
@@ -174,6 +175,31 @@ function stub() {
 afterEach(restoreFetch);
 
 describe('Run detail', () => {
+  it('names the stages that read each frozen file (STAGEFILES)', async () => {
+    stubFetch({
+      '/api/runs/41': {
+        ...FAILED_RUN,
+        run: {
+          ...FAILED_RUN.run,
+          instructionVersions: [
+            { id: 7, scope: 'global', fileKey: 'review-rules.md', version: 3 },
+            { id: 8, scope: 'repository', fileKey: 'verify-b-rules.md', version: 1 },
+          ],
+          stageFiles: {
+            review: { prompt: null, rules: 'review-rules.md', documents: [] },
+            verify: { prompt: 'prompt-verifier.md', rules: 'verify-b-rules.md', documents: [] },
+          },
+        },
+      } satisfies RunDetail,
+    });
+    renderApp('/runs/41');
+    const file = await screen.findByText('verify-b-rules.md');
+    expect(file.parentElement).toHaveTextContent(copy.runs.detail.readBy(['Verify']));
+    expect(screen.getByText('review-rules.md').parentElement).toHaveTextContent(
+      copy.runs.detail.readBy(['Review']),
+    );
+  });
+
   it('shows a failed run with its cost up to the failure and the stage that failed', async () => {
     stub();
     renderApp('/runs/41');

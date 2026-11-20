@@ -275,6 +275,14 @@ export const copy = {
       'This version changed in the meantime. Reload the page to see the current versions.',
     instruction_copy_exists: 'This copy already exists.',
     instruction_no_active: 'The file has no active version to copy.',
+    instruction_file_exists: 'A file with this name already exists at this scope.',
+    instruction_kind_conflict:
+      'This name is already used with the other kind. Pick the same kind or another name.',
+    instruction_file_key:
+      'Use a file name such as rules.md or feature-map/billing.md: no leading @, no .. and no leading or trailing spaces.',
+    stage_file_unknown: 'A picked file does not exist at this scope. Reload the page.',
+    stage_file_kind: 'A picked file is of the wrong kind for its slot.',
+    stage_file_slot: 'This stage does not read that kind of file.',
     trial_needs_draft: 'Only a draft version can be tried. Save a draft first.',
     trial_not_found: 'This trial does not exist.',
     question_not_found: 'A question is no longer on this pull request. Reload the page.',
