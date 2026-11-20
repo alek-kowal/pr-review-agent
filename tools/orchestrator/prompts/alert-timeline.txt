@@ -1,0 +1,28 @@
+Task {{ID}}: the PR timeline must tell the truth about an alert's ClickUp comment.
+
+Reported by Alek on the deployed app (PR #282 of workflowbuilder, round failed at Verify): the timeline says "Alert posted as a ClickUp comment: …", but nothing was sent. Cause: `evaluateAlerts` (apps/worker/src/alerts/evaluate.ts:153-167) writes the `alert_raised` timeline entry as soon as the alert row is stored, before any delivery and whatever `deliveryStatus` is. Here `taskId` was null (no ClickUp task for the PR, no general alerts task), so `deliveryStatus` was `not_configured`, no delivery job was queued and nothing will retry it. The copy is `timeline.raised` in apps/web/src/copy/alerts.ts:184-185 ("Alert posted as a ClickUp comment…"). Delivery happens in apps/worker/src/alerts/deliver.ts (outcomes `sent`, `already_sent`, `not_configured`, `missing`, and status `failed`).
+
+How it must work (Alek's words, translated):
+1. ClickUp is not connected (no API key or app URL, or no task the comment can go under) → the timeline says plainly that the alert was not sent to ClickUp and why, e.g. "ClickUp not connected" or "No ClickUp task linked to this PR".
+2. ClickUp is connected → first try to send the comment, then show the result: sent (on which task) or failed (and whether it will be retried).
+So the entry about sending is written after the attempt (in deliver.ts), not before it.
+
+Steps:
+1. Keep one entry for the alert itself, worded neutrally ("Alert raised: <title>", no claim about ClickUp). Write the delivery result as its own entry (or the same entry's outcome, your choice; record why in change.md) only after the outcome is known: in deliver.ts after the attempt, and in evaluate.ts at once when the alert is `not_configured` at creation (no job runs then). The reason for "not sent" must be specific (no key, no app URL, no task for this PR and no general task); store it where the timeline and the alert views can read it (a `{ code, params }` reason, copy in apps/web/src/copy). A failed attempt says whether it will be retried, based on the real retry setup of the delivery job (check the queue options, do not assume). Keep entries idempotent (`sourceKey`), so a retried job does not add duplicates.
+2. Old `alert_raised` entries without a delivery state (one exists on the VPS for #282) must stop saying "posted": the new neutral copy covers them; if you can show the state from the alerts table cheaply, do it, otherwise neutral is enough.
+3. Check other places that claim a ClickUp post without checking delivery (the alerts page "Posted" column, the alert strip on the PR page, notifications) and fix the same way if they lie.
+4. Tests: worker unit tests for each path (not configured with each reason, sent, failed with retry, failed final, retried job adds no duplicate); a web test for the copy, including an old entry without delivery state; extend an existing alerts e2e if one covers the timeline.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify` and `pnpm test:e2e` (each e2e spec uses its own test repository name and PR-number range). Known flaky tests: docs/orchestrator-lessons.md; re-run once.
+- A migration only if truly needed, generated with `pnpm db:generate --name alert-delivery-reason`.
+- Before the final verify, merge main into your branch (`git merge main`).
+- Write and change files only with the Write/Edit tools, never with shell heredocs, printf redirects or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Record the cause and decisions in a short context/changes/{{ID}}/change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md (at most 15 lines), and stop.
+Never:
+- call the real GitHub or ClickUp API or any server (no ssh, no requests to dashboardwb.mikrus.dev); create accounts, apps, tokens or keys; print or read a real secret
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400 (reading files there is allowed)
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, what changed, and the verify result.
