@@ -115,11 +115,14 @@ import {
   SECOND_REPOSITORY,
   SENSITIVE_REPOSITORY,
   SHADOW_REPOSITORY,
+  STAGE_FILES_MARK,
+  STAGE_FILES_REPOSITORY,
   STATE_FILE,
   TRIAL_PRS,
   TRIAL_RULE_FINDING,
   trialRule,
   VERIFIED_REPOSITORY,
+  verifyRulesFile,
   WEB_URL,
   type StackState,
 } from './env.ts';
@@ -387,6 +390,13 @@ class ScriptedAgents implements AgentRunner {
       `${JSON.stringify({ role: input.role, model: input.model, dirs: [input.cwd, ...(input.readDirs ?? [])] })}\n`,
     );
     if (input.role === 'verifier') {
+      // stage-files.spec.ts: keep the rules this session received, when they carry the mark.
+      const rules = await readFile(
+        path.join(input.cwd, 'instructions', 'verify-rules.md'),
+        'utf8',
+      ).catch(() => '');
+      const token = new RegExp(`${STAGE_FILES_MARK}(\\S+)`).exec(rules)?.[1];
+      if (token) await writeFile(verifyRulesFile(this.#holdDir, token), rules);
       const output = await verifierAnswer(input.cwd);
       return new FakeAgentRunner([{ output, costUsd: 0.05, turns: 3 }]).run(input);
     }
@@ -710,6 +720,7 @@ const github = new StackGitHub(db, pushRemote, {
     [LEARNING_REPOSITORY.fullName]: LEARNING_REPOSITORY.installationId,
     [README_REPOSITORY.fullName]: README_REPOSITORY.installationId,
     [NO_VERIFIER_REPOSITORY.fullName]: NO_VERIFIER_REPOSITORY.installationId,
+    [STAGE_FILES_REPOSITORY.fullName]: STAGE_FILES_REPOSITORY.installationId,
     [PUSH_REPOSITORY.fullName]: PUSH_REPOSITORY.installationId,
     [AUTOFIX_REPOSITORY.fullName]: AUTOFIX_REPOSITORY.installationId,
     [SHADOW_REPOSITORY.fullName]: SHADOW_REPOSITORY.installationId,
@@ -831,6 +842,16 @@ await upsertRepository(
     defaultLevel: 3,
   },
   { installationId: IMPLEMENTER_REPOSITORY.installationId },
+);
+// stage-files.spec.ts: level 3, so Verify reads the rules the spec picks for it.
+await upsertRepository(
+  db,
+  {
+    slug: STAGE_FILES_REPOSITORY.slug,
+    githubFullName: STAGE_FILES_REPOSITORY.fullName,
+    defaultLevel: 3,
+  },
+  { installationId: STAGE_FILES_REPOSITORY.installationId },
 );
 await upsertRepository(
   db,
