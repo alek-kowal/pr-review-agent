@@ -211,6 +211,13 @@
       "when": 1795132618198,
       "tag": "0029_github_poller",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795142565577,
+      "tag": "0030_stage-files",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 // Instruction files by scope and their versions (S-22-T1). S-01-T1's `instruction_versions` moved
 // here and now points at a file.
-import { ACTOR_KINDS, INSTRUCTION_SCOPES } from '@pra/core';
+import { ACTOR_KINDS, INSTRUCTION_KINDS, INSTRUCTION_SCOPES } from '@pra/core';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -18,8 +18,8 @@ import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
 import { teamMembers } from './team.ts';
 
-export { INSTRUCTION_SCOPES };
-export type { InstructionScope } from '@pra/core';
+export { INSTRUCTION_KINDS, INSTRUCTION_SCOPES };
+export type { InstructionKind, InstructionScope } from '@pra/core';
 export const INSTRUCTION_STATUSES = ['active', 'draft', 'archived'] as const;
 export type InstructionStatus = (typeof INSTRUCTION_STATUSES)[number];
 
@@ -40,6 +40,8 @@ export const instructionFiles = pgTable(
     level: integer(),
     /** Path inside the instructions directory, for example `review-rules.md` or `feature-map/sdk.md`. */
     fileKey: text('file_key').notNull(),
+    /** Instruction (prompts, rules) or document (reference material); copies keep the kind. */
+    kind: text({ enum: INSTRUCTION_KINDS }).notNull().default('document'),
     createdAt: createdAt(),
   },
   (t) => [
@@ -47,6 +49,7 @@ export const instructionFiles = pgTable(
       .on(t.scope, t.repositoryId, t.level, t.fileKey)
       .nullsNotDistinct(),
     check('instruction_files_scope', sql`${t.scope} in ('global', 'repository', 'level')`),
+    check('instruction_files_kind', sql`${t.kind} in ('instruction', 'document')`),
     check(
       'instruction_files_scope_target',
       sql`(${t.scope} = 'repository') = (${t.repositoryId} is not null) and (${t.scope} = 'level') = (${t.level} is not null)`,

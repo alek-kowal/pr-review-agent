@@ -23,13 +23,17 @@ export type InstructionFileRow = typeof instructionFiles.$inferSelect;
 export type InstructionVersionRow = typeof instructionVersions.$inferSelect;
 /** A version with its file's scope and key. */
 export type InstructionVersion = InstructionVersionRow &
-  Pick<InstructionFileRow, 'scope' | 'repositoryId' | 'level' | 'fileKey'>;
+  Pick<InstructionFileRow, 'scope' | 'repositoryId' | 'level' | 'fileKey' | 'kind'>;
 
-/** Where a file lives: global, one repository's copy or one level's copy. */
-export type InstructionFileRef =
+/**
+ * Where a file lives: global, one repository's copy or one level's copy. A new file takes `kind`,
+ * else the kind of the same key at another scope, else core `defaultKindOf`.
+ */
+export type InstructionFileRef = (
   | { scope: 'global'; repositoryId?: null; level?: null; fileKey: string }
   | { scope: 'repository'; repositoryId: number; level?: null; fileKey: string }
-  | { scope: 'level'; repositoryId?: null; level: LevelNumber; fileKey: string };
+  | { scope: 'level'; repositoryId?: null; level: LevelNumber; fileKey: string }
+) & { kind?: InstructionKind };
 
 export type InstructionFile = InstructionFileRef & { content: string };
 
@@ -39,6 +43,7 @@ const versionWithFile = {
   repositoryId: instructionFiles.repositoryId,
   level: instructionFiles.level,
   fileKey: instructionFiles.fileKey,
+  kind: instructionFiles.kind,
 };
 
 function selectVersions(db: Executor) {

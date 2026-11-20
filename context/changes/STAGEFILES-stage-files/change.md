@@ -1,7 +1,7 @@
 ---
 change_id: STAGEFILES-stage-files
 title: Choose each stage's instruction files in Settings → Pipeline; instructions vs documents
-status: plan_reviewed
+status: implementing
 created: 2026-11-20
 updated: 2026-11-20
 archived_at: null

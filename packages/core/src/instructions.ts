@@ -8,6 +8,37 @@ import { LEVEL_NUMBERS, type LevelNumber } from './vocabulary.ts';
 export const INSTRUCTION_SCOPES = ['global', 'repository', 'level'] as const;
 export type InstructionScope = (typeof INSTRUCTION_SCOPES)[number];
 
+/**
+ * What a file is to an agent (STAGEFILES): an instruction tells it what to do (prompts and rules),
+ * a document is reference material it may read (feature maps, lessons, repository knowledge).
+ */
+export const INSTRUCTION_KINDS = ['instruction', 'document'] as const;
+export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
+
+/** The kind a file gets unless someone picks one: `prompt-*.md` and `*-rules.md` instruct. */
+export function defaultKindOf(fileKey: string): InstructionKind {
+  const base = fileKey.split('/').at(-1) ?? fileKey;
+  return /^prompt-.*\.md$/.test(base) || base.endsWith('-rules.md') ? 'instruction' : 'document';
+}
+
+/** The longest file key a person may create. */
+export const MAX_INSTRUCTION_FILE_KEY = 200;
+
+/** Why a new file key is refused; null when it is fine. */
+export function instructionFileKeyProblem(
+  fileKey: string,
+): 'key_empty' | 'key_too_long' | 'key_path' | null {
+  if (!fileKey.trim()) return 'key_empty';
+  if (fileKey.length > MAX_INSTRUCTION_FILE_KEY) return 'key_too_long';
+  const parts = fileKey.split('/');
+  const bad =
+    fileKey !== fileKey.trim() ||
+    fileKey.startsWith('@') ||
+    fileKey.includes('\\') ||
+    parts.some((part) => part === '' || part === '.' || part === '..');
+  return bad ? 'key_path' : null;
+}
+
 /** Resolution order: a later scope beats an earlier one for the same file key. */
 const SCOPE_RANK: Readonly<Record<InstructionScope, number>> = {
   global: 0,
