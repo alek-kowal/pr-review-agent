@@ -134,11 +134,20 @@ test('a costly retry clears the failed-run alert and raises the cost alert every
     number,
     async () => {
       await page.getByRole('tab', { name: 'Timeline' }).click();
-      const entry = page
-        .getByRole('list', { name: 'Timeline entries' })
-        .locator('[data-entry="alert_dismissed"]');
+      const entries = page.getByRole('list', { name: 'Timeline entries' });
+      const entry = entries.locator('[data-entry="alert_dismissed"]');
       await expect(entry).toContainText('Dismissed the alert', { timeout: 5_000 });
       await expect(entry.getByTestId('entry-actor')).toHaveText('By hand');
+      // ALERTTL: the alert entry claims nothing about ClickUp; each comment has its own entry,
+      // written after it was posted (the failed-run alert and the cost alert).
+      await expect(entries.locator('[data-entry="alert_raised"]')).toHaveCount(2);
+      await expect(entries.locator('[data-entry="alert_raised"]').first()).toContainText(
+        'Alert raised:',
+      );
+      const deliveries = entries.locator('[data-entry="alert_delivery"]');
+      await expect(deliveries).toHaveCount(2, { timeout: 5_000 });
+      await expect(deliveries.first()).toContainText(`Posted to ClickUp ${TASK}. Alert:`);
+      await expect(entries).not.toContainText('posted as a ClickUp comment');
     },
     slug,
   );
@@ -165,5 +174,11 @@ test('an alert on a PR without a task goes to the general alerts task', async ({
       `Posted to ClickUp ${GENERAL_ALERTS_TASK} (general alerts task)`,
       { timeout: 5_000 },
     );
+    await page.getByRole('tab', { name: 'Timeline' }).click();
+    await expect(
+      page.getByRole('list', { name: 'Timeline entries' }).locator('[data-entry="alert_delivery"]'),
+    ).toContainText(`Posted to ClickUp ${GENERAL_ALERTS_TASK} (general alerts task). Alert:`, {
+      timeout: 5_000,
+    });
   });
 });
