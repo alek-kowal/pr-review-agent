@@ -4,6 +4,8 @@ import { Link } from '@tanstack/react-router';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
 import { copy } from '@/copy/index.ts';
 import { duration, money } from '@/copy/format.ts';
+import { KindGroup } from '@/features/instructions/KindGroup.tsx';
+import { groupByKind } from '@/features/instructions/kinds.ts';
 import { useMemberNames } from '@/features/team/use-member-names.ts';
 import { ApiError } from '@/lib/api.ts';
 import type { RunDetail } from '@/lib/api-types.ts';
@@ -178,30 +180,17 @@ export function RunPage({
                 {copy.runs.detail.noInstructionVersions}
               </p>
             ) : (
-              <ul className="m-0 list-none divide-y divide-divider p-0">
-                {run.instructionVersions.map((v) => {
-                  const readers = run.stageFiles
-                    ? stageFileReaders(v.fileKey, run.stageFiles).map(
-                        (stage) => copy.pipeline.stages[stage] ?? stage,
-                      )
-                    : [];
-                  return (
-                    <li key={v.id} className="flex justify-between gap-2 px-3.5 py-2 text-sm">
-                      <span>
-                        <span className="font-mono text-[13px]">{v.fileKey}</span>
-                        {run.stageFiles && (
-                          <span className="block text-xs text-text-3">
-                            {copy.runs.detail.readBy(readers)}
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-xs text-text-3">
-                        {copy.runs.detail.instructionVersion(v.scope, v.version, v.level)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="divide-y divide-divider">
+                {groupByKind(run.instructionVersions, (v) => v.kind).map((group) => (
+                  <KindGroup key={group.kind} kind={group.kind} count={group.items.length}>
+                    <FrozenFiles
+                      label={copy.instructions.kindTitles[group.kind] ?? group.kind}
+                      files={group.items}
+                      stageFiles={run.stageFiles ?? null}
+                    />
+                  </KindGroup>
+                ))}
+              </div>
             )}
           </SideCard>
           <SideCard title={copy.runs.detail.models} hint={copy.runs.detail.modelsHint}>
@@ -234,6 +223,54 @@ export function RunPage({
         </aside>
       </div>
     </div>
+  );
+}
+
+/** The frozen files of one kind: each names its version, its readers and links to its file. */
+function FrozenFiles({
+  label,
+  files,
+  stageFiles,
+}: {
+  label: string;
+  files: RunDetail['run']['instructionVersions'];
+  stageFiles: RunDetail['run']['stageFiles'] | null;
+}) {
+  return (
+    <ul aria-label={label} className="m-0 list-none divide-y divide-divider p-0">
+      {files.map((v) => {
+        const readers = stageFiles
+          ? stageFileReaders(v.fileKey, stageFiles).map(
+              (stage) => copy.pipeline.stages[stage] ?? stage,
+            )
+          : [];
+        return (
+          <li key={v.id} className="flex justify-between gap-2 px-3.5 py-2 text-sm">
+            <span className="min-w-0">
+              {v.fileId ? (
+                <Link
+                  to="/settings/instructions/$id"
+                  params={{ id: String(v.fileId) }}
+                  className="font-mono text-[13px] break-all text-brand-text hover:underline"
+                >
+                  {v.fileKey}
+                </Link>
+              ) : (
+                <span className="font-mono text-[13px] break-all">{v.fileKey}</span>
+              )}
+              {stageFiles && (
+                <span className="block text-xs text-text-3">
+                  {copy.runs.detail.readBy(readers)}
+                </span>
+              )}
+            </span>
+            <span className="shrink-0 text-xs text-text-3">
+              {copy.runs.detail.instructionVersion(v.scope, v.version, v.level)}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

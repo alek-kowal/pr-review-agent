@@ -108,9 +108,18 @@ test('a rules file picked for Verify on one repository is the one its round read
   const versions = page.locator('section', {
     has: page.getByRole('heading', { name: 'Instruction versions' }),
   });
-  await expect(versions.getByRole('listitem').filter({ hasText: fileKey })).toContainText(
-    'Read by Verify',
-  );
+  // KINDS: the new rules sit in the Instructions list, apart from the documents.
+  await expect(
+    versions
+      .getByRole('list', { name: 'Instructions' })
+      .getByRole('listitem')
+      .filter({ hasText: fileKey }),
+  ).toContainText('Read by Verify');
+  await expect(
+    versions.getByRole('list', { name: 'Documents' }).getByRole('listitem').filter({
+      hasText: fileKey,
+    }),
+  ).toHaveCount(0);
   const held = verifyRulesFile(stackState().holdDir, String(number));
   // The stored text may end with a newline the form did not send.
   await expect

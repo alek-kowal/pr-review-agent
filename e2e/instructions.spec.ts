@@ -146,9 +146,12 @@ test('edit review-rules, try it on a PR, compare, activate it, and see it in Pip
   const versions = page.locator('section', {
     has: page.getByRole('heading', { name: 'Instruction versions' }),
   });
-  await expect(versions.getByRole('listitem').filter({ hasText: 'review-rules.md' })).toContainText(
-    `v${draftVersion}`,
-  );
+  await expect(
+    versions
+      .getByRole('list', { name: 'Instructions' })
+      .getByRole('listitem')
+      .filter({ hasText: 'review-rules.md' }),
+  ).toContainText(`v${draftVersion}`);
 
   // Pipeline: Enter on the Review node opens its Sheet with the model and the new version.
   await page.goto('/settings/pipeline');

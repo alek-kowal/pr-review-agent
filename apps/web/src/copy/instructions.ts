@@ -2,8 +2,16 @@
 import { andList, instructionGapText } from './reasons.ts';
 import { levelNames } from './repositories.ts';
 
+/** The two kinds of file, as list headings. */
+const kindTitles: Record<string, string> = { instruction: 'Instructions', document: 'Documents' };
+
 export const instructions = {
   title: 'Instructions',
+  /** Any list of files shows instructions apart from documents: "Documents (14)". */
+  kindTitles,
+  kindCount: (kind: string, n: number) => `${kindTitles[kind] ?? kind} (${n})`,
+  /** One file's kind, as a badge. */
+  kindName: { instruction: 'Instruction', document: 'Document' } as Record<string, string>,
   affects:
     'the text the agents read. A draft changes nothing; an activated version applies to runs that start afterwards.',
   loading: 'Loading instructions…',
@@ -18,11 +26,11 @@ export const instructions = {
   },
   sections: {
     instruction: {
-      title: 'Instructions',
+      title: kindTitles.instruction!,
       hint: 'Prompts and rules: how a stage works. Pick which ones a stage reads in Settings → Pipeline.',
     },
     document: {
-      title: 'Documents',
+      title: kindTitles.document!,
       hint: 'Reference material a stage reads: feature maps, lessons, notes about a repository.',
     },
   } as Record<string, { title: string; hint: string }>,

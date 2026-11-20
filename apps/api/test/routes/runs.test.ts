@@ -3,9 +3,11 @@
 import {
   closeDb,
   createDb,
+  ensureInstructionFile,
   insertAgentSession,
   insertRun,
   insertStageExecution,
+  schema,
   type Db,
 } from '@pra/db';
 import { aRun, seedPullRequest, testDatabaseUrl } from '@pra/db/testing';
@@ -150,6 +152,48 @@ test('Run detail lists succeeded and failed stages, sessions and the cost up to 
   ]);
   expect(body.stages[1]!.sessions[0]).toMatchObject({ filesRead: [], hasTranscript: false });
   expect(body.totalCostUsd).toBeCloseTo(0.45, 6);
+});
+
+test('Run detail gives every frozen file its kind (KINDS)', async () => {
+  const { pullRequest } = await seedPullRequest(writer);
+  // A document named like rules: only the stored file knows its kind.
+  const file = await ensureInstructionFile(writer, {
+    scope: 'global',
+    fileKey: `kinds-${pullRequest.id}-rules.md`,
+    kind: 'document',
+  });
+  const [stored] = await writer
+    .insert(schema.instructionVersions)
+    .values({ fileId: file.id, version: 1, status: 'active', content: '' })
+    .returning();
+  const run = await insertRun(
+    writer,
+    aRun(pullRequest.id, {
+      status: 'failed',
+      instructionVersions: [
+        // No frozen kind (a run from before STAGEFILES): the file's kind.
+        { id: stored!.id, scope: 'global', fileKey: file.fileKey, version: 1 },
+        // No frozen kind and no stored version: the default for the name.
+        { id: 999_999_001, scope: 'global', fileKey: 'feature-map/billing.md', version: 1 },
+        { id: 999_999_002, scope: 'global', fileKey: 'prompt-verifier.md', version: 2 },
+        // The frozen kind wins.
+        {
+          id: 999_999_003,
+          scope: 'global',
+          fileKey: 'lessons.md',
+          version: 2,
+          kind: 'instruction',
+        },
+      ],
+    }),
+  );
+  const body = RunDetailResponse.parse((await get(`/api/runs/${run.id}`)).json());
+  expect(body.run.instructionVersions.map((v) => [v.fileKey, v.kind])).toEqual([
+    [file.fileKey, 'document'],
+    ['feature-map/billing.md', 'document'],
+    ['prompt-verifier.md', 'instruction'],
+    ['lessons.md', 'instruction'],
+  ]);
 });
 
 test('the transcript route sends the stored log', async () => {

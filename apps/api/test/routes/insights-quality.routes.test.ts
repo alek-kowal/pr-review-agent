@@ -56,6 +56,7 @@ async function seed() {
     const file = await ensureInstructionFile(db, {
       scope: 'global',
       fileKey: `${fileKey}-${slug}`,
+      kind: 'instruction',
     });
     const [row] = await db
       .insert(schema.instructionVersions)
@@ -204,7 +205,14 @@ test('per level: rates match the hand-computed fixture', async () => {
   );
   const [v2, v1, , none] = body.versions;
   expect(v2).toMatchObject({
-    instruction: { fileKey: reviewV2.fileKey, version: 2, active: true, scope: 'global' },
+    // The file's stored kind (KINDS).
+    instruction: {
+      fileKey: reviewV2.fileKey,
+      kind: 'instruction',
+      version: 2,
+      active: true,
+      scope: 'global',
+    },
     confirmedRate: 0.5,
     implementShare: 0.6,
     averageCostUsd: 1.5,

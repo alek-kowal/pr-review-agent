@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { copy } from '@/copy/index.ts';
+import { KindGroup } from '@/features/instructions/KindGroup.tsx';
+import { groupByKind } from '@/features/instructions/kinds.ts';
 import { InsightsFilters } from './InsightsFilters.tsx';
 import { RateCells } from './parts.tsx';
 import { qualityQuery } from './queries.ts';
@@ -87,48 +89,67 @@ function PerVersion({ versions }: { versions: QualityResponse['versions'] }) {
       {versions.length === 0 ? (
         <p className="m-0 text-sm text-text-3">{q.noRuns}</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-          <table className="w-full text-[13px]" aria-labelledby="quality-versions">
-            <thead className="text-left text-text-3">
-              <tr>
-                <th className={th}>{q.columns.instruction}</th>
-                <th className={th}>{q.columns.version}</th>
-                <th className={`${th} text-right`}>{q.columns.runs}</th>
-                <th className={`${th} text-right`}>{q.columns.findings}</th>
-                <th className={`${th} text-right`}>{q.columns.confirmed}</th>
-                <th className={`${th} text-right`}>{q.columns.implement}</th>
-                <th className={`${th} text-right`}>{q.columns.averageCost}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-divider">
-              {versions.map((row) => {
-                const i = row.instruction;
-                return (
-                  <tr key={i?.id ?? 'none'}>
-                    <th scope="row" className="px-3 py-1.5 text-left font-normal">
-                      {i ? (
-                        <span className="font-mono">
-                          {i.fileKey}
-                          {i.repository && <span className="text-text-3"> · {i.repository}</span>}
-                        </span>
-                      ) : (
-                        <span className="text-text-3">{q.noVersion}</span>
-                      )}
-                    </th>
-                    <td className="px-3 py-1.5">{i ? q.version(i.version, i.active) : t.none}</td>
-                    <td className={num}>{row.runs}</td>
-                    <td className={num}>{row.findings}</td>
-                    <RateCells rates={row} refuted={false} />
-                    <td className={num}>
-                      {row.averageCostUsd === null ? t.none : t.money(row.averageCostUsd)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        // KINDS: instructions apart from documents; runs with no version recorded sit with the
+        // instructions.
+        groupByKind(versions, (row) => row.instruction?.kind ?? 'instruction').map((group) => (
+          <div
+            key={group.kind}
+            className="overflow-x-auto rounded-lg border border-border bg-surface"
+          >
+            <KindGroup kind={group.kind} count={group.items.length}>
+              <VersionTable kind={group.kind} versions={group.items} />
+            </KindGroup>
+          </div>
+        ))
       )}
     </section>
+  );
+}
+
+function VersionTable({ kind, versions }: { kind: string; versions: QualityResponse['versions'] }) {
+  const q = t.quality;
+  return (
+    <table
+      className="w-full text-[13px]"
+      aria-label={q.perVersionOf(copy.instructions.kindTitles[kind] ?? kind)}
+    >
+      <thead className="text-left text-text-3">
+        <tr>
+          <th className={th}>{copy.instructions.kindName[kind] ?? kind}</th>
+          <th className={th}>{q.columns.version}</th>
+          <th className={`${th} text-right`}>{q.columns.runs}</th>
+          <th className={`${th} text-right`}>{q.columns.findings}</th>
+          <th className={`${th} text-right`}>{q.columns.confirmed}</th>
+          <th className={`${th} text-right`}>{q.columns.implement}</th>
+          <th className={`${th} text-right`}>{q.columns.averageCost}</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-divider">
+        {versions.map((row) => {
+          const i = row.instruction;
+          return (
+            <tr key={i?.id ?? 'none'}>
+              <th scope="row" className="px-3 py-1.5 text-left font-normal">
+                {i ? (
+                  <span className="font-mono">
+                    {i.fileKey}
+                    {i.repository && <span className="text-text-3"> · {i.repository}</span>}
+                  </span>
+                ) : (
+                  <span className="text-text-3">{q.noVersion}</span>
+                )}
+              </th>
+              <td className="px-3 py-1.5">{i ? q.version(i.version, i.active) : t.none}</td>
+              <td className={num}>{row.runs}</td>
+              <td className={num}>{row.findings}</td>
+              <RateCells rates={row} refuted={false} />
+              <td className={num}>
+                {row.averageCostUsd === null ? t.none : t.money(row.averageCostUsd)}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

@@ -128,7 +128,22 @@ const quality: QualityResponse = {
         scope: 'global',
         repository: null,
         fileKey: 'review-rules.md',
+        kind: 'instruction',
         version: 3,
+        active: true,
+      },
+      runs: 7,
+      averageCostUsd: 1.38,
+      ...rates({ confirmedRate: 0.74, implementShare: 0.61 }),
+    },
+    {
+      instruction: {
+        id: 9,
+        scope: 'repository',
+        repository: 'wb',
+        fileKey: 'feature-map/canvas.md',
+        kind: 'document',
+        version: 1,
         active: true,
       },
       runs: 7,
@@ -158,7 +173,16 @@ test('Quality: levels 1–2 say Unchecked and rows below 5 findings say too few'
   expect(row('4 · Fix on request')).toHaveTextContent('Too few findings (4 of 5)');
   expect(row('4 · Fix on request')).not.toHaveTextContent('%');
 
-  const versions = screen.getByRole('table', { name: copy.insights.quality.perVersion });
+  // KINDS: instructions and documents each have their own table.
+  const tableOf = (kind: string) =>
+    screen.getByRole('table', {
+      name: copy.insights.quality.perVersionOf(copy.instructions.kindTitles[kind]!),
+    });
+  const documents = tableOf('document');
+  expect(within(documents).getByRole('row', { name: /^feature-map\/canvas\.md/ })).toBeVisible();
+  expect(within(documents).queryByText('review-rules.md')).toBeNull();
+  const versions = tableOf('instruction');
+  expect(within(versions).queryByText(/feature-map/)).toBeNull();
   expect(within(versions).getByRole('row', { name: /^review-rules\.md/ })).toHaveTextContent(
     'v3 · active',
   );

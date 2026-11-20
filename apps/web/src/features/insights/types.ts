@@ -75,6 +75,7 @@ export type QualityResponse = {
       scope: 'global' | 'repository' | 'level';
       repository: string | null;
       fileKey: string;
+      kind: 'instruction' | 'document';
       version: number;
       active: boolean;
     } | null;
