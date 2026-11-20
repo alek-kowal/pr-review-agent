@@ -1,6 +1,7 @@
 // The `run.stage` job (S-01-T10): starts one stage of one run, runs its executor, stores the
 // result in one transaction, then queues the next stage or ends the run. Keyed by (runId, stage):
 // a job for a stage that is not the run's next pending one does nothing.
+import { stageFilesFor } from '@pra/agents';
 import {
   cancelRun,
   completeStage,
@@ -28,6 +29,7 @@ import {
   insertQuestions,
   saveFixChecks,
   freezeRunInstructions,
+  stageFileChoicesOf,
   trialReplacements,
   insertStageExecution,
   holdForUsageLimit,
@@ -336,11 +338,18 @@ async function startStageInTx(
       repositoryId,
       isTrial ? await trialReplacements(tx, run.id) : [],
     );
+    // The files each stage reads (STAGEFILES), frozen with the versions so a later choice never
+    // changes a running run. The reviewer's "all Markdown documents" expands over this run's files.
+    const documentKeys = instructionVersions
+      .filter((v) => v.kind === 'document')
+      .map((v) => v.fileKey);
+    const stageFiles = stageFilesFor(await stageFileChoicesOf(tx, repositoryId), documentKeys);
     const patch = {
       status: 'running' as const,
       startedAt: now,
       currentStage: stage,
       instructionVersions,
+      stageFiles,
     };
     await updateRun(tx, runId, patch);
     run = { ...run, ...patch };

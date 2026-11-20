@@ -12,6 +12,7 @@ import {
   schema,
   startAnalysis,
   upsertPullRequest,
+  writeStageFileChoice,
   type PullRequest,
   type Repository,
 } from '@pra/db';
@@ -136,12 +137,38 @@ test("the analyst's input has no comment by the PR author, and the finish is rec
   expect(input.comments.map((c) => c.author)).toEqual(['reviewer-ola']);
   expect(JSON.stringify(input)).not.toContain('I wrote this myself.');
   expect(input.pr).toMatchObject({ number: pullRequest.number, state: 'closed' });
+  // Its default document (STAGEFILES): `lessons.md`, empty while the repository has none.
+  expect(input.documents).toEqual([{ fileKey: 'lessons.md', content: '' }]);
   expect(await getRun(deps.db, analysis!.runId!)).toMatchObject({ status: 'completed' });
   expect(await latestAnalysisOf(deps.db, pullRequest.id)).toMatchObject({
     id: analysis!.id,
     status: 'finished',
     candidateCount: 1,
   });
+});
+
+test('the analyst gets the documents assigned to it for the repository (STAGEFILES)', async () => {
+  const repository = await repositoryAt(6);
+  await importInstructionV1(deps.db, {
+    scope: 'repository',
+    repositoryId: repository.id,
+    fileKey: 'feature-map/sdk.md',
+    content: 'SDK map',
+  });
+  await writeStageFileChoice(deps.db, repository.id, 'analyst', {
+    documents: ['feature-map/sdk.md', 'gone.md'],
+  });
+  const pullRequest = await closeOn(repository);
+  const [analysis] = await analysesOf(pullRequest.id);
+  deps.analyst.enqueue({ candidates: [], summary: 'None.' });
+
+  await executeStage(deps, analysis!.runId!, 'analyse');
+
+  // A missing assigned document is passed empty.
+  expect(deps.analyst.calls.at(-1)!.documents).toEqual([
+    { fileKey: 'feature-map/sdk.md', content: 'SDK map' },
+    { fileKey: 'gone.md', content: '' },
+  ]);
 });
 
 test("a duplicate raises an existing candidate's PR count", async () => {

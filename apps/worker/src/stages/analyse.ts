@@ -4,7 +4,7 @@
 // and asks the analyst for at most 5 lesson candidates. The run hook (`run/learning-hooks.ts`)
 // merges them into the candidates when the run completes.
 import { analystRequest, type AnalystCandidate, type AnalystInput } from '@pra/agents';
-import { buildCases, missingInstructions, REQUIRED_INSTRUCTION_FILES, runModel } from '@pra/core';
+import { buildCases, REQUIRED_INSTRUCTION_FILES, runModel } from '@pra/core';
 import {
   answersOfPullRequest,
   currentDecisions,
@@ -15,10 +15,10 @@ import {
   type FindingRow,
 } from '@pra/db';
 import { stageInstructions } from './instructions.ts';
+import { requiredStageText } from './stage-files.ts';
 import type { StageContext, StageExecutor, StageResult } from './stage.ts';
 
 export const [ANALYST_PROMPT_FILE, ANALYST_RULES_FILE] = REQUIRED_INSTRUCTION_FILES.analyse;
-export const LESSONS_FILE = 'lessons.md';
 
 /** The Analyse stage's stored output; the run hook reads `candidates`. */
 export type AnalyseOutput = {
@@ -37,16 +37,16 @@ export const analyseStage: StageExecutor = {
 async function runAnalyse(context: StageContext): Promise<StageResult> {
   const { deps, run, pullRequest, repository, signal } = context;
   const instructions = await stageInstructions({ deps, run, repository });
-  const prompt = instructions.get(ANALYST_PROMPT_FILE)?.trim();
-  const rules = instructions.get(ANALYST_RULES_FILE)?.trim();
-  if (!prompt || !rules) {
-    const missing = missingInstructions(instructions, ['analyse'])[0]?.missing ?? [];
+  // The files assigned to the analyst when the run started (STAGEFILES).
+  const assigned = requiredStageText(run, 'analyse', instructions);
+  if (!assigned.ok) {
     return {
       status: 'failed',
-      error: { code: 'analyst_instructions_missing', params: { missing } },
+      error: { code: 'analyst_instructions_missing', params: { missing: assigned.missing } },
       sessions: [],
     };
   }
+  const { prompt, rules, stageFiles } = assigned;
 
   const comments = await deps.github.listReviewComments(
     repository.githubFullName,
@@ -69,7 +69,11 @@ async function runAnalyse(context: StageContext): Promise<StageResult> {
     findings,
     answers: answers.map((a) => ({ question: a.question, answer: a.answer, by: a.signerName })),
     comments: cases.map(({ id, author, body, path, line }) => ({ id, author, body, path, line })),
-    lessons: instructions.get(LESSONS_FILE) ?? '',
+    // A missing assigned document is passed empty, as `lessons.md` always was.
+    documents: stageFiles.documents.map((fileKey) => ({
+      fileKey,
+      content: instructions.get(fileKey) ?? '',
+    })),
     openCandidates: await openCandidatesOf(deps.db, repository.id),
     signal,
   };

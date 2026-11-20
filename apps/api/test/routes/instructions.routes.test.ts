@@ -9,6 +9,7 @@ import {
   listSettingsChanges,
   upsertPullRequest,
   upsertRepository,
+  writeStageFileChoice,
   type Repository,
 } from '@pra/db';
 import { aPullRequest, aRun, seedTeamMember, testDatabaseUrl, uniqueId } from '@pra/db/testing';
@@ -97,6 +98,26 @@ describe('GET /api/instructions', () => {
     const verify = mine?.gaps.filter((g) => g.stage === 'verify');
     expect(verify?.map((g) => g.level)).toEqual([3, 4, 5, 6]);
     expect(verify?.[0]?.missing).toEqual(['prompt-verifier.md', 'verify-rules.md']);
+  });
+
+  test("gaps follow the repository's stage files (STAGEFILES)", async () => {
+    // The repository's Verify reads its own files: only the assigned rules are missing.
+    await importInstructionV1(db, {
+      scope: 'repository',
+      repositoryId: repository.id,
+      fileKey: 'prompt-verifier-own.md',
+      content: 'Refute it.',
+    });
+    await writeStageFileChoice(db, repository.id, 'verify', {
+      prompt: 'prompt-verifier-own.md',
+      rules: 'verify-own-rules.md',
+    });
+    const response = await app.inject({ method: 'GET', url: '/api/instructions' });
+    const { gaps } = InstructionsListResponse.parse(response.json());
+    const verify = gaps
+      .find((g) => g.repository.id === repository.id)
+      ?.gaps.filter((g) => g.stage === 'verify');
+    expect(verify?.map((g) => g.missing)).toEqual(Array(4).fill(['verify-own-rules.md']));
   });
 
   test('a missing file answers 404', async () => {

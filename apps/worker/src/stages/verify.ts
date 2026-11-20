@@ -12,7 +12,6 @@ import {
   applyReproduction,
   checkQuotes,
   limitsFor,
-  missingInstructions,
   REQUIRED_INSTRUCTION_FILES,
   runModel,
   reproRepairAllowed,
@@ -37,6 +36,7 @@ import { open, rm } from 'node:fs/promises';
 import * as path from 'node:path';
 import { changeTypeOfRun } from './change-type.ts';
 import { stageInstructions } from './instructions.ts';
+import { requiredStageText } from './stage-files.ts';
 import type {
   SessionRecord,
   StageContext,
@@ -102,16 +102,16 @@ async function runVerify(context: StageContext): Promise<StageResult> {
 
   // The run checked these before its first stage; this stays as the safety net.
   const instructions = await stageInstructions(context);
-  const prompt = instructions.get(VERIFIER_PROMPT_FILE)?.trim();
-  const rules = instructions.get(VERIFIER_RULES_FILE)?.trim();
-  if (!prompt || !rules) {
-    const missing = missingInstructions(instructions, ['verify'])[0]?.missing ?? [];
+  // The files assigned to Verify when the run started (STAGEFILES).
+  const assigned = requiredStageText(run, 'verify', instructions);
+  if (!assigned.ok) {
     return {
       status: 'failed',
-      error: { code: 'verifier_instructions_missing', params: { missing } },
+      error: { code: 'verifier_instructions_missing', params: { missing: assigned.missing } },
       sessions: [],
     };
   }
+  const { prompt, rules } = assigned;
 
   const changeType = (await changeTypeOfRun(deps.db, run.id))?.changeType ?? null;
   const skip = skipVerification(changeType, limitsFor(level.settings, changeType));

@@ -18,7 +18,8 @@ export async function instructionsPreflight(
   stages: readonly string[],
 ): Promise<StageResult | null> {
   const files = await stageInstructions({ deps, run, repository });
-  const gaps = missingInstructions(files, stages);
+  // The run's frozen stage files (STAGEFILES); an older run checks the defaults.
+  const gaps = missingInstructions(files, stages, run.stageFiles ?? {});
   const [first] = gaps;
   if (!first) return null;
   deps.logger.warn({ runId: run.id, gaps }, 'instruction files missing: run stopped at its start');

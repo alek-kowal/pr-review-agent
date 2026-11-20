@@ -559,18 +559,18 @@ import is not needed; the two JSON files stay as unused documents.
 
 - [x] 1.1 Migration generated and applies — 0d58220
 - [x] 1.2 Core unit tests for kinds and resolution pass — 0d58220
-- [x] 1.3 DB tests for the migration's kind backfill, choice queries and import kinds pass — phase 1 commit
-- [x] 1.4 `pnpm verify` passes — phase 1 commit
+- [x] 1.3 DB tests for the migration's kind backfill, choice queries and import kinds pass — 41bd8be
+- [x] 1.4 `pnpm verify` passes — 41bd8be
 
 ### Phase 2: Runs freeze the choice; stages read assigned files
 
 #### Automated
 
-- [ ] 2.1 Worker test: a run freezes its stage files
-- [ ] 2.2 Worker test: Verify reads the assigned rules; the pre-check reports the assigned key
-- [ ] 2.3 Worker test: reviewer knowledge dir and analyst documents follow the assignment
-- [ ] 2.4 API test: gaps follow a repository override
-- [ ] 2.5 `pnpm verify` passes
+- [x] 2.1 Worker test: a run freezes its stage files — phase 2 commit
+- [x] 2.2 Worker test: Verify reads the assigned rules; the pre-check reports the assigned key — phase 2 commit
+- [x] 2.3 Worker test: reviewer knowledge dir and analyst documents follow the assignment — phase 2 commit
+- [x] 2.4 API test: gaps follow a repository override — phase 2 commit
+- [x] 2.5 `pnpm verify` passes — phase 2 commit
 
 ### Phase 3: API
 

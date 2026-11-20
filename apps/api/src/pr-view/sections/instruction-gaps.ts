@@ -1,8 +1,9 @@
 // INSTR: the required instruction files a round of this PR's repository would miss, per level.
 // Start review warns about the selected level's gaps, since such a round stops before its first
 // stage (the worker's pre-check).
+import { stageFilesFor } from '@pra/agents';
 import { INSTRUCTION_STAGES, instructionGaps, LEVEL_NUMBERS } from '@pra/core';
-import { activeInstructions, toLayer, type Executor } from '@pra/db';
+import { activeInstructions, stageFileChoicesOf, toLayer, type Executor } from '@pra/db';
 import { z } from 'zod/v4';
 import { defineSection } from '../section.ts';
 
@@ -19,7 +20,9 @@ export async function repositoryInstructionGaps(
   repositoryId: number,
 ): Promise<z.output<typeof InstructionGapSchema>[]> {
   const layers = (await activeInstructions(db, repositoryId)).map(toLayer);
-  return instructionGaps(layers, repositoryId);
+  // The repository's current stage files (STAGEFILES); documents never make a gap.
+  const stageFiles = stageFilesFor(await stageFileChoicesOf(db, repositoryId), []);
+  return instructionGaps(layers, repositoryId, stageFiles);
 }
 
 export const instructionGapsSection = defineSection({

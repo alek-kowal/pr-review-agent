@@ -2,6 +2,7 @@
 import './reasons/instructions.ts';
 import { FEATURE_ON_FROM, STAGE_ON_FROM } from './levels.ts';
 import { reason, type Reason } from './reason.ts';
+import { FILE_STAGE_OF_INSTRUCTION_STAGE, type FrozenStageFiles } from './stage-files.ts';
 import { LEVEL_NUMBERS, type LevelNumber } from './vocabulary.ts';
 
 /** Global files apply everywhere, a repository copy in one repository, a level copy at a level. */
@@ -302,15 +303,29 @@ export interface InstructionGap {
   missing: string[];
 }
 
-/** The required files of `stages` that `files` lacks or holds empty, in `stages` order. */
+/**
+ * The prompt and rules a required stage reads: its assigned files (STAGEFILES), or the
+ * `REQUIRED_INSTRUCTION_FILES` defaults when `stageFiles` has no entry for it.
+ */
+export function requiredFilesOf(stage: InstructionStage, stageFiles: FrozenStageFiles): string[] {
+  const assigned = stageFiles[FILE_STAGE_OF_INSTRUCTION_STAGE[stage]];
+  if (!assigned) return [...REQUIRED_INSTRUCTION_FILES[stage]];
+  return [assigned.prompt, assigned.rules].filter((key): key is string => key !== null);
+}
+
+/**
+ * The required files of `stages` that `files` lacks or holds empty, in `stages` order: each
+ * stage's assigned prompt and rules (`stageFiles`, the run's frozen choice).
+ */
 export function missingInstructions(
   files: ReadonlyMap<string, string>,
   stages: readonly string[],
+  stageFiles: FrozenStageFiles,
 ): InstructionGap[] {
   const gaps: InstructionGap[] = [];
   for (const stage of stages) {
     if (!isInstructionStage(stage)) continue;
-    const missing = REQUIRED_INSTRUCTION_FILES[stage].filter((key) => !files.get(key)?.trim());
+    const missing = requiredFilesOf(stage, stageFiles).filter((key) => !files.get(key)?.trim());
     if (missing.length) gaps.push({ stage, missing });
   }
   return gaps;
@@ -333,16 +348,18 @@ export interface LevelInstructionGap extends InstructionGap {
 
 /**
  * Per level, the required files a run of this repository would miss, from the active versions
- * (`layers`, as `resolveInstructions` reads them). Empty when nothing is missing.
+ * (`layers`, as `resolveInstructions` reads them) and the repository's current stage files.
+ * Empty when nothing is missing.
  */
 export function instructionGaps(
   layers: readonly InstructionLayer[],
   repositoryId: number,
+  stageFiles: FrozenStageFiles,
 ): LevelInstructionGap[] {
   return LEVEL_NUMBERS.flatMap((level) => {
     const { files } = resolveInstructions(layers, { repositoryId, level });
     const byKey = new Map(files.map((f) => [f.fileKey, f.content]));
-    return missingInstructions(byKey, instructionStagesAt(level)).map((gap) => ({
+    return missingInstructions(byKey, instructionStagesAt(level), stageFiles).map((gap) => ({
       ...gap,
       level,
     }));

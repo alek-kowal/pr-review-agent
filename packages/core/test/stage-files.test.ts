@@ -5,6 +5,7 @@ import {
   defaultKindOf,
   instructionFileKeyProblem,
   isEmptyStageFileChoice,
+  missingInstructions,
   resolveStageFiles,
   resolveStageSlots,
   stageFileReaders,
@@ -114,5 +115,30 @@ describe('resolveStageFiles', () => {
     expect(stageFileReaders('lessons.md', files)).toEqual(['review']);
     expect(stageFileReaders('verify-rules.md', files)).toEqual(['verify']);
     expect(stageFileReaders('review-levels.json', files)).toEqual([]);
+  });
+});
+
+describe('missingInstructions with assigned files', () => {
+  const files = new Map([
+    ['prompt-verifier.md', 'p'],
+    ['verify-rules.md', 'r'],
+    ['verify-rules-b.md', ' '],
+  ]);
+
+  it('checks the defaults when the stage has no assignment', () => {
+    expect(missingInstructions(files, ['verify', 'analyse'], {})).toEqual([
+      { stage: 'analyse', missing: ['prompt-analyst.md', 'analyst-rules.md'] },
+    ]);
+  });
+
+  it('names the assigned key that is missing or empty', () => {
+    const stageFiles = {
+      verify: { prompt: 'prompt-verifier.md', rules: 'verify-rules-b.md', documents: [] },
+      analyst: { prompt: 'prompt-a2.md', rules: 'analyst-rules.md', documents: [] },
+    };
+    expect(missingInstructions(files, ['verify', 'analyse'], stageFiles)).toEqual([
+      { stage: 'verify', missing: ['verify-rules-b.md'] },
+      { stage: 'analyse', missing: ['prompt-a2.md', 'analyst-rules.md'] },
+    ]);
   });
 });

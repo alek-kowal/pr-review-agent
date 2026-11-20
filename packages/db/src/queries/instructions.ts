@@ -256,6 +256,7 @@ export async function freezeRunInstructions(
       level: v.level,
       fileKey: v.fileKey,
       version: v.version,
+      kind: v.kind as InstructionKind,
     }));
 }
 

@@ -1,9 +1,30 @@
 // The reviewer's knowledge directory and launch prompt, after P's `src/prompt.ts`.
-import { BUILT_IN_REVIEWER_PROMPT } from '@pra/core';
+import { BUILT_IN_REVIEWER_PROMPT, type StageFiles } from '@pra/core';
 import { chmod, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 export const REVIEWER_PROMPT_FILE = 'prompt-reviewer.md';
+/** The name the rules get in the knowledge directory, whatever file is assigned (STAGEFILES). */
+export const REVIEWER_RULES_FILE = 'review-rules.md';
+
+/**
+ * What the reviewer's knowledge directory holds (STAGEFILES): the assigned documents under their
+ * own keys and the assigned rules as `review-rules.md`, so a prompt that names that file keeps
+ * working with other rules. Prompts and other stages' rules stay out.
+ */
+export function reviewerKnowledge(
+  stageFiles: StageFiles,
+  files: ReadonlyMap<string, string>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const key of stageFiles.documents) {
+    const content = files.get(key);
+    if (content !== undefined) out.set(key, content);
+  }
+  const rules = stageFiles.rules ? files.get(stageFiles.rules) : undefined;
+  if (rules !== undefined) out.set(REVIEWER_RULES_FILE, rules);
+  return out;
+}
 
 type Placeholder = 'knowledgeDir' | 'repoDir' | 'runDir';
 

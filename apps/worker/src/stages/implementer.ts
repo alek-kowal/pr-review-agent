@@ -10,7 +10,6 @@ import {
   type ImplementerFinding,
 } from '@pra/agents';
 import {
-  missingInstructions,
   REPRO_EXIT,
   REQUIRED_INSTRUCTION_FILES,
   runModel,
@@ -32,6 +31,7 @@ import type { BlobStore } from '@pra/integrations';
 import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { stageInstructions } from './instructions.ts';
+import { requiredStageText } from './stage-files.ts';
 import type { SessionRecord, StageContext, StageExecutor, StageResult } from './stage.ts';
 import { keepRun, reproduce } from './verify.ts';
 import { runWorktree } from './worktree.ts';
@@ -206,12 +206,12 @@ export const implementStage: StageExecutor = {
     const { deps, run, pullRequest, level, signal, attempt } = context;
     const request = await requestOf(context);
     const instructions = await stageInstructions(context);
-    const prompt = instructions.get(IMPLEMENTER_PROMPT_FILE)?.trim();
-    const rules = instructions.get(IMPLEMENTER_RULES_FILE)?.trim();
-    if (!prompt || !rules) {
-      const missing = missingInstructions(instructions, ['implement'])[0]?.missing ?? [];
-      return failed('implementer_instructions_missing', { missing });
+    // The files assigned to Implement when the run started (STAGEFILES).
+    const assigned = requiredStageText(run, 'implement', instructions);
+    if (!assigned.ok) {
+      return failed('implementer_instructions_missing', { missing: assigned.missing });
     }
+    const { prompt, rules } = assigned;
     const worktree = await baseWorktree(context, request);
     const reviseNote = request.revisesPatchId ? request.note : null;
     const findings = (await implementerFindings(deps.db, request.findingIds)).map(
