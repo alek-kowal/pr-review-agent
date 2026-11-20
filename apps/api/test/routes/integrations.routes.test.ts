@@ -309,6 +309,7 @@ describe('polling without the GitHub App (P-28)', () => {
     expect(body.github.mode).toBe('anonymous');
     expect(body.github.poller).toMatchObject({
       lastStartedAt: '2026-11-20T09:00:00.000Z',
+      running: false,
       lastError: null,
       backoffUntil: null,
       rateLimit: { limit: 60, remaining: 41 },
@@ -318,6 +319,23 @@ describe('polling without the GitHub App (P-28)', () => {
       mode: 'app',
       poller: null,
     });
+  });
+
+  test('running while a poll holds the lease, not once it ran out (CONNECT)', async () => {
+    const github = new FakeGitHubGateway().setMode('token');
+    const lease = (ms: number) =>
+      db
+        .insert(schema.githubPoller)
+        .values({ id: 1, leaseUntil: new Date(Date.now() + ms) })
+        .onConflictDoUpdate({
+          target: schema.githubPoller.id,
+          set: { leaseUntil: new Date(Date.now() + ms) },
+        });
+
+    await lease(60_000);
+    expect((await status({ github })).github.poller?.running).toBe(true);
+    await lease(-1_000);
+    expect((await status({ github })).github.poller?.running).toBe(false);
   });
 
   test('the schedule is a signed change of its own, checked by core', async () => {

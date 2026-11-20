@@ -5,7 +5,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { rm, writeFile } from 'node:fs/promises';
 import { bannerTitle, decide, onPrPage, signer, sql, writeHeaders } from './support/api.ts';
-import { githubModeFile, MERGE_REPOSITORY, POLLED_REPOSITORY } from './support/env.ts';
+import {
+  CONNECT_BY_NAME,
+  githubModeFile,
+  MERGE_REPOSITORY,
+  POLLED_REPOSITORY,
+} from './support/env.ts';
 import { deliverPullRequest, stackState } from './support/github.ts';
 
 test.describe.configure({ mode: 'serial' });
@@ -103,8 +108,8 @@ test('a repository connected by name is polled: the first poll imports its open 
     await page.getByRole('option', { name: new RegExp(member.name) }).click();
     await expect(signedBy).toContainText(member.name);
     await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
-    await expect(page).toHaveURL(/\/settings\/repositories\/\d+$/);
-    await expect(page.getByRole('heading', { name: fullName, level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(/\/settings\/repositories$/);
+    await expect(connected).toBeVisible();
   }
 
   const [stored] = await sql<{ installation_id: number | null; branch: string }>(
@@ -151,4 +156,116 @@ test('a repository connected by name is polled: the first poll imports its open 
   await page.goto('/settings/integrations');
   await expect(poller).toContainText('Read-only, without a token: public repositories only');
   await expect(poller).toContainText('Without GITHUB_TOKEN GitHub allows 60 requests an hour.');
+});
+
+/**
+ * CONNECT: every dialog the page opens, the browser's own included ("Leave site?", "Reload
+ * site?"); each is accepted, as Alek did, so the test sees where that leads.
+ */
+function recordDialogs(page: Page): string[] {
+  const dialogs: string[] = [];
+  page.on('dialog', (dialog) => {
+    dialogs.push(`${dialog.type()}: ${dialog.message()}`);
+    void dialog.accept();
+  });
+  return dialogs;
+}
+
+/** On the connect page: Connect…, sign, Connect. */
+async function confirmConnect(page: Page, fullName: string, signerName: string): Promise<void> {
+  await expect(page.getByRole('heading', { name: `Connect ${fullName}`, level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: 'Connect…' }).click();
+  const dialog = page.getByRole('alertdialog', { name: `Connect ${fullName}` });
+  const signedBy = dialog.getByRole('combobox', { name: 'Signed by' });
+  await signedBy.click();
+  await page.getByRole('option', { name: new RegExp(signerName) }).click();
+  await expect(signedBy).toContainText(signerName);
+  await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+}
+
+const connectedLink = (page: Page, fullName: string) =>
+  page
+    .getByRole('table', { name: 'Connected repositories' })
+    .getByRole('link', { name: fullName, exact: true });
+
+test('connect by name lands on the list with the new repository and asks nothing', async ({
+  page,
+  request,
+}, testInfo) => {
+  const fullName = CONNECT_BY_NAME.fullName('from-list', testInfo.retry);
+  const member = await signer(request);
+  await useGitHubMode('token');
+  const dialogs = recordDialogs(page);
+
+  await page.goto('/settings/repositories');
+  await page.getByRole('textbox', { name: 'Repository (owner/name)' }).fill(fullName);
+  await page.getByRole('button', { name: 'Connect…' }).click();
+  await confirmConnect(page, fullName, member.name);
+
+  await expect(page).toHaveURL(/\/settings\/repositories$/);
+  await expect(connectedLink(page, fullName)).toBeVisible();
+  await expect(page.getByText(`${fullName} is connected.`)).toBeVisible();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  // Nothing is left to guard: a reload asks nothing and stays on the list.
+  await page.reload();
+  await expect(connectedLink(page, fullName)).toBeVisible();
+  await expect(page).toHaveURL(/\/settings\/repositories$/);
+  expect(dialogs).toEqual([]);
+});
+
+test('connect after a deploy: the router reloads for the list, and nothing asks first', async ({
+  page,
+  request,
+}, testInfo) => {
+  // Alek's case: the tab was opened before a deploy, so the list's code is gone from the server
+  // (404). The router then reloads the page by itself; a leave guard still up turned that into
+  // the browser's "Reload site?" prompt.
+  const fullName = CONNECT_BY_NAME.fullName('after-deploy', testInfo.retry);
+  const member = await signer(request);
+  await useGitHubMode('token');
+  const dialogs = recordDialogs(page);
+
+  await page.goto(`/settings/repositories/connect?fullName=${encodeURIComponent(fullName)}`);
+  let refused = false;
+  // The list route's code split: `?tsr-split` from the dev server, `-<hash>.js` from a build.
+  await page.route(
+    /settings\.repositories\.index(\.tsx\?tsr-split|-[\w-]+\.js)/,
+    (route) => {
+      refused = true;
+      return route.fulfill({ status: 404, body: 'Not found' });
+    },
+    { times: 1 },
+  );
+  await confirmConnect(page, fullName, member.name);
+
+  await expect(connectedLink(page, fullName)).toBeVisible({ timeout: 15_000 });
+  await expect(page).toHaveURL(/\/settings\/repositories$/);
+  expect(refused).toBe(true);
+  expect(dialogs).toEqual([]);
+});
+
+test('the board refreshes from GitHub without the App and says when; with the App it has no button', async ({
+  page,
+}) => {
+  const lastFinished = async () =>
+    (
+      await sql<{ at: Date | null }>(
+        'select last_finished_at as at from github_poller where id = 1',
+        [],
+      )
+    )[0]?.at?.getTime() ?? 0;
+  await useGitHubMode('token');
+  await page.goto('/prs');
+  const refresh = page.getByRole('group', { name: 'GitHub refresh' });
+  const before = await lastFinished();
+
+  await refresh.getByRole('button', { name: 'Refresh from GitHub' }).click();
+  await expect(refresh).toContainText('Updated just now', { timeout: 30_000 });
+  await expect(refresh.getByRole('button', { name: 'Refresh from GitHub' })).toBeEnabled();
+  expect(await lastFinished()).toBeGreaterThan(before);
+
+  await rm(modeFile(), { force: true });
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Pull requests', level: 1 })).toBeVisible();
+  await expect(refresh).toHaveCount(0);
 });

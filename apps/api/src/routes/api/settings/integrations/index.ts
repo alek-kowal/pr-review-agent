@@ -50,6 +50,8 @@ const PollerSchema = z.object({
   windowOpen: z.boolean(),
   lastStartedAt: z.iso.datetime().nullable(),
   lastFinishedAt: z.iso.datetime().nullable(),
+  /** A poll holds the lease now (CONNECT: the board's refresh waits for it). */
+  running: z.boolean(),
   /** When the next scheduled poll is due (after a backoff, its end). */
   nextPollAt: z.iso.datetime(),
   /** Why the last poll failed or stopped; null when it went through. */
@@ -315,6 +317,8 @@ async function pollerView(db: Db, schedule: GitHubPollSchedule, now: Date) {
     windowOpen: pollWindowOpen(schedule, now),
     lastStartedAt: iso(poller.lastStartedAt),
     lastFinishedAt: iso(poller.lastFinishedAt),
+    // A crashed poll's lease runs out, so this never stays true for good.
+    running: poller.leaseUntil !== null && poller.leaseUntil > now,
     nextPollAt: (backoff && backoff > due ? backoff : due).toISOString(),
     lastError: poller.lastError ?? null,
     backoffUntil: iso(backoff),

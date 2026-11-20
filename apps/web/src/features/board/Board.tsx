@@ -13,6 +13,7 @@ import { BoardCard, DraftRow } from './BoardCard.tsx';
 import { BoardFilterBar } from './BoardFilters.tsx';
 import { activeCount, FILTER_KEYS, type BoardFilters } from './filters.ts';
 import { boardQuery } from './queries.ts';
+import { RefreshFromGitHub } from './RefreshFromGitHub.tsx';
 
 const LANE_ICON = {
   not_reviewed: CircleDashed,
@@ -46,6 +47,7 @@ export function Board({
           onChange={onFiltersChange}
           repositories={board.data?.repositories ?? []}
         />
+        <RefreshFromGitHub className="ml-auto" />
       </div>
       {board.isPending ? (
         <p className="text-text-3">{copy.board.loading}</p>

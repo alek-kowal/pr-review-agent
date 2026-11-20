@@ -52,6 +52,24 @@ export const board = {
     clear: 'Clear filters',
     laneEmpty: 'Nothing matches the filters.',
   },
+  /** Without the GitHub App (CONNECT): Poll now from the board's corner. */
+  refresh: {
+    label: 'GitHub refresh',
+    button: 'Refresh from GitHub',
+    refreshing: 'Refreshing…',
+    never: 'Not polled yet',
+    /** "Updated 3 min ago": when the last poll ended. */
+    updated: (ms: number) => {
+      const minutes = Math.max(0, Math.floor(ms / 60_000));
+      if (minutes < 1) return 'Updated just now';
+      if (minutes < 60) return `Updated ${minutes} min ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `Updated ${hours} h ago`;
+      return `Updated ${Math.floor(hours / 24)} d ago`;
+    },
+    lastError: (reason: string) => `Last poll: ${reason}`,
+    failedToQueue: (reason: string) => `Refresh failed: ${reason}`,
+  },
   /** Copy for card badges, by reason code (`CARD_BADGES` in the api). */
   badges: {} as Record<string, (params: Record<string, unknown>) => string>,
 };

@@ -80,6 +80,9 @@ export const repositories = {
     dialogDescription:
       'The repository is connected with these settings. The change is signed and recorded in the Audit log.',
     confirm: 'Connect',
+    /** The notice once connected (CONNECT); the page then opens the list. */
+    connected: (fullName: string) => `${fullName} is connected.`,
+    opening: 'Connected. Opening the list of repositories…',
   },
   sections: {
     general: 'General',

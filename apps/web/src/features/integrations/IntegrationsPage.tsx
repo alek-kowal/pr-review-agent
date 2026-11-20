@@ -20,6 +20,7 @@ import type {
   IntegrationsResponse,
 } from '@/lib/api-types.ts';
 import { errorText } from '@/lib/reasons.ts';
+import { pollErrorText } from './poll-error.ts';
 import {
   integrationsQuery,
   useClickUpTest,
@@ -106,13 +107,7 @@ function PollerCard({ mode, poller }: { mode: GitHubMode; poller: GitHubPoller }
         {!error ? (
           <span className="text-text-3">{p.noError}</span>
         ) : (
-          <span className="text-bad">
-            {error.code === 'github_rate_limited'
-              ? p.rateLimited(at(String(error.params.resetAt)))
-              : error.code === 'github_poll_failed'
-                ? p.pollFailed((error.params.items as string[] | undefined) ?? [])
-                : errorText(error.code)}
-          </span>
+          <span className="text-bad">{pollErrorText(error)}</span>
         )}
       </Row>
       <Row label={p.rateLimit}>
