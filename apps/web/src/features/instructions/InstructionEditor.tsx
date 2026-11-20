@@ -124,6 +124,9 @@ function EditorForm({
       }
     >
       <p className="-mt-2 flex flex-wrap items-center gap-2 text-sm text-text-2">
+        <Badge variant="outline" data-testid="instruction-kind">
+          {t.kindName[file.kind] ?? file.kind}
+        </Badge>
         <Badge variant="outline">{scope}</Badge>
         <span>
           {draft ? e.editingDraft(draft.version) : active ? e.editingNew(nextVersion) : e.noActive}

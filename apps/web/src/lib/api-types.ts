@@ -761,6 +761,8 @@ export type RunDetail = {
       version: number;
       level?: number | null;
       fileId?: number | null;
+      /** Instruction (prompts and rules) or document (reference context). */
+      kind: InstructionKind;
     }[];
     /** The files each stage read, frozen when the run started (STAGEFILES); null before. */
     stageFiles?: FrozenStageFiles | null;

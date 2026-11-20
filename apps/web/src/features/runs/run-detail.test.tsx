@@ -40,7 +40,9 @@ const FAILED_RUN: RunDetail = {
     finishedAt: at(9),
     currentStage: null,
     notChecked: [],
-    instructionVersions: [{ id: 7, scope: 'global', fileKey: 'review-rules.md', version: 3 }],
+    instructionVersions: [
+      { id: 7, scope: 'global', fileKey: 'review-rules.md', version: 3, kind: 'instruction' },
+    ],
     error: { stage: 'review', code: 'stage_timeout' },
     models: [
       { role: 'reviewer', model: 'claude-opus-5-5', source: 'level', level: 2 },
@@ -182,8 +184,14 @@ describe('Run detail', () => {
         run: {
           ...FAILED_RUN.run,
           instructionVersions: [
-            { id: 7, scope: 'global', fileKey: 'review-rules.md', version: 3 },
-            { id: 8, scope: 'repository', fileKey: 'verify-b-rules.md', version: 1 },
+            { id: 7, scope: 'global', fileKey: 'review-rules.md', version: 3, kind: 'instruction' },
+            {
+              id: 8,
+              scope: 'repository',
+              fileKey: 'verify-b-rules.md',
+              version: 1,
+              kind: 'instruction',
+            },
           ],
           stageFiles: {
             review: { prompt: null, rules: 'review-rules.md', documents: [] },
@@ -198,6 +206,94 @@ describe('Run detail', () => {
     expect(screen.getByText('review-rules.md').parentElement).toHaveTextContent(
       copy.runs.detail.readBy(['Review']),
     );
+  });
+
+  it('lists instructions apart from documents and folds a long list of documents (KINDS)', async () => {
+    const maps = Array.from({ length: 6 }, (_, i) => ({
+      id: 20 + i,
+      scope: 'repository',
+      fileKey: `feature-map/part-${i}.md`,
+      version: 1,
+      fileId: 120 + i,
+      kind: 'document' as const,
+    }));
+    stubFetch({
+      '/api/runs/41': {
+        ...FAILED_RUN,
+        run: {
+          ...FAILED_RUN.run,
+          instructionVersions: [
+            maps[0]!,
+            {
+              id: 7,
+              scope: 'global',
+              fileKey: 'review-rules.md',
+              version: 3,
+              fileId: 107,
+              kind: 'instruction',
+            },
+            ...maps.slice(1),
+            // A run from before S-22 holds no file id: no link.
+            {
+              id: 9,
+              scope: 'global',
+              fileKey: 'prompt-reviewer.md',
+              version: 2,
+              kind: 'instruction',
+            },
+          ],
+        },
+      } satisfies RunDetail,
+    });
+    renderApp('/runs/41');
+
+    const instructions = await screen.findByRole('list', {
+      name: copy.instructions.kindTitles.instruction,
+    });
+    expect(within(instructions).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(instructions).getByRole('link', { name: 'review-rules.md' })).toHaveAttribute(
+      'href',
+      '/settings/instructions/107',
+    );
+    expect(within(instructions).queryByRole('link', { name: 'prompt-reviewer.md' })).toBeNull();
+    expect(within(instructions).queryByText(/feature-map/)).toBeNull();
+    expect(screen.getByText(copy.instructions.kindCount('instruction', 2))).toBeVisible();
+
+    // Six documents: folded until its summary is opened.
+    const summary = screen.getByText(copy.instructions.kindCount('document', 6));
+    const fold = summary.closest('details')!;
+    expect(fold).not.toHaveAttribute('open');
+    await userEvent.click(summary);
+    expect(fold).toHaveAttribute('open');
+    const documents = within(fold).getByRole('list', {
+      name: copy.instructions.kindTitles.document,
+    });
+    expect(within(documents).getAllByRole('listitem')).toHaveLength(6);
+    expect(within(documents).getByRole('link', { name: 'feature-map/part-0.md' })).toHaveAttribute(
+      'href',
+      '/settings/instructions/120',
+    );
+  });
+
+  it('keeps a short list of documents open', async () => {
+    stubFetch({
+      '/api/runs/41': {
+        ...FAILED_RUN,
+        run: {
+          ...FAILED_RUN.run,
+          instructionVersions: [
+            ...FAILED_RUN.run.instructionVersions,
+            { id: 30, scope: 'global', fileKey: 'lessons.md', version: 4, kind: 'document' },
+          ],
+        },
+      } satisfies RunDetail,
+    });
+    renderApp('/runs/41');
+    const documents = await screen.findByRole('list', {
+      name: copy.instructions.kindTitles.document,
+    });
+    expect(documents.closest('details')).toBeNull();
+    expect(within(documents).getByRole('listitem')).toHaveTextContent('lessons.md');
   });
 
   it('shows a failed run with its cost up to the failure and the stage that failed', async () => {

@@ -76,6 +76,7 @@ A repository differs from another only by its settings, never by code.
 - shadcn primitives go only in `apps/web/src/components/ui`. Feature components go in
   `apps/web/src/features/<feature>/`.
 - All UI copy is English and lives only in `apps/web/src/copy`. Components never inline strings.
+- Lists of instruction files show instructions (prompts and rules) apart from documents (reference context), using the copy in `copy/instructions.ts`.
 
 ## API and domain
 

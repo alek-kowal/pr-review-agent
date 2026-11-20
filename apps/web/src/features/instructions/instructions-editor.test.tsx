@@ -247,6 +247,22 @@ describe('Settings → Instructions', () => {
 });
 
 describe('the instruction editor', () => {
+  test('names the kind of the file: instruction or document (KINDS)', async () => {
+    const document = detail(v1);
+    stubFetch({
+      '/api/instructions/7': detail(v1),
+      '/api/instructions/2': { ...document, file: { ...document.file, id: 2, kind: 'document' } },
+      '/api/team': { members: [ola] },
+    });
+    const first = renderApp('/settings/instructions/7');
+    expect(await screen.findByTestId('instruction-kind')).toHaveTextContent(
+      t.kindName.instruction!,
+    );
+    first.unmount();
+    renderApp('/settings/instructions/2');
+    expect(await screen.findByTestId('instruction-kind')).toHaveTextContent(t.kindName.document!);
+  });
+
   test('the diff shows added and removed lines as you type', async () => {
     stubFetch({ '/api/instructions/7': detail(v1), '/api/team': { members: [ola] } });
     renderApp('/settings/instructions/7');

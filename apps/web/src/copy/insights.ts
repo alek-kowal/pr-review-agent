@@ -80,7 +80,9 @@ export const insights = {
     perLevel: 'Per review level',
     perLevelHint:
       'Confirmed and Refuted come from the verifier (level 3 and up). Decided Implement is the share of decided findings that people chose to fix.',
-    perVersion: 'Per instruction version',
+    perVersion: 'Per file version',
+    /** A table's name: "Instructions, per version". */
+    perVersionOf: (kindTitle: string) => `${kindTitle}, per version`,
     columns: {
       level: 'Level',
       rounds: 'Rounds',
@@ -91,7 +93,6 @@ export const insights = {
       implement: 'Decided Implement',
       averageRound: 'Average round',
       averageCost: 'Average cost',
-      instruction: 'Instruction',
       version: 'Version',
     },
     version: (n: number, active: boolean) => `v${n}${active ? ' · active' : ''}`,

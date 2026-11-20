@@ -177,7 +177,13 @@ test('Run detail gives every frozen file its kind (KINDS)', async () => {
         { id: 999_999_001, scope: 'global', fileKey: 'feature-map/billing.md', version: 1 },
         { id: 999_999_002, scope: 'global', fileKey: 'prompt-verifier.md', version: 2 },
         // The frozen kind wins.
-        { id: 999_999_003, scope: 'global', fileKey: 'lessons.md', version: 2, kind: 'instruction' },
+        {
+          id: 999_999_003,
+          scope: 'global',
+          fileKey: 'lessons.md',
+          version: 2,
+          kind: 'instruction',
+        },
       ],
     }),
   );
