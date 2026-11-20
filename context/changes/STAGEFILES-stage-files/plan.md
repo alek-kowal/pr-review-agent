@@ -597,6 +597,6 @@ import is not needed; the two JSON files stay as unused documents.
 
 #### Automated
 
-- [ ] 5.1 New e2e spec passes
-- [ ] 5.2 Full e2e passes
-- [ ] 5.3 `pnpm verify` passes after merging main
+- [x] 5.1 New e2e spec passes — phase 5 commit
+- [x] 5.2 Full e2e passes — phase 5 commit
+- [x] 5.3 `pnpm verify` passes after merging main — phase 5 commit
