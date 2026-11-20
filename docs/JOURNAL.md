@@ -67,3 +67,33 @@ Times are Europe/Warsaw.
 - 02:35 Orchestrator scripts moved from the session scratchpad to `tools/orchestrator/`; this
   journal started. Next: Alek's first poll and first review on a WB PR; then `pnpm
   sandbox:bench` on WB to size the sandbox limits.
+- 02:40 Incident: Alek's first review (WB #282, level 3, by hand) failed at Verify with the raw
+  code `verifier_instructions_missing` after Review spent $0.82. Cause: `instruction_files` on
+  the VPS was empty (`pnpm instructions:import` never ran); only the reviewer has a built-in
+  fallback. Spawned INSTR (`prompts/instr.txt`): readable copy for every stage error code, fail
+  the round before any agent when required files are missing, a warning before "Start review",
+  `deploy/mikrus/import-instructions.sh`.
+- 02:43 On Alek's request: DB backup `/var/backups/pra/before-instructions-import-20261120-0241.dump`,
+  then `pnpm instructions:import --from /var/lib/pra/knowledge-import` (read-only copy of
+  `~/Projects/wb-factory/knowledge`) as `pra`: 25 files as version 1 (24 for workflowbuilder, 1
+  global). A run with no frozen versions reads the active ones, so "Retry from Verify" on #282
+  uses them.
+- 02:55 Alek asked about instruction versions, feature maps and the stage→file mapping. Findings:
+  rollback exists (file → Version history → "Roll back to v{n}…", only for once-active
+  versions); no delete and no "Discard draft" (the prototype had it); feature maps reach only the
+  reviewer as files in its `knowledge/` dir, read only if its prompt says so;
+  `review-levels.json` and `review-profiles.json` are imported but unused (levels live in the DB);
+  the prototype's "Read by" column was dropped without a decision; Settings → Pipeline lists
+  global files only, so after the repository-scoped import it shows Verify etc. as "built in"
+  (wrong). Proposed a follow-up package INSTR-UI after INSTR; waiting for Alek's choice.
+- 03:05 Decision (Alek): the Pipeline side sheet lets him pick each stage's instruction files
+  (dropdown per slot), reversing "read-only pipeline"; instructions and supporting documents are
+  separate kinds. His missing rollback button: his only v2 (feature-map/temporal.md) is an
+  unactivated draft. Package STAGEFILES (`prompts/stagefiles.txt`): file kinds, stage slots with
+  global → repository assignment frozen per run, scope picker in Pipeline (fixes the global-only
+  bug), "Make active" on any version, "Discard draft". Starts after INSTR merges (same files).
+- 03:15 Alek (going to sleep): bigger changes use the 10x workflow (`/10x-plan` →
+  `/10x-plan-review` → `/10x-implement` → `/10x-impl-review`); added to STAGEFILES' prompt and
+  to the state file. Asked for a recommendation file by morning, no code changes: primitives and
+  course knowledge for an "AI Software Factory", then dead code and simplifications. Two research
+  subagents started (courses, app concepts). Night plan in `docs/ORCHESTRATOR-STATE.md`.
