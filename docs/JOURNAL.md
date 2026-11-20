@@ -139,3 +139,10 @@ Times are Europe/Warsaw.
   apart from documents (feature maps etc.), everywhere. Spawned KINDS
   (`prompts/kinds-everywhere.txt`): run details split, every other list of instruction files,
   and a one-line rule in AGENTS.md (Web). Runs in parallel with FORKS (different files).
+- FORKS merged and deployed (42e7a02), CI green: the board hides fork PRs by default
+  (`forks=all` shows every PR, `only` forks only); a "Forks hidden" hint with "Show forks"; the
+  API default is unchanged, the web sends `forks=hide`.
+- KINDS merged and deployed (36c2404), CI green: run details and Insights → Quality show
+  Instructions apart from Documents (documents collapsed above 5), the API returns each frozen
+  file's kind (no migration), kind badge in the editor, rule added to AGENTS.md (Web). Other
+  views checked: they list no files. `kurs` and `wiedza-watch` active.
