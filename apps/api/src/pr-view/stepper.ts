@@ -8,7 +8,7 @@ import {
   type StageStatus,
   type Step,
 } from '@pra/core';
-import type { AgentSession, Run, StageExecution } from '@pra/db';
+import { stageErrorParams, type AgentSession, type Run, type StageExecution } from '@pra/db';
 
 /** Stage rows as core's stepper reads them, with each attempt's session cost. */
 export function stageRows(
@@ -23,6 +23,7 @@ export function stageRows(
       .filter((s) => s.stageExecutionId === stage.id)
       .reduce((sum, s) => sum + s.costUsd, 0),
     errorCode: stage.errorCode,
+    errorParams: stageErrorParams(stage),
     startedAt: stage.startedAt,
     finishedAt: stage.finishedAt,
   }));
@@ -59,6 +60,7 @@ export function runSteps(
     attempt: row.attempt,
     costUsd: row.costUsd,
     errorCode: row.errorCode,
+    ...(row.errorCode && row.errorParams ? { errorParams: row.errorParams } : {}),
     offReason: null,
     startedAt: row.startedAt,
     finishedAt: row.finishedAt,

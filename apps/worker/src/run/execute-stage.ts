@@ -6,6 +6,7 @@ import {
   completeStage,
   failStage,
   invalidRunModel,
+  isStageErrorCode,
   nextStage,
   reason,
   STAGE_ERROR,
@@ -416,7 +417,7 @@ async function runExecutor(
   let graceTimer: NodeJS.Timeout | undefined;
   let cancelTimer: NodeJS.Timeout | undefined;
   let stopListening = () => {};
-  const timeout = { code: 'stage_timeout', params: { stage: input.stage, minutes } };
+  const timeout: StageError = { code: 'stage_timeout', params: { stage: input.stage, minutes } };
 
   const work = executor
     .run({
@@ -467,16 +468,21 @@ async function runExecutor(
   }
 }
 
-/** An integration error's code (`IntegrationError`, `SeedError`, ...), or `stage_error`. */
-function errorOf(error: unknown): StageError {
+/**
+ * An integration error's code (`IntegrationError`, ...) when it is a stage error code (core
+ * `STAGE_ERROR_CODES`, each with copy in the web), or `stage_error` with the thrown code in
+ * `params.code`, so the UI never shows a code it has no words for.
+ */
+export function errorOf(error: unknown): StageError {
   if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
-    const params = 'params' in error && error.params && typeof error.params === 'object';
+    const params =
+      'params' in error && error.params && typeof error.params === 'object'
+        ? (error.params as Record<string, unknown>)
+        : {};
+    if (isStageErrorCode(error.code)) return { code: error.code, params };
     // Node's own errors (ENOENT, ...) carry a code too; only snake_case codes are ours.
     if (/^[a-z][a-z0-9_]*$/.test(error.code)) {
-      return {
-        code: error.code,
-        params: params ? (error.params as Record<string, unknown>) : {},
-      };
+      return { code: 'stage_error', params: { ...params, code: error.code } };
     }
   }
   return { code: 'stage_error', params: {} };

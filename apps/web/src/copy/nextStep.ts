@@ -14,9 +14,15 @@ export interface StepContext {
   actor: (actor: unknown) => string;
   /** A stage key as its name ("Review"). */
   stage: (key: string) => string;
-  /** A failure reason code as words ("the stage ran out of time"). */
-  reason: (code: string) => string;
+  /** A failure reason code as words ("the stage ran out of time"), with its params if any. */
+  reason: (code: string, params?: Record<string, unknown> | null) => string;
 }
+
+/** Params stored with a failure (the missing instruction files), when they are an object. */
+export const failureParams = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 
 type Line = (p: StepParams, c: StepContext) => string;
 
@@ -49,7 +55,7 @@ const banner: Record<string, Line> = {
   state_stage_failed: (p, c) =>
     p.errorCode === 'stage_timeout' && p.timeoutMinutes
       ? `${c.stage(String(p.stage))} stage timed out after ${n(p.timeoutMinutes)} min. This round is not counted`
-      : `Round ${n(p.roundNumber)} failed at ${c.stage(String(p.stage))}: ${c.reason(String(p.errorCode))}. This round is not counted`,
+      : `Round ${n(p.roundNumber)} failed at ${c.stage(String(p.stage))}: ${c.reason(String(p.errorCode), failureParams(p.errorParams))}. This round is not counted`,
   state_new_commits: (p) =>
     `${plural(n(p.count), 'new commit')} since last review (${shortSha(p.reviewedSha)})`,
   state_patch_ready: (p) =>

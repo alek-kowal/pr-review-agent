@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { CircleX, Sparkles } from 'lucide-react';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { SEVERITIES } from '@pra/core';
 import { copy } from '@/copy/index.ts';
+import { isInstructionsReason } from '@/copy/reasons.ts';
 import { ApiError } from '@/lib/api.ts';
 import {
   isActiveStatus,
@@ -116,7 +118,25 @@ function RoundFailed({ round }: { round: RoundView }) {
       className="flex items-start gap-2 rounded-lg border border-bad-line bg-bad-bg px-3 py-2 text-[13px] text-text"
     >
       <CircleX aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-bad" />
-      {copy.round.failedAt(round.number, stageName(error.stage), reasonText(error.code))}
+      <span>
+        {copy.round.failedAt(
+          round.number,
+          stageName(error.stage),
+          reasonText(error.code, error.params),
+        )}
+        {isInstructionsReason(error.code) && (
+          <>
+            {' '}
+            <Link
+              to="/settings/instructions"
+              data-testid="round-failed-instructions"
+              className="font-medium text-brand-text hover:underline"
+            >
+              {copy.openInstructions}
+            </Link>
+          </>
+        )}
+      </span>
     </p>
   );
 }

@@ -55,6 +55,8 @@ export const checks = {
     rules: 'Rules',
     judge: 'Judge',
     judgeSkipped: 'Judge did not run',
+    judgeInstructionsMissing: (files: string) =>
+      `Judge did not run: ${files} missing, so the rules alone set the change type`,
     lines: 'Changed lines',
     needsPerson: 'Needs a person',
     /** P-26: the OpenRouter judge failed and the Claude judge answered. */

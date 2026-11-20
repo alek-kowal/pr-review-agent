@@ -23,6 +23,7 @@ import { opinions } from './opinions.ts';
 import { palette, shortcuts, theme } from './palette.ts';
 import { push } from './push.ts';
 import { questions } from './questions.ts';
+import { INSTRUCTIONS_PLACE, reasons, stageNames } from './reasons.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
 import { status } from './status.ts';
@@ -208,41 +209,11 @@ export const copy = {
         n === null ? 'No findings in this round.' : `No findings in round ${n}.`,
     },
   },
-  stages: {
-    checks: 'Checks',
-    task: 'Task',
-    change_type: 'Change type',
-    review: 'Review',
-    verify: 'Verify',
-    fix_diff: 'Fix diff',
-    check_fixes: 'Check fixes',
-    reproductions: 'Reproductions',
-    worktree: 'Worktree',
-    implement: 'Implement',
-  } as Record<string, string>,
+  stages: stageNames,
   /** Why something failed, by reason code; the sentence reads after "failed at <stage>:". */
-  reasons: {
-    model_access_not_configured: 'model access is not configured',
-    stage_not_available: 'this stage is not available yet',
-    stage_timeout: 'the stage ran out of time',
-    analyst_instructions_missing: 'the analyst prompt or rules file is missing',
-    analyst_output_invalid: 'the analyst answered in a shape it may not use',
-    model_invalid: 'a model name in Settings → Models or Review levels is not valid',
-    interrupted: 'the app restarted while it ran',
-    interrupted_by_restart: 'the app restarted while it ran',
-    stage_error: 'an unexpected error stopped it',
-    cancelled: 'it was cancelled',
-    review_output_invalid: "the reviewer's answer was not valid",
-    github_not_configured: 'GitHub is not configured',
-    github_read_only: 'read-only: the GitHub App is not connected',
-    github_rate_limited: 'GitHub’s rate limit is used up',
-    fork_read_only: 'off for forks',
-    implement_below_level: 'needs a higher level',
-    no_implement_decisions: 'no finding is decided Implement',
-    implementer_instructions_missing: 'the implementer prompt or rules file is missing',
-    implementer_request_missing: 'the implementer run has no findings to fix',
-    implement_output_missing: 'the Implement stage left no result',
-  } as Record<string, string>,
+  reasons,
+  /** The error views' link to where missing instruction files are added. */
+  openInstructions: `Open ${INSTRUCTIONS_PLACE}`,
   unknownReason: (code: string) => `error ${code}`,
   errors: {
     network_error: 'The app cannot reach its server. Check that the api is running.',

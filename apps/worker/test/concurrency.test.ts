@@ -73,7 +73,11 @@ describe('a worker with stage concurrency 3 and one sandbox', () => {
         signal,
       });
       stages.active -= 1;
-      return { status: 'failed', error: { code: 'test_stage_done', params: {} }, sessions: [] };
+      return {
+        status: 'failed',
+        error: { code: 'stage_error', params: { test: 'stage_done' } },
+        sessions: [],
+      };
     },
   };
 

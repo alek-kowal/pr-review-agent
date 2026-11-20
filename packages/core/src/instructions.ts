@@ -1,7 +1,8 @@
 // Instruction files by scope (S-22, FR-003, FR-079): which version of each file a run reads.
 import './reasons/instructions.ts';
+import { FEATURE_ON_FROM, STAGE_ON_FROM } from './levels.ts';
 import { reason, type Reason } from './reason.ts';
-import type { LevelNumber } from './vocabulary.ts';
+import { LEVEL_NUMBERS, type LevelNumber } from './vocabulary.ts';
 
 /** Global files apply everywhere, a repository copy in one repository, a level copy at a level. */
 export const INSTRUCTION_SCOPES = ['global', 'repository', 'level'] as const;
@@ -240,6 +241,76 @@ export function diffSummary(lines: readonly DiffLine[]): { added: number; remove
     added: lines.filter((l) => l.kind === 'added').length,
     removed: lines.filter((l) => l.kind === 'removed').length,
   };
+}
+
+/**
+ * Instruction files a stage cannot run without (INSTR): a missing or empty one fails the stage, so
+ * a run checks them before its first stage. The reviewer's prompt has a built-in fallback
+ * (`BUILT_IN_REVIEWER_PROMPT`) and the judge is skipped without its files, so neither is listed.
+ */
+export const REQUIRED_INSTRUCTION_FILES = {
+  verify: ['prompt-verifier.md', 'verify-rules.md'],
+  implement: ['prompt-implementer.md', 'implement-rules.md'],
+  analyse: ['prompt-analyst.md', 'analyst-rules.md'],
+} as const satisfies Readonly<Record<string, readonly string[]>>;
+export type InstructionStage = keyof typeof REQUIRED_INSTRUCTION_FILES;
+
+const INSTRUCTION_STAGES = Object.keys(REQUIRED_INSTRUCTION_FILES) as InstructionStage[];
+
+export const isInstructionStage = (stage: string): stage is InstructionStage =>
+  (INSTRUCTION_STAGES as string[]).includes(stage);
+
+/** One stage's required files that are missing or empty. */
+export interface InstructionGap {
+  stage: InstructionStage;
+  missing: string[];
+}
+
+/** The required files of `stages` that `files` lacks or holds empty, in `stages` order. */
+export function missingInstructions(
+  files: ReadonlyMap<string, string>,
+  stages: readonly string[],
+): InstructionGap[] {
+  const gaps: InstructionGap[] = [];
+  for (const stage of stages) {
+    if (!isInstructionStage(stage)) continue;
+    const missing = REQUIRED_INSTRUCTION_FILES[stage].filter((key) => !files.get(key)?.trim());
+    if (missing.length) gaps.push({ stage, missing });
+  }
+  return gaps;
+}
+
+/** The stages with required files that run at a level: Verify in its rounds, then the features. */
+export function instructionStagesAt(level: LevelNumber): InstructionStage[] {
+  const from: Record<InstructionStage, LevelNumber> = {
+    verify: STAGE_ON_FROM.verify,
+    implement: FEATURE_ON_FROM.implement,
+    analyse: FEATURE_ON_FROM.learning,
+  };
+  return INSTRUCTION_STAGES.filter((stage) => level >= from[stage]);
+}
+
+/** A gap at one level of one repository. */
+export interface LevelInstructionGap extends InstructionGap {
+  level: LevelNumber;
+}
+
+/**
+ * Per level, the required files a run of this repository would miss, from the active versions
+ * (`layers`, as `resolveInstructions` reads them). Empty when nothing is missing.
+ */
+export function instructionGaps(
+  layers: readonly InstructionLayer[],
+  repositoryId: number,
+): LevelInstructionGap[] {
+  return LEVEL_NUMBERS.flatMap((level) => {
+    const { files } = resolveInstructions(layers, { repositoryId, level });
+    const byKey = new Map(files.map((f) => [f.fileKey, f.content]));
+    return missingInstructions(byKey, instructionStagesAt(level)).map((gap) => ({
+      ...gap,
+      level,
+    }));
+  });
 }
 
 /**

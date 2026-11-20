@@ -19,6 +19,7 @@ declare module '../reason.ts' {
     state_stage_failed: {
       stage: string;
       errorCode: string;
+      errorParams?: Record<string, unknown>;
       timeoutMinutes: number | null;
       roundNumber: number;
     };

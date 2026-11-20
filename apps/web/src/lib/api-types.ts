@@ -33,6 +33,8 @@ export type StageView = {
   offReason: ReasonView | null;
   offSteps: OffStepView[];
   errorCode: string | null;
+  /** The error's params (the missing files of an instructions error); null without an error. */
+  errorParams?: Record<string, unknown> | null;
   startedAt: string | null;
   finishedAt: string | null;
 };
@@ -49,7 +51,7 @@ export type RoundView = {
   finishedAt: string | null;
   costUsd: number;
   stages: StageView[];
-  error: { stage: string; code: string } | null;
+  error: { stage: string; code: string; params?: Record<string, unknown> } | null;
 };
 
 export type PullRequestView = {
@@ -102,6 +104,7 @@ export type RoundStepView = {
   /** Every attempt of the stage. */
   costUsd: number;
   errorCode: string | null;
+  errorParams?: Record<string, unknown> | null;
   offReason: ReasonView | null;
   offSteps: OffStepView[];
   startedAt: string | null;
@@ -711,6 +714,7 @@ export type RunStageView = {
   /** Every attempt of the stage. */
   costUsd: number;
   errorCode: string | null;
+  errorParams?: Record<string, unknown> | null;
   offReason: ReasonView | null;
   offSteps: OffStepView[];
   startedAt: string | null;
@@ -750,7 +754,7 @@ export type RunDetail = {
       level?: number | null;
       fileId?: number | null;
     }[];
-    error: { stage: string; code: string } | null;
+    error: { stage: string; code: string; params?: Record<string, unknown> } | null;
     /** The model of every role, frozen when the run was created. */
     models: ModelChoiceView[];
     /** The failed run this run retries, with its cost up to the failure. */

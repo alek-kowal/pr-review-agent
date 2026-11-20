@@ -4,7 +4,7 @@
 // and asks the analyst for at most 5 lesson candidates. The run hook (`run/learning-hooks.ts`)
 // merges them into the candidates when the run completes.
 import { analystRequest, type AnalystCandidate, type AnalystInput } from '@pra/agents';
-import { buildCases, runModel } from '@pra/core';
+import { buildCases, missingInstructions, REQUIRED_INSTRUCTION_FILES, runModel } from '@pra/core';
 import {
   answersOfPullRequest,
   currentDecisions,
@@ -17,8 +17,7 @@ import {
 import { stageInstructions } from './instructions.ts';
 import type { StageContext, StageExecutor, StageResult } from './stage.ts';
 
-export const ANALYST_PROMPT_FILE = 'prompt-analyst.md';
-export const ANALYST_RULES_FILE = 'analyst-rules.md';
+export const [ANALYST_PROMPT_FILE, ANALYST_RULES_FILE] = REQUIRED_INSTRUCTION_FILES.analyse;
 export const LESSONS_FILE = 'lessons.md';
 
 /** The Analyse stage's stored output; the run hook reads `candidates`. */
@@ -41,9 +40,7 @@ async function runAnalyse(context: StageContext): Promise<StageResult> {
   const prompt = instructions.get(ANALYST_PROMPT_FILE)?.trim();
   const rules = instructions.get(ANALYST_RULES_FILE)?.trim();
   if (!prompt || !rules) {
-    const missing = [ANALYST_PROMPT_FILE, ANALYST_RULES_FILE].filter(
-      (key) => !instructions.get(key),
-    );
+    const missing = missingInstructions(instructions, ['analyse'])[0]?.missing ?? [];
     return {
       status: 'failed',
       error: { code: 'analyst_instructions_missing', params: { missing } },

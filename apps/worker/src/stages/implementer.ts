@@ -9,7 +9,15 @@ import {
   type AgentRunResult,
   type ImplementerFinding,
 } from '@pra/agents';
-import { REPRO_EXIT, runModel, runPolicy, type PatchReproduction } from '@pra/core';
+import {
+  missingInstructions,
+  REPRO_EXIT,
+  REQUIRED_INSTRUCTION_FILES,
+  runModel,
+  runPolicy,
+  type PatchReproduction,
+  type StageErrorCode,
+} from '@pra/core';
 import {
   answersOfPullRequest,
   getPatch,
@@ -28,8 +36,8 @@ import type { SessionRecord, StageContext, StageExecutor, StageResult } from './
 import { keepRun, reproduce } from './verify.ts';
 import { runWorktree } from './worktree.ts';
 
-export const IMPLEMENTER_PROMPT_FILE = 'prompt-implementer.md';
-export const IMPLEMENTER_RULES_FILE = 'implement-rules.md';
+export const [IMPLEMENTER_PROMPT_FILE, IMPLEMENTER_RULES_FILE] =
+  REQUIRED_INSTRUCTION_FILES.implement;
 export const IMPLEMENT_MAX_TURNS = 80;
 export const IMPLEMENT_MAX_COST_USD = 5;
 
@@ -49,7 +57,7 @@ export type ReproductionsOutput = {
 };
 
 const failed = (
-  code: string,
+  code: StageErrorCode,
   params: Record<string, unknown> = {},
   sessions: SessionRecord[] = [],
 ) => ({ status: 'failed', error: { code, params }, sessions }) satisfies StageResult;
@@ -201,9 +209,7 @@ export const implementStage: StageExecutor = {
     const prompt = instructions.get(IMPLEMENTER_PROMPT_FILE)?.trim();
     const rules = instructions.get(IMPLEMENTER_RULES_FILE)?.trim();
     if (!prompt || !rules) {
-      const missing = [IMPLEMENTER_PROMPT_FILE, IMPLEMENTER_RULES_FILE].filter(
-        (key) => !instructions.get(key)?.trim(),
-      );
+      const missing = missingInstructions(instructions, ['implement'])[0]?.missing ?? [];
       return failed('implementer_instructions_missing', { missing });
     }
     const worktree = await baseWorktree(context, request);

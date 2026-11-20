@@ -132,7 +132,11 @@ describe('retry a failed round', () => {
 
     const failedDetail = await runDetail(failed.id);
     expect(failedDetail.run.retriedBy).toMatchObject({ id: run.id, status: 'queued' });
-    expect(failedDetail.run.error).toEqual({ stage: 'review', code: 'stage_timeout' });
+    expect(failedDetail.run.error).toEqual({
+      stage: 'review',
+      code: 'stage_timeout',
+      params: {},
+    });
   });
 
   test('the PR banner offers no second retry while the retry is active', async () => {

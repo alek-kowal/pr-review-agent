@@ -12,6 +12,8 @@ export interface StageRow {
   /** Sum of the attempt's agent sessions. */
   costUsd: number;
   errorCode: string | null;
+  /** The error's params, as the worker stored them (the files of an instructions error). */
+  errorParams?: Record<string, unknown> | null;
   startedAt: Date | null;
   finishedAt: Date | null;
   /** Why the stage is off, as the worker stored it. */
@@ -28,6 +30,8 @@ export interface Step {
   /** The latest attempt; null before the stage first starts. */
   attempt: number | null;
   errorCode: string | null;
+  /** Set with `errorCode` when the worker stored params. */
+  errorParams?: Record<string, unknown>;
   offReason: Reason | null;
   startedAt: Date | null;
   finishedAt: Date | null;
@@ -87,6 +91,7 @@ export function stepperModel(
       costUsd,
       attempt: latest?.attempt ?? null,
       errorCode: latest?.errorCode ?? null,
+      ...(latest?.errorCode && latest.errorParams ? { errorParams: latest.errorParams } : {}),
       offReason: null,
       startedAt: latest?.startedAt ?? null,
       finishedAt: latest?.finishedAt ?? null,

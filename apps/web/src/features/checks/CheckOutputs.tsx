@@ -1,11 +1,21 @@
 // S-04-T6: Run detail's view of the Checks and Change type stage outputs.
 import { copy } from '@/copy/index.ts';
+import { andList } from '@/copy/reasons.ts';
 import { isRecord, str } from '@/features/runs/output-values.ts';
 import { GenericOutput, Kv } from '@/features/runs/StageOutputs.tsx';
 import type { StageOutputProps } from '@/features/runs/stage-outputs.ts';
 import { judgeFallbackText } from './judge-fallback.ts';
 
 const num = (value: unknown): number => (typeof value === 'number' ? value : 0);
+
+/** Why the judge did not run; its missing instruction files by name. */
+function judgeSkippedText(skipped: Record<string, unknown>): string {
+  const params = isRecord(skipped.params) ? skipped.params : {};
+  const missing = Array.isArray(params.missing) ? params.missing.map(String) : [];
+  return skipped.code === 'judge_instructions_missing' && missing.length
+    ? copy.checks.output.judgeInstructionsMissing(andList(missing))
+    : copy.checks.output.judgeSkipped;
+}
 
 /** The Checks stage: CI counts on the round's head and the install result. */
 export function ChecksOutput({ output }: StageOutputProps) {
@@ -63,7 +73,7 @@ export function ChangeTypeOutput({ output }: StageOutputProps) {
       </>,
     ]);
   } else if (isRecord(output.judgeSkipped)) {
-    rows.push([t.output.judge, t.output.judgeSkipped]);
+    rows.push([t.output.judge, judgeSkippedText(output.judgeSkipped)]);
   }
   const fallback = judgeFallbackText(output);
   if (fallback) rows.push([t.output.judgeFallback, fallback]);

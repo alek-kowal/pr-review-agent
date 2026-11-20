@@ -1,7 +1,7 @@
 // What a stage executor gets and returns. The `run.stage` handler (src/run/execute-stage.ts)
 // writes the result; executors only read and compute.
 import type { AgentRunResult, FixStatus } from '@pra/agents';
-import type { AgentRole, FrozenLevel, Severity } from '@pra/core';
+import type { AgentRole, FrozenLevel, Severity, StageErrorCode } from '@pra/core';
 import type { PullRequest, Repository, Run } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
 
@@ -43,7 +43,8 @@ export type StageQuestion = {
   why: string | null;
 };
 
-export type StageError = { code: string; params: Record<string, unknown> };
+/** A code from core `STAGE_ERROR_CODES` only: the web has copy for each of them. */
+export type StageError = { code: StageErrorCode; params: Record<string, unknown> };
 
 export type StageResult =
   | {
