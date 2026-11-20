@@ -120,3 +120,8 @@ Times are Europe/Warsaw.
   4 unread DB columns, 9 duplicate concepts, 10 simplifications (~1,500 lines), 10 small packages
   in order. Top item: generate the web's API types from the Zod schemas. Open choice for Alek:
   `POST /api/instructions/:id/copies` has no button. Night plan done; file committed.
+- (later, 20 Nov) Alek, via the side-questions session: the PR timeline said "Alert posted as a
+  ClickUp comment" on #282 although nothing was sent (`alert_raised` is written in
+  `evaluate.ts` before delivery; the alert was `not_configured`). Spawned ALERTTL
+  (`prompts/alert-timeline.txt`): neutral "Alert raised" entry, a delivery entry only after the
+  attempt with a specific reason or retry status, old entries stop saying "posted".
