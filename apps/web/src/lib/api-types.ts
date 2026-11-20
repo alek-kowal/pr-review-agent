@@ -644,6 +644,8 @@ export type GitHubPoller = {
   windowOpen: boolean;
   lastStartedAt: string | null;
   lastFinishedAt: string | null;
+  /** A poll holds the lease now. */
+  running: boolean;
   nextPollAt: string;
   lastError: ReasonView | null;
   backoffUntil: string | null;

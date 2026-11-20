@@ -192,6 +192,7 @@ describe('Settings → Integrations without the GitHub App', () => {
     windowOpen: true,
     lastStartedAt: '2026-11-19T08:00:00.000Z',
     lastFinishedAt: '2026-11-19T08:00:02.000Z',
+    running: false,
     nextPollAt: '2026-11-19T08:05:00.000Z',
     lastError: null,
     backoffUntil: null,

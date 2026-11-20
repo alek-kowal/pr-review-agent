@@ -243,3 +243,29 @@ test('connect after a deploy: the router reloads for the list, and nothing asks 
   expect(refused).toBe(true);
   expect(dialogs).toEqual([]);
 });
+
+test('the board refreshes from GitHub without the App and says when; with the App it has no button', async ({
+  page,
+}) => {
+  const lastFinished = async () =>
+    (
+      await sql<{ at: Date | null }>(
+        'select last_finished_at as at from github_poller where id = 1',
+        [],
+      )
+    )[0]?.at?.getTime() ?? 0;
+  await useGitHubMode('token');
+  await page.goto('/prs');
+  const refresh = page.getByRole('group', { name: 'GitHub refresh' });
+  const before = await lastFinished();
+
+  await refresh.getByRole('button', { name: 'Refresh from GitHub' }).click();
+  await expect(refresh).toContainText('Updated just now', { timeout: 30_000 });
+  await expect(refresh.getByRole('button', { name: 'Refresh from GitHub' })).toBeEnabled();
+  expect(await lastFinished()).toBeGreaterThan(before);
+
+  await rm(modeFile(), { force: true });
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Pull requests', level: 1 })).toBeVisible();
+  await expect(refresh).toHaveCount(0);
+});

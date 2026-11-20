@@ -54,3 +54,18 @@ the same form as the connect page, which explains "back on the connect page" aft
   chunk once with a 404, as after a deploy; with the old code it records `beforeunload`.
 - **Not done here (deploy):** keeping the previous release's `/assets` reachable for a while would
   avoid the reload after a deploy. It is harmless now, so it stays a possible follow-up.
+
+## Board: Refresh from GitHub
+
+- **Only without the App** (`useGitHubReadOnly`), in the board header's right corner:
+  "Updated <n> min ago" (the last poll's end, as of the last fetch, like the cards' ages), the
+  button, and the last poll's error as one line (`pollErrorText`, shared with Integrations).
+- **Data from `GET /api/settings/integrations`**, as Settings → Integrations reads it; in token mode
+  it makes no GitHub request. Refetched each minute, every 2 s while busy. No new endpoint, no
+  migration (`github_poller` has no live trigger).
+- **The API gains `poller.running`** (the lease is held now). Timestamps alone would read a crashed
+  poll as running until the next one; a lease runs out.
+- **Busy** while Poll now is in flight, while a poll holds the lease, and after a click until
+  `lastFinishedAt` differs from the one seen at the click (no clock comparison between browser
+  and server). That wait ends during a rate-limit backoff (the poll would not start) and after
+  60 s in any case.
