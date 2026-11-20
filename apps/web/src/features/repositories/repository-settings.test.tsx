@@ -70,6 +70,26 @@ afterEach(() => {
 const callsTo = (calls: FetchCall[], method: string, path: string) =>
   calls.filter((call) => call.method === method && call.path === path);
 
+/** Whether the connect was posted yet; stubbed answers after it see the repository connected. */
+const connectedYet = (calls: FetchCall[]) =>
+  callsTo(calls, 'POST', '/api/settings/repositories').length > 0;
+
+/**
+ * CONNECT: a connect lands on the list with the new repository and a short notice. Nothing asks
+ * first: a leave guard still up would block the way there with its dialog.
+ */
+async function expectListAfterConnect(
+  router: ReturnType<typeof renderApp>['router'],
+  fullName: string,
+) {
+  await waitFor(() => expect(router.state.location.pathname).toBe('/settings/repositories'));
+  const table = await screen.findByRole('table', { name: t.tableLabel });
+  expect(await within(table).findByRole('link', { name: fullName })).toBeInTheDocument();
+  expect(await screen.findByText(t.connectPage.connected(fullName))).toBeInTheDocument();
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  expect(screen.queryByText(t.connectPage.alreadyConnected(fullName))).not.toBeInTheDocument();
+}
+
 describe('Settings → Repositories', () => {
   test('lists the connected repositories with level, ClickUp and sensitive files', async () => {
     stubFetch({ '/api/settings/repositories': list() });
@@ -116,7 +136,7 @@ describe('Settings → Repositories', () => {
     expect(screen.getByRole('table', { name: t.tableLabel })).toBeInTheDocument();
   });
 
-  test('connecting posts every field, signed, and opens the new repository', async () => {
+  test('connecting posts every field, signed, and lands on the list with it', async () => {
     const second: ConnectedRepository = {
       id: 2,
       slug: 'second-repo',
@@ -125,10 +145,12 @@ describe('Settings → Repositories', () => {
       config: { ...wbConfig, slug: 'second-repo', githubFullName: 'acme/second-repo' },
     };
     const { calls } = stubFetch({
-      '/api/settings/repositories': list(),
+      // After the connect the App's list has it connected, no longer available.
+      get '/api/settings/repositories'() {
+        return connectedYet(calls) ? list({ repositories: [wb, second], available: [] }) : list();
+      },
       '/api/team': { members: [tomek] },
       'POST /api/settings/repositories': { status: 201, body: { repository: second } },
-      '/api/settings/repositories/2': { repository: second },
     });
     const { router } = renderApp('/settings/repositories');
     const user = userEvent.setup();
@@ -151,7 +173,7 @@ describe('Settings → Repositories', () => {
     );
     await user.click(within(dialog).getByRole('button', { name: t.connectPage.confirm }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/repositories/2'));
+    await expectListAfterConnect(router, 'acme/second-repo');
     const [post] = callsTo(calls, 'POST', '/api/settings/repositories');
     expect(post?.body).toEqual({
       fullName: 'acme/second-repo',
@@ -184,18 +206,29 @@ describe('Settings → Repositories without the GitHub App', () => {
       installationId: null,
       config: { ...wbConfig, slug: 'public-repo', githubFullName: 'acme/public-repo' },
     };
+    const availableError = {
+      code: 'github_not_configured',
+      params: { missing: ['GITHUB_APP_ID'] },
+    };
     const { calls } = stubFetch({
       '/api/status': aStatus({ githubMode: 'anonymous' }),
-      '/api/settings/repositories': list({
-        available: [],
-        availableError: { code: 'github_not_configured', params: { missing: ['GITHUB_APP_ID'] } },
-      }),
-      [lookupPath('acme/public-repo')]: {
-        repository: { fullName: 'acme/public-repo', defaultBranch: 'trunk', private: false },
+      get '/api/settings/repositories'() {
+        return list({
+          repositories: connectedYet(calls) ? [wb, polled] : [wb],
+          available: [],
+          availableError,
+        });
+      },
+      // Once connected, a lookup would say so: the page must not ask again and show it.
+      get [lookupPath('acme/public-repo')]() {
+        return connectedYet(calls)
+          ? { status: 409, body: { error: { code: 'repository_already_connected', params: {} } } }
+          : {
+              repository: { fullName: 'acme/public-repo', defaultBranch: 'trunk', private: false },
+            };
       },
       '/api/team': { members: [tomek] },
       'POST /api/settings/repositories': { status: 201, body: { repository: polled } },
-      '/api/settings/repositories/3': { repository: polled },
     });
     const { router } = renderApp('/settings/repositories');
     const user = userEvent.setup();
@@ -223,7 +256,7 @@ describe('Settings → Repositories without the GitHub App', () => {
     );
     await user.click(within(dialog).getByRole('button', { name: t.connectPage.confirm }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/repositories/3'));
+    await expectListAfterConnect(router, 'acme/public-repo');
     const [post] = callsTo(calls, 'POST', '/api/settings/repositories');
     expect(post?.body).toMatchObject({
       fullName: 'acme/public-repo',

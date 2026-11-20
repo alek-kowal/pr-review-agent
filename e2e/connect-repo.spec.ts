@@ -67,8 +67,10 @@ async function connectSecondRepository(page: Page): Promise<void> {
   await expect(dialog.getByRole('row', { name: /Use ClickUp/ })).toContainText('Off');
   await sign(page, dialog);
   await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/repositories\/\d+$/);
-  await expect(page.getByRole('heading', { name: SECOND, level: 1 })).toBeVisible();
+  // CONNECT: back on the list, with the new repository and a short notice.
+  await expect(page).toHaveURL(/\/settings\/repositories$/);
+  await expect(table.getByRole('link', { name: SECOND, exact: true })).toBeVisible();
+  await expect(page.getByText(`${SECOND} is connected.`)).toBeVisible();
 }
 
 test('a second repository connected in Settings gets its own rounds', async ({

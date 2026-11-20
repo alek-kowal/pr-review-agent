@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { copy } from '@/copy/index.ts';
 import { SettingsPage } from '@/features/settings/SettingsPage.tsx';
 import { useGitHubMode } from '@/features/shell/status-query.ts';
@@ -21,7 +22,7 @@ type Found = { pending: true } | { pending: false; target: Target | null; proble
 
 /**
  * Connect a repository: one the GitHub App can reach, or, without the App (P-28), one GitHub
- * shows by name (its default branch prefilled). Its settings, then one signed save.
+ * shows by name (its default branch prefilled). Its settings, then one signed save, then the list.
  */
 export function ConnectRepositoryPage({ fullName }: { fullName: string }) {
   const mode = useGitHubMode();
@@ -30,6 +31,14 @@ export function ConnectRepositoryPage({ fullName }: { fullName: string }) {
   const lookup = useQuery({ ...repositoryLookupQuery(fullName), enabled: byName });
   const change = useRepositoryChange();
   const navigate = useNavigate();
+  // CONNECT: once connected, nothing on the page is unsaved. The form and its save bar unmount
+  // first, which takes their leave guard away; only then does the page go to the list. Leaving
+  // with the guard still up made the browser ask "Reload site?" when the next page's code had to
+  // be fetched again after a deploy (the router reloads the page for a missing route chunk).
+  const [connected, setConnected] = useState(false);
+  useEffect(() => {
+    if (connected) void navigate({ to: '/settings/repositories' });
+  }, [connected, navigate]);
 
   const found: Found = useMemo(() => {
     if (mode === undefined) return { pending: true };
@@ -74,7 +83,13 @@ export function ConnectRepositoryPage({ fullName }: { fullName: string }) {
       title={t.connectPage.title(fullName)}
       affects={byName ? t.connectPage.polledAffects(fullName) : t.connectPage.affects(fullName)}
     >
-      {found.pending ? (
+      {connected ? (
+        // The answers after the connect (the App's list no longer offers it, a lookup would say
+        // "already connected") must not show here while the list opens.
+        <p role="status" className="text-text-3">
+          {t.connectPage.opening}
+        </p>
+      ) : found.pending ? (
         <p className="text-text-3">{byName ? t.connectPage.checking(fullName) : t.loading}</p>
       ) : !target || !saved ? (
         <p role="alert" data-work-start className="text-bad">
@@ -97,11 +112,8 @@ export function ConnectRepositoryPage({ fullName }: { fullName: string }) {
               config,
               signedBy,
             });
-            await navigate({
-              to: '/settings/repositories/$id',
-              params: { id: String(repository.id) },
-              ignoreBlocker: true,
-            });
+            toast.success(t.connectPage.connected(repository.githubFullName));
+            setConnected(true);
           }}
         />
       )}
