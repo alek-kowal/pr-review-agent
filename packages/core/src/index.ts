@@ -31,6 +31,7 @@ export * from './stepper.ts';
 export * from './time-summary.ts';
 export * from './metrics.ts';
 export * from './instructions.ts';
+export * from './stage-files.ts';
 export * from './trial.ts';
 export * from './usually-decides.ts';
 export * from './finding-match.ts';

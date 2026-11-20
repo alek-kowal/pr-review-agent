@@ -43,6 +43,7 @@ export const audit = {
     budget: 'Budget',
     alerts: 'Alerts',
     instructions: 'Instructions',
+    stage_files: 'Stage files',
     experiments: 'Experiments',
     learning: 'Learning',
   } as Record<string, string>,

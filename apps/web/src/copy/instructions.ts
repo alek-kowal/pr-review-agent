@@ -11,17 +11,68 @@ export const instructions = {
   gaps: {
     title: 'Missing instruction files',
     hint: 'Rounds at these levels stop before their first stage, before any agent runs. Add the files below, or import them with pnpm instructions:import.',
+    repository: (slug: string) => `Repository · ${slug}`,
     /** "Level 3: Verify: …", "Levels 3, 4 and 5: Verify: … is missing". */
     line: (levels: readonly number[], stage: string, missing: readonly string[]) =>
       `${levels.length === 1 ? 'Level' : 'Levels'} ${andList(levels.map(String))}: ${instructionGapText(stage, missing)}`,
   },
-  groups: {
+  sections: {
+    instruction: {
+      title: 'Instructions',
+      hint: 'Prompts and rules: how a stage works. Pick which ones a stage reads in Settings → Pipeline.',
+    },
+    document: {
+      title: 'Documents',
+      hint: 'Reference material a stage reads: feature maps, lessons, notes about a repository.',
+    },
+  } as Record<string, { title: string; hint: string }>,
+  sectionLabel: (section: string) => `${section} files`,
+  sectionEmpty: 'No file here yet.',
+  columns: { file: 'File', scope: 'Scope', readBy: 'Read by', active: 'Active', draft: 'Draft' },
+  scope: {
     global: 'Global',
-    repository: (slug: string) => `Repository · ${slug}`,
+    repository: (slug: string) => slug,
     level: (level: number) => `Level ${level} copy · ${levelNames[level] ?? ''}`,
   },
-  groupLabel: (group: string) => `${group} files`,
-  columns: { file: 'File', active: 'Active', draft: 'Draft', note: 'Note' },
+  /** "Verify", or "Verify (repo)" for a repository's own choice. */
+  readBy: (stage: string, repository: string | null) =>
+    repository ? `${stage} (${repository})` : stage,
+  notUsed: 'Not used by any stage',
+  showUnused: (n: number) => `Not used by any stage (${n})`,
+  hideUnused: 'Hide files no stage reads',
+  /** One line on what a known file is for, modelled on the prototype. */
+  about: {
+    'review-rules.md': 'What the reviewer reports and how.',
+    'verify-rules.md': 'How a finding is confirmed or refuted.',
+    'implement-rules.md': 'How fixes are written.',
+    'classify-rules.md': 'How the change type is chosen.',
+    'analyst-rules.md': 'How lessons are proposed after a PR closes.',
+    'lessons.md': 'Accepted lessons. The reviewer and the analyst read them.',
+    'lessons-candidates.md': 'Lessons proposed but not accepted yet.',
+    'repo-knowledge.md': 'What the reviewer should know about this repository.',
+    'review-levels.json': 'Old review level table. No stage reads it.',
+    'review-profiles.json': 'Old review profiles. No stage reads it.',
+  } as Record<string, string>,
+  aboutFeatureMap: 'A map of one part of the code, for the reviewer.',
+  aboutPrompt: (role: string) => `The ${role} prompt: its task and its output.`,
+  newFile: {
+    open: 'New file',
+    title: 'New instruction file',
+    description:
+      'Version 1 starts as a draft. It changes nothing until you make it active and a stage reads it.',
+    key: 'File name',
+    keyHint: 'For example verify-strict-rules.md or feature-map/billing.md.',
+    kind: 'Kind',
+    kinds: { instruction: 'Instruction (prompt or rules)', document: 'Document (reference)' },
+    scope: 'Scope',
+    global: 'Global',
+    content: 'First version',
+    note: 'Note',
+    create: 'Create draft',
+    creating: 'Creating…',
+    cancel: 'Cancel',
+    close: 'Close',
+  },
   version: (n: number) => `v${n}`,
   none: '—',
   back: 'All instructions',
@@ -38,6 +89,9 @@ export const instructions = {
     saveDraft: 'Save as draft',
     savingDraft: 'Saving…',
     draftSaved: 'Draft saved. It changes nothing until it is activated.',
+    discardDraft: 'Discard draft',
+    discarding: 'Discarding…',
+    draftDiscarded: 'Draft discarded.',
     tryOnPr: 'Try on a PR…',
     activate: (n: number) => `Activate version ${n}…`,
     editingDraft: (n: number) => `Editing draft version ${n}`,
@@ -51,18 +105,17 @@ export const instructions = {
     removed: 'Removed',
   },
   activateDialog: {
-    title: (n: number) => `Activate version ${n}?`,
-    rollbackTitle: (n: number) => `Roll back to version ${n}?`,
+    title: (n: number) => `Make version ${n} active?`,
     description:
       'Runs that start after this read the new version. Running rounds keep the version they started with.',
     file: 'File',
     activeVersion: 'Active version',
     lines: 'Lines',
-    confirm: 'Activate',
-    rollbackConfirm: 'Roll back',
+    confirm: 'Make active',
   },
   history: {
     title: 'Version history',
+    hint: 'A draft or an older version changes nothing until you make it active.',
     tableLabel: 'Versions',
     columns: {
       version: 'Version',
@@ -81,6 +134,6 @@ export const instructions = {
     noRuns: 'No run yet',
     run: (repo: string, pr: number, runId: number) => `${repo} #${pr} · run ${runId}`,
     moreRuns: (n: number) => `and ${n} more`,
-    rollback: (n: number) => `Roll back to v${n}…`,
+    makeActive: (n: number) => `Make v${n} active…`,
   },
 };

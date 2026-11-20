@@ -158,6 +158,9 @@ export const runs = {
     instructionVersions: 'Instruction versions',
     instructionVersionsHint: 'Frozen when the round starts.',
     noInstructionVersions: 'No instruction files were recorded for this run.',
+    /** The stages that read a frozen file (STAGEFILES). */
+    readBy: (stages: readonly string[]) =>
+      stages.length === 0 ? 'Read by no stage' : `Read by ${stages.join(', ')}`,
     instructionVersion: (scope: string, version: number, level?: number | null) =>
       scope === 'global'
         ? `v${version}`

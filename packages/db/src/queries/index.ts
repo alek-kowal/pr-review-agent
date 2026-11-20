@@ -4,6 +4,7 @@ export * from './github-events.ts';
 export * from './github-poll.ts';
 export * from './app-settings.ts';
 export * from './instructions.ts';
+export * from './stage-files.ts';
 export * from './runs.ts';
 export * from './pr-views.ts';
 export * from './run-engine.ts';

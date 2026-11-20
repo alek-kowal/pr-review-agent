@@ -4,11 +4,13 @@ import {
   closeDb,
   createDb,
   freezeRunInstructions,
+  getInstructionVersion,
   importInstructionV1,
   insertRun,
   listSettingsChanges,
   upsertPullRequest,
   upsertRepository,
+  writeStageFileChoice,
   type Repository,
 } from '@pra/db';
 import { aPullRequest, aRun, seedTeamMember, testDatabaseUrl, uniqueId } from '@pra/db/testing';
@@ -52,8 +54,14 @@ beforeEach(async () => {
   app = await build({ db });
 });
 
-const send = (method: 'POST' | 'PUT', url: string, payload: object) =>
-  app.inject({ method, url, headers: SAME_ORIGIN, payload });
+const send = (method: 'POST' | 'PUT' | 'DELETE', url: string, payload?: object) =>
+  app.inject({ method, url, headers: SAME_ORIGIN, ...(payload && { payload }) });
+
+const getDetail = async (id: number) =>
+  detailOf((await app.inject({ method: 'GET', url: `/api/instructions/${id}` })).json());
+
+const statuses = (detail: ReturnType<typeof detailOf>) =>
+  detail.versions.map((v) => [v.version, v.status]);
 
 const saveDraft = (content = 'one\nthree\n', note: string | null = 'Sharper rule') =>
   send('PUT', `/api/instructions/${fileId}/draft`, { content, note });
@@ -99,6 +107,26 @@ describe('GET /api/instructions', () => {
     expect(verify?.[0]?.missing).toEqual(['prompt-verifier.md', 'verify-rules.md']);
   });
 
+  test("gaps follow the repository's stage files (STAGEFILES)", async () => {
+    // The repository's Verify reads its own files: only the assigned rules are missing.
+    await importInstructionV1(db, {
+      scope: 'repository',
+      repositoryId: repository.id,
+      fileKey: 'prompt-verifier-own.md',
+      content: 'Refute it.',
+    });
+    await writeStageFileChoice(db, repository.id, 'verify', {
+      prompt: 'prompt-verifier-own.md',
+      rules: 'verify-own-rules.md',
+    });
+    const response = await app.inject({ method: 'GET', url: '/api/instructions' });
+    const { gaps } = InstructionsListResponse.parse(response.json());
+    const verify = gaps
+      .find((g) => g.repository.id === repository.id)
+      ?.gaps.filter((g) => g.stage === 'verify');
+    expect(verify?.map((g) => g.missing)).toEqual(Array(4).fill(['verify-own-rules.md']));
+  });
+
   test('a missing file answers 404', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/instructions/999999999' });
     expect(response.statusCode).toBe(404);
@@ -129,7 +157,7 @@ describe('PUT /api/instructions/:id/draft', () => {
   });
 });
 
-describe('POST /api/instructions/:id/activate and /rollback', () => {
+describe('POST /api/instructions/:id/activate', () => {
   test('activate writes one settings change and archives the old active version', async () => {
     const draftId = detailOf((await saveDraft()).json()).versions[0]!.id;
 
@@ -157,14 +185,14 @@ describe('POST /api/instructions/:id/activate and /rollback', () => {
     });
   });
 
-  test('rollback re-activates an older version', async () => {
+  test('activate re-activates an older version', async () => {
     const draftId = detailOf((await saveDraft()).json()).versions[0]!.id;
     await send('POST', `/api/instructions/${fileId}/activate`, {
       versionId: draftId,
       signedBy: signer.id,
     });
 
-    const response = await send('POST', `/api/instructions/${fileId}/rollback`, {
+    const response = await send('POST', `/api/instructions/${fileId}/activate`, {
       versionId: v1Id,
       activeVersion: 2,
       signedBy: signer.id,
@@ -203,7 +231,7 @@ describe('POST /api/instructions/:id/activate and /rollback', () => {
     expect(await changes()).toEqual([]);
   });
 
-  test('a stale active version gives 409, and activate takes only the draft', async () => {
+  test('a stale active version gives 409, and activate refuses the active version', async () => {
     const draftId = detailOf((await saveDraft()).json()).versions[0]!.id;
     const stale = await send('POST', `/api/instructions/${fileId}/activate`, {
       versionId: draftId,
@@ -222,6 +250,238 @@ describe('POST /api/instructions/:id/activate and /rollback', () => {
       code: 'instruction_version_status',
       params: { status: 'active' },
     });
+  });
+
+  test('Make active takes an archived version that was never active (STAGEFILES)', async () => {
+    // A run read the draft, so discarding it archives it without an activation.
+    const draft = await draftReadByARun();
+    await send('DELETE', `/api/instructions/${fileId}/draft`);
+    const archived = (await getDetail(fileId)).versions[0]!;
+    expect(archived).toMatchObject({ id: draft.id, status: 'archived', activatedAt: null });
+
+    const response = await send('POST', `/api/instructions/${fileId}/activate`, {
+      versionId: draft.id,
+      activeVersion: 1,
+      signedBy: signer.id,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(statuses(detailOf(response.json()))).toEqual([
+      [2, 'active'],
+      [1, 'archived'],
+    ]);
+    expect(await changes()).toHaveLength(1);
+  });
+});
+
+/** Saves a draft and starts a run that reads it (as a trial's run does). */
+async function draftReadByARun() {
+  const draftId = detailOf((await saveDraft()).json()).versions[0]!.id;
+  const draft = (await getInstructionVersion(db, draftId))!;
+  const { pullRequest } = await upsertPullRequest(db, aPullRequest(repository.id, { number: 31 }));
+  const run = await insertRun(db, aRun(pullRequest.id, { levelNumber: 1 }));
+  await freezeRunInstructions(db, { id: run.id, level: { number: 1 } }, repository.id, [draft]);
+  return draft;
+}
+
+describe('kinds and "Read by" (STAGEFILES)', () => {
+  test("a repository document is read by its repository's reviewer under the default", async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/instructions' });
+    const mine = InstructionsListResponse.parse(response.json()).files.find((f) => f.id === fileId);
+    expect(mine?.kind).toBe('document');
+    expect(mine?.readBy).toContainEqual({ stage: 'review', repository: repository.slug });
+  });
+
+  test('a repository override that names a global file lists the repository', async () => {
+    const globalKey = `verify-${uniqueId()}-rules.md`;
+    const { version } = await importInstructionV1(db, {
+      scope: 'global',
+      fileKey: globalKey,
+      content: 'Refute it.',
+    });
+    await writeStageFileChoice(db, repository.id, 'verify', { rules: globalKey });
+
+    const listed = InstructionsListResponse.parse(
+      (await app.inject({ method: 'GET', url: '/api/instructions' })).json(),
+    ).files.find((f) => f.id === version.fileId);
+    expect(listed).toMatchObject({
+      scope: 'global',
+      kind: 'instruction',
+      readBy: [{ stage: 'verify', repository: repository.slug }],
+    });
+    expect((await getDetail(version.fileId)).file.readBy).toEqual(listed?.readBy);
+  });
+
+  test('like a run, the reviewer reads level-copy documents but no draft-only document', async () => {
+    const id = uniqueId();
+    const { version: level } = await importInstructionV1(db, {
+      scope: 'level',
+      level: 4,
+      fileKey: `level-notes-${id}.md`,
+      content: 'Only at level 4.',
+    });
+    const created = await send('POST', '/api/instructions', {
+      fileKey: `draft-notes-${id}.md`,
+      kind: 'document',
+      scope: 'global',
+      content: 'Not active yet.',
+    });
+    expect(created.statusCode).toBe(201);
+    const draftOnly = detailOf(created.json()).file.id;
+
+    const files = InstructionsListResponse.parse(
+      (await app.inject({ method: 'GET', url: '/api/instructions' })).json(),
+    ).files;
+    expect(files.find((f) => f.id === level.fileId)?.readBy).toContainEqual({
+      stage: 'review',
+      repository: null,
+    });
+    expect(files.find((f) => f.id === draftOnly)?.readBy).toEqual([]);
+  });
+});
+
+describe('POST /api/instructions (New file, STAGEFILES)', () => {
+  const create = (body: object) => send('POST', '/api/instructions', body);
+
+  test('creates a global file whose version 1 is an unsigned draft', async () => {
+    const fileKey = `new-${uniqueId()}-rules.md`;
+    const response = await create({
+      fileKey,
+      kind: 'instruction',
+      scope: 'global',
+      content: 'Be strict.',
+      note: 'First try',
+    });
+
+    expect(response.statusCode).toBe(201);
+    const created = detailOf(response.json());
+    expect(created.file).toMatchObject({
+      scope: 'global',
+      repository: null,
+      fileKey,
+      kind: 'instruction',
+      readBy: [],
+    });
+    expect(created.versions).toEqual([
+      expect.objectContaining({
+        version: 1,
+        status: 'draft',
+        content: 'Be strict.',
+        note: 'First try',
+        author: 'hand',
+      }),
+    ]);
+    const logged = await listSettingsChanges(db, {
+      area: 'instructions',
+      entity: String(created.file.id),
+    });
+    expect(logged).toEqual([]);
+
+    const again = await create({ fileKey, kind: 'instruction', scope: 'global', content: '' });
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error).toEqual({
+      code: 'instruction_file_exists',
+      params: { fileId: created.file.id },
+    });
+  });
+
+  test('creates a repository file; an unknown repository answers 404', async () => {
+    const fileKey = `notes-${uniqueId()}.md`;
+    const response = await create({
+      fileKey,
+      kind: 'document',
+      scope: 'repository',
+      repository: repository.slug,
+      content: 'Map.',
+    });
+    expect(response.statusCode).toBe(201);
+    expect(detailOf(response.json()).file).toMatchObject({
+      scope: 'repository',
+      repository: { id: repository.id, slug: repository.slug },
+      kind: 'document',
+    });
+
+    const missing = await create({
+      fileKey,
+      kind: 'document',
+      scope: 'repository',
+      repository: `missing-${uniqueId()}`,
+      content: '',
+    });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json().error.code).toBe('repository_not_found');
+  });
+
+  test('a key at another scope keeps its kind, and a key may not start with @', async () => {
+    // The beforeEach file is a repository document.
+    const conflict = await create({
+      fileKey: key,
+      kind: 'instruction',
+      scope: 'global',
+      content: '',
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json().error).toEqual({
+      code: 'instruction_kind_conflict',
+      params: { kind: 'document' },
+    });
+
+    const reserved = await create({
+      fileKey: '@x',
+      kind: 'instruction',
+      scope: 'global',
+      content: '',
+    });
+    expect(reserved.statusCode).toBe(400);
+    expect(reserved.json().error).toEqual({
+      code: 'instruction_file_key',
+      params: { problem: 'key_path' },
+    });
+  });
+});
+
+describe('DELETE /api/instructions/:id/draft (Discard draft, STAGEFILES)', () => {
+  test('deletes the draft and writes no settings change', async () => {
+    await saveDraft();
+    const response = await send('DELETE', `/api/instructions/${fileId}/draft`);
+    expect(response.statusCode).toBe(200);
+    expect(statuses(detailOf(response.json()))).toEqual([[1, 'active']]);
+    expect(await changes()).toEqual([]);
+  });
+
+  test('archives a draft a run read, so the run keeps its versions', async () => {
+    await draftReadByARun();
+    const response = await send('DELETE', `/api/instructions/${fileId}/draft`);
+    expect(response.statusCode).toBe(200);
+    const detail = detailOf(response.json());
+    expect(statuses(detail)).toEqual([
+      [2, 'archived'],
+      [1, 'active'],
+    ]);
+    expect(detail.versions[0]!.runCount).toBe(1);
+  });
+
+  test("discarding a file's only version removes the file (204)", async () => {
+    const created = detailOf(
+      (
+        await send('POST', '/api/instructions', {
+          fileKey: `only-${uniqueId()}.md`,
+          kind: 'document',
+          scope: 'global',
+          content: 'x',
+        })
+      ).json(),
+    );
+    const response = await send('DELETE', `/api/instructions/${created.file.id}/draft`);
+    expect(response.statusCode).toBe(204);
+    const gone = await app.inject({ method: 'GET', url: `/api/instructions/${created.file.id}` });
+    expect(gone.statusCode).toBe(404);
+  });
+
+  test('a file without a draft answers 404', async () => {
+    const response = await send('DELETE', `/api/instructions/${fileId}/draft`);
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error.code).toBe('instruction_version_not_found');
   });
 });
 

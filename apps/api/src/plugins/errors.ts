@@ -83,6 +83,18 @@ export const ApiErrorCode = {
   InstructionCopyExists: 'instruction_copy_exists',
   /** A copy of a file that has no active version to start from. */
   InstructionNoActive: 'instruction_no_active',
+  /** New file: the key is not a usable file key (`params.problem`, a core reason code). */
+  InstructionFileKey: 'instruction_file_key',
+  /** New file: a file with this key is already at that scope (`params.fileId`). */
+  InstructionFileExists: 'instruction_file_exists',
+  /** New file: the key exists at another scope with the other kind (`params.kind`). */
+  InstructionKindConflict: 'instruction_kind_conflict',
+  /** Stage files (STAGEFILES): no file with this key at the scope (`params.fileKey`). */
+  StageFileUnknown: 'stage_file_unknown',
+  /** Stage files: the file's kind does not fit the slot (`params.fileKey`, `params.kind`). */
+  StageFileKind: 'stage_file_kind',
+  /** Stage files: a slot the stage does not declare, or built in where it has none. */
+  StageFileSlot: 'stage_file_slot',
   /** A trial of a version that is not a draft (`params.status`). */
   TrialNeedsDraft: 'trial_needs_draft',
   TrialNotFound: 'trial_not_found',

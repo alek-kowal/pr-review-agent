@@ -153,8 +153,15 @@ test('a ready event and a completed round leave entries and state changes in ord
       level: null,
       fileKey: 'review-rules.md',
       version: 1,
+      kind: 'instruction',
     },
   ]);
+  // ... and which stage read each one (STAGEFILES).
+  expect(run.stageFiles?.review).toEqual({
+    prompt: 'prompt-reviewer.md',
+    rules: 'review-rules.md',
+    documents: [],
+  });
 });
 
 test('a retried hook or event writes nothing twice', async () => {

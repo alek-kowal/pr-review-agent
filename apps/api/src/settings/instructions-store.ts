@@ -38,7 +38,9 @@ export function instructionsStore(signerId: string | null): SettingsStore<Instru
       const previous = await lockActiveInstructionVersion(tx, fileId);
       const target = await findInstructionVersion(tx, fileId, after.version);
       if (!target) throw new Error(`instruction file ${entity} has no version ${after.version}`);
-      await activateInstructionVersion(tx, target.id, signerId);
+      // A draft discarded since `findInstructionVersion` is gone: roll back, log nothing.
+      const activated = await activateInstructionVersion(tx, target.id, signerId);
+      if (!activated) throw new Error(`instruction version ${target.id} no longer exists`);
       const diff = diffSummary(lineDiff(previous?.content ?? '', target.content));
       return { entity, value: { fileKey: after.fileKey, version: target.version, ...diff } };
     },

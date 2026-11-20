@@ -26,11 +26,12 @@ import type {
 } from '../stage.ts';
 import { runWorktree } from '../worktree.ts';
 import { buildBrief, documentsFor, touchedWorkspaces } from './brief.ts';
+import { stageFilesOf } from '../stage-files.ts';
 import {
   materialiseInstructions,
   removeTree,
   renderReviewerPrompt,
-  REVIEWER_PROMPT_FILE,
+  reviewerKnowledge,
 } from './prompt.ts';
 import { reviewOutputSchema, SEVERITY_MAP, type ReviewOutput } from './schema.ts';
 
@@ -81,9 +82,13 @@ async function runReview(context: StageContext): Promise<StageResult> {
   await writeFile(path.join(sessionDir, 'brief.md'), brief);
   await writeFile(path.join(sessionDir, 'diff.patch'), diff.patch);
   const instructions = await stageInstructions(context);
-  await materialiseInstructions(knowledgeDir, instructions);
+  // The files assigned to Review when the run started (STAGEFILES); a null prompt is the
+  // built-in one.
+  const assigned = stageFilesOf(run, 'review', instructions);
+  await materialiseInstructions(knowledgeDir, reviewerKnowledge(assigned, instructions));
 
-  const prompt = renderReviewerPrompt(instructions.get(REVIEWER_PROMPT_FILE), {
+  const template = assigned.prompt ? instructions.get(assigned.prompt) : undefined;
+  const prompt = renderReviewerPrompt(template, {
     knowledgeDir,
     repoDir: worktree,
     runDir: sessionDir,

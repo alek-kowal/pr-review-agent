@@ -8,6 +8,8 @@ import {
   type Evidence,
   type Remedy,
   type FrozenLevel,
+  type FrozenStageFiles,
+  type InstructionKind,
   type RunModels,
   type RunStatus,
   type StageStatus,
@@ -77,6 +79,8 @@ export type RunInstructionVersion = {
   level?: number | null;
   /** The file, for a link to its editor. */
   fileId?: number;
+  /** The file's kind (STAGEFILES); absent in runs started before. */
+  kind?: InstructionKind;
 };
 
 /** One run on a PR: a review round, an implementer run, a trial or the analyst. */
@@ -118,6 +122,8 @@ export const runs = pgTable(
       .$type<RunInstructionVersion[]>()
       .notNull()
       .default([]),
+    /** The files each stage reads, frozen with the versions (STAGEFILES); null before that. */
+    stageFiles: jsonb('stage_files').$type<FrozenStageFiles>(),
     /** Commits between `head_sha` and the PR head `commits_since_head` (S-07, FR-020). */
     commitsSince: integer('commits_since'),
     commitsSinceHead: text('commits_since_head'),

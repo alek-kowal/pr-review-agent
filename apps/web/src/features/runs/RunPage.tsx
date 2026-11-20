@@ -1,3 +1,4 @@
+import { stageFileReaders } from '@pra/core';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
@@ -178,14 +179,28 @@ export function RunPage({
               </p>
             ) : (
               <ul className="m-0 list-none divide-y divide-divider p-0">
-                {run.instructionVersions.map((v) => (
-                  <li key={v.id} className="flex justify-between gap-2 px-3.5 py-2 text-sm">
-                    <span className="font-mono text-[13px]">{v.fileKey}</span>
-                    <span className="text-xs text-text-3">
-                      {copy.runs.detail.instructionVersion(v.scope, v.version, v.level)}
-                    </span>
-                  </li>
-                ))}
+                {run.instructionVersions.map((v) => {
+                  const readers = run.stageFiles
+                    ? stageFileReaders(v.fileKey, run.stageFiles).map(
+                        (stage) => copy.pipeline.stages[stage] ?? stage,
+                      )
+                    : [];
+                  return (
+                    <li key={v.id} className="flex justify-between gap-2 px-3.5 py-2 text-sm">
+                      <span>
+                        <span className="font-mono text-[13px]">{v.fileKey}</span>
+                        {run.stageFiles && (
+                          <span className="block text-xs text-text-3">
+                            {copy.runs.detail.readBy(readers)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-xs text-text-3">
+                        {copy.runs.detail.instructionVersion(v.scope, v.version, v.level)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </SideCard>

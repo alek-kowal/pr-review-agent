@@ -51,8 +51,11 @@ export type AnalystInput = {
   answers: AnalystAnswer[];
   /** GitHub review comments with the PR author's own already removed (core `buildCases`). */
   comments: PrComment[];
-  /** The repository's active `lessons.md`; empty when it has none. */
-  lessons: string;
+  /**
+   * The documents assigned to the analyst (STAGEFILES; default `lessons.md`), each rendered as
+   * `knowledge/<fileKey>`; a missing one is passed with empty content.
+   */
+  documents: { fileKey: string; content: string }[];
   /** Open candidates of the repository; a proposal that repeats one names its id. */
   openCandidates: { id: string; title: string }[];
   signal?: AbortSignal;
@@ -205,8 +208,9 @@ export function analystCases(input: AnalystInput) {
 
 /**
  * The request: the v1 prompt names its files (`analyst-rules.md`, `cases.json`, `candidates.json`,
- * `lessons.md`); they follow it inline under those names. PR text and comments are data inside
- * their own blocks.
+ * `lessons.md`); they follow it inline under those names, the rules as `analyst-rules.md` whatever
+ * file is assigned, the documents under their own keys. PR text and comments are data inside their
+ * own blocks.
  */
 export function analystRequest(input: AnalystInput): Anthropic.MessageCreateParamsNonStreaming {
   const prompt = renderPrompt(input.instructions.prompt, { knowledgeDir: KNOWLEDGE_DIR });
@@ -214,7 +218,7 @@ export function analystRequest(input: AnalystInput): Anthropic.MessageCreatePara
     file(`${KNOWLEDGE_DIR}/analyst-rules.md`, input.instructions.rules),
     file('cases.json', JSON.stringify(analystCases(input), null, 2)),
     file('candidates.json', JSON.stringify(input.openCandidates, null, 2)),
-    file(`${KNOWLEDGE_DIR}/lessons.md`, input.lessons),
+    ...input.documents.map((doc) => file(`${KNOWLEDGE_DIR}/${doc.fileKey}`, doc.content)),
   ];
   return {
     model: input.model,

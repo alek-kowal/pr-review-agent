@@ -1,6 +1,7 @@
 {
   "default": { "scope": "repository", "repository": "workflowbuilder" },
   "files": {},
-  "skip": ["lessons-candidates.md"],
-  "empty": ["lessons.md"]
+  "skip": ["lessons-candidates.md", "review-levels.json", "review-profiles.json"],
+  "empty": ["lessons.md"],
+  "kinds": {}
 }

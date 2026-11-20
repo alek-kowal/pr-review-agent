@@ -1,6 +1,6 @@
 import { diffSummary, lineDiff } from '@pra/core';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge.tsx';
@@ -28,8 +28,8 @@ type Props = {
 
 /**
  * An instruction file's editor (S-22-T5): the text with a live diff against the active version, a
- * note and Save as draft (unsigned), "Activate version N…" and Rollback (signed), and the version
- * history with the runs that read each version.
+ * note, Save as draft and Discard draft (unsigned), "Activate version N…" and, per draft or older
+ * version, "Make active…" (signed), and the version history with the runs that read each version.
  */
 export function InstructionEditor({ id, tryOnPr }: Props) {
   const query = useQuery(instructionQuery(id));
@@ -65,19 +65,38 @@ function EditorForm({
   const nextVersion = (versions[0]?.version ?? 0) + 1;
   const [content, setContent] = useState(draft?.content ?? active?.content ?? '');
   const [note, setNote] = useState(draft?.note ?? '');
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<'saved' | 'discarded' | null>(null);
   const [signing, setSigning] = useState<InstructionVersionView | null>(null);
   const change = useInstructionChange(file.id);
+  const navigate = useNavigate();
   const ids = { content: useId(), note: useId() };
   const dirty =
     content !== (draft?.content ?? active?.content ?? '') || note !== (draft?.note ?? '');
 
   async function saveDraft(event: React.FormEvent) {
     event.preventDefault();
-    setSaved(false);
+    setSaved(null);
     try {
       await change.mutateAsync({ kind: 'draft', content, note: note.trim() || null });
-      setSaved(true);
+      setSaved('saved');
+    } catch {
+      // `change.error` shows it below the buttons.
+    }
+  }
+
+  async function discardDraft() {
+    setSaved(null);
+    try {
+      const next = await change.mutateAsync({ kind: 'discard' });
+      // The file's only version went, and the file with it.
+      if (!next) {
+        await navigate({ to: '/settings/instructions' });
+        return;
+      }
+      const stored = next.versions.find((v) => v.status === 'active');
+      setContent(stored?.content ?? '');
+      setNote('');
+      setSaved('discarded');
     } catch {
       // `change.error` shows it below the buttons.
     }
@@ -120,7 +139,7 @@ function EditorForm({
               value={content}
               onChange={(event) => {
                 setContent(event.target.value);
-                setSaved(false);
+                setSaved(null);
               }}
               spellCheck={false}
               className="min-h-[420px] font-mono text-[13px]"
@@ -134,7 +153,7 @@ function EditorForm({
               placeholder={e.notePlaceholder}
               onChange={(event) => {
                 setNote(event.target.value);
-                setSaved(false);
+                setSaved(null);
               }}
             />
           </div>
@@ -142,6 +161,16 @@ function EditorForm({
             <Button type="submit" disabled={change.isPending || !dirty}>
               {change.isPending ? e.savingDraft : e.saveDraft}
             </Button>
+            {draft && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={change.isPending}
+                onClick={() => void discardDraft()}
+              >
+                {e.discardDraft}
+              </Button>
+            )}
             {tryOnPr && draft && !dirty ? (
               tryOnPr(detail, draft)
             ) : (
@@ -162,7 +191,7 @@ function EditorForm({
           </div>
           {saved && (
             <p role="status" className="text-sm text-text-2">
-              {e.draftSaved}
+              {saved === 'saved' ? e.draftSaved : e.draftDiscarded}
             </p>
           )}
           {change.isError && !signing && (
@@ -178,32 +207,24 @@ function EditorForm({
         />
       </form>
 
-      <VersionHistory versions={versions} onRollback={setSigning} />
+      <VersionHistory versions={versions} onMakeActive={setSigning} />
 
       <SignedSaveDialog
         open={signing !== null}
         onOpenChange={(open) => !open && setSigning(null)}
-        title={
-          signing?.status === 'archived'
-            ? t.activateDialog.rollbackTitle(signing.version)
-            : t.activateDialog.title(signing?.version ?? 0)
-        }
+        title={t.activateDialog.title(signing?.version ?? 0)}
         description={t.activateDialog.description}
-        confirmLabel={
-          signing?.status === 'archived'
-            ? t.activateDialog.rollbackConfirm
-            : t.activateDialog.confirm
-        }
+        confirmLabel={t.activateDialog.confirm}
         changes={signing ? activationRows(file.fileKey, active, signing) : []}
         onConfirm={async (signedBy) => {
           const next = await change.mutateAsync({
-            kind: signing?.status === 'archived' ? 'rollback' : 'activate',
+            kind: 'activate',
             versionId: signing!.id,
             activeVersion: active?.version ?? null,
             signedBy,
           });
           // The form starts over from the newly active version.
-          const stored = next.versions.find((v) => v.status === 'draft' || v.status === 'active');
+          const stored = next?.versions.find((v) => v.status === 'draft' || v.status === 'active');
           setContent(stored?.content ?? '');
           setNote(stored?.status === 'draft' ? (stored.note ?? '') : '');
         }}
@@ -239,17 +260,20 @@ function activationRows(
 
 function VersionHistory({
   versions,
-  onRollback,
+  onMakeActive,
 }: {
   versions: readonly InstructionVersionView[];
-  onRollback: (version: InstructionVersionView) => void;
+  onMakeActive: (version: InstructionVersionView) => void;
 }) {
   const h = t.history;
   return (
     <section aria-labelledby="instruction-history" className="flex flex-col gap-2">
-      <h2 id="instruction-history" className="font-heading text-base font-semibold">
-        {h.title}
-      </h2>
+      <div>
+        <h2 id="instruction-history" className="font-heading text-base font-semibold">
+          {h.title}
+        </h2>
+        <p className="text-xs text-text-3">{h.hint}</p>
+      </div>
       <div className="overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">{h.tableLabel}</caption>
@@ -311,9 +335,14 @@ function VersionHistory({
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  {v.status === 'archived' && v.activatedAt && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => onRollback(v)}>
-                      {h.rollback(v.version)}
+                  {v.status !== 'active' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onMakeActive(v)}
+                    >
+                      {h.makeActive(v.version)}
                     </Button>
                   )}
                 </td>

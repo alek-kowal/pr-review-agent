@@ -2,7 +2,7 @@
 // The folder's files are Polish and name one repository, so the default map puts them at that
 // repository's scope. Global version 1 is the built-in text used since S-01, so other repositories
 // get none of its rules. Lessons start empty; lesson candidates, runs and decisions are not imported (OQ15).
-import { BUILT_IN_REVIEWER_PROMPT, LEVEL_NUMBERS } from '@pra/core';
+import { BUILT_IN_REVIEWER_PROMPT, INSTRUCTION_KINDS, LEVEL_NUMBERS } from '@pra/core';
 import { readdir, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { z } from 'zod/v4';
@@ -33,6 +33,8 @@ export const InstructionsImportMapSchema = z.object({
   skip: z.array(z.string()).default([]),
   /** File keys imported as an empty version 1, whatever the folder holds. */
   empty: z.array(z.string()).default([]),
+  /** A file's kind when core `defaultKindOf` guesses wrong (STAGEFILES). */
+  kinds: z.record(z.string(), z.enum(INSTRUCTION_KINDS)).default({}),
 });
 export type InstructionsImportMap = z.infer<typeof InstructionsImportMapSchema>;
 
@@ -84,7 +86,7 @@ export async function importInstructions(
     for (const fileKey of wanted) {
       const ref = await refFor(tx, fileKey, map.files[fileKey] ?? map.default, repositoryIds);
       const content = empty.has(fileKey) ? '' : await readFile(path.join(from, fileKey), 'utf8');
-      await add({ ...ref, content } as InstructionFile);
+      await add({ ...ref, kind: map.kinds[fileKey], content } as InstructionFile);
     }
     return result;
   });

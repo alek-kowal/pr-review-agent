@@ -54,8 +54,10 @@ async function roundsCompleted(number: number, count: number): Promise<RoundRow[
 async function openGlobalReviewRules(page: Page): Promise<void> {
   await page.goto('/settings/instructions');
   await page
-    .getByRole('region', { name: 'Global' })
-    .getByRole('link', { name: 'review-rules.md' })
+    .getByRole('region', { name: 'Instructions' })
+    .getByRole('row')
+    .filter({ has: page.getByRole('cell', { name: 'Global', exact: true }) })
+    .getByRole('link', { name: 'review-rules.md', exact: true })
     .click();
   await expect(page.getByRole('textbox', { name: 'Text' })).toBeVisible();
 }
@@ -131,7 +133,7 @@ test('edit review-rules, try it on a PR, compare, activate it, and see it in Pip
   const confirm = page.getByRole('alertdialog');
   await confirm.getByRole('combobox', { name: 'Signed by' }).click();
   await page.getByRole('option', { name: new RegExp(kasia.name) }).click();
-  await confirm.getByRole('button', { name: 'Activate' }).click();
+  await confirm.getByRole('button', { name: 'Make active' }).click();
   await expect(confirm).toBeHidden();
 
   // The next round on the PR freezes the new version; Run detail lists it.

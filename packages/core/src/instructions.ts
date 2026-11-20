@@ -2,11 +2,43 @@
 import './reasons/instructions.ts';
 import { FEATURE_ON_FROM, STAGE_ON_FROM } from './levels.ts';
 import { reason, type Reason } from './reason.ts';
+import { FILE_STAGE_OF_INSTRUCTION_STAGE, type FrozenStageFiles } from './stage-files.ts';
 import { LEVEL_NUMBERS, type LevelNumber } from './vocabulary.ts';
 
 /** Global files apply everywhere, a repository copy in one repository, a level copy at a level. */
 export const INSTRUCTION_SCOPES = ['global', 'repository', 'level'] as const;
 export type InstructionScope = (typeof INSTRUCTION_SCOPES)[number];
+
+/**
+ * What a file is to an agent (STAGEFILES): an instruction tells it what to do (prompts and rules),
+ * a document is reference material it may read (feature maps, lessons, repository knowledge).
+ */
+export const INSTRUCTION_KINDS = ['instruction', 'document'] as const;
+export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
+
+/** The kind a file gets unless someone picks one: `prompt-*.md` and `*-rules.md` instruct. */
+export function defaultKindOf(fileKey: string): InstructionKind {
+  const base = fileKey.split('/').at(-1) ?? fileKey;
+  return /^prompt-.*\.md$/.test(base) || base.endsWith('-rules.md') ? 'instruction' : 'document';
+}
+
+/** The longest file key a person may create. */
+export const MAX_INSTRUCTION_FILE_KEY = 200;
+
+/** Why a new file key is refused; null when it is fine. */
+export function instructionFileKeyProblem(
+  fileKey: string,
+): 'key_empty' | 'key_too_long' | 'key_path' | null {
+  if (!fileKey.trim()) return 'key_empty';
+  if (fileKey.length > MAX_INSTRUCTION_FILE_KEY) return 'key_too_long';
+  const parts = fileKey.split('/');
+  const bad =
+    fileKey !== fileKey.trim() ||
+    fileKey.startsWith('@') ||
+    fileKey.includes('\\') ||
+    parts.some((part) => part === '' || part === '.' || part === '..');
+  return bad ? 'key_path' : null;
+}
 
 /** Resolution order: a later scope beats an earlier one for the same file key. */
 const SCOPE_RANK: Readonly<Record<InstructionScope, number>> = {
@@ -271,15 +303,29 @@ export interface InstructionGap {
   missing: string[];
 }
 
-/** The required files of `stages` that `files` lacks or holds empty, in `stages` order. */
+/**
+ * The prompt and rules a required stage reads: its assigned files (STAGEFILES), or the
+ * `REQUIRED_INSTRUCTION_FILES` defaults when `stageFiles` has no entry for it.
+ */
+export function requiredFilesOf(stage: InstructionStage, stageFiles: FrozenStageFiles): string[] {
+  const assigned = stageFiles[FILE_STAGE_OF_INSTRUCTION_STAGE[stage]];
+  if (!assigned) return [...REQUIRED_INSTRUCTION_FILES[stage]];
+  return [assigned.prompt, assigned.rules].filter((key): key is string => key !== null);
+}
+
+/**
+ * The required files of `stages` that `files` lacks or holds empty, in `stages` order: each
+ * stage's assigned prompt and rules (`stageFiles`, the run's frozen choice).
+ */
 export function missingInstructions(
   files: ReadonlyMap<string, string>,
   stages: readonly string[],
+  stageFiles: FrozenStageFiles,
 ): InstructionGap[] {
   const gaps: InstructionGap[] = [];
   for (const stage of stages) {
     if (!isInstructionStage(stage)) continue;
-    const missing = REQUIRED_INSTRUCTION_FILES[stage].filter((key) => !files.get(key)?.trim());
+    const missing = requiredFilesOf(stage, stageFiles).filter((key) => !files.get(key)?.trim());
     if (missing.length) gaps.push({ stage, missing });
   }
   return gaps;
@@ -302,16 +348,18 @@ export interface LevelInstructionGap extends InstructionGap {
 
 /**
  * Per level, the required files a run of this repository would miss, from the active versions
- * (`layers`, as `resolveInstructions` reads them). Empty when nothing is missing.
+ * (`layers`, as `resolveInstructions` reads them) and the repository's current stage files.
+ * Empty when nothing is missing.
  */
 export function instructionGaps(
   layers: readonly InstructionLayer[],
   repositoryId: number,
+  stageFiles: FrozenStageFiles,
 ): LevelInstructionGap[] {
   return LEVEL_NUMBERS.flatMap((level) => {
     const { files } = resolveInstructions(layers, { repositoryId, level });
     const byKey = new Map(files.map((f) => [f.fileKey, f.content]));
-    return missingInstructions(byKey, instructionStagesAt(level)).map((gap) => ({
+    return missingInstructions(byKey, instructionStagesAt(level), stageFiles).map((gap) => ({
       ...gap,
       level,
     }));

@@ -13,6 +13,7 @@ import {
 } from '@pra/core';
 import { readRepositoryConfig, succeededStageOutput, type Db } from '@pra/db';
 import { stageInstructions } from './instructions.ts';
+import { stageFilesOf } from './stage-files.ts';
 import type { SessionRecord, StageContext, StageExecutor, StageResult } from './stage.ts';
 import { taskOfRun, taskText } from './task.ts';
 import { runWorktree } from './worktree.ts';
@@ -80,10 +81,12 @@ async function runChangeType(context: StageContext): Promise<StageResult> {
     judgeSkipped = { code: 'floor_is_highest', params: {} };
   } else {
     const instructions = await stageInstructions({ deps, run, repository });
-    const prompt = instructions.get(JUDGE_PROMPT_FILE)?.trim();
-    const rules = instructions.get(JUDGE_RULES_FILE)?.trim();
+    // The files assigned to the judge when the run started (STAGEFILES).
+    const assigned = stageFilesOf(run, 'change_type', instructions);
+    const keys = [assigned.prompt ?? JUDGE_PROMPT_FILE, assigned.rules ?? JUDGE_RULES_FILE];
+    const [prompt, rules] = keys.map((key) => instructions.get(key)?.trim());
     if (!prompt || !rules) {
-      const missing = [JUDGE_PROMPT_FILE, JUDGE_RULES_FILE].filter((key) => !instructions.get(key));
+      const missing = keys.filter((key) => !instructions.get(key));
       judgeSkipped = { code: 'judge_instructions_missing', params: { missing } };
     } else {
       const model = runModel(run, 'judge');

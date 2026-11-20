@@ -48,7 +48,7 @@ Sources: Alek's answers in chat, `04-accounts-and-signatures.md`, `05-review-tri
 | # | Question | Decision | What it changes in the design |
 |---|---|---|---|
 | 1 | UI language | **English** | All UI copy is English |
-| 2 | Pipeline diagram | **Read-only diagram plus structured settings** | No editor. The diagram appears in Settings → Pipeline and in Run detail. Everything configurable is a form |
+| 2 | Pipeline diagram | **Read-only diagram plus structured settings** | No editor. The diagram appears in Settings → Pipeline and in Run detail. Everything configurable is a form. Changed 20 Nov (Alek): a stage's instruction files are chosen in its stage sheet, globally or for one repository (signed), to try other rules for a stage without editing the file every repository shares. The diagram itself stays read-only |
 | 3 | Level 5 (autofix) and level 6 (learning) | **Both in v1** | PR detail shows when autofix is running, what it pushed, or why it is waiting. Review levels shows the autofix conditions. Settings → Learning and Flow E are in scope. Insights → Trust ladder shows the level-5 shadow log ("level 5 would have fixed 3 of 8 PRs") |
 | 4 | Findings in GitHub | **One sentence on the PR, no link, nothing else.** Text: "Ready for team member review (round 2)" | The app is private and the PRs are public, so the comment never links to the app. Findings, opinions and decisions live only in the app |
 | 5 | Who answers, decides, merges, starts paid runs | **One shared account, one role, signed actions.** See `04-accounts-and-signatures.md` | See "Accounts, roles and signatures" |

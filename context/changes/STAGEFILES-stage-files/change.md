@@ -1,0 +1,125 @@
+---
+change_id: STAGEFILES-stage-files
+title: Choose each stage's instruction files in Settings → Pipeline; instructions vs documents
+status: impl_reviewed
+created: 2026-11-20
+updated: 2026-11-20
+archived_at: null
+---
+
+## Notes
+
+Orchestrator task STAGEFILES. Alek (20 Nov) wants to try alternative rules for a stage without
+editing the one file every repository shares, so the pipeline stops being read-only for the
+choice of instruction files. Seen on the deployed app: the Pipeline sheet said "no active
+version" for files the import put at repository scope; Settings → Instructions mixed agent
+instructions with reference material; version history offered no "Make active" for a draft and
+no "Discard draft".
+
+Workflow: `/10x-plan` → `/10x-plan-review` → `/10x-implement` (one commit per phase) →
+`/10x-impl-review`. Nobody answers questions tonight: each choice a skill asks for is taken
+here under Decisions.
+
+## Decisions
+
+Taken during `/10x-plan` (complexity HIGH; the recommended option each time, nobody to ask).
+
+1. **Slots are declared in `packages/agents/src/pipeline.ts`** as asked; core holds only the slot
+   types, `resolveStageFiles`, the `@built-in` sentinel and which stages require prompt and rules,
+   because core may not import `@pra/agents` and the pre-check and gaps need one rule.
+2. **Choices live in a new table `stage_file_choices`** (repository null = global; `prompt`,
+   `rules`, `documents`; null = inherit). There is no generic settings table, and per-slot null
+   columns match `sameJson`, which treats null as absent.
+3. **Choices are keyed by the pipeline stage key** (`analyst`, not `analyse`); core holds the one
+   map from `INSTRUCTION_STAGES`.
+4. **The reviewer's default documents are all Markdown documents**, expanded when the run starts.
+   Today's behaviour stays (feature maps, lessons, repository knowledge), while
+   `review-levels.json` and `review-profiles.json`, which no code uses, show as "Not used by any
+   stage" without deleting them.
+5. **The reviewer's rules file is written to `knowledge/review-rules.md` whatever file is
+   assigned**, the way the verifier, implementer and analyst adapters already name their rules, so
+   a stored `prompt-reviewer.md` that names `review-rules.md` keeps working.
+6. **The analyst gets a `documents` slot** (default `lessons.md`), rendered as
+   `knowledge/<key>`; judge, verify and implement get prompt and rules only; fix_check stays built
+   in with no slots.
+7. **The new route requires `before`** (other settings routes default it to the stored value), so
+   a stale save always gets 409.
+8. **"Make active" is one `/activate` for any non-active version**; `/rollback` and its button go.
+9. **Discard draft deletes the draft, or archives it when a trial or run references it** (the FKs
+   cascade, and `saveInstructionDraft` already archives such drafts). Discarding a file's only
+   version removes the file too. Unsigned, like Save as draft, so no `settings_changes` row.
+10. **New file** creates a global or repository file with v1 as an unsigned draft; keys may not
+    start with `@`; a key that exists at another scope must keep its kind.
+11. **"Read by"** for a global file lists the global choice's readers plus every repository
+    override that names the key, with the repository's slug; a repository copy lists that
+    repository's readers.
+12. **A run still freezes every resolved file version**; only the stage → files map is new
+    (`runs.stage_files`). Run detail shows the reading stages per frozen file.
+13. **e2e proof of use:** the verifier double copies the `instructions/verify-rules.md` it
+    received into a hold file (like `lessonsFile`), and Run detail shows the file read by Verify.
+
+Taken during `/10x-plan-review` (verdict REVISE, all seven findings fixed in the plan; report in
+`reviews/plan-review.md`):
+
+14. **Old API fields and routes go with the web switch** (Phase 4), not in the API phase: the
+    web's types are hand-written and its tests stub fetch, so an early removal would break the app
+    without failing `pnpm verify`.
+15. **At Global scope the Pipeline sheet names the repositories that hold a copy** of a slot file
+    with no global file, so the deployed data (files at repository scope) explains itself.
+16. **A choice may outlive its file**; the sheet then shows "(no active version)" and the run
+    reports the file missing, like any other missing file.
+
+Taken during `/10x-implement`:
+
+17. **The pipeline's stage view is nested** as `stages[].files: { choice, slots } | null` (null for
+    stages without slots); file options carry their `kind`.
+18. **Validation checks only the slots that change from `before`** (follows decision 16), so a
+    choice whose file has gone can still be edited in its other slots.
+19. **Empty choices are normalised to null** (`normalChoice`), and the empty placeholder rows the
+    lock leaves are ignored on read.
+20. **A run started before STAGEFILES reads the declared defaults**, with `defaultKindOf` for its
+    documents (`apps/worker/src/stages/stage-files.ts`).
+21. **`requiredStageText` is the one helper** Verify, Implement and Analyse use to read their
+    assigned prompt and rules.
+22. **Discard archives a draft that a trial or a run read** (never active, no `activatedAt`), and
+    "Make active" accepts such a version.
+23. **`GET /api/instructions` also returns the connected `repositories`**, so New file can offer a
+    repository scope without a second request (`/api/settings/repositories` also asks GitHub).
+24. **A key with no file at any scope takes `defaultKindOf`** in the pipeline's file options, so
+    a missing `prompt-verifier.md` still shows as an instruction.
+25. **A slot is edited in the Sheet and saved per stage**: picking the value it already reads is no
+    change; Reset on a slot stored at this scope saves it back to inheriting, on a slot only
+    changed in the form it undoes the change. Documents are a checkbox list of the scope's
+    documents. The editor keeps "Activate version N…" next to Save as draft and adds "Make vN
+    active…" to every draft or archived row of the history.
+26. **After an instruction change only the list and the pipeline refetch**; the file itself is
+    set from the answer, so a file discarded with its only version is not fetched again (404).
+    After a failed change the file refetches too (impl review F6).
+27. **Small extras kept from implementation:** the store and its view live in
+    `apps/api/src/settings/stage-files.ts` (not `stage-files-store.ts`); each slot's `source` comes
+    from `resolveStageSlots`, while `resolveStageFiles` returns only the files; the stage-files PUT
+    takes an optional `note` like other settings routes; Discard answers 204 when the file goes
+    with its only version; Run detail versions carry their `kind`.
+
+Taken during Phase 5 (e2e and docs):
+
+28. **The e2e marks its rules with `stage-files-e2e:<PR number>`**; the verifier double keeps only
+    marked rules, so other specs' Verify runs write no hold file. The spec compares the held text
+    trimmed: the stored text may end with a newline the form did not send.
+29. **`instructions.spec.ts` opens the global `review-rules.md` by its Scope cell "Global"** in
+    the Instructions section, since level and repository copies share the key.
+30. **Manual checks 4.4 and 4.5 stay unchecked**: the run was unattended. The e2e covers the same
+    path with the doubles; a look at the deployed data is on Alek's list.
+
+Taken during `/10x-impl-review` (verdict NEEDS ATTENTION, 3 warnings and 7 observations; report in
+`reviews/impl-review.md`; the recommended fix taken each time, nobody to ask):
+
+31. **Discard draft locks the file row first**, in the order Save as draft and copies use (F2), and
+    Make active rolls back when its version is gone since it was read, so no false audit row (F1).
+32. **New file takes a transaction advisory lock on the key** before its checks, so two at once
+    give 409, not a unique violation, and one key keeps one kind (F4).
+33. **"All Markdown documents" counts only files with an active version**, as the run's freeze
+    does. "Read by" also counts level copies (a run at that level reads them); the Pipeline sheet
+    has no level scope, so it leaves them out (F3).
+34. **The instructions routes keep their per-repository choice queries** (F8, skipped): a few
+    repositories today.

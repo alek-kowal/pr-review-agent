@@ -3,12 +3,14 @@ import { BUILT_IN_REVIEWER_PROMPT } from '@pra/core';
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import {
   activeInstructions,
   closeDb,
   createDb,
   importInstructions,
+  readImportMap,
   upsertRepository,
   type InstructionsImportMap,
   type Repository,
@@ -47,6 +49,7 @@ beforeAll(async () => {
     files: {},
     skip: ['lessons-candidates.md'],
     empty: ['lessons.md'],
+    kinds: { 'feature-map/sdk.md': 'instruction' },
   };
 });
 
@@ -80,6 +83,14 @@ describe('instructions:import', () => {
       ['review-levels.json', 1, 'active', 'bot'],
       ['review-rules.md', 1, 'active', 'bot'],
     ]);
+    // Kinds: core `defaultKindOf`, unless the map's `kinds` names the file.
+    expect(Object.fromEntries(own.map((v) => [v.fileKey, v.kind]))).toEqual({
+      'feature-map/sdk.md': 'instruction',
+      'lessons.md': 'document',
+      'prompt-reviewer.md': 'instruction',
+      'review-levels.json': 'document',
+      'review-rules.md': 'instruction',
+    });
     expect(own.find((v) => v.fileKey === 'lessons.md')!.content).toBe('');
     expect(own.find((v) => v.fileKey === 'review-rules.md')!.content).toBe('Zasady recenzji WB');
 
@@ -100,6 +111,18 @@ describe('instructions:import', () => {
     // Only the repository's own rows: other test files may add global files in the meantime.
     const ownAfter = (await activeInstructions(db, wb.id)).filter((v) => v.scope === 'repository');
     expect(ownAfter).toEqual(own);
+  });
+
+  test('the default map skips the old review level files (STAGEFILES)', async () => {
+    const defaults = await readImportMap(
+      fileURLToPath(new URL('./testing/fixtures/instructions-import.json', import.meta.url)),
+    );
+    // The default map's own repository does not exist here: file under this test's one.
+    const result = await importInstructions(db, source, { ...defaults, default: map.default });
+    const seen = [...result.imported, ...result.kept];
+    expect(seen).toContain('repository:review-rules.md');
+    expect(seen).not.toContain('repository:review-levels.json');
+    expect(seen).not.toContain('repository:lessons-candidates.md');
   });
 
   test('an unknown repository in the map fails without writing', async () => {

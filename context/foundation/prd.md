@@ -381,8 +381,8 @@ Anyone may also act as an **observer**: "Why did this run fail or say this? What
 - FR-076: Team member can add, edit and remove team members (name, GitHub login, ClickUp user). Priority: must-have
 - FR-077: Team member can see the GitHub and ClickUp connection status, event delivery health and the repositories PR Review Agent can act on, test the ClickUp connection, and switch the after-round GitHub comment on or off. Priority: must-have
 - FR-078: Team member can see the review level ladder 1–6 and set the default level for repositories without their own. They can edit each level's settings with inheritance from the level below: reviewer brief, most findings, most questions, review timeout, and models per role. At level 5 this includes the number of automatic patches per chain. Priority: must-have
-- FR-079: Team member can view and edit instruction files by scope (global, repository, level copy), with a diff against the active version and a note. They can save a draft (unsigned), activate a version or roll back (signed), and see each version's history and how many runs used it. Priority: must-have
-- FR-080: Team member can view the pipeline as a read-only diagram and open any stage to see its model, tools, prompt, output format, timeout, attempts and the level where it turns on. Priority: must-have
+- FR-079: Team member can view and edit instruction files by scope (global, repository, level copy), with a diff against the active version and a note. They can create a file (its first version a draft), save or discard a draft (unsigned), make any draft or older version active (signed), and see each version's history and how many runs used it. Priority: must-have
+- FR-080: Team member can view the pipeline as a read-only diagram and open any stage to see its model, tools, prompt, output format, timeout, attempts and the level where it turns on. In the stage's sheet they choose which instruction files the stage reads (prompt, rules, documents), globally or for one repository, signed; runs that start afterwards read the chosen files. Priority: must-have
 - FR-081: Team member can try an instruction draft or a lesson candidate on a PR (unsigned, "Started by hand"). This runs two trial rounds on the same commit, one per version, and leaves the PR's state untouched. The two rounds can be compared: findings only in A, only in B, in both, cost, and the instruction diff. Priority: must-have
 - FR-082: Team member can search the Audit log of every signed settings change and every change PR Review Agent made by itself, with who, area and before/after. Priority: must-have
 
@@ -554,7 +554,7 @@ At lower levels the same check runs silently and is recorded (the shadow log).
 ### Functional non-goals
 - **No sign-in, per-user accounts, roles or permission checks in the app.** The access gate lives outside the app, and signatures replace identities.
 - **No Inbox page.** The Person filter on the board replaces it.
-- **No editable pipeline diagram.** The diagram is read-only, and everything configurable is a structured setting.
+- **No editable pipeline diagram.** The diagram is read-only, and everything configurable is a structured setting. A stage's instruction files are such a setting: they are chosen in the stage's sheet (Alek, 20 Nov: try other rules for a stage without editing the file every repository shares).
 - **Nothing beyond one sentence in GitHub.** No findings, opinions, decisions or links to the app go there. Findings live only in the app, because the app is private and the PRs are public.
 - **No automatic review on push.** There is also no quiet period before auto-review, no per-PR dollar cap, and no cancelling a running round when a commit arrives.
 - **No cost estimates before an action.** Only real spend is shown.

@@ -416,3 +416,21 @@ export const NO_VERIFIER_REPOSITORY = {
   installationId: 55500040,
 };
 export const NO_VERIFIER_PRS = { from: 1900, to: 1909 };
+
+/**
+ * stage-files.spec.ts (STAGEFILES): level 3 with no sensitive files, so round 1 verifies its
+ * findings with the rules file the spec picks for this repository in Settings → Pipeline.
+ */
+export const STAGE_FILES_REPOSITORY = {
+  slug: 'stage-files-repo',
+  fullName: 'acme/stage-files-repo',
+  installationId: 55500041,
+};
+export const STAGE_FILES_PRS = { from: 1910, to: 1919 };
+
+/** Verify rules that carry this mark and a token make the verifier double keep a copy. */
+export const STAGE_FILES_MARK = 'stage-files-e2e:';
+
+/** The `instructions/verify-rules.md` a verifier session received, for rules marked `token`. */
+export const verifyRulesFile = (holdDir: string, token: string): string =>
+  path.join(holdDir, `verify-rules-${token}.md`);
