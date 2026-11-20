@@ -40,3 +40,5 @@ Recurring problems seen while running parallel agent sessions on this repo, and 
 18. **Self-compaction.** A `/compact` text longer than ~500 characters arrives as a paste and does not run. Keep it short.
 19. **zsh quirks.** `echo ==` fails (`=` expansion), and an unmatched glob is an error. Use `echo "=="` and `setopt null_glob`, or avoid both.
 20. **Context.** Read agent results with a `grep '⏺' | tail`, not whole panes. Chain merges in one background command and let notifications wake you, instead of polling.
+
+21. **Where package time goes** (measured 20 Nov, see the 01:15 log entry): about 60% model thinking and writing, 25% checks, 15% other tools. Faster packages come from smaller scope per session and fewer handoffs, not from cutting verification. Ask Alek before switching simple packages to Sonnet or raising the context budget.
