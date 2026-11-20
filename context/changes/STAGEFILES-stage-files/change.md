@@ -1,7 +1,7 @@
 ---
 change_id: STAGEFILES-stage-files
 title: Choose each stage's instruction files in Settings → Pipeline; instructions vs documents
-status: planned
+status: plan_reviewed
 created: 2026-11-20
 updated: 2026-11-20
 archived_at: null
@@ -57,3 +57,14 @@ Taken during `/10x-plan` (complexity HIGH; the recommended option each time, nob
     (`runs.stage_files`). Run detail shows the reading stages per frozen file.
 13. **e2e proof of use:** the verifier double copies the `instructions/verify-rules.md` it
     received into a hold file (like `lessonsFile`), and Run detail shows the file read by Verify.
+
+Taken during `/10x-plan-review` (verdict REVISE, all seven findings fixed in the plan; report in
+`reviews/plan-review.md`):
+
+14. **Old API fields and routes go with the web switch** (Phase 4), not in the API phase: the
+    web's types are hand-written and its tests stub fetch, so an early removal would break the app
+    without failing `pnpm verify`.
+15. **At Global scope the Pipeline sheet names the repositories that hold a copy** of a slot file
+    with no global file, so the deployed data (files at repository scope) explains itself.
+16. **A choice may outlive its file**; the sheet then shows "(no active version)" and the run
+    reports the file missing, like any other missing file.

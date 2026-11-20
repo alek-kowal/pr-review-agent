@@ -178,7 +178,10 @@ resolution so api, worker and tests share one rule.
 **Intent**: Carry the kind everywhere a file is read or created; read, lock and write choices.
 
 **Contract**:
-- `kind` on `InstructionFileRow`, `InstructionVersion` (and `toLayer` input), the list summary.
+- `kind` on `InstructionFileRow` (picked up by `selectFiles`), on `InstructionVersion` (add `kind`
+  to `versionWithFile` at `queries/instructions.ts:36-42`, the type's Pick at `:24-25` and
+  `withFile` at `:111-124`), and on the list summary. `toLayer` and core `InstructionLayer` stay
+  as they are.
 - `ensureInstructionFile`/`importInstructionV1` take an optional `kind`, default `defaultKindOf`;
   `startInstructionCopy` copies the source's kind.
 - `stageFileChoicesOf(db, repositoryId | null)` → `{ global: Map<stage, StageFileChoice>, repository: Map<…> }`;
@@ -199,7 +202,10 @@ change_type: prompt `prompt-classifier.md`, rules `classify-rules.md`. review: p
 implement: prompt + rules from `REQUIRED_INSTRUCTION_FILES` (`required`). analyst: prompt + rules
 (`required`), documents `['lessons.md']`. `slotsOf(stage)` and `stageFilesFor(choices,
 documentKeys)` (binds `resolveStageFiles` to `PIPELINE_STAGES`) exported. `instructionFiles` is
-removed; `REVIEW_INSTRUCTION_FILES` / `ANALYST_INSTRUCTION_FILES` go.
+removed; `REVIEW_INSTRUCTION_FILES` / `ANALYST_INSTRUCTION_FILES` go. Its two users move to the
+slots in this phase so it stays green: `apps/api/src/routes/api/pipeline/index.ts:64` lists the
+default keys of the prompt and rules slots (same response as today) and
+`apps/worker/test/pipeline-descriptor.test.ts:19-21` asserts the slots.
 
 #### 5. Import map
 
@@ -216,7 +222,7 @@ removed; `REVIEW_INSTRUCTION_FILES` / `ANALYST_INSTRUCTION_FILES` go.
 
 - Migration generated and applies: `pnpm db:generate --name stage-files` then `pnpm db:migrate`
 - Core unit tests for kinds and resolution pass (global, repository override, reset to default, built in, all-markdown): `pnpm --filter @pra/core test`
-- DB tests for the migration's kind backfill, choice queries and import kinds pass: `pnpm --filter @pra/db test`
+- DB tests for the migration's kind backfill, choice queries and import kinds pass: `pnpm --filter @pra/db test`. The backfill test reads `packages/db/migrations/0030_stage-files.sql`, takes the statement after `-- Hand-written (STAGEFILES)`, runs it over freshly inserted `document` rows (`prompt-x.md`, `feature-map/prompt-y.md`, `verify-rules.md`, `lessons.md`, `review-levels.json`, `feature-map/sdk.md`) and expects each kind to equal `defaultKindOf`
 - `pnpm verify` passes
 
 ---
@@ -249,7 +255,8 @@ default keys (web copy fallback, slot defaults).
 
 **Contract**: in `startStageInTx`'s queued block, after `freezeRunInstructions`, compute
 `stageFilesFor(await stageFileChoicesOf(tx, repositoryId), documentKeys)` where `documentKeys` are
-the `document`-kind keys the run resolved (including a trial's replaced draft), and add
+the keys of the frozen versions whose file kind is `document` (`freezeRunInstructions` returns
+`kind` in its snapshot entries; a trial's replaced draft is among them), and add
 `stageFiles` to the run patch. `stageFilesOf(run, stage)`: the frozen entry, or the declared
 defaults resolved over the run's files for a run with `stage_files` null.
 
@@ -269,6 +276,10 @@ defaults resolved over the run's files for a run with `stage_files` null.
   `knowledge/<fileKey>` (`packages/agents/src/analyst/analyst.ts`); a missing assigned document is
   rendered empty, as `lessons.md` is today.
 - Pre-check passes the run's frozen stage files to `missingInstructions`.
+- Existing tests to adapt: `apps/worker/test/review-stage.test.ts` (knowledge dir: `lessons/edges.md`
+  stays as a Markdown document, prompts no longer appear), `packages/agents/src/analyst/analyst.test.ts`
+  (`lessons` → `documents`), the verify/implementer/analyst stage tests that assert `missing`.
+  e2e `learning.spec.ts:180-192` keeps working because `lessons.md` is a Markdown document.
 
 #### 4. API gaps follow the choice
 
@@ -329,7 +340,11 @@ not match the slot, `stage_file_slot {slot}` for a slot the stage does not decla
 (raw, for `before`) and `slots[]`: `{ name, kind, builtIn, required, source, value: string[]
 (effective keys; [BUILT_IN_FILE] for built in), files: FileOption[] }` where `FileOption =
 { fileKey, fileId: number|null, version: number|null, scope: InstructionScope|null }` resolved
-global → repository for the scope. `instructions[]` is removed.
+global → repository for the scope. At Global scope a slot file with no global file but with
+repository copies carries `copies: string[]` (their slugs), so the sheet can say where it lives
+(the deployed case). `instructions[]` stays until Phase 4 switches the web (the web's
+`api-types.ts` is hand-written and its tests stub fetch, so removing it here would break the app
+without failing `pnpm verify`).
 
 #### 3. Instructions list, New file, versions
 
@@ -347,7 +362,12 @@ a draft.
   → 201 detail; creates the file and version 1 as a `hand` draft (unsigned, like Save as draft).
   400 `instruction_file_key {problem}`, 409 `instruction_file_exists`, 409
   `instruction_kind_conflict` when the key exists at another scope with the other kind.
-- `POST /:id/activate` accepts any non-active version (draft or archived); `/rollback` is removed.
+- `POST /:id/activate` accepts any non-active version (draft or archived); `/rollback` stays until
+  Phase 4 moves the web to `/activate`, then goes with its tests
+  (`apps/api/test/routes/instructions.routes.test.ts:132,160-167`).
+- A choice may name a key that later has no file (its only draft discarded, a repository copy
+  gone): the sheet shows "(no active version)" and the run's pre-check or stage reports it missing,
+  as for any missing file. Nothing refuses the discard.
 - `DELETE /:id/draft` (unsigned): deletes the draft row, or archives it (no `activatedAt`) when a
   trial or a run references it; when it was the file's only version, the file row goes too.
   404 `instruction_version_not_found` when there is no draft. Query `discardInstructionDraft(tx, fileId)`.
@@ -392,7 +412,19 @@ version as a link (`fileKey vN`, or "(no active version)"), and "Inherited from 
 "Overridden for this repository" (repository scope) or "Default" / "Changed from default" (global
 scope) with Reset. Save opens `SignedSaveDialog` (rows per changed slot) and sends `before` =
 the stored choice at that scope. 409 shows the existing stale message. `affects` copy no longer
-says read-only.
+says read-only. At Global scope a file that exists only as repository copies says so ("Only in
+workflowbuilder: pick it above"). This phase removes the API's `instructions[]` and `/rollback`.
+
+#### 5. Types, fixtures, copy and tests the web phase touches
+
+**File**: `apps/web/src/lib/api-types.ts`, `apps/web/src/test/fixtures.ts`, `apps/web/src/copy/audit.ts`, `apps/web/src/features/pipeline/pipeline-page.test.tsx`, `apps/web/src/features/instructions/instructions-editor.test.tsx`
+
+**Intent**: Keep the hand-written types and fixtures in step with Phase 3 and label the new audit
+area.
+
+**Contract**: types for the pipeline view, stage-files body, instruction `kind`/`readBy`, run
+`stageFiles`; audit area `stage_files: 'Stage files'`; the two existing test files move to the new
+layout (sections by kind instead of scope regions, Make active instead of Roll back).
 
 #### 2. Instructions page
 
@@ -453,14 +485,17 @@ One e2e spec over the whole path, then the docs that recorded the read-only deci
 
 **Intent**: Pick another rules file for Verify on one repository and see it used.
 
-**Contract**: repository `stage-files-repo` (installation 55500041, level 3), PRs 1910-1919. The
-spec creates `verify-rules-e2e.md` (instruction, global) with New file, makes v1 active (signed),
+**Contract**: repository `stage-files-repo` (installation 55500041, level 3), PRs 1910-1919
+(`STAGE_FILES_PRS`, number = from + `testInfo.retry`). The spec creates
+`verify-rules-e2e-<retry>.md` (instruction, global; the retry suffix because a retry shares the
+stack's database) with New file, makes v1 active (signed),
 picks it for Verify on the repository in Settings → Pipeline (signed), sees "Overridden for this
 repository", delivers a PR, waits for the round, sees Run detail list `verify-rules-e2e.md` read
 by Verify, sees the verifier double received its text (a hold file the double writes from
 `instructions/verify-rules.md`, like `lessonsFile`), and sees Settings → Instructions "Read by"
-list Verify for the repository. Existing specs adapt to the removed Rollback label and the new
-Instructions layout.
+list Verify for the repository. `e2e/instructions.spec.ts:55-58` (region "Global" → the
+Instructions section) adapts to the new layout; the a11y specs keep `[data-work-start]` on the
+first section.
 
 #### 2. Docs
 
