@@ -1,5 +1,3 @@
-import type { NoParams } from '../reason.ts';
-
 declare module '../reason.ts' {
   interface ReasonParams {
     /** Token mode (no GitHub App): the app reads GitHub but never writes to it. */
@@ -8,6 +6,8 @@ declare module '../reason.ts' {
     github_rate_limited: { resetAt: string };
     /** The poller runs only in token mode; with the GitHub App, webhooks bring the events. */
     github_poll_off: NoParams;
+    /** The last poll could not read these repositories or PRs (`owner/name` or `owner/name#n`). */
+    github_poll_failed: { items: string[] };
   }
 }
 

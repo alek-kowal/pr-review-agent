@@ -1,4 +1,11 @@
-import { ALERTS_CRON, JOBS, RECONCILE_CRON, sendDrainJob, type JobPayloads } from '@pra/db';
+import {
+  ALERTS_CRON,
+  GITHUB_POLL_CRON,
+  JOBS,
+  RECONCILE_CRON,
+  sendDrainJob,
+  type JobPayloads,
+} from '@pra/db';
 import { handleAlertDeliveries } from './alerts/deliver.ts';
 import { handleAlertEvaluation, requestAlertEvaluation } from './alerts/evaluate.ts';
 import { listenForAlertTriggers } from './alerts/triggers.ts';
@@ -6,6 +13,7 @@ import { withDefaults, type WorkerDeps, type WorkerDepsInput } from './deps.ts';
 import { handleGithubComments } from './handlers/github-comment.ts';
 import { handleFollowUps } from './handlers/clickup-follow-up.ts';
 import { handleGithubEvents } from './handlers/github-event.ts';
+import { handleGithubPoll } from './handlers/github-poll.ts';
 import { handleReconcile } from './handlers/reconcile.ts';
 import { handleSmoke } from './handlers/smoke.ts';
 import { listenForCancels } from './run/cancel.ts';
@@ -74,6 +82,11 @@ export async function startWorker(
   await queue.work<JobPayloads['reconcile']>(JOBS.reconcile, work, () => handleReconcile(deps));
   // pg-boss keeps one schedule per queue; a restart only rewrites it.
   await queue.schedule(JOBS.reconcile, RECONCILE_CRON);
+  // P-28: without the GitHub App a tick every minute; the poll schedule decides which tick polls.
+  await queue.work<JobPayloads['github.poll']>(JOBS.githubPoll, work, async (jobs) => {
+    for (const job of jobs) await handleGithubPoll(deps, { force: job.data?.force === true });
+  });
+  await queue.schedule(JOBS.githubPoll, GITHUB_POLL_CRON, {});
   await queue.work<JobPayloads['run.drain']>(JOBS.runDrain, work, async () => {
     const result = await drainQueue(deps);
     if (result.started.length || result.resumed.length) logger.info(result, 'queued runs started');

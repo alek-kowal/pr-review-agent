@@ -154,7 +154,7 @@ export async function openPrNumbersWithActiveRun(
   repositoryId: number,
 ): Promise<number[]> {
   const rows = await db
-    .selectDistinct({ number: pullRequests.number })
+    .select({ number: pullRequests.number })
     .from(pullRequests)
     .innerJoin(runs, eq(runs.pullRequestId, pullRequests.id))
     .where(
@@ -164,6 +164,7 @@ export async function openPrNumbersWithActiveRun(
         inArray(runs.status, [...ACTIVE_RUN_STATUSES]),
       ),
     )
+    .groupBy(pullRequests.number)
     .orderBy(asc(pullRequests.number));
   return rows.map((row) => row.number);
 }

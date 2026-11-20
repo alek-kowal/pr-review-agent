@@ -5,7 +5,7 @@
 // `pr_reconciled` timeline entry and a `reconciled` state change; the `pull_requests` write
 // publishes the same change notification as a webhook. A PR found closed has its active run
 // cancelled as the bot (FR-023).
-import { BOT, type CiCheck } from '@pra/core';
+import { BOT, githubPolls, type CiCheck } from '@pra/core';
 import {
   ciChecksOf,
   getPullRequest,
@@ -18,7 +18,7 @@ import {
   type PullRequest,
   type Repository,
 } from '@pra/db';
-import type { GitHubPullRequest } from '@pra/integrations';
+import type { GitHubPullRequest, OpenPullRequestSummary } from '@pra/integrations';
 import type { WorkerDeps } from '../deps.ts';
 import { toSnapshotRow } from '../github-events/pull-request.ts';
 import { cancelForClosedPr } from '../run/close-cancels.ts';
@@ -35,6 +35,8 @@ export type ReconcileResult = {
 };
 
 export async function handleReconcile(deps: WorkerDeps): Promise<void> {
+  // Without the App the GitHub poller (P-28) watches the PRs and spends the read quota.
+  if (githubPolls(deps.github.mode)) return;
   const result = await reconcileRepositories(deps);
   if (result.corrected.length || result.failed.length) {
     deps.logger.info(result, 'reconcile poll corrected PRs');
@@ -57,11 +59,17 @@ export async function reconcileRepositories(deps: WorkerDeps): Promise<Reconcile
   return result;
 }
 
-async function reconcileRepository(
+/**
+ * Corrects one repository and returns GitHub's list of its open PRs. `importFromList`: a PR the
+ * app does not know yet is imported from the list (no commit count) instead of fetched in full,
+ * to save requests (the poller's baseline). `ci` false leaves CI alone.
+ */
+export async function reconcileRepository(
   deps: WorkerDeps,
   repository: Repository,
   result: ReconcileResult,
-): Promise<void> {
+  options: { importFromList?: boolean; ci?: boolean } = {},
+): Promise<OpenPullRequestSummary[]> {
   const fullName = repository.githubFullName;
   const open = await deps.github.listOpenPullRequests(fullName);
   const listed = new Map(open.map((pr) => [pr.number, pr]));
@@ -85,12 +93,9 @@ async function reconcileRepository(
 
   for (const number of [...differing, ...gone]) {
     try {
-      const corrected = await correctPullRequest(
-        deps,
-        repository,
-        stored.get(number) ?? null,
-        number,
-      );
+      const previous = stored.get(number) ?? null;
+      const fromList = options.importFromList && !previous ? listed.get(number)?.snapshot : null;
+      const corrected = await correctPullRequest(deps, repository, previous, number, fromList);
       if (corrected) result.corrected.push(`${fullName}#${number}`);
     } catch (error) {
       deps.logger.warn({ err: error, repository: fullName, number }, 'reconcile: PR not corrected');
@@ -98,14 +103,15 @@ async function reconcileRepository(
     }
   }
 
-  await correctCi(deps, repository, [...listed.keys()], result);
+  if (options.ci !== false) await correctCi(deps, repository, [...listed.keys()], result);
+  return open;
 }
 
 /**
  * CI runs without moving the head, so every listed open PR has its head's CI read again (one
  * read per distinct head) and stored when it differs from what the PR shows.
  */
-async function correctCi(
+export async function correctCi(
   deps: WorkerDeps,
   repository: Repository,
   numbers: number[],
@@ -168,8 +174,9 @@ async function correctPullRequest(
   repository: Repository,
   previous: PullRequest | null,
   number: number,
+  listed?: GitHubPullRequest | null,
 ): Promise<boolean> {
-  const snapshot = await deps.github.getPullRequest(repository.githubFullName, number);
+  const snapshot = listed ?? (await deps.github.getPullRequest(repository.githubFullName, number));
   const corrected = await deps.db.transaction(async (tx) => {
     // A webhook may have stored a newer snapshot since the list was read.
     const current = await getPullRequest(tx, repository.id, number);

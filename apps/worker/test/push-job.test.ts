@@ -255,6 +255,28 @@ describe('push job', () => {
     ]);
   });
 
+  test('without the GitHub App the push is refused once as github_read_only', async () => {
+    const { patch, bare } = await readyPatch();
+    const before = pushCalls();
+    deps.github.setMode('token');
+    try {
+      const outcome = await handlePatchPush(deps, { patchId: patch.id, signedBy: signer.id });
+
+      expect(outcome).toEqual({
+        pushed: false,
+        reason: { code: 'github_read_only', params: {} },
+      });
+    } finally {
+      deps.github.setMode('app');
+    }
+    expect(pushCalls() - before).toBe(0);
+    expect(await git(bare, 'rev-parse', `refs/heads/${BRANCH}`)).toBe(fixture.headSha);
+    expect(await getPatch(deps.db, patch.id)).toMatchObject({
+      status: 'ready',
+      pushRefusal: { code: 'github_read_only', params: {} },
+    });
+  });
+
   test('a push GitHub declines is recorded as push_rejected, not lost', async () => {
     const { pullRequest, patch, bare } = await readyPatch();
     await writeFile(path.join(bare, 'hooks', 'pre-receive'), '#!/bin/sh\nexit 1\n', {

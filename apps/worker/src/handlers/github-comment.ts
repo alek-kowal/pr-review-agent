@@ -1,6 +1,6 @@
 // The after-round GitHub comment (S-01-T11, FR-027): one sentence per completed round, posted at
 // most once per run. No URL and no finding text: a repository's PRs may be public (NFR Privacy).
-import { BOT } from '@pra/core';
+import { BOT, githubReadOnly } from '@pra/core';
 import {
   getAppSettings,
   getRunContext,
@@ -28,6 +28,8 @@ const enabled = async (db: Executor): Promise<boolean> =>
 /** `runCompleted` hook: queues the comment for a completed round when the setting is on. */
 export const enqueueAfterRoundComment: RunHook = async ({ deps, run }) => {
   if (run.kind !== 'round' || run.status !== 'completed') return;
+  // Without the GitHub App nothing is posted (P-28).
+  if (githubReadOnly(deps.github.mode)) return;
   if (!(await enabled(deps.db))) return;
   await sendJob(deps.queue, JOBS.githubComment, { runId: run.id }, { singletonKey: `${run.id}` });
 };
@@ -40,7 +42,12 @@ export async function handleGithubComments(
 }
 
 export type CommentOutcome =
-  'posted' | 'run_not_found' | 'not_a_completed_round' | 'comment_off' | 'already_posted';
+  | 'posted'
+  | 'run_not_found'
+  | 'not_a_completed_round'
+  | 'comment_off'
+  | 'already_posted'
+  | 'github_read_only';
 
 /**
  * Claims the run's `comment` action (`sending`) under the run's row lock, posts, then records
@@ -53,6 +60,11 @@ export async function postAfterRoundComment(
   runId: number,
 ): Promise<CommentOutcome> {
   const { db, logger } = deps;
+  // A job queued before a switch away from the App: skipped, not failed, so it is not retried.
+  if (githubReadOnly(deps.github.mode)) {
+    logger.info({ runId, outcome: 'github_read_only' }, 'after-round comment skipped');
+    return 'github_read_only';
+  }
   const found = await getRunContext(db, runId);
   if (!found) return 'run_not_found';
   const { pullRequest, repository } = found;

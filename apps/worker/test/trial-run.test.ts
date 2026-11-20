@@ -117,7 +117,8 @@ describe('a trial', () => {
 
     // The PR's state and lane are unchanged; nothing reached GitHub, ClickUp or the timeline.
     expect(await prView()).toEqual(before);
-    expect(deps.github.calls).toEqual([]);
+    // `gitToken` only hands git its credentials for the fetch; it sends nothing to GitHub.
+    expect(deps.github.calls.filter((call) => call.method !== 'gitToken')).toEqual([]);
     expect(deps.clickup.calls).toEqual([]);
     expect(await timelineOf(deps.db, pullRequest.id)).toEqual([]);
   });

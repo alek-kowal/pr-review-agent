@@ -5,6 +5,7 @@ import {
   autofixCheck,
   autofixMode,
   BOT,
+  githubReadOnly,
   needsDecision,
   reason,
   type AutofixCheck,
@@ -78,16 +79,22 @@ async function startInput({ deps, run }: RunHookContext, load: PrStateLoad): Pro
 export const autofixOnRoundCompleted: RunHook = async (context) => {
   const { deps, run, pullRequest, repository } = context;
   if (run.kind !== 'round' || run.status !== 'completed') return;
-  if (autofixMode(run.level.number) === 'off') return;
+  const readOnly = githubReadOnly(deps.github.mode);
+  if (autofixMode(run.level.number, readOnly) === 'off') return;
   const load = await loadPrStateInput(deps.db, pullRequest.id);
   // A later round finished meanwhile, or the PR closed: this round no longer decides.
   if (!load || load.pullRequest.state !== 'open' || load.reviewedRound?.id !== run.id) return;
   // The implementer takes the PR's level now: a PR someone lowered below 5 since the round
   // started (to stop the bot) gets the shadow entry, not a run.
   const level = Math.min(run.level.number, load.input.level) as LevelNumber;
-  const mode = autofixMode(level);
+  // Without the GitHub App level 5 cannot push: it writes the shadow entry instead (P-28).
+  const mode = autofixMode(level, readOnly);
   if (mode === 'off') return;
-  const check = autofixCheck('start', { ...(await startInput(context, load)), level });
+  const check = autofixCheck('start', {
+    ...(await startInput(context, load)),
+    level,
+    githubReadOnly: readOnly,
+  });
   // Nothing to fix is no decision: no attempt, no shadow entry.
   if (check.reason.code === 'nothing_to_fix') return;
 
@@ -206,6 +213,7 @@ async function pushCheck(
       ? await autoPatchesInChain(deps.db, start.chainId, { exceptRunId: run.id })
       : 0,
     maxAutoPatches: run.level.settings.autofixMaxPatches ?? undefined,
+    githubReadOnly: githubReadOnly(deps.github.mode),
     ...(await autofixHolds(deps.db)),
   });
 }
@@ -234,7 +242,7 @@ export async function autofixPushHold(
  */
 export const autofixOnPatchReady: RunHook = async ({ deps, run, pullRequest, repository }) => {
   if (run.kind !== 'implementer' || run.status !== 'completed') return;
-  const mode = autofixMode(run.level.number);
+  const mode = autofixMode(run.level.number, githubReadOnly(deps.github.mode));
   if (mode === 'off') return;
   const [patch, start] = await Promise.all([
     patchOfRun(deps.db, run.id),

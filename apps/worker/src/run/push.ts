@@ -1,7 +1,7 @@
 // S-14-T2: the push job. It re-reads the PR head from GitHub, checks the push rule, commits the
 // patch as the App's bot on top of the reviewed commit and pushes it, never forced. The pushed
 // commit is then the one FR-016 waits for: its `synchronize` starts the fix check (round N of 3).
-import { BOT, canPush, member, reason, type Actor, type Reason } from '@pra/core';
+import { BOT, canPush, githubReadOnly, member, reason, type Actor, type Reason } from '@pra/core';
 import {
   activeRunOfPr,
   autofixStartOfRun,
@@ -56,6 +56,8 @@ export async function handlePatchPush(deps: WorkerDeps, job: PushJob): Promise<P
       state: fresh.state,
       fork: pullRequest.isFork,
       activeRun: await activeRunOfPr(deps.db, pullRequest.id),
+      // Without the GitHub App nothing is pushed; the refusal is recorded once (P-28).
+      githubReadOnly: githubReadOnly(deps.github.mode),
     },
     pullRequest.number,
     fresh.headSha,
