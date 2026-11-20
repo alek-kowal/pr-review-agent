@@ -20,14 +20,14 @@ let db: Db;
 let app: FastifyInstance;
 let signer: { id: string };
 let wb: Repository;
-let other: Repository;
 
 beforeAll(async () => {
   database = await createTestDatabase();
   db = createDb(database.url, { max: 2 });
   signer = await seedTeamMember(db, { name: 'Ola' });
   wb = await upsertRepository(db, { slug: 'wb', githubFullName: 'acme/wb' });
-  other = await upsertRepository(db, { slug: 'other', githubFullName: 'acme/other' });
+  // A second repository, which inherits the global choices.
+  await upsertRepository(db, { slug: 'other', githubFullName: 'acme/other' });
   const global = ['prompt-verifier.md', 'verify-rules.md', 'review-rules.md', 'lessons.md'];
   for (const fileKey of global) {
     await importInstructionV1(db, { scope: 'global', fileKey, content: `global ${fileKey}` });

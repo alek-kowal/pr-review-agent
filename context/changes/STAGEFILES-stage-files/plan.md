@@ -576,9 +576,9 @@ import is not needed; the two JSON files stay as unused documents.
 
 #### Automated
 
-- [ ] 3.1 API tests for the stage-files setting (signed, stale, validation, reset)
-- [ ] 3.2 API tests for pipeline scope, instructions kinds/readers, New file, Make active, Discard draft
-- [ ] 3.3 `pnpm verify` passes
+- [x] 3.1 API tests for the stage-files setting (signed, stale, validation, reset) — phase 3 commit
+- [x] 3.2 API tests for pipeline scope, instructions kinds/readers, New file, Make active, Discard draft — phase 3 commit
+- [x] 3.3 `pnpm verify` passes — phase 3 commit
 
 ### Phase 4: Web
 

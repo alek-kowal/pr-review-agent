@@ -68,3 +68,18 @@ Taken during `/10x-plan-review` (verdict REVISE, all seven findings fixed in the
     with no global file, so the deployed data (files at repository scope) explains itself.
 16. **A choice may outlive its file**; the sheet then shows "(no active version)" and the run
     reports the file missing, like any other missing file.
+
+Taken during `/10x-implement`:
+
+17. **The pipeline's stage view is nested** as `stages[].files: { choice, slots } | null` (null for
+    stages without slots); file options carry their `kind`.
+18. **Validation checks only the slots that change from `before`** (follows decision 16), so a
+    choice whose file has gone can still be edited in its other slots.
+19. **Empty choices are normalised to null** (`normalChoice`), and the empty placeholder rows the
+    lock leaves are ignored on read.
+20. **A run started before STAGEFILES reads the declared defaults**, with `defaultKindOf` for its
+    documents (`apps/worker/src/stages/stage-files.ts`).
+21. **`requiredStageText` is the one helper** Verify, Implement and Analyse use to read their
+    assigned prompt and rules.
+22. **Discard archives a draft that a trial or a run read** (never active, no `activatedAt`), and
+    "Make active" accepts such a version.
