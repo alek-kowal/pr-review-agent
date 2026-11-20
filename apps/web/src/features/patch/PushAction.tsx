@@ -16,6 +16,8 @@ import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { copy } from '@/copy/index.ts';
 import type { MainActionProps } from '@/features/pr/slots.ts';
+import { ReadOnlyNote } from '@/features/shell/ReadOnlyNote.tsx';
+import { useGitHubReadOnly } from '@/features/shell/status-query.ts';
 import { SignatureField } from '@/features/signature/SignatureField.tsx';
 import { useSignature } from '@/features/signature/use-signature.ts';
 import { ApiError } from '@/lib/api.ts';
@@ -41,16 +43,24 @@ function refusalOf(error: unknown): string {
  */
 export function PushAction({ repo, number, view, action }: MainActionProps) {
   const [open, setOpen] = useState(false);
+  const readOnly = useGitHubReadOnly();
+  const noteId = useId();
   const patch = view.implementer.patch;
   if (!patch) return null;
   const branch = view.pullRequest.headRef;
 
   return (
     <>
-      <Button size="sm" disabled={action.disabled !== null} onClick={() => setOpen(true)}>
+      <Button
+        size="sm"
+        disabled={action.disabled !== null || readOnly}
+        aria-describedby={readOnly ? noteId : undefined}
+        onClick={() => setOpen(true)}
+      >
         <GitBranchPlus aria-hidden="true" className="size-[13px]" />
         {t.open(branch)}
       </Button>
+      {readOnly && <ReadOnlyNote id={noteId} detail={copy.status.githubReadOnly.push} />}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent className="sm:max-w-lg">
           {/* Mounted per open, so each opening starts empty, from the last signer. */}

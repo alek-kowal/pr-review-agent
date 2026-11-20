@@ -2,6 +2,7 @@ import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query
 import { apiGet, apiRequest } from '@/lib/api.ts';
 import type {
   RepositoriesSettingsResponse,
+  RepositoryLookupResponse,
   RepositorySettings,
   RepositorySettingsResponse,
 } from '@/lib/api-types.ts';
@@ -17,6 +18,23 @@ export const repositoriesSettingsQuery = () =>
     queryKey: repositorySettingsKeys.all,
     queryFn: ({ signal }) =>
       apiGet<RepositoriesSettingsResponse>('/api/settings/repositories', signal),
+  });
+
+/**
+ * Without the GitHub App (P-28): the repository GitHub shows by `owner/name`, with its default
+ * branch to prefill. One GET; a 404 or 409 is an answer, not something to retry.
+ */
+export const repositoryLookupQuery = (fullName: string) =>
+  queryOptions({
+    // Outside `repositorySettingsKeys.all`: a connect must not ask again (it would say 409).
+    queryKey: ['settings', 'repository-lookup', fullName.toLowerCase()] as const,
+    queryFn: ({ signal }) =>
+      apiGet<RepositoryLookupResponse>(
+        `/api/settings/repositories/lookup?fullName=${encodeURIComponent(fullName)}`,
+        signal,
+      ),
+    retry: false,
+    staleTime: Infinity,
   });
 
 export const repositorySettingsQuery = (id: number) =>

@@ -22,6 +22,8 @@ import { SaveBar } from '@/features/settings/SaveBar.tsx';
 import { SettingsPage } from '@/features/settings/SettingsPage.tsx';
 import { SignedSaveDialog } from '@/features/settings/SignedSaveDialog.tsx';
 import { useSettingsForm, type SettingsField } from '@/features/settings/use-settings-form.ts';
+import { ReadOnlyNote } from '@/features/shell/ReadOnlyNote.tsx';
+import { useGitHubReadOnly } from '@/features/shell/status-query.ts';
 import { ApiError } from '@/lib/api.ts';
 import type { LevelView } from '@/lib/api-types.ts';
 import { errorText } from '@/lib/reasons.ts';
@@ -403,6 +405,7 @@ function AutofixRules(props: {
 }) {
   const a = t.autofix;
   const label = t.fields[AUTOFIX]!.label;
+  const readOnly = useGitHubReadOnly();
   const rule = (i: number, body: ReactNode) => (
     <li key={i} className="flex items-start gap-2">
       <span
@@ -417,6 +420,11 @@ function AutofixRules(props: {
   return (
     <Section title={a.title} sub={a.sub}>
       <div className="px-4 py-3 text-sm">
+        {readOnly && (
+          <div className="mb-3">
+            <ReadOnlyNote detail={copy.status.githubReadOnly.autofix} />
+          </div>
+        )}
         <ol aria-label={a.title} className="grid gap-2">
           {a.rules.map((text, i) => rule(i + 1, text))}
           {rule(

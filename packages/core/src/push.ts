@@ -1,3 +1,4 @@
+import './reasons/github.ts';
 import './reasons/push.ts';
 import './reasons/rounds.ts';
 import type { ActiveRun } from './model.ts';
@@ -19,6 +20,8 @@ export type PushTarget = {
   state: 'open' | 'closed' | 'merged';
   fork: boolean;
   activeRun: Pick<ActiveRun, 'kind' | 'status'> | null;
+  /** Token mode (no GitHub App): the app never writes to GitHub (P-28). */
+  githubReadOnly?: boolean;
 };
 
 export type PushGate = { allowed: true } | { allowed: false; reason: Reason };
@@ -35,6 +38,7 @@ export function canPush(
   freshHeadSha: string,
 ): PushGate {
   const refuse = (refusal: Reason): PushGate => ({ allowed: false, reason: refusal });
+  if (pr.githubReadOnly) return refuse(reason('github_read_only'));
   if (pr.fork) return refuse(reason('fork_read_only'));
   if (pr.state !== 'open') return refuse(reason('pr_closed'));
   if (patch.status !== 'ready') return refuse(reason('patch_not_ready', { status: patch.status }));

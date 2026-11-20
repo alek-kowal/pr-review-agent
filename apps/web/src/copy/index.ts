@@ -234,6 +234,8 @@ export const copy = {
     cancelled: 'it was cancelled',
     review_output_invalid: "the reviewer's answer was not valid",
     github_not_configured: 'GitHub is not configured',
+    github_read_only: 'read-only: the GitHub App is not connected',
+    github_rate_limited: 'GitHub’s rate limit is used up',
     fork_read_only: 'off for forks',
     implement_below_level: 'needs a higher level',
     no_implement_decisions: 'no finding is decided Implement',
@@ -264,6 +266,10 @@ export const copy = {
     decision_changed_since:
       'Someone decided these findings again since. Undo is no longer possible.',
     github_not_configured: 'GitHub is not configured on this server.',
+    github_read_only:
+      'Read-only: the GitHub App is not connected, so the app does not write to GitHub.',
+    github_rate_limited: 'GitHub’s rate limit is used up. Try again after it resets.',
+    github_poll_off: 'The GitHub App is connected: webhooks bring the events, nothing is polled.',
     repository_not_reachable: 'The GitHub App cannot reach this repository.',
     repository_already_connected: 'This repository is already connected.',
     clickup_not_configured: 'ClickUp is not configured on this server.',

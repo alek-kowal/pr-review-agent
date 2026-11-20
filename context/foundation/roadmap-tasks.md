@@ -2,7 +2,7 @@
 
 > Companion to [`roadmap.md`](roadmap.md). One section per roadmap item, in roadmap order; each item links back here from its **Tasks** field.
 > Every task is sized for one fresh agent session under 30% context: read what it needs, plan, implement, test.
-> 230 tasks across 27 items; 19 are marked **Needs Alek**.
+> 231 tasks across 27 items; 20 are marked **Needs Alek**.
 
 ## How to use
 
@@ -33,6 +33,7 @@
 | S-01-T16 | Create and install the GitHub App on WB |
 | S-01-T17 | Provide the Anthropic API key |
 | S-01-T18 | Run the real smoke on one WB PR |
+| S-01-T19 | Poll WB until the GitHub App exists (optional `GITHUB_TOKEN`) |
 | S-02-T11 | Sign the first decision on a real WB PR |
 | S-04-T8 | Real Checks and judge on a WB PR |
 | S-04-T9 | Re-verify sandbox isolation on the Linux host |
@@ -709,6 +710,7 @@ S-01 runs Review only. WB is seeded at level 1 until the Checks, Change type and
   8. Copy the App ID into `.env` as `GITHUB_APP_ID`. Under Private keys, click "Generate a private key". Move the downloaded `.pem` outside the repo (for example `~/.config/pr-review-agent/github-app.pem`), run `chmod 600` on it, and set `GITHUB_APP_PRIVATE_KEY_PATH` in `.env` to that path.
   9. Install App → the organisation → Only select repositories → Workflow Builder. Check that its full name matches `githubFullName` in `packages/db/seeds/workflowbuilder.json`, and tell the orchestrator if it does not.
   10. With the api running, start `pnpm dlx smee-client --url <channel URL> --target http://localhost:3000/webhooks/github`, then redeliver the `ping` delivery from Advanced → Recent Deliveries and run the check in "Done when".
+  11. If S-01-T19 ran first: restart api and worker after step 8. Polling stops by itself (Settings → Integrations shows the App again); `GITHUB_TOKEN` may stay or go.
 
 ### S-01-T17: Provide the Anthropic API key (Needs Alek)
 - **Goal:** Give the worker model access, settling PRD OQ4 for local runs.
@@ -736,6 +738,19 @@ S-01 runs Review only. WB is seeded at level 1 until the Checks, Change type and
   5. Open `http://localhost:5173/prs`, open the PR and wait for round 1 to finish (the page refreshes every 5 s).
   6. Check the Findings tab, the GitHub comment and the `agent_sessions` row, as listed in "Done when".
   7. Tell the orchestrator the round's cost and anything that looked wrong.
+
+### S-01-T19: Poll WB until the GitHub App exists (Needs Alek)
+- **Goal:** Review real WB PRs before S-01-T16, without org owner rights: the worker polls GitHub read-only (P-28).
+- **Touches:** local `.env` (or `/etc/pra/pra.env` on the host); Settings in the app
+- **Depends on:** S-01-T17
+- **Done when:** Settings → Integrations → GitHub polling shows a last poll without an error and WB with "baseline"; the next WB PR marked ready for review starts round 1 within one poll interval; no comment, merge or push reaches GitHub.
+- **Steps for Alek:**
+  1. Leave `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH` and `GITHUB_WEBHOOK_SECRET` empty.
+  2. Optional, recommended: GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token; Repository access "Public repositories (read-only)"; no other permissions. Put it in `.env` as `GITHUB_TOKEN`. Without it GitHub allows 60 requests an hour; set the poll interval to 15 minutes or more then.
+  3. Restart the api and worker. Settings → Repositories: type the WB `owner/name`, check the prefilled default branch, Connect and sign (skip if `pnpm db:seed-repo` already added it).
+  4. Settings → Integrations → GitHub polling: set the schedule (interval, window, days, time zone), sign, then press Poll now once. The first poll imports WB's open PRs and reviews none of them.
+  5. Mark a WB PR ready for review, or push to one with a finished round, and watch the board.
+- **Switch-over to the App:** after S-01-T16 set all three App values and restart api and worker. Polling stops by itself and webhooks take over; merge, push and the after-round comment turn on. A partly set App keeps polling, and Integrations names the missing values.
 
 ## S-02: board-and-signed-decision
 

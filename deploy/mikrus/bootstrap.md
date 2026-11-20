@@ -75,7 +75,8 @@ chown root:pra /etc/pra/pra.env && chmod 640 /etc/pra/pra.env
 # The GitHub App's private key: /etc/pra/github-app.pem, root:pra, 640.
 # Fill /etc/pra/pra.env: DATABASE_URL with the password above and host 127.0.0.1,
 # DATA_DIR=/var/lib/pra/data, BLOB_DIR=/var/lib/pra/blobs, APP_BASE_URL,
-# CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token` on your machine), the GitHub App values,
+# CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token` on your machine), the GitHub App values (or,
+# until the App exists, none of them and optionally GITHUB_TOKEN: the worker polls read-only),
 # and SANDBOX_RUNTIME=runc (gVisor cannot run in Mikrus's unprivileged LXC; do not install it).
 sudo -u pra ln -s /etc/pra/pra.env /srv/pra/app/.env
 ```
@@ -133,6 +134,9 @@ Then:
 - `https://<subdomain>.mikrus.dev/` asks for the gate login and shows the app.
 - `curl -i https://<subdomain>.mikrus.dev/webhooks/github` answers from the api (not 401).
 - In the GitHub App settings, set the webhook URL to `https://<subdomain>.mikrus.dev/webhooks/github`.
+  Without the App yet: Settings → Integrations shows "GitHub polling"; connect the repository by
+  `owner/name` in Settings → Repositories and press Poll now once (the first poll imports the
+  open PRs without reviewing them).
 - `systemctl list-timers 'pra-*'` lists four timers; `journalctl -u pra-worker -n 50` is quiet.
 - Size the sandbox on the real repository (docs/deploy-mikrus.md, "Measure"):
   `sudo -iu pra sh -c 'cd app && pnpm sandbox:bench --repo <git url> --slug <slug>'`.

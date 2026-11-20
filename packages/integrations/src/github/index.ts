@@ -6,9 +6,12 @@ export {
   GITHUB_APP_NOT_INSTALLED,
   GITHUB_ENV,
   GITHUB_NOT_CONFIGURED,
+  GITHUB_RATE_LIMITED,
+  GITHUB_READ_ONLY,
   MERGE_REFUSAL_STATUSES,
   splitFullName,
   toPullRequest,
+  toRawPullRequest,
   type MergeResult,
   type PullRequestFreshState,
   type PullRequestReview,
@@ -22,15 +25,17 @@ export {
   type GitHubCommit,
   type GitHubGateway,
   type GitHubPullRequest,
+  type GitHubRateLimit,
   type GitHubUser,
   type InstallationToken,
   type OpenPullRequestSummary,
   type PullRequestState,
   type RawPullRequest,
+  type RepositoryInfo,
 } from './github-gateway.ts';
+export { createGitHubGateway } from './create-github-gateway.ts';
 export {
-  createGitHubGateway,
   OctokitGitHubGateway,
-  UnconfiguredGitHubGateway,
   type OctokitGitHubGatewayOptions,
 } from './octokit-github-gateway.ts';
+export { TokenGitHubGateway, type TokenGitHubGatewayOptions } from './token-github-gateway.ts';

@@ -14,6 +14,8 @@ import {
 import { copy } from '@/copy/index.ts';
 import type { MainActionProps } from '@/features/pr/slots.ts';
 import { findingsQuery } from '@/features/pr/queries.ts';
+import { ReadOnlyNote } from '@/features/shell/ReadOnlyNote.tsx';
+import { useGitHubReadOnly } from '@/features/shell/status-query.ts';
 import { SignatureField } from '@/features/signature/SignatureField.tsx';
 import { useSignature } from '@/features/signature/use-signature.ts';
 import { ApiError } from '@/lib/api.ts';
@@ -35,6 +37,7 @@ export function ImplementAction({ repo, number, view, action }: MainActionProps)
   const [open, setOpen] = useState(false);
   const reasonId = useId();
   const block = action.disabled;
+  const readOnly = useGitHubReadOnly();
 
   return (
     <div className="grid justify-items-end gap-1">
@@ -57,6 +60,7 @@ export function ImplementAction({ repo, number, view, action }: MainActionProps)
           {t.blockText(block)}
         </p>
       )}
+      {readOnly && <ReadOnlyNote detail={copy.status.githubReadOnly.implement} />}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
           {/* Mounted per open, so each opening starts from the last signer and no old error. */}

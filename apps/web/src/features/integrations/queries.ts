@@ -2,6 +2,7 @@ import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query
 import { apiGet, apiRequest } from '@/lib/api.ts';
 import type {
   ClickUpTestResponse,
+  GitHubPollSchedule,
   IntegrationSettings,
   IntegrationsResponse,
 } from '@/lib/api-types.ts';
@@ -28,6 +29,32 @@ export function useIntegrationSettingsChange() {
         method: 'PUT',
         body: { ...change.after, before: change.before, signedBy: change.signedBy },
       }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: integrationsKeys.all }),
+  });
+}
+
+/** Saves the GitHub poll schedule, signed (P-28); the status refetches after it. */
+export function usePollScheduleChange() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (change: {
+      before: GitHubPollSchedule;
+      after: GitHubPollSchedule;
+      signedBy: string;
+    }) =>
+      apiRequest<{ schedule: GitHubPollSchedule }>(`${PATH}/poll`, {
+        method: 'PUT',
+        body: { ...change.after, before: change.before, signedBy: change.signedBy },
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: integrationsKeys.all }),
+  });
+}
+
+/** Poll now (P-28): queues one poll, inside or outside the window. */
+export function usePollNow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiRequest<{ queued: boolean }>(`${PATH}/poll-now`, { method: 'POST' }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: integrationsKeys.all }),
   });
 }

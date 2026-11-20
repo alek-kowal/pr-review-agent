@@ -4,8 +4,10 @@
 import {
   holdReason,
   MAX_AGENT_SLOTS,
+  GITHUB_MODES,
   MODEL_AUTH_MODES,
   type AppSettings,
+  type GitHubMode,
   type ModelAuthMode,
 } from '@pra/core';
 import {
@@ -64,6 +66,11 @@ export const StatusResponse = z.object({
    * API-equivalent), `api_key` or `none`.
    */
   modelAuth: z.enum(MODEL_AUTH_MODES),
+  /**
+   * How the app reaches GitHub (P-28): `app` (the GitHub App), or read-only polling with a
+   * personal token (`token`) or none (`anonymous`). Without the App nothing is written to GitHub.
+   */
+  githubMode: z.enum(GITHUB_MODES),
 });
 export type StatusResponse = z.infer<typeof StatusResponse>;
 
@@ -90,6 +97,7 @@ const errors = { 400: ApiErrorSchema, 409: ApiErrorSchema } as const;
 export async function statusView(
   db: Db,
   modelAuth: ModelAuthMode = 'none',
+  githubMode: GitHubMode = 'app',
 ): Promise<StatusResponse> {
   const settings = (await getAppSettings(db)).value;
   const [spent, waiting, pausedBy, activeAlertCount] = await Promise.all([
@@ -111,6 +119,7 @@ export async function statusView(
     queuedCount: waiting.length,
     activeAlertCount,
     modelAuth,
+    githubMode,
   };
 }
 
@@ -128,11 +137,11 @@ async function wakeDrainer(queue: Queue, log: FastifyBaseLogger): Promise<void> 
 }
 
 const status: FastifyPluginAsyncZod = async (fastify) => {
-  const { db, queue, modelAuth } = fastify.deps;
+  const { db, queue, modelAuth, github } = fastify.deps;
   const respond = { 200: StatusResponse, ...errors };
 
   fastify.get('/', { schema: { response: { 200: StatusResponse } } }, () =>
-    statusView(db, modelAuth),
+    statusView(db, modelAuth, github.mode),
   );
 
   const stored = async () => (await getAppSettings(db)).value;
@@ -158,7 +167,7 @@ const status: FastifyPluginAsyncZod = async (fastify) => {
       return sendError(reply, result.status, result.code, result.params);
     }
     await wakeDrainer(queue, log);
-    return statusView(db, modelAuth);
+    return statusView(db, modelAuth, github.mode);
   }
 
   fastify.post(

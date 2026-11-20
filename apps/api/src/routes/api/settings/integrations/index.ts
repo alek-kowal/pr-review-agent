@@ -1,20 +1,88 @@
-import { getAppSettings, githubDeliveryStats, lastClickUpCall, type GithubEvent } from '@pra/db';
+import {
+  GITHUB_MODES,
+  GitHubPollScheduleSchema,
+  githubPolls,
+  nextPollAt,
+  pollWindowOpen,
+  type GitHubPollSchedule,
+} from '@pra/core';
+import {
+  getAppSettings,
+  getGithubPoller,
+  githubDeliveryStats,
+  JOBS,
+  lastClickUpCall,
+  listPollRepositories,
+  sendJob,
+  type Db,
+  type GithubEvent,
+} from '@pra/db';
 import type { AccessibleRepository } from '@pra/integrations';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
-import { ApiErrorSchema, sendError } from '../../../../plugins/errors.ts';
+import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../../plugins/errors.ts';
 import {
   INTEGRATIONS_ENTITY,
   integrationSettingsOf,
   integrationsStore,
   type IntegrationSettings,
 } from '../../../../settings/integrations-store.ts';
+import { GITHUB_POLL_ENTITY, githubPollStore } from '../../../../settings/github-poll-store.ts';
 import { applySignedSettingsChange } from '../../../../settings/signed-change.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const Reason = z.object({ code: z.string(), params: z.record(z.string(), z.unknown()) });
 const IntegrationSettingsSchema = z.object({ afterRoundGithubComment: z.boolean() });
+
+/** The poll schedule as stored and sent: every field set. */
+const PollScheduleSchema = z.object({
+  intervalMinutes: z.number().int(),
+  from: z.string(),
+  to: z.string(),
+  days: z.array(z.number().int()),
+  timeZone: z.string(),
+});
+
+const PollerSchema = z.object({
+  schedule: PollScheduleSchema,
+  /** Whether the schedule's window is open now. */
+  windowOpen: z.boolean(),
+  lastStartedAt: z.iso.datetime().nullable(),
+  lastFinishedAt: z.iso.datetime().nullable(),
+  /** When the next scheduled poll is due (after a backoff, its end). */
+  nextPollAt: z.iso.datetime(),
+  /** Why the last poll failed or stopped; null when it went through. */
+  lastError: Reason.nullable(),
+  /** Set while GitHub's rate limit holds every poll. */
+  backoffUntil: z.iso.datetime().nullable(),
+  rateLimit: z
+    .object({ limit: z.number().int(), remaining: z.number().int(), resetAt: z.iso.datetime() })
+    .nullable(),
+  repositories: z.array(
+    z.object({
+      fullName: z.string(),
+      /** The first poll's time: open PRs then were imported without a review. */
+      baselineAt: z.iso.datetime().nullable(),
+      lastPolledAt: z.iso.datetime().nullable(),
+      openCount: z.number().int(),
+    }),
+  ),
+});
+
+/** Core's `GitHubPollScheduleSchema` checks the schedule itself (window, days, time zone). */
+const PollBody = z.object({
+  intervalMinutes: z.number().int(),
+  from: z.string(),
+  to: z.string(),
+  days: z.array(z.number().int()),
+  timeZone: z.string(),
+  /** The schedule the signer saw; a change made in between gives 409 `settings_stale`. */
+  before: PollScheduleSchema.optional(),
+  signedBy: z.string().trim().optional(),
+});
+const PollResponse = z.object({ schedule: PollScheduleSchema });
+const PollNowResponse = z.object({ queued: z.boolean() });
 
 export const IntegrationsResponse = z.object({
   github: z.object({
@@ -51,6 +119,10 @@ export const IntegrationsResponse = z.object({
     }),
     /** No reconcile poll exists yet; null until one does. */
     lastReconcilePoll: z.iso.datetime().nullable(),
+    /** `app`, or read-only polling with a personal token (`token`) or none (`anonymous`). */
+    mode: z.enum(GITHUB_MODES),
+    /** The poller without the App (P-28); null in App mode. */
+    poller: PollerSchema.nullable(),
   }),
   clickup: z.object({
     configured: z.boolean(),
@@ -81,8 +153,9 @@ const SettingsResponse = z.object({ settings: IntegrationSettingsSchema });
  * credentials read as "not configured", never as a success.
  */
 const integrations: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
-  const { db, github, clickup } = fastify.deps;
+  const { db, github, clickup, queue } = fastify.deps;
   const store = integrationsStore();
+  const pollStore = githubPollStore();
 
   fastify.get('/', { schema: { response: { 200: IntegrationsResponse } } }, async () => {
     const since = new Date(Date.now() - DAY_MS);
@@ -102,6 +175,9 @@ const integrations: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       lastClickUpCall(db),
       getAppSettings(db),
     ]);
+    const poller = githubPolls(github.mode)
+      ? await pollerView(db, settings.value.githubPoll, new Date())
+      : null;
     const failures = fastify.signatureFailures.since(since);
     const clickupMissing = [...clickup.missingEnv];
 
@@ -124,6 +200,8 @@ const integrations: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
           lastSignatureFailureAt: failures.last?.toISOString() ?? null,
         },
         lastReconcilePoll: null,
+        mode: github.mode,
+        poller,
       },
       clickup: {
         configured: clickupMissing.length === 0,
@@ -179,7 +257,76 @@ const integrations: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       return { settings: result.value! };
     },
   );
+
+  /** The poll schedule (P-28), signed like every settings write. */
+  fastify.put(
+    '/poll',
+    {
+      schema: {
+        body: PollBody,
+        response: { 200: PollResponse, 400: ApiErrorSchema, 409: ApiErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const { before, signedBy, ...fields } = request.body;
+      const parsed = GitHubPollScheduleSchema.safeParse(fields);
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0]!;
+        return sendError(reply, 400, ApiErrorCode.InvalidRequest, {
+          part: 'body',
+          field: issue.path.join('.'),
+          reason: issue.message,
+        });
+      }
+      const result = await applySignedSettingsChange<GitHubPollSchedule>(db, {
+        store: pollStore,
+        entity: GITHUB_POLL_ENTITY,
+        before: before ?? (await getAppSettings(db)).value.githubPoll,
+        after: parsed.data,
+        signer: signedBy,
+      });
+      if (!result.ok) return sendError(reply, result.status, result.code, result.params);
+      return { schedule: result.value! };
+    },
+  );
+
+  /**
+   * Poll now: one poll at once, inside or outside the window, not during a rate-limit backoff.
+   * Not signed (like Start review). `queued` false: a poll is already waiting.
+   */
+  fastify.post(
+    '/poll-now',
+    { schema: { response: { 202: PollNowResponse, 409: ApiErrorSchema } } },
+    async (_request, reply) => {
+      if (!githubPolls(github.mode)) return sendError(reply, 409, ApiErrorCode.GithubPollOff);
+      const id = await sendJob(queue, JOBS.githubPoll, { force: true });
+      return reply.code(202).send({ queued: id !== null });
+    },
+  );
 };
+
+async function pollerView(db: Db, schedule: GitHubPollSchedule, now: Date) {
+  const [poller, repositories] = await Promise.all([getGithubPoller(db), listPollRepositories(db)]);
+  const iso = (date: Date | null) => date?.toISOString() ?? null;
+  const due = nextPollAt(schedule, now, poller.lastStartedAt);
+  const backoff = poller.backoffUntil && poller.backoffUntil > now ? poller.backoffUntil : null;
+  return {
+    schedule,
+    windowOpen: pollWindowOpen(schedule, now),
+    lastStartedAt: iso(poller.lastStartedAt),
+    lastFinishedAt: iso(poller.lastFinishedAt),
+    nextPollAt: (backoff && backoff > due ? backoff : due).toISOString(),
+    lastError: poller.lastError ?? null,
+    backoffUntil: iso(backoff),
+    rateLimit: poller.rateLimit ?? null,
+    repositories: repositories.map((r) => ({
+      fullName: r.fullName,
+      baselineAt: iso(r.baselineAt),
+      lastPolledAt: iso(r.lastPolledAt),
+      openCount: r.openCount,
+    })),
+  };
+}
 
 function installationsOf(repositories: AccessibleRepository[]) {
   const byId = new Map<number, { id: number; account: string; repositoryCount: number }>();

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { copy } from '@/copy/index.ts';
 import { LAST_SIGNER_KEY } from '@/features/signature/last-signer.ts';
 import type { NextStepView, PatchDetail, PrView, TeamMember } from '@/lib/api-types.ts';
-import { aFindingsResponse, aNextStep, aPatchSummary, aPrView } from '@/test/fixtures.ts';
+import { aFindingsResponse, aNextStep, aPatchSummary, aPrView, aStatus } from '@/test/fixtures.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
 import { renderApp } from '@/test/renderApp.tsx';
 
@@ -90,6 +90,19 @@ afterEach(() => {
 });
 
 describe('Push dialog', () => {
+  // P-28: polling without the GitHub App never writes to GitHub.
+  test('without the GitHub App the push button is off and says why', async () => {
+    serve({ '/api/status': aStatus({ githubMode: 'anonymous' }) });
+    renderApp('/pr/wb/12');
+
+    const banner = await screen.findByTestId('next-step');
+    const button = within(banner).getByRole('button', { name: 'Push to feature/grouping…' });
+    await waitFor(() => expect(button).toBeDisabled());
+    expect(button).toHaveAccessibleDescription(
+      `${copy.status.githubReadOnly.label}. ${copy.status.githubReadOnly.push}`,
+    );
+  });
+
   test('shows the patch summary: fixed of total, reproductions and the files pushed', async () => {
     serve();
     const user = userEvent.setup();

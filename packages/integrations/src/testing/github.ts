@@ -1,11 +1,17 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { IntegrationError } from '../errors.ts';
+import type { GitHubMode } from '@pra/core';
+import { IntegrationError, IntegrationNotConfiguredError } from '../errors.ts';
 import {
   changesRequestedBy,
   ciStatusOf,
   GITHUB_APP_NOT_INSTALLED,
+  GITHUB_ENV,
+  GITHUB_NOT_CONFIGURED,
+  GITHUB_READ_ONLY,
   toPullRequest,
+  type GitHubRateLimit,
+  type RepositoryInfo,
   type AccessibleRepository,
   type CiCheck,
   type CommitComparison,
@@ -78,17 +84,24 @@ export function fixturePullRequest(name: PullRequestFixtureName): GitHubPullRequ
 type Method = keyof GitHubGateway;
 export type GitHubCall = { method: Method; args: unknown[] };
 
+/** The personal token the double hands to git in token mode. */
+export const FAKE_PERSONAL_TOKEN = 'fake-personal-token';
+
 /**
  * In-memory `GitHubGateway` for tests. It records every call, verifies signatures with a real
  * HMAC over its `webhookSecret`, serves the PRs and installations it was given, and fails a
- * method once when told to.
+ * method once when told to. It acts as the App until `setMode` says `token` or `anonymous`; then,
+ * like `TokenGitHubGateway`, every write throws `github_read_only` and webhooks are not
+ * configured.
  */
 export class FakeGitHubGateway implements GitHubGateway {
   readonly webhookSecret: string;
   readonly calls: GitHubCall[] = [];
   readonly comments: Array<{ fullName: string; number: number; body: string; id: number }> = [];
   readonly installations = new Map<string, number>();
-  readonly missingEnv: readonly string[] = [];
+  /** What the last answer said about the rate limit; tests set it. */
+  rateLimit: GitHubRateLimit | null = null;
+  #mode: GitHubMode = 'app';
   /** Default branch and visibility per repository, for `listAccessibleRepositories`. */
   readonly repositoryDetails = new Map<string, Partial<AccessibleRepository>>();
   readonly pullRequests = new Map<string, GitHubPullRequest>();
@@ -118,9 +131,52 @@ export class FakeGitHubGateway implements GitHubGateway {
     }
   }
 
+  get mode(): GitHubMode {
+    return this.#mode;
+  }
+
+  setMode(mode: GitHubMode): this {
+    this.#mode = mode;
+    return this;
+  }
+
+  /** Without the App, its three env vars are what is missing. */
+  get missingEnv(): readonly string[] {
+    return this.mode === 'app' ? [] : [...GITHUB_ENV];
+  }
+
   addPullRequest(pr: GitHubPullRequest): this {
     this.pullRequests.set(`${pr.fullName}#${pr.number}`, pr);
     return this;
+  }
+
+  /** Removes a PR, as if GitHub no longer listed it. */
+  removePullRequest(fullName: string, number: number): this {
+    this.pullRequests.delete(`${fullName}#${number}`);
+    return this;
+  }
+
+  /** A repository is known when it has an installation, details or a PR. */
+  async getRepository(fullName: string): Promise<RepositoryInfo | null> {
+    this.#record('getRepository', [fullName]);
+    const known =
+      this.installations.has(fullName) ||
+      this.repositoryDetails.has(fullName) ||
+      [...this.pullRequests.values()].some((pr) => pr.fullName === fullName);
+    if (!known) return null;
+    const details = this.repositoryDetails.get(fullName);
+    return {
+      fullName,
+      defaultBranch: details?.defaultBranch ?? 'main',
+      private: details?.private ?? false,
+    };
+  }
+
+  async gitToken(installationId: number | null): Promise<string | undefined> {
+    this.#record('gitToken', [installationId]);
+    if (this.mode === 'token') return FAKE_PERSONAL_TOKEN;
+    if (this.mode === 'anonymous' || !installationId) return undefined;
+    return `fake-token-${installationId}`;
   }
 
   addCommit(fullName: string, commit: GitHubCommit): this {
@@ -166,6 +222,9 @@ export class FakeGitHubGateway implements GitHubGateway {
 
   async verifyWebhook(rawBody: string | Uint8Array, signature: string | undefined) {
     this.#record('verifyWebhook', [rawBody, signature]);
+    if (this.mode !== 'app') {
+      throw new IntegrationNotConfiguredError(GITHUB_NOT_CONFIGURED, [...GITHUB_ENV]);
+    }
     if (!signature) return false;
     const expected = Buffer.from(signWebhook(rawBody, this.webhookSecret));
     const given = Buffer.from(signature);
@@ -179,6 +238,7 @@ export class FakeGitHubGateway implements GitHubGateway {
 
   async getInstallationToken(installationId: number): Promise<InstallationToken> {
     this.#record('getInstallationToken', [installationId]);
+    this.#refuseWrite();
     return { token: `fake-token-${installationId}`, expiresAt: new Date(Date.now() + 3_600_000) };
   }
 
@@ -194,7 +254,14 @@ export class FakeGitHubGateway implements GitHubGateway {
     return [...this.pullRequests.values()]
       .filter((pr) => pr.fullName === fullName && pr.state === 'open')
       .sort((a, b) => a.number - b.number)
-      .map(({ number, headSha, isDraft, updatedAt }) => ({ number, headSha, isDraft, updatedAt }));
+      .map((pr) => ({
+        number: pr.number,
+        headSha: pr.headSha,
+        isDraft: pr.isDraft,
+        updatedAt: pr.updatedAt,
+        // The list has no commit counts.
+        snapshot: { ...pr, commitsCount: 0 },
+      }));
   }
 
   async compareCommits(fullName: string, base: string, head: string): Promise<CommitComparison> {
@@ -207,6 +274,7 @@ export class FakeGitHubGateway implements GitHubGateway {
 
   async postIssueComment(fullName: string, number: number, body: string) {
     this.#record('postIssueComment', [fullName, number, body]);
+    this.#refuseWrite();
     if (!this.installations.has(fullName)) {
       throw new IntegrationError(GITHUB_APP_NOT_INSTALLED, { fullName });
     }
@@ -279,6 +347,7 @@ export class FakeGitHubGateway implements GitHubGateway {
    */
   async squashMerge(merge: SquashMerge): Promise<MergeResult> {
     this.#record('squashMerge', [merge]);
+    this.#refuseWrite();
     const key = `${merge.fullName}#${merge.number}`;
     const refusal = this.mergeRefusals.get(key);
     if (refusal) return { merged: false, ...refusal };
@@ -308,6 +377,8 @@ export class FakeGitHubGateway implements GitHubGateway {
   /** Every repository in `installations`, with `repositoryDetails` over the defaults. */
   async listAccessibleRepositories(): Promise<AccessibleRepository[]> {
     this.#record('listAccessibleRepositories', []);
+    // A personal token lists nothing: repositories are connected by name.
+    if (this.mode !== 'app') return [];
     return [...this.installations]
       .map(([fullName, installationId]) => ({
         fullName,
@@ -333,7 +404,13 @@ export class FakeGitHubGateway implements GitHubGateway {
 
   async getBotIdentity(): Promise<{ name: string; email: string }> {
     this.#record('getBotIdentity', []);
+    this.#refuseWrite();
     return { ...FAKE_BOT };
+  }
+
+  /** Token and anonymous mode never write to GitHub. */
+  #refuseWrite(): void {
+    if (this.mode !== 'app') throw new IntegrationError(GITHUB_READ_ONLY);
   }
 
   #record(method: Method, args: unknown[]): void {

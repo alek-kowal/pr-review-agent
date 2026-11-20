@@ -156,7 +156,7 @@ Slice 0. Foundations come first and are kept to what the first vertical slice ne
 - **PRD refs:** US-01, FR-004, FR-014, FR-027, FR-028, FR-031, FR-036, FR-058, FR-088
 - **Prerequisites:** F-02, F-03; WB RepositoryConfig seeded by a seed command (the Settings UI for repositories comes later).
 - **Parallel with:** F-04
-- **Blockers:** GitHub App `pr-review-agent` created and installed on WB; `ANTHROPIC_API_KEY` available (PRD OQ4) — Alek. Code and tests proceed with test doubles; only the real-wiring tasks wait.
+- **Blockers:** GitHub App `pr-review-agent` created and installed on WB; `ANTHROPIC_API_KEY` available (PRD OQ4) — Alek. Code and tests proceed with test doubles; only the real-wiring tasks wait. Until the App exists, the worker polls WB read-only (P-28, S-01-T19): rounds run, nothing is written to GitHub.
 - **Unknowns:**
   - Model billing and key owner (OQ4). — Owner: Alek. Block: no (builds behind `AgentRunner`).
 - **Risk:** Runs the Review stage only, with WB seeded at level 1: the Task stage arrives with ClickUp in S-06, Checks and Change type in S-04, verification in S-05; a stage with no executor yet fails with a clear reason code. The first findings are unverified, as at level 1–2 today.

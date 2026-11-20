@@ -21,6 +21,7 @@ import {
   seedTeamMember,
   type TestDatabase,
 } from '@pra/db/testing';
+import { FakeGitHubGateway } from '@pra/integrations/testing';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { StatusResponse } from '../../src/routes/api/status/index.ts';
@@ -77,6 +78,14 @@ describe('model access mode (P-25)', () => {
     const response = await app.inject({ method: 'GET', url: '/api/status' });
     expect(response.json()).toMatchObject({ modelAuth: 'subscription' });
     expect(response.body).not.toMatch(/CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY/);
+  });
+});
+
+describe('GitHub mode (P-28)', () => {
+  test('the status says whether the App is connected or the app only polls', async () => {
+    expect((await status(await api())).githubMode).toBe('app');
+    const github = new FakeGitHubGateway().setMode('anonymous');
+    expect((await status(await build({ db, queue, github }))).githubMode).toBe('anonymous');
   });
 });
 

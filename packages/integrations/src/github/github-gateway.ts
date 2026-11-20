@@ -1,7 +1,23 @@
-/** Everything the app asks of GitHub, as the GitHub App `pr-review-agent`. */
+import type { GitHubMode } from '@pra/core';
+
+/**
+ * Everything the app asks of GitHub: as the GitHub App `pr-review-agent` (`app`), or, until the
+ * App exists, reads only with a personal token (`token`) or none (`anonymous`). Without the App
+ * every write throws `github_read_only` before any request (P-28).
+ */
 export interface GitHubGateway {
+  readonly mode: GitHubMode;
   /** The App's env vars that are missing (`GITHUB_ENV`); empty when it is configured. */
   readonly missingEnv: readonly string[];
+  /** GitHub's rate limit as the last answer reported it; null before one, and in App mode. */
+  readonly rateLimit: GitHubRateLimit | null;
+  /** A repository's default branch and visibility; null when GitHub does not show it. */
+  getRepository(fullName: string): Promise<RepositoryInfo | null>;
+  /**
+   * The token git sends to fetch a repository over HTTPS: the installation's in App mode, the
+   * personal token in token mode, none when anonymous (or without an installation).
+   */
+  gitToken(installationId: number | null): Promise<string | undefined>;
   /** Checks `X-Hub-Signature-256` against the raw request body. A missing signature is `false`. */
   verifyWebhook(rawBody: string | Uint8Array, signature: string | undefined): Promise<boolean>;
   /** The App's installation on a repository, or `null` when the App is not installed there. */
@@ -46,6 +62,11 @@ export interface GitHubGateway {
 }
 
 export type GitHubUser = { id: number; login: string };
+
+export type RepositoryInfo = { fullName: string; defaultBranch: string; private: boolean };
+
+/** GitHub's `x-ratelimit-*` headers: requests per hour, left, and when the hour resets. */
+export type GitHubRateLimit = { limit: number; remaining: number; resetAt: string };
 
 export type PullRequestFreshState = {
   headSha: string;
@@ -206,10 +227,16 @@ export type OpenPullRequestSummary = {
   headSha: string;
   isDraft: boolean;
   updatedAt: string;
+  /** The PR as the list shows it: no commit count (`commitsCount` 0). */
+  snapshot: GitHubPullRequest;
 };
 
 export const GITHUB_NOT_CONFIGURED = 'github_not_configured';
 export const GITHUB_APP_NOT_INSTALLED = 'github_app_not_installed';
+/** Token mode: a write to GitHub refused before any request (P-28). */
+export const GITHUB_READ_ONLY = 'github_read_only';
+/** GitHub's rate limit is used up; `params.resetAt` says until when (ISO time). */
+export const GITHUB_RATE_LIMITED = 'github_rate_limited';
 export const GITHUB_ENV = [
   'GITHUB_APP_ID',
   'GITHUB_APP_PRIVATE_KEY_PATH',
@@ -261,6 +288,36 @@ export function toPullRequest(raw: RawPullRequest): GitHubPullRequest {
     closedAt: raw.closed_at ?? null,
     mergedAt: merged ? (raw.merged_at ?? raw.closed_at ?? raw.updated_at) : null,
     mergeSha: merged ? (raw.merge_commit_sha ?? null) : null,
+  };
+}
+
+/**
+ * The snapshot back in the shape of GitHub's `pull_request` object, as a webhook payload carries
+ * it: `toPullRequest(toRawPullRequest(pr))` is `pr`. The poller writes its deliveries with it.
+ */
+export function toRawPullRequest(pr: GitHubPullRequest): RawPullRequest {
+  const closed = pr.state !== 'open';
+  return {
+    number: pr.number,
+    title: pr.title,
+    body: pr.body,
+    html_url: pr.htmlUrl,
+    state: closed ? 'closed' : 'open',
+    draft: pr.isDraft,
+    merged: pr.state === 'merged',
+    merged_at: pr.mergedAt,
+    closed_at: pr.closedAt,
+    merge_commit_sha: pr.mergeSha,
+    commits: pr.commitsCount,
+    created_at: pr.openedAt,
+    updated_at: pr.updatedAt,
+    user: { login: pr.authorLogin },
+    head: {
+      sha: pr.headSha,
+      ref: pr.headRef,
+      repo: pr.headRepoFullName ? { full_name: pr.headRepoFullName } : null,
+    },
+    base: { sha: pr.baseSha, ref: pr.baseRef, repo: { full_name: pr.fullName } },
   };
 }
 

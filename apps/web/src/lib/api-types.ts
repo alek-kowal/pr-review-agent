@@ -577,6 +577,8 @@ export type IntegrationsResponse = {
       lastSignatureFailureAt: string | null;
     };
     lastReconcilePoll: string | null;
+    mode: GitHubMode;
+    poller: GitHubPoller | null;
   };
   clickup: {
     configured: boolean;
@@ -614,6 +616,44 @@ export type StatusResponse = {
   activeAlertCount: number;
   /** How the agents reach the model (P-25), a name only; `subscription` labels costs. */
   modelAuth: 'subscription' | 'api_key' | 'none';
+  /** `app`, or read-only polling without the GitHub App (P-28). */
+  githubMode: GitHubMode;
+};
+
+/** How the app reaches GitHub (P-28); only `app` writes to it. */
+export type GitHubMode = 'app' | 'token' | 'anonymous';
+
+/** `GET /api/settings/repositories/lookup`: the repository GitHub shows by name (P-28). */
+export type RepositoryLookupResponse = {
+  repository: { fullName: string; defaultBranch: string; private: boolean };
+};
+
+/** The GitHub poll schedule (P-28): every N minutes in a local window on chosen weekdays. */
+export type GitHubPollSchedule = {
+  intervalMinutes: number;
+  from: string;
+  to: string;
+  /** ISO weekdays: 1 is Monday, 7 is Sunday. */
+  days: number[];
+  timeZone: string;
+};
+
+/** The poller in `GET /api/settings/integrations`; null in App mode. */
+export type GitHubPoller = {
+  schedule: GitHubPollSchedule;
+  windowOpen: boolean;
+  lastStartedAt: string | null;
+  lastFinishedAt: string | null;
+  nextPollAt: string;
+  lastError: ReasonView | null;
+  backoffUntil: string | null;
+  rateLimit: { limit: number; remaining: number; resetAt: string } | null;
+  repositories: {
+    fullName: string;
+    baselineAt: string | null;
+    lastPolledAt: string | null;
+    openCount: number;
+  }[];
 };
 
 /** `GET /api/activity/in-progress`: queued and running runs, oldest first. */

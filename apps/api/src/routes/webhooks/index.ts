@@ -1,6 +1,6 @@
 // GitHub webhook ingest (S-01-T5): verify, store the payload unchanged, record the delivery once,
 // queue it for the worker. The CSRF guard exempts this route; the signature protects it.
-import { githubEventJobId, JOBS, recordGithubEvent, sendJob } from '@pra/db';
+import { githubEventBlobKey, ingestGithubEvents } from '@pra/db';
 import { assertBlobKey, GITHUB_NOT_CONFIGURED } from '@pra/integrations';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
@@ -76,8 +76,13 @@ const webhooks: FastifyPluginAsyncZod = async (fastify) => {
 
       const deliveryId = headers['x-github-delivery'] ?? '';
       const event = headers['x-github-event'] ?? '';
-      const blobKey = `github-events/${deliveryId}.json`;
-      if (!deliveryId || !event || !isBlobKey(blobKey)) {
+      // `poll-` ids belong to the poller (P-28); a webhook never takes one.
+      if (
+        !deliveryId ||
+        !event ||
+        deliveryId.startsWith('poll-') ||
+        !isBlobKey(githubEventBlobKey(deliveryId))
+      ) {
         return sendError(reply, 400, ApiErrorCode.InvalidRequest, { part: 'headers' });
       }
 
@@ -88,24 +93,18 @@ const webhooks: FastifyPluginAsyncZod = async (fastify) => {
         return sendError(reply, 400, ApiErrorCode.InvalidRequest, { part: 'body' });
       }
 
-      // Same key and bytes on a redelivery, so writing again is harmless.
-      await blobStore.put(blobKey, rawBody, { contentType: 'application/json' });
-      const { event: row } = await recordGithubEvent(db, {
-        deliveryId,
-        event,
-        action: typeof payload.action === 'string' ? payload.action : null,
-        repositoryFullName: stringOrNull(payload.repository?.full_name),
-        prNumber: integerOrNull(payload.pull_request?.number ?? payload.number),
-        blobKey,
-      });
-      // A fixed job id per delivery: a redelivery (or a retry after a failed send) adds no job.
-      await sendJob(
-        queue,
-        JOBS.githubEvent,
-        { eventId: row.id },
-        { id: githubEventJobId(deliveryId) },
-      );
-      return reply.code(202).send({ eventId: row.id });
+      // The poller's path too (P-28): blob, one row per delivery id, a job with a fixed id.
+      const [recorded] = (await ingestGithubEvents({ db, queue, blobStore }, [
+        {
+          deliveryId,
+          event,
+          rawBody,
+          action: typeof payload.action === 'string' ? payload.action : null,
+          repositoryFullName: stringOrNull(payload.repository?.full_name),
+          prNumber: integerOrNull(payload.pull_request?.number ?? payload.number),
+        },
+      ]))!;
+      return reply.code(202).send({ eventId: recorded!.event.id });
     },
   );
 };

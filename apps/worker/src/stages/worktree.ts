@@ -20,11 +20,12 @@ type Marker = { sha: string; path: string };
 const markerFile = (dataDir: string, runId: number) =>
   path.join(runSessionsDir(dataDir, runId), 'worktree.json');
 
-/** Fetches the mirror (with an installation token when the repository has one). */
+/**
+ * Fetches the mirror with the token git needs: the installation's in App mode, the personal token
+ * without the App, none for an anonymous read of a public repository (P-28).
+ */
 export async function fetchMirror({ deps, repository }: WorktreeContext): Promise<void> {
-  const token = repository.installationId
-    ? (await deps.github.getInstallationToken(repository.installationId)).token
-    : undefined;
+  const token = await deps.github.gitToken(repository.installationId);
   await deps.gitMirror.fetch(repository.githubFullName, token);
 }
 

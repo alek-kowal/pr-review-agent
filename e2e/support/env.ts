@@ -162,6 +162,22 @@ export const movedHeadFile = (holdDir: string, number: number): string =>
   path.join(holdDir, `moved-head-${number}`);
 
 /**
+ * P-28 (github-polling.spec.ts): while this file exists the GitHub double acts as
+ * `TokenGitHubGateway` in the mode the file names (`token` or `anonymous`): read-only, polled.
+ */
+export const githubModeFile = (holdDir: string): string => path.join(holdDir, 'github-mode');
+
+/**
+ * Not connected and reachable only by name (github-polling.spec.ts): GitHub shows it with the
+ * default branch `trunk` and one open PR, which the first poll imports without a review.
+ */
+export const POLLED_REPOSITORY = {
+  fullName: 'acme/polled-repo',
+  defaultBranch: 'trunk',
+  pr: { number: 7, title: 'Polled: rename the edge label helper' },
+};
+
+/**
  * Seeded at level 5 with the SDK store as a sensitive file: tracked in the fixture, but not in its
  * diff, so the PR stays a two-way door and only a patch touches it (autofix.spec.ts). Like the
  * push repository, its remote is the bare push remote with a branch per PR (`pushBranch`), and

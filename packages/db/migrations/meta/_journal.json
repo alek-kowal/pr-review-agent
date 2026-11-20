@@ -204,6 +204,13 @@
       "when": 1795124985810,
       "tag": "0028_judge_openrouter",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795132618198,
+      "tag": "0029_github_poller",
+      "breakpoints": true
     }
   ]
 }

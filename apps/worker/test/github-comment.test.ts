@@ -103,6 +103,20 @@ describe('after-round comment', () => {
     expect(commentsOn(pullRequest)).toEqual([]);
   });
 
+  test('without the GitHub App nothing is queued or posted, and nothing is retried', async () => {
+    const run = await aRound();
+    deps.github.setMode('token');
+    try {
+      await enqueueAfterRoundComment(hookContext(run));
+      expect(await jobsWhere(deps.db, JOBS.githubComment, 'runId', run.id)).toEqual([]);
+      // A job queued before the switch resolves (no retry) and claims nothing.
+      expect(await postAfterRoundComment(deps, run.id)).toBe('github_read_only');
+      expect(await actionsOf(run.id)).toEqual([]);
+    } finally {
+      deps.github.setMode('app');
+    }
+  });
+
   test('nothing is posted when the setting is off', async () => {
     await setCommentSetting(false);
     const run = await aRound();
@@ -154,6 +168,7 @@ describe('after-round comment', () => {
       },
     });
     const github = {
+      mode: 'app',
       postIssueComment: async (fullName: string, number: number, body: string) => {
         const posted = await deps.github.postIssueComment(fullName, number, body);
         failNextUpdate = true;

@@ -333,6 +333,22 @@ describe('autofix at level 5', () => {
     ]);
   });
 
+  test('without the GitHub App level 5 writes the shadow and starts no run', async () => {
+    const pr = await reviewedPr(5);
+    deps.github.setMode('token');
+    try {
+      await autofixOnRoundCompleted(hookContext(pr, pr.round));
+    } finally {
+      deps.github.setMode('app');
+    }
+
+    expect((await runsOf(pr.pullRequest.id)).map((r) => r.kind)).toEqual(['round']);
+    expect(await autofixAttemptsOfPr(deps.db, pr.pullRequest.id)).toEqual([]);
+    expect(await shadowOfPr(deps.db, pr.pullRequest.id)).toEqual([
+      expect.objectContaining({ point: 'start', level: 5 }),
+    ]);
+  });
+
   test("a person's edit, or a lowered level, before the push job stops the bot's push", async () => {
     const pr = await reviewedPr(5);
     await autofixOnRoundCompleted(hookContext(pr, pr.round));

@@ -32,8 +32,16 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      testIgnore: ['pause-budget.spec.ts', 'usage-limit.spec.ts'],
+      testIgnore: ['pause-budget.spec.ts', 'usage-limit.spec.ts', 'github-polling.spec.ts'],
       dependencies: ['usage-limit'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // github-polling.spec.ts turns the GitHub App off and polls: last, alone, since a poll
+    // imports the open PRs of every connected repository (P-28).
+    {
+      name: 'github-polling',
+      testMatch: 'github-polling.spec.ts',
+      dependencies: ['chromium'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

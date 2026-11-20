@@ -324,6 +324,8 @@ const patches: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
     async (request, reply) => {
       const { typedNumber, signedBy } = request.body;
       if (!signedBy) return sendError(reply, 400, ApiErrorCode.SignatureRequired);
+      // Without the GitHub App the app never writes to GitHub (P-28).
+      if (github.mode !== 'app') return sendError(reply, 409, ApiErrorCode.GithubReadOnly);
       const patch = await getPatch(db, request.params.id);
       if (!patch) return sendError(reply, 404, ApiErrorCode.PatchNotFound, request.params);
       if (!(await getActiveTeamMember(db, signedBy))) {

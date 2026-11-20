@@ -44,6 +44,14 @@ export const repositories = {
     none: 'Every repository the GitHub App can reach is connected.',
     private: 'private',
     unavailable: (reason: string) => `Cannot list repositories to connect: ${reason}`,
+    /** Without the GitHub App (P-28): connect by owner/name. */
+    byName: {
+      label: 'Repository (owner/name)',
+      placeholder: 'owner/name',
+      submit: 'Connect…',
+      hint: 'The GitHub App is not connected, so type the repository. Public repositories work without a token; private ones need GITHUB_TOKEN.',
+      invalid: 'Type the repository as owner/name.',
+    },
   },
   page: {
     loading: 'Loading the repository…',
@@ -59,6 +67,13 @@ export const repositories = {
       `PRs in ${fullName}: once connected, its webhooks start rounds with these settings.`,
     notReachable: (fullName: string) =>
       `The GitHub App cannot reach ${fullName}, or it is already connected. Pick another repository.`,
+    /** Without the GitHub App (P-28), after the lookup by name. */
+    notFound: (fullName: string) =>
+      `GitHub does not show ${fullName}: check the name, or set GITHUB_TOKEN for a private repository.`,
+    alreadyConnected: (fullName: string) => `${fullName} is already connected.`,
+    checking: (fullName: string) => `Checking ${fullName} on GitHub…`,
+    polledAffects: (fullName: string) =>
+      `PRs in ${fullName}: once connected, the GitHub poller finds them and starts rounds with these settings.`,
     pending: 'Not connected yet',
     save: 'Connect…',
     dialogTitle: (fullName: string) => `Connect ${fullName}`,

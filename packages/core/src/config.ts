@@ -128,6 +128,32 @@ export function isValidTimeZone(zone: string): boolean {
 export const DEFAULT_TIME_ZONE = 'Europe/Warsaw';
 export const MAX_AGENT_SLOTS = 20;
 
+const HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** ISO weekdays: 1 is Monday, 7 is Sunday. */
+const weekday = z.number().int().min(1).max(7);
+
+/** When the GitHub poller runs in token mode (P-28): every N minutes in a local window. */
+export const GitHubPollScheduleSchema = z
+  .object({
+    intervalMinutes: z.number().int().min(1).max(240).default(5),
+    /** Local start of the window, `HH:MM`. */
+    from: z.string().regex(HH_MM).default('09:00'),
+    /** Local end of the window (exclusive), `HH:MM`, after `from`. */
+    to: z.string().regex(HH_MM).default('17:00'),
+    days: z
+      .array(weekday)
+      .min(1)
+      .transform((days) => [...new Set(days)].sort((a, b) => a - b))
+      .default([1, 2, 3, 4, 5]),
+    timeZone: z
+      .string()
+      .refine(isValidTimeZone, { message: 'invalid_time_zone' })
+      .default(DEFAULT_TIME_ZONE),
+  })
+  .refine((s) => s.from < s.to, { message: 'window_empty', path: ['to'] });
+export type GitHubPollSchedule = z.output<typeof GitHubPollScheduleSchema>;
+export const DEFAULT_GITHUB_POLL_SCHEDULE: GitHubPollSchedule = GitHubPollScheduleSchema.parse({});
+
 /** Settings for the whole app. */
 export const AppSettingsSchema = z.object({
   paused: z.boolean().default(false),
@@ -148,6 +174,8 @@ export const AppSettingsSchema = z.object({
   defaultLevel: levelNumber.default(1),
   /** "Ready for team member review (round N)" on GitHub after each completed round. */
   afterRoundGithubComment: z.boolean().default(true),
+  /** The GitHub poller's schedule; it runs only without the GitHub App (P-28). */
+  githubPoll: GitHubPollScheduleSchema.default(DEFAULT_GITHUB_POLL_SCHEDULE),
 });
 export type AppSettings = z.output<typeof AppSettingsSchema>;
 export const DEFAULT_APP_SETTINGS: AppSettings = AppSettingsSchema.parse({});

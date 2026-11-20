@@ -18,6 +18,7 @@ export * from './fork-policy.ts';
 export * from './config.ts';
 export * from './start-gate.ts';
 export * from './model-auth.ts';
+export * from './github-poll.ts';
 export * from './openrouter.ts';
 export * from './learning.ts';
 export * from './lesson-candidates.ts';

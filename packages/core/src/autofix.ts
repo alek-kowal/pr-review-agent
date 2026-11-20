@@ -29,6 +29,8 @@ export interface AutofixInput {
    * would review a pushed patch, so autofix starts none, whatever N allows.
    */
   chainRounds: number;
+  /** Token mode (no GitHub App): level 5 only writes the shadow log (P-28). */
+  githubReadOnly?: boolean;
 }
 
 export interface AutofixDecision {
@@ -128,8 +130,12 @@ export type AutofixMode = 'act' | 'shadow' | 'off';
 /** The level from which the same checks run silently for the shadow log. */
 export const AUTOFIX_SHADOW_FROM: LevelNumber = 3;
 
-export function autofixMode(level: LevelNumber): AutofixMode {
-  if (level >= FEATURE_ON_FROM.autofix) return 'act';
+/**
+ * Without the GitHub App (`githubReadOnly`) level 5 cannot push, so it runs as the shadow: it
+ * records what it would do and changes nothing (P-28).
+ */
+export function autofixMode(level: LevelNumber, githubReadOnly = false): AutofixMode {
+  if (level >= FEATURE_ON_FROM.autofix) return githubReadOnly ? 'shadow' : 'act';
   return level >= AUTOFIX_SHADOW_FROM ? 'shadow' : 'off';
 }
 
@@ -151,6 +157,8 @@ export interface AutofixPushInput {
    */
   paused: boolean;
   budgetReached: boolean;
+  /** Token mode (no GitHub App): nothing is pushed; the answer feeds the shadow log. */
+  githubReadOnly?: boolean;
 }
 
 export interface AutofixCheck {
@@ -175,7 +183,7 @@ export function autofixCheck(
   point: AutofixPoint,
   input: AutofixInput | AutofixPushInput,
 ): AutofixCheck {
-  const mode = autofixMode(input.level);
+  const mode = autofixMode(input.level, input.githubReadOnly);
   if (point === 'start') {
     const decision = autofixDecision(input as AutofixInput);
     return {
