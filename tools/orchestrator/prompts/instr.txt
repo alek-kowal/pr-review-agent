@@ -1,0 +1,23 @@
+Task {{ID}}: a round must not fail late on missing instruction files, and the error must be readable.
+
+Reported by Alek on the deployed app (https://dashboardwb.mikrus.dev/pr/workflowbuilder/282): he started a level-3 review on a Workflow Builder PR by hand. Checks, Task, Change type and Review passed (Review cost $0.82 API-equivalent), then Verify failed with the raw code "error verifier_instructions_missing" in the stage strip, the round banner ("Round 1 failed at Verify: error verifier_instructions_missing. This round is not counted") and the Findings tab.
+
+Cause, found by the orchestrator: the production database has 0 rows in `instruction_files`. Nobody ran `pnpm instructions:import` on the server. The reviewer worked only because `prompt-reviewer.md` has a built-in fallback (`BUILT_IN_REVIEWER_PROMPT`); `verifyStage` (apps/worker/src/stages/verify.ts) needs `prompt-verifier.md` and `verify-rules.md` and has none, so it failed after money was spent. The analyst, implementer and judge stages have the same kind of check. The web copy (apps/web/src/copy/index.ts) has `analyst_instructions_missing` and `implementer_instructions_missing` but no `verifier_instructions_missing`, so the raw code is shown. The orchestrator imports the files on the server separately; your job is the code, so this cannot happen silently again.
+
+1. Readable errors. Add copy for `verifier_instructions_missing` and every other error code the worker stages can return that has none (check `judge_instructions_missing` too). The message names the missing files (from `params.missing`) and points to where they are fixed (the repository's instructions editor; link it if the error view can). Add a unit test that fails when a stage error code has no copy, so a raw code never reaches the UI again (derive the list of codes from the source, or keep one exported list that the stages and the test both use).
+2. Fail fast, before spending. When a round starts, resolve the instruction files the round's stages will need (global → repository → level, the same resolution the stages use, honouring built-in fallbacks) and, if any required file is missing or empty, fail the round at its first stage with one clear error (e.g. `instructions_missing`, with the stage and file list) and no agent session started. Keep the per-stage checks as a safety net. Unit test in apps/worker (the existing run-round.test.ts case for `verifier_instructions_missing` is a good start) and one e2e that starts a review with the verifier files missing and sees the readable message, with no Review session run.
+3. Make it visible before a review. Where a reviewer picks "Start review" (the PR page) and on the repository's instructions page in Settings, show a short warning when required instruction files are missing for that repository, with the file names. Copy in apps/web/src/copy. One component test.
+4. Deploy kit: add `deploy/mikrus/import-instructions.sh <local knowledge dir>` that copies the folder to the VPS (same SSH settings as `deploy.sh`, from `deploy/mikrus/deploy.env`) and runs `pnpm instructions:import --from <copy>` there as the `pra` user with the server env (`/etc/pra/pra.env`), never printing it. Document it in docs/deploy-mikrus.md as a first-install step (after the first deploy). Do NOT run the script; the orchestrator runs it.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify` and `pnpm test:e2e` (each e2e spec uses its own test repository name and PR-number range). Known flaky tests: docs/orchestrator-lessons.md; re-run once.
+- Before the final verify, merge main into your branch (`git merge main`).
+- Write and change files only with the Write/Edit tools, never with shell heredocs, printf redirects or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Record the cause and decisions in a short context/changes/{{ID}}/change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md (at most 15 lines), and stop.
+Never:
+- call the real GitHub API or any server (no ssh, no requests to dashboardwb.mikrus.dev); create accounts, apps, tokens or keys; print or read a real secret
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400 (reading files there is allowed)
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, what changed, and the verify result.

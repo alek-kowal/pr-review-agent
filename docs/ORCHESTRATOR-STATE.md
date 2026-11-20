@@ -16,7 +16,10 @@ Decisions in detail and the "For Alek" notes: `docs/08-orchestrator-log.md`. Wor
 - Talk to Alek in Polish, simple words. Project documents in English. The app UI is in English.
 - Every task runs in a fresh agent session in its own worktree; no session past ~30% context
   (`supervise.sh` hands off at 26%). Independent tasks run in parallel (up to 6 agents).
-- Use `/10x-impl-review` only for complex packages. Save context: chain scripts in one background
+- Bigger changes (new feature, schema change, several apps) follow the 10x workflow, written into
+  the agent's prompt: `/10x-plan` → `/10x-plan-review` → `/10x-implement` → `/10x-impl-review`
+  (Alek, 20 Nov; model: `prompts/stagefiles.txt`). Small bug fixes keep the short prompt and
+  skip the reviews. Save context: chain scripts in one background
   command and let notifications wake you; read agent results with `grep '⏺' | tail`.
 - Make reasonable decisions yourself; ask Alek only what is truly his.
 - Keep the journal: one short entry in `docs/JOURNAL.md` after every merge, deploy, decision or
@@ -48,7 +51,24 @@ Decisions in detail and the "For Alek" notes: `docs/08-orchestrator-log.md`. Wor
   `synergycodes/workflowbuilder` (id 1, public, 18 open PRs).
 - Models: Claude via Alek's subscription token; the judge can use OpenRouter (key set). ClickUp key
   set, ClickUp not wired to WB IDs yet.
-- No agent is running.
+- Instruction files imported on the VPS (20 Nov 02:43, 25 files from the old knowledge folder).
+- Running: INSTR (`t-instr`, worktree `../pr-review-agent.worktrees/INSTR`, prompt
+  `tools/orchestrator/prompts/instr.txt`), under `supervise.sh`. After FINISHED: merge-or-fix,
+  deploy, tell Alek.
+- Queued: STAGEFILES (`tools/orchestrator/prompts/stagefiles.txt`, JOURNAL 03:05). Spawn it right
+  after INSTR is merged and deployed: `spawn-task.sh STAGEFILES $T/prompts/stagefiles.txt`, then
+  supervise. Big package: expect handoffs.
+
+## Night plan (20 Nov, Alek asleep: ask him nothing, decide and log)
+
+1. INSTR: merge-or-fix → deploy → ci-wait.
+2. STAGEFILES (10x workflow) → merge-or-fix → deploy → ci-wait.
+3. Recommendation file `docs/recommendations/2026-11-20-night-review.md` (English, no code
+   changes, Alek's request): Part A, primitives and course knowledge for growing into an "AI
+   Software Factory". Two subagents write notes to the session scratchpad
+   (`notes-courses.md`, `notes-app.md`), a third writes Part A from them.
+4. At the end (after STAGEFILES lands, or by 07:00 at the latest): Part B, dead code and what to
+   simplify (knip or similar, read-only, on main). Commit the file as docs; tell Alek in Polish.
 
 ## Next step
 
