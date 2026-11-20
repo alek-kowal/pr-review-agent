@@ -522,6 +522,91 @@ export async function saveInstructionDraft(
   return inserted!;
 }
 
+/**
+ * Creates a global or repository file with version 1 as an unsigned draft (Settings → Instructions
+ * → New file, STAGEFILES). `exists` when the scope has the key already; `kind_conflict` when the key
+ * exists at another scope with the other kind (one key keeps one kind everywhere).
+ */
+export async function createInstructionFile(
+  tx: Executor,
+  ref: InstructionFileRef & { kind: InstructionKind },
+  draft: { content: string; note: string | null },
+): Promise<
+  | { ok: true; file: InstructionFileRow; draft: InstructionVersionRow }
+  | { ok: false; reason: 'exists'; fileId: number }
+  | { ok: false; reason: 'kind_conflict'; kind: InstructionKind }
+> {
+  const [existing] = await tx.select().from(instructionFiles).where(whereFile(ref));
+  if (existing) return { ok: false, reason: 'exists', fileId: existing.id };
+  const kind = await kindOfKey(tx, ref.fileKey);
+  if (kind && kind !== ref.kind) return { ok: false, reason: 'kind_conflict', kind };
+  const [file] = await tx
+    .insert(instructionFiles)
+    .values({
+      scope: ref.scope,
+      repositoryId: ref.scope === 'repository' ? ref.repositoryId : null,
+      level: ref.scope === 'level' ? ref.level : null,
+      fileKey: ref.fileKey,
+      kind: ref.kind,
+    })
+    .returning();
+  const [version] = await tx
+    .insert(instructionVersions)
+    .values({
+      fileId: file!.id,
+      version: 1,
+      status: 'draft',
+      content: draft.content,
+      note: draft.note,
+      createdBy: 'hand',
+    })
+    .returning();
+  return { ok: true, file: file!, draft: version! };
+}
+
+/**
+ * Throws the file's draft away, unsigned (STAGEFILES). A draft a trial or a run read is archived
+ * (never active) so they keep their rows; otherwise it is deleted, and a file left with no version
+ * goes too. Returns what happened, or null when the file has no draft.
+ */
+export async function discardInstructionDraft(
+  tx: Executor,
+  fileId: number,
+): Promise<'deleted' | 'archived' | 'file_removed' | null> {
+  const [draft] = await tx
+    .select({ id: instructionVersions.id })
+    .from(instructionVersions)
+    .where(and(eq(instructionVersions.fileId, fileId), eq(instructionVersions.status, 'draft')))
+    .for('update');
+  if (!draft) return null;
+  const [tried] = await tx
+    .select({ id: trials.id })
+    .from(trials)
+    .where(eq(trials.draftVersionId, draft.id))
+    .limit(1);
+  const [read] = await tx
+    .select({ runId: runInstructionVersions.runId })
+    .from(runInstructionVersions)
+    .where(eq(runInstructionVersions.versionId, draft.id))
+    .limit(1);
+  if (tried || read) {
+    await tx
+      .update(instructionVersions)
+      .set({ status: 'archived' })
+      .where(eq(instructionVersions.id, draft.id));
+    return 'archived';
+  }
+  await tx.delete(instructionVersions).where(eq(instructionVersions.id, draft.id));
+  const [left] = await tx
+    .select({ id: instructionVersions.id })
+    .from(instructionVersions)
+    .where(eq(instructionVersions.fileId, fileId))
+    .limit(1);
+  if (left) return 'deleted';
+  await tx.delete(instructionFiles).where(eq(instructionFiles.id, fileId));
+  return 'file_removed';
+}
+
 /** Where a copy goes: one repository's or one level's. */
 export type InstructionCopyTarget =
   { scope: 'repository'; repositoryId: number } | { scope: 'level'; level: LevelNumber };

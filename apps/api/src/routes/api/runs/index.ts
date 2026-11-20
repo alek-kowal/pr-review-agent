@@ -1,7 +1,16 @@
 // S-03-T6: Run detail and a session's full transcript. S-09: Retry (T2) and Cancel (T4), both
 // unsigned ("by hand").
 import { summarizeTranscript } from '@pra/agents/transcript';
-import { AGENT_ROLES, chainState, HAND, MODEL_PROVIDERS, modelFor, roundLabel } from '@pra/core';
+import {
+  AGENT_ROLES,
+  chainState,
+  FILE_STAGE_KEYS,
+  HAND,
+  INSTRUCTION_KINDS,
+  MODEL_PROVIDERS,
+  modelFor,
+  roundLabel,
+} from '@pra/core';
 import {
   getRunContext,
   getRunDetail,
@@ -119,8 +128,21 @@ export const RunDetailResponse = z.object({
         level: z.number().int().nullable().optional(),
         /** The instruction file, for a link to its editor; missing on runs before S-22. */
         fileId: z.number().int().nullable().optional(),
+        /** Instruction or document; missing on runs before STAGEFILES. */
+        kind: z.enum(INSTRUCTION_KINDS).optional(),
       }),
     ),
+    /** The files each stage read, frozen when the run started (STAGEFILES); null before. */
+    stageFiles: z
+      .partialRecord(
+        z.enum(FILE_STAGE_KEYS),
+        z.object({
+          prompt: z.string().nullable(),
+          rules: z.string().nullable(),
+          documents: z.array(z.string()),
+        }),
+      )
+      .nullable(),
     /** The stage and error code a failed run stopped at. */
     error: z
       .object({ stage: z.string(), code: z.string(), params: z.record(z.string(), z.unknown()) })
@@ -263,6 +285,7 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
           currentStage: run.currentStage,
           notChecked: run.notChecked,
           instructionVersions: run.instructionVersions,
+          stageFiles: run.stageFiles ?? null,
           error: failed
             ? {
                 stage: failed.key,

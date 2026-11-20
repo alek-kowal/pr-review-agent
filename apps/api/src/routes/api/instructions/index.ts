@@ -1,5 +1,15 @@
-import { INSTRUCTION_SCOPES, LEVEL_NUMBERS, type LevelNumber } from '@pra/core';
 import {
+  INSTRUCTION_KINDS,
+  INSTRUCTION_SCOPES,
+  instructionFileKeyProblem,
+  LEVEL_NUMBERS,
+  type InstructionKind,
+  type LevelNumber,
+} from '@pra/core';
+import {
+  allStageFileChoices,
+  createInstructionFile,
+  discardInstructionDraft,
   getInstructionFile,
   getInstructionVersion,
   getRepositoryBySlug,
@@ -8,6 +18,7 @@ import {
   listRepositories,
   saveInstructionDraft,
   startInstructionCopy,
+  type InstructionFileSummary,
   type InstructionFileWithRepository,
   type InstructionVersionDetail,
 } from '@pra/db';
@@ -21,6 +32,7 @@ import {
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
 import { instructionsStore } from '../../../settings/instructions-store.ts';
 import { applySignedSettingsChange } from '../../../settings/signed-change.ts';
+import { ReadBySchema, readersOfFiles, type ReadBy } from '../../../settings/stage-files.ts';
 
 const VERSION_STATUSES = ['active', 'draft', 'archived'] as const;
 
@@ -32,6 +44,10 @@ export const InstructionFileSchema = z.object({
   /** The level of a level copy. */
   level: z.number().int().nullable(),
   fileKey: z.string(),
+  /** Instruction (prompts, rules) or document (reference material), STAGEFILES. */
+  kind: z.enum(INSTRUCTION_KINDS),
+  /** The stages that read it, per repository for overrides (empty: not used by any stage). */
+  readBy: z.array(ReadBySchema),
 });
 
 const VersionRefSchema = z.object({
@@ -102,6 +118,17 @@ const CopyBody = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('level'), level: z.union(LEVEL_NUMBERS.map((n) => z.literal(n))) }),
 ]);
 
+/** New file (STAGEFILES): a global or repository file whose version 1 is an unsigned draft. */
+const NewFileBody = z.object({
+  fileKey: z.string().trim(),
+  kind: z.enum(INSTRUCTION_KINDS),
+  scope: z.enum(['global', 'repository']),
+  /** The repository's slug, for `scope: 'repository'`. */
+  repository: z.string().trim().optional(),
+  content: z.string(),
+  note: z.string().trim().max(500).nullable().optional(),
+});
+
 const errors = { 400: ApiErrorSchema, 404: ApiErrorSchema, 409: ApiErrorSchema };
 
 /**
@@ -123,9 +150,10 @@ const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
         gaps: await repositoryInstructionGaps(db, r.id),
       })),
     );
+    const readers = await readersByFile(files);
     return {
       files: files.map((f) => ({
-        ...fileView(f),
+        ...fileView(f, readers.get(f.id) ?? []),
         active: f.active && versionRef(f.active),
         draft: f.draft && versionRef(f.draft),
       })),
@@ -182,10 +210,14 @@ const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
         if (!target || target.fileId !== id) {
           return sendError(reply, 404, ApiErrorCode.InstructionVersionNotFound, { versionId });
         }
-        // Activate takes the draft; rollback re-activates a version that was active before.
-        // A draft a trial set aside is archived but was never active: no rollback to it.
-        const wanted = action === 'activate' ? 'draft' : 'archived';
-        if (target.status !== wanted || (action === 'rollback' && !target.activatedAt)) {
+        // Activate ("Make active", STAGEFILES) takes any version that is not active: the draft or
+        // an archived one. Rollback (until the web moves to activate) re-activates a version that
+        // was active before.
+        const refused =
+          action === 'activate'
+            ? target.status === 'active'
+            : target.status !== 'archived' || !target.activatedAt;
+        if (refused) {
           return sendError(reply, 409, ApiErrorCode.InstructionVersionStatus, {
             status: target.status,
           });
@@ -241,6 +273,67 @@ const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
     },
   );
 
+  fastify.post(
+    '/',
+    {
+      schema: {
+        body: NewFileBody,
+        response: { 201: InstructionDetailResponse, ...errors },
+      },
+    },
+    async (request, reply) => {
+      const { fileKey, kind, scope, content, note } = request.body;
+      const problem = instructionFileKeyProblem(fileKey);
+      if (problem) {
+        return sendError(reply, 400, ApiErrorCode.InstructionFileKey, { problem });
+      }
+      let ref:
+        | { scope: 'global'; fileKey: string }
+        | {
+            scope: 'repository';
+            repositoryId: number;
+            fileKey: string;
+          } = { scope: 'global', fileKey };
+      if (scope === 'repository') {
+        const slug = request.body.repository ?? '';
+        const repository = slug ? await getRepositoryBySlug(db, slug) : null;
+        if (!repository) return sendError(reply, 404, ApiErrorCode.RepositoryNotFound, { slug });
+        ref = { scope: 'repository', repositoryId: repository.id, fileKey };
+      }
+      const created = await db.transaction((tx) =>
+        createInstructionFile(tx, { ...ref, kind }, { content, note: note || null }),
+      );
+      if (!created.ok) {
+        return created.reason === 'exists'
+          ? sendError(reply, 409, ApiErrorCode.InstructionFileExists, { fileId: created.fileId })
+          : sendError(reply, 409, ApiErrorCode.InstructionKindConflict, { kind: created.kind });
+      }
+      reply.code(201);
+      return detail(reply, created.file.id);
+    },
+  );
+
+  fastify.delete(
+    '/:id/draft',
+    {
+      schema: {
+        params: FileParams,
+        response: { 200: InstructionDetailResponse, 204: z.null(), ...errors },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      if (!(await getInstructionFile(db, id))) return fileNotFound(reply, id);
+      const discarded = await db.transaction((tx) => discardInstructionDraft(tx, id));
+      if (!discarded) {
+        return sendError(reply, 404, ApiErrorCode.InstructionVersionNotFound, { status: 'draft' });
+      }
+      // The file's only version went, and the file with it.
+      if (discarded === 'file_removed') return reply.code(204).send(null);
+      return detail(reply, id);
+    },
+  );
+
   async function currentActive(fileId: number): Promise<number | null> {
     const versions = await instructionFileVersions(db, fileId);
     return versions.find((v) => v.status === 'active')?.version ?? null;
@@ -250,11 +343,22 @@ const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
     const file = await getInstructionFile(db, id);
     if (!file) return fileNotFound(reply, id);
     const versions = await instructionFileVersions(db, id);
-    return { file: fileView(file), versions: versions.map(versionView) };
+    const readers = await readersByFile();
+    return { file: fileView(file, readers.get(id) ?? []), versions: versions.map(versionView) };
+  }
+
+  /** "Read by" of every file (STAGEFILES), from the stored stage-file choices. */
+  async function readersByFile(files?: InstructionFileSummary[]) {
+    const [all, choices, repositories] = await Promise.all([
+      files ?? listInstructionFiles(db),
+      allStageFileChoices(db),
+      listRepositories(db),
+    ]);
+    return readersOfFiles(all, choices, new Map(repositories.map((r) => [r.id, r.slug])));
   }
 };
 
-function fileView(file: InstructionFileWithRepository) {
+function fileView(file: InstructionFileWithRepository, readBy: ReadBy[]) {
   return {
     id: file.id,
     scope: file.scope,
@@ -264,6 +368,8 @@ function fileView(file: InstructionFileWithRepository) {
         : null,
     level: file.level,
     fileKey: file.fileKey,
+    kind: file.kind as InstructionKind,
+    readBy,
   };
 }
 
