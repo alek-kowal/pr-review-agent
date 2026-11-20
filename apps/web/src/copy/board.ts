@@ -45,7 +45,10 @@ export const board = {
     repository: 'Repository',
     allRepositories: 'All',
     forks: 'Forks',
-    forkOptions: { show: 'Show', hide: 'Hide', only: 'Only forks' },
+    forkOptions: { hide: 'Hide forks', all: 'Show all', only: 'Only forks' },
+    /** Next to the Filters button while the default hides fork PRs. */
+    forksHidden: 'Forks hidden',
+    showForks: 'Show forks',
     level: 'Review level',
     anyLevel: 'Any',
     hideDrafts: 'Hide drafts',

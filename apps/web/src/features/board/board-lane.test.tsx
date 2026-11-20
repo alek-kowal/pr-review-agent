@@ -37,7 +37,7 @@ test('one card of each state renders in the urgency order', async () => {
       aBoardCard({ title: `PR in ${state}`, openedAt: daysAgo(i), nextStep: aNextStep({ state }) }),
     );
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       lanes: { ...anEmptyBoard().lanes, action_needed: { cards } },
     }),
   });
@@ -49,7 +49,7 @@ test('cards of the same state come longest waiting first', async () => {
   const decide = (title: string, days: number) =>
     aBoardCard({ title, openedAt: daysAgo(days), nextStep: aNextStep() });
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       lanes: {
         ...anEmptyBoard().lanes,
         action_needed: { cards: [decide('Newest', 1), decide('Oldest', 9), decide('Middle', 4)] },
@@ -63,7 +63,7 @@ test('cards of the same state come longest waiting first', async () => {
 
 test('the Action needed lane spans two columns and lays its cards out in two', async () => {
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       lanes: { ...anEmptyBoard().lanes, action_needed: { cards: [aBoardCard()] } },
     }),
   });

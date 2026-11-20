@@ -20,7 +20,7 @@ const hit = (number: number, title: string) => ({
 
 function stub() {
   return stubFetch({
-    '/api/board': anEmptyBoard(),
+    '/api/board?forks=hide': anEmptyBoard(),
     '/api/team': {
       members: [{ id: 'm-1', name: 'Kasia', githubLogin: 'kasia', clickupUserId: null }],
     },

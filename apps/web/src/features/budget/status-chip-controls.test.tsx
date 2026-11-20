@@ -20,7 +20,7 @@ const PAUSED = aStatus({
 function stub(status: StatusResponse, routes: Record<string, unknown> = {}) {
   return stubFetch({
     '/api/status': status,
-    '/api/board': anEmptyBoard(),
+    '/api/board?forks=hide': anEmptyBoard(),
     '/api/team': { members: [tomek] },
     ...routes,
   });
