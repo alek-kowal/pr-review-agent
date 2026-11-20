@@ -178,6 +178,18 @@ export const POLLED_REPOSITORY = {
 };
 
 /**
+ * Not connected, reachable only by name, with no PRs (github-polling.spec.ts, CONNECT): connected
+ * by name, each lands on the list without any dialog. One per test and retry.
+ */
+export const CONNECT_BY_NAME = {
+  kinds: ['from-list', 'after-deploy'] as const,
+  fullName: (kind: 'from-list' | 'after-deploy', retry: number): string =>
+    `acme/connect-${kind}-${retry}`,
+  defaultBranch: 'main',
+  retries: 3,
+};
+
+/**
  * Seeded at level 5 with the SDK store as a sensitive file: tracked in the fixture, but not in its
  * diff, so the PR stays a two-way door and only a patch touches it (autofix.spec.ts). Like the
  * push repository, its remote is the bare push remote with a branch per PR (`pushBranch`), and

@@ -78,6 +78,7 @@ import {
   FAIL_ONCE_PRS,
   USAGE_LIMIT_PRS,
   USAGE_LIMIT_RESET_MS,
+  CONNECT_BY_NAME,
   COSTLY_RETRY_PRS,
   COSTLY_RETRY_USD,
   FAILING_PR_FROM,
@@ -718,6 +719,15 @@ github.repositoryDetails.set(POLLED_REPOSITORY.fullName, {
   defaultBranch: POLLED_REPOSITORY.defaultBranch,
   private: false,
 });
+// CONNECT: reachable by name only, no PRs; one per test and retry (github-polling.spec.ts).
+for (const kind of CONNECT_BY_NAME.kinds) {
+  for (let retry = 0; retry < CONNECT_BY_NAME.retries; retry += 1) {
+    github.repositoryDetails.set(CONNECT_BY_NAME.fullName(kind, retry), {
+      defaultBranch: CONNECT_BY_NAME.defaultBranch,
+      private: false,
+    });
+  }
+}
 github.addPullRequest({
   fullName: POLLED_REPOSITORY.fullName,
   number: POLLED_REPOSITORY.pr.number,
