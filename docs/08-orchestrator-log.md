@@ -107,3 +107,12 @@ These are defaults so the work can go on overnight. Alek reviews them in the mor
 - Mikrus VPS (wojtek118, unprivileged LXC, 1 vCPU, 4 GB, no KVM). On Alek's request: removed n8n, cezar (incl. code-server), paperclip, DevMentor and their data, users and units; added an nginx default server returning 444. Now about 3.5 GB RAM and 27 GB disk free; nginx, kurs and wiedza-watch keep running.
 - gVisor tested on Mikrus (runsc release-20261116.0): fails with "configuring device cgroup: loading device filter: operation not permitted". `--ignore-cgroups` would drop the sandbox memory and CPU caps, so the decision is runc with caps on Mikrus; gVisor waits for a KVM VM. Rolled back; server clean.
 - P-27: deploy kit in `deploy/mikrus/`, two concurrency limits (Claude-bound stages several at once, sandbox stages one at a time), sandbox caps, shared pnpm store, `pnpm sandbox:bench`.
+
+## 20 Nov, 01:15: where package time goes (note from the side pane, at Alek's request)
+
+- Measured over 35 package-session transcripts, working time only (gaps over 10 min skipped): 29 h of agent work, of which about 60% is the model thinking and writing, 25% tests and checks, 15% other tools (read, edit, grep, git). Verification is not the main cost.
+- Single checks are short: `pnpm verify` 42 s on average (247 runs), one e2e call 31 s (229 runs). Their share grew from 5–15% (P-01..P-08) to 30–40% (P-14..P-23) as the suites grew.
+- Each handoff at 26–28% context costs a few minutes of re-reading. Idle time (about 29.5 h summed over parallel sessions) was mostly the 08:40–12:28 usage-limit stop and the DNS outage, so wall-clock times of P-14..P-19 overstate the real work (1–2 h each).
+- Not measured: the orchestrator's merge, verify, e2e and CI wait after each package.
+- Open proposals, not applied without Alek's OK: (1) simple packages (UI-only, docs) on Sonnet: faster, less of the subscription limit; (2) a higher per-session context budget for fewer handoffs, against the "save context" rule; (3) targeted tests while working and one full `pnpm verify` before the commit (mostly done already).
+- Rerunnable script: `/private/tmp/claude-501/-Users-alek-Projects/42e0d3b4-dceb-4f86-ac7d-d412221f3fe4/scratchpad/timing.py <transcript dirs>` (scratchpad; copy it into the repo if it should survive).
