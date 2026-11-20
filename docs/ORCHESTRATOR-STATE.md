@@ -37,41 +37,34 @@ Decisions in detail and the "For Alek" notes: `docs/08-orchestrator-log.md`. Wor
 - Root SSH to the Mikrus VPS is allowed by a permission rule Alek added on 20 Nov (`baza` and `kurs`
   run there too: check them after any server change).
 
-## Where we are (20 Nov 2026, 02:35)
+## Where we are (20 Nov 2026, 05:25)
 
 - All 24 roadmap packages are merged, plus reviews (P-03r, P-05r, P-11r, P-18r, P-22r), P-25
   (Claude subscription auth), P-26 (OpenRouter judge), P-27 (Mikrus deploy kit), P-28 (GitHub
-  polling in token mode), FLAKY, CONNECT and README. main `5a566e3`, CI green on `53e3de6`.
-- **Deployed** on the Mikrus VPS `wojtek118` (1 vCPU, 4 GB, unprivileged LXC, runc sandbox) at
-  `https://dashboardwb.mikrus.dev`, behind a basic-auth gate (login `synergy`, the password is
-  with Alek). Deploy: `deploy/mikrus/deploy.sh` from the Mac (`deploy/mikrus/deploy.env`, local,
-  gitignored), about 3 minutes.
+  polling in token mode), FLAKY, CONNECT, README, INSTR and STAGEFILES. CI green on `9f66f28`
+  (the last code merge); later commits are docs only.
+- **Deployed** `9f66f28` on the Mikrus VPS `wojtek118` (1 vCPU, 4 GB, unprivileged LXC, runc
+  sandbox) at `https://dashboardwb.mikrus.dev`, behind a basic-auth gate (login `synergy`, the
+  password is with Alek). Deploy: `deploy/mikrus/deploy.sh` from the Mac
+  (`deploy/mikrus/deploy.env`, local, gitignored), about 3 minutes. Take a `pg_dump` into
+  `/var/backups/pra/` before a deploy with a migration.
 - GitHub: no App yet (Alek is not an org owner). The app polls with Alek's fine-grained read-only
   token, every 5 min, 9:00–17:00 Mon–Fri; read-only on GitHub. Repository connected:
   `synergycodes/workflowbuilder` (id 1, public, 18 open PRs).
 - Models: Claude via Alek's subscription token; the judge can use OpenRouter (key set). ClickUp key
   set, ClickUp not wired to WB IDs yet.
-- Instruction files imported on the VPS (20 Nov 02:43, 25 files from the old knowledge folder).
-- Running: INSTR (`t-instr`, worktree `../pr-review-agent.worktrees/INSTR`, prompt
-  `tools/orchestrator/prompts/instr.txt`), under `supervise.sh`. After FINISHED: merge-or-fix,
-  deploy, tell Alek.
-- Queued: STAGEFILES (`tools/orchestrator/prompts/stagefiles.txt`, JOURNAL 03:05). Spawn it right
-  after INSTR is merged and deployed: `spawn-task.sh STAGEFILES $T/prompts/stagefiles.txt`, then
-  supervise. Big package: expect handoffs.
-
-## Night plan (20 Nov, Alek asleep: ask him nothing, decide and log)
-
-1. INSTR: done (7ba2be2, deployed, CI green).
-2. STAGEFILES: done (9f66f28, deployed, CI green). Alek still to look at the views (plan 4.4, 4.5).
-3. Recommendation file `docs/recommendations/2026-11-20-night-review.md` (English, no code
-   changes, Alek's request): Part A, primitives and course knowledge for growing into an "AI
-   Software Factory". Two subagents write notes to the session scratchpad
-   (`notes-courses.md`, `notes-app.md`), a third writes Part A from them.
-4. Done 05:20: Part B, dead code and what to
-   simplify (knip or similar, read-only, on main). Commit the file as docs; tell Alek in Polish.
+- Instructions: 25 files imported on the VPS (02:43), now 11 instructions and 14 documents. Each
+  agent stage's prompt, rules and documents are picked in Settings → Pipeline (global, or per
+  repository), frozen per run.
+- Night review for Alek: `docs/recommendations/2026-11-20-night-review.md` (Part A primitives
+  and the AI Software Factory, Part B dead code and simplification). Recommendations only.
+- No agent is running.
 
 ## Next step
 
+0. Alek: look at Settings → Pipeline and Settings → Instructions on real data (STAGEFILES
+   plan checks 4.4, 4.5); retry WB #282 from Verify; read the night review and pick what to do
+   (open choice: `POST /api/instructions/:id/copies` has no button: add one or delete it).
 1. Alek runs the first poll ("Refresh from GitHub" on the board; it only records a baseline) and
    starts a first review on one WB PR. Watch the worker log:
    `ssh -p 10118 -i ~/.ssh/mikrus root@wojtek118.mikrus.xyz 'journalctl -u pra-worker -f'`.
