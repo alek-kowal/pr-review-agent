@@ -1,6 +1,13 @@
 // Insights (S-19-T3, T4): read-only queries over finished PRs and agent spend. The metrics
 // themselves are core rules (`prMetrics`, `pilotMetrics`); these load their inputs.
-import type { Decision, LevelNumber, PrHistory, RunKind, Verdict } from '@pra/core';
+import type {
+  Decision,
+  InstructionKind,
+  LevelNumber,
+  PrHistory,
+  RunKind,
+  Verdict,
+} from '@pra/core';
 import { and, asc, eq, gte, inArray, sql, type SQL } from 'drizzle-orm';
 import type { Executor } from '../client.ts';
 import { headChanges } from '../schema/metrics.ts';
@@ -261,6 +268,8 @@ export type InstructionVersionLabel = {
   id: number;
   scope: 'global' | 'repository' | 'level';
   fileKey: string;
+  /** The file's kind as stored now: instruction or document. */
+  kind: InstructionKind;
   version: number;
   status: string;
   repositorySlug: string | null;
@@ -277,6 +286,7 @@ export function instructionVersionLabels(
       id: instructionVersions.id,
       scope: instructionFiles.scope,
       fileKey: instructionFiles.fileKey,
+      kind: instructionFiles.kind,
       version: instructionVersions.version,
       status: instructionVersions.status,
       repositorySlug: repositories.slug,

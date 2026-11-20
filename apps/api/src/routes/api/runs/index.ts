@@ -4,6 +4,7 @@ import { summarizeTranscript } from '@pra/agents/transcript';
 import {
   AGENT_ROLES,
   chainState,
+  defaultKindOf,
   FILE_STAGE_KEYS,
   HAND,
   INSTRUCTION_KINDS,
@@ -14,6 +15,7 @@ import {
 import {
   getRunContext,
   getRunDetail,
+  instructionVersionLabels,
   recordTimelineEntry,
   requestRunCancel,
   retryRun,
@@ -128,8 +130,11 @@ export const RunDetailResponse = z.object({
         level: z.number().int().nullable().optional(),
         /** The instruction file, for a link to its editor; missing on runs before S-22. */
         fileId: z.number().int().nullable().optional(),
-        /** Instruction or document; missing on runs before STAGEFILES. */
-        kind: z.enum(INSTRUCTION_KINDS).optional(),
+        /**
+         * Instruction or document. Frozen with the run since STAGEFILES; for an older run it is
+         * the file's kind now, else the default for its name.
+         */
+        kind: z.enum(INSTRUCTION_KINDS),
       }),
     ),
     /** The files each stage read, frozen when the run started (STAGEFILES); null before. */
@@ -270,6 +275,15 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
       });
       const failed =
         run.status === 'failed' ? stageViews.find((stage) => stage.status === 'failed') : null;
+      // KINDS: a run from before STAGEFILES froze no kind; read it from the file.
+      const storedKinds = new Map(
+        (
+          await instructionVersionLabels(
+            db,
+            run.instructionVersions.filter((v) => !v.kind).map((v) => v.id),
+          )
+        ).map((label) => [label.id, label.kind]),
+      );
 
       return {
         run: {
@@ -284,7 +298,10 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
           finishedAt: iso(run.finishedAt),
           currentStage: run.currentStage,
           notChecked: run.notChecked,
-          instructionVersions: run.instructionVersions,
+          instructionVersions: run.instructionVersions.map((v) => ({
+            ...v,
+            kind: v.kind ?? storedKinds.get(v.id) ?? defaultKindOf(v.fileKey),
+          })),
           stageFiles: run.stageFiles ?? null,
           error: failed
             ? {

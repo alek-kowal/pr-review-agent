@@ -2,6 +2,7 @@
 // (Cost), verdict and decision rates (Quality) and each repository's level (Trust ladder). Every
 // number carries its sample size; nothing compares periods.
 import {
+  INSTRUCTION_KINDS,
   LEVEL_NUMBERS,
   STAGE_ON_FROM,
   pilotMetrics,
@@ -150,6 +151,8 @@ export const QualityResponse = z.object({
           scope: z.enum(['global', 'repository', 'level']),
           repository: z.string().nullable(),
           fileKey: z.string(),
+          /** Instruction (prompts and rules) or document (reference context). */
+          kind: z.enum(INSTRUCTION_KINDS),
           version: z.number().int(),
           active: z.boolean(),
         })
@@ -422,6 +425,7 @@ const insights: FastifyPluginAsyncZod = async (fastify) => {
                   scope: label.scope,
                   repository: label.repositorySlug,
                   fileKey: label.fileKey,
+                  kind: label.kind,
                   version: label.version,
                   active: label.status === 'active',
                 }
