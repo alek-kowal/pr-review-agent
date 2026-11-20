@@ -1,7 +1,7 @@
 ---
 change_id: INSTR
 title: Rounds fail fast and readably on missing instruction files
-status: in_progress
+status: implemented
 created: 2026-11-20
 updated: 2026-11-20
 archived_at: null
@@ -41,3 +41,27 @@ entry for `verifier_instructions_missing`, so the raw code showed.
    errors names the files from `params.missing`, or the stage's required files when no params
    are stored, and points to Settings → Instructions; the Findings tab banner links there. The
    copy moved to `apps/web/src/copy/reasons.ts`; a reason may now be a function of its params.
+4. **Pre-check before the first stage, not a new run state.** `instructionsPreflight`
+   (`apps/worker/src/run/instructions-preflight.ts`) runs in `runStages` on a run's first start,
+   for the stages the run will actually run (not off, not reused), and reads the files the way
+   the stages do (the versions the run froze, global → repository → level). A gap fails the
+   first stage (usually Checks) with `instructions_missing` and `params { stage, missing, gaps }`,
+   with no agent session, so the round fails before any money is spent. It reuses the existing
+   failed-stage path (banner, stage strip, retry) instead of adding a state. Each stage keeps its
+   own check as the safety net. E2e: `e2e/instructions-missing.spec.ts` on
+   `NO_VERIFIER_REPOSITORY` (empty repository copies hide the global files).
+5. **Warnings, not a blocked start.** The PR view gets an `instructionGaps` section (per level,
+   core `instructionGaps` over the repository's active versions) and `GET /api/instructions` a
+   `gaps` list (connected repositories with gaps only, by slug). Start review warns about the
+   selected level but stays enabled: the round costs nothing when it stops at the pre-check, and
+   a person may add the file right after. Settings → Instructions shows the warning above the
+   files, also when no file exists yet (the production case), one line per stage and missing
+   files with the levels that share them. Core exports `INSTRUCTION_STAGES` as a tuple for the
+   Zod enum.
+6. **Server import is a script, never run by the agent.** `deploy/mikrus/import-instructions.sh
+   <dir> [--dry-run]` uses `deploy.sh`'s SSH settings, streams the folder (no `.git`, no macOS
+   `._` files) into `/srv/pra/knowledge-import/<timestamp>` and runs `pnpm instructions:import`
+   in `/srv/pra/app` as the deploy user in one SSH call; the copy stays for reference. The
+   default map files the copy under the repository it names, so the repository is connected
+   first. Documented in docs/deploy-mikrus.md ("First install: instruction files") and in
+   bootstrap step 7.
