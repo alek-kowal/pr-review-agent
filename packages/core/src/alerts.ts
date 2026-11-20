@@ -88,6 +88,36 @@ export type AlertEndNote = Reason<
   | 'alert_end_midnight'
   | 'alert_end_pr_closed'
 >;
+/** Why an alert's ClickUp comment was not sent: nothing was tried and nothing will be. */
+export type AlertNotSentReason = Reason<
+  | 'alert_delivery_no_key'
+  | 'alert_delivery_no_app_url'
+  | 'alert_delivery_no_task'
+  | 'alert_delivery_clickup_off'
+>;
+/** How a failed attempt went, and whether the job tries again. */
+export type AlertFailedReason = Reason<'alert_delivery_failed'>;
+export type AlertDeliveryReason = AlertNotSentReason | AlertFailedReason;
+
+/**
+ * Why no comment can be posted at all, most basic cause first: the ClickUp key, the app's address
+ * (the comment links to it), then a task to comment on. Null when one can be posted.
+ */
+export function alertDeliveryBlocker(input: {
+  /** Env vars the ClickUp gateway misses; empty when it has its key. */
+  missingEnv: readonly string[];
+  appBaseUrl: string | null | undefined;
+  taskId: string | null;
+  /** The alert belongs to a PR (the daily budget does not). */
+  forPr: boolean;
+}): AlertNotSentReason | null {
+  if (input.missingEnv.length > 0) {
+    return reason('alert_delivery_no_key', { missing: [...input.missingEnv] });
+  }
+  if (!input.appBaseUrl) return reason('alert_delivery_no_app_url');
+  if (!input.taskId) return reason('alert_delivery_no_task', { forPr: input.forPr });
+  return null;
+}
 
 /** Something is wrong right now. */
 export interface AlertCondition {

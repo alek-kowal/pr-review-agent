@@ -226,7 +226,7 @@ describe('PR page', () => {
     );
   });
 
-  it('says when ClickUp is not configured, without Dismiss for a run-failed alert', async () => {
+  it('says why nothing went to ClickUp, without Dismiss for a run-failed alert', async () => {
     stubFetch({
       '/api/prs/wb/12': aPrView({
         alerts: [
@@ -236,6 +236,7 @@ describe('PR page', () => {
               status: 'not_configured',
               taskId: null,
               toGeneralTask: false,
+              reason: { code: 'alert_delivery_no_task', params: { forPr: true } },
               postedAt: null,
             },
           },
@@ -249,8 +250,88 @@ describe('PR page', () => {
       if (!found) throw new Error('no alert line');
       return found as HTMLElement;
     });
-    expect(line).toHaveTextContent('Alert · Not sent: ClickUp not configured');
+    expect(line).toHaveTextContent(
+      'Alert · Not sent to ClickUp: no ClickUp task linked to this PR and no general alerts task',
+    );
     expect(within(line).queryByRole('button')).toBeNull();
+  });
+});
+
+describe('what happened to the ClickUp comment (ALERTTL)', () => {
+  const delivery = (over: Partial<AlertView['delivery']>) =>
+    copy.alerts.delivery({ ...failed.delivery, postedAt: null, ...over });
+
+  it('names the reason when nothing was sent', () => {
+    const notSent = (code: string, params: Record<string, unknown> = {}) =>
+      delivery({ status: 'not_configured', taskId: null, reason: { code, params } });
+    expect(notSent('alert_delivery_no_key', { missing: ['CLICKUP_API_KEY'] })).toBe(
+      'Not sent to ClickUp: ClickUp not connected (CLICKUP_API_KEY is not set)',
+    );
+    expect(notSent('alert_delivery_no_app_url')).toBe(
+      "Not sent to ClickUp: the app's address (APP_BASE_URL) is not set",
+    );
+    expect(notSent('alert_delivery_no_task', { forPr: true })).toBe(
+      'Not sent to ClickUp: no ClickUp task linked to this PR and no general alerts task',
+    );
+    expect(notSent('alert_delivery_no_task', { forPr: false })).toBe(
+      'Not sent to ClickUp: no general alerts task is set',
+    );
+    expect(notSent('alert_delivery_clickup_off')).toBe(
+      'Not sent to ClickUp: no repository has ClickUp set up',
+    );
+  });
+
+  it('an alert stored before reasons says what its row still shows', () => {
+    expect(delivery({ status: 'not_configured', taskId: null, reason: null })).toBe(
+      'Not sent to ClickUp: no ClickUp task to comment on',
+    );
+    expect(delivery({ status: 'not_configured', taskId: 'WB-9', reason: null })).toBe(
+      'Not sent to ClickUp: ClickUp not configured',
+    );
+    // A failure without a reason no longer promises a retry.
+    expect(delivery({ status: 'failed', taskId: 'WB-9', reason: null })).toBe(
+      'Could not post to ClickUp WB-9',
+    );
+  });
+
+  it('a failed attempt says whether it is tried again', () => {
+    const failedWith = (willRetry: boolean, attempt: number) =>
+      delivery({
+        status: 'failed',
+        taskId: 'WB-9',
+        reason: {
+          code: 'alert_delivery_failed',
+          params: { willRetry, attempt, attempts: 6, errorCode: 'clickup_error' },
+        },
+      });
+    expect(failedWith(true, 1)).toBe(
+      'Could not post to ClickUp WB-9; trying again (attempt 1 of 6 failed)',
+    );
+    expect(failedWith(false, 6)).toBe('Could not post to ClickUp WB-9; gave up after 6 attempts');
+  });
+
+  it('Activity shows it in the row, under a column that only says when', async () => {
+    stubFetch(
+      lists([
+        {
+          ...failed,
+          delivery: {
+            status: 'not_configured',
+            taskId: null,
+            toGeneralTask: false,
+            reason: { code: 'alert_delivery_no_task', params: { forPr: true } },
+            postedAt: null,
+          },
+        },
+      ]),
+    );
+    renderApp('/activity');
+    const table = await screen.findByRole('table', { name: copy.alerts.section.title });
+    expect(within(table).getByRole('columnheader', { name: 'When' })).toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: 'Posted' })).toBeNull();
+    expect(table.querySelector('[data-alert-delivery="not_configured"]')).toHaveTextContent(
+      'Not sent to ClickUp: no ClickUp task linked to this PR and no general alerts task',
+    );
   });
 });
 

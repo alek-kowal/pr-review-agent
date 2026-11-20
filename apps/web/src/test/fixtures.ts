@@ -332,6 +332,7 @@ export const anAlert = (over: Partial<AlertView> = {}): AlertView => ({
     status: 'sent',
     taskId: 'WB-123',
     toGeneralTask: false,
+    reason: null,
     postedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   },
   createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),

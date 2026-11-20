@@ -1,14 +1,17 @@
 // S-18-T3: alert evaluation. Reads every open PR's state, real spend and today's spend, asks core
 // which alerts should be active, and stores fires and clears. A fire adds a PR timeline entry and
-// sends its ClickUp delivery job; a clear says nothing. The `alerts` trigger notifies SSE.
+// sends its ClickUp delivery job, or records why no comment can be sent; a clear says nothing.
+// The `alerts` trigger notifies SSE.
 // Alerts never stop or delay a round: this runs in its own job, never inside a stage.
 import {
   alertConditions,
+  alertDeliveryBlocker,
   BOT,
   prState,
   reconcileAlerts,
   type AlertCondition,
   type AlertConfig,
+  type AlertNotSentReason,
   type AlertPrSnapshot,
 } from '@pra/core';
 import {
@@ -31,6 +34,7 @@ import {
   type Queue,
 } from '@pra/db';
 import type { WorkerDeps } from '../deps.ts';
+import { recordAlertDelivery } from './delivery-entry.ts';
 
 /** `YYYY-MM-DD` of `now` in `timeZone`: the day budget alerts belong to. */
 export function localDay(timeZone: string, now: Date): string {
@@ -106,9 +110,17 @@ async function targetOf(
   return { taskId: config.generalTaskId, toGeneralTask: true };
 }
 
-/** Whether a comment can be posted at all: a ClickUp key, the app's address and a task. */
-export function canDeliver(deps: WorkerDeps, taskId: string | null): boolean {
-  return deps.clickup.missingEnv.length === 0 && Boolean(deps.appBaseUrl) && Boolean(taskId);
+/** Why no comment can be posted (no ClickUp key, no app address, no task); null when one can. */
+export function deliveryBlocker(
+  deps: WorkerDeps,
+  alert: { taskId: string | null; forPr: boolean },
+): AlertNotSentReason | null {
+  return alertDeliveryBlocker({
+    missingEnv: deps.clickup.missingEnv,
+    appBaseUrl: deps.appBaseUrl,
+    taskId: alert.taskId,
+    forPr: alert.forPr,
+  });
 }
 
 export type AlertEvaluation = { fired: AlertRow[]; resolved: AlertRow[] };
@@ -135,6 +147,10 @@ export async function evaluateAlerts(
   const fired: AlertRow[] = [];
   for (const condition of changes.fire) {
     const target = await targetOf(deps, condition, config);
+    const blocker = deliveryBlocker(deps, {
+      taskId: target.taskId,
+      forPr: condition.prId != null,
+    });
     const row = await insertAlert(db, {
       kind: condition.kind,
       key: condition.key,
@@ -144,12 +160,14 @@ export async function evaluateAlerts(
       nextStep: condition.nextStep,
       clickupTaskId: target.taskId,
       toGeneralTask: target.toGeneralTask,
-      deliveryStatus: canDeliver(deps, target.taskId) ? 'pending' : 'not_configured',
+      deliveryStatus: blocker ? 'not_configured' : 'pending',
+      deliveryReason: blocker,
     });
     // Another evaluation stored the same key first.
     if (!row) continue;
     fired.push(row);
     if (row.pullRequestId != null) {
+      // The alert only; what happened to its ClickUp comment is an `alert_delivery` entry.
       await recordTimelineEntry(db, {
         pullRequestId: row.pullRequestId,
         actor: BOT,
@@ -159,13 +177,17 @@ export async function evaluateAlerts(
           alertKind: row.kind,
           title: row.title,
           nextStep: row.nextStep,
-          taskId: row.clickupTaskId,
         },
         at: row.createdAt,
         sourceKey: `alert:${row.id}`,
       });
     }
-    if (row.deliveryStatus === 'pending') await sendAlertDelivery(deps.queue, row.id);
+    // Nothing can be sent, so no job runs: the timeline says so now, with the reason.
+    if (blocker) {
+      await recordAlertDelivery(db, row, { status: 'not_sent', reason: blocker }, row.createdAt);
+    } else {
+      await sendAlertDelivery(deps.queue, row.id);
+    }
   }
   return { fired, resolved };
 }

@@ -27,5 +27,21 @@ declare module '../reason.ts' {
     alert_end_below_threshold: NoParams;
     alert_end_midnight: NoParams;
     alert_end_pr_closed: NoParams;
+
+    /** Why an alert's ClickUp comment was not sent (ALERTTL). `missing`: env var names. */
+    alert_delivery_no_key: { missing: string[] };
+    /** The app's address is not set, so the comment could not link back. */
+    alert_delivery_no_app_url: NoParams;
+    /** No task to comment on. `forPr`: a PR alert (no linked task and no general alerts task). */
+    alert_delivery_no_task: { forPr: boolean };
+    /** No connected repository has ClickUp set up. */
+    alert_delivery_clickup_off: NoParams;
+    /** An attempt failed. `attempt` of `attempts`; `willRetry`: the job runs again. */
+    alert_delivery_failed: {
+      willRetry: boolean;
+      attempt: number;
+      attempts: number;
+      errorCode: string | null;
+    };
   }
 }

@@ -5,6 +5,7 @@ import {
   type ClickUpSettings,
   DEFAULT_ALERT_CONFIG,
   type AlertConfig,
+  type AlertDeliveryReason,
   type AlertEndNote,
   type AlertKind,
   type AlertNextStep,
@@ -91,6 +92,8 @@ export type NewAlert = {
   toGeneralTask: boolean;
   /** `not_configured` when there is no ClickUp key or no target task. */
   deliveryStatus?: AlertDeliveryStatus;
+  /** Why it is `not_configured`. */
+  deliveryReason?: AlertDeliveryReason | null;
 };
 
 /** Stores a new alert; a key that exists already does nothing. Returns the new row or null. */
@@ -162,12 +165,22 @@ export async function dismissAlert(
   return row ?? null;
 }
 
-/** Records how the ClickUp comment went. */
+/** The alerts with these ids (any status), for the timeline's old entries. */
+export async function alertsByIds(db: Executor, ids: readonly number[]): Promise<AlertRow[]> {
+  if (ids.length === 0) return [];
+  return db
+    .select()
+    .from(alerts)
+    .where(inArray(alerts.id, [...ids]));
+}
+
+/** Records how the ClickUp comment went; `reason` replaces the stored one (null when sent). */
 export async function setAlertDelivery(
   db: Executor,
   id: number,
   delivery: {
     status: AlertDeliveryStatus;
+    reason?: AlertDeliveryReason | null;
     commentId?: string | null;
     clickupTaskId?: string | null;
     toGeneralTask?: boolean;
@@ -177,6 +190,7 @@ export async function setAlertDelivery(
     .update(alerts)
     .set({
       deliveryStatus: delivery.status,
+      deliveryReason: delivery.reason ?? null,
       ...(delivery.commentId !== undefined ? { commentId: delivery.commentId } : {}),
       ...(delivery.clickupTaskId !== undefined ? { clickupTaskId: delivery.clickupTaskId } : {}),
       ...(delivery.toGeneralTask !== undefined ? { toGeneralTask: delivery.toGeneralTask } : {}),

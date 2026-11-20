@@ -104,8 +104,11 @@ export async function startWorker(
   await queue.work<JobPayloads['alerts.evaluate']>(JOBS.alertsEvaluate, work, () =>
     handleAlertEvaluation(deps),
   );
-  await queue.work<JobPayloads['alerts.deliver']>(JOBS.alertsDeliver, work, (jobs) =>
-    handleAlertDeliveries(deps, jobs),
+  // With metadata: a failed delivery says whether the job has retries left (ALERTTL).
+  await queue.work<JobPayloads['alerts.deliver']>(
+    JOBS.alertsDeliver,
+    { ...work, includeMetadata: true },
+    (jobs) => handleAlertDeliveries(deps, jobs),
   );
   await queue.schedule(JOBS.alertsEvaluate, ALERTS_CRON, {});
   const alertTriggers = listenForAlertTriggers(deps);

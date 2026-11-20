@@ -4,6 +4,7 @@ import {
   BUDGET_ALERT_PERCENTS,
   DEFAULT_ALERT_COST_USD,
   DEFAULT_BUDGET_ALERT_PERCENT,
+  type AlertDeliveryReason,
   type AlertEndNote,
   type AlertNextStep,
   type AlertTitle,
@@ -27,7 +28,7 @@ import { runs } from './runs.ts';
 /**
  * How an alert's ClickUp comment went: `pending` until the delivery job runs, `sent` with the
  * comment id, `not_configured` without a ClickUp key or a target task (nothing is faked), `failed`
- * after the job gave up.
+ * after an attempt failed (`deliveryReason` says whether the job tries again).
  */
 export const ALERT_DELIVERY_STATUSES = ['pending', 'sent', 'not_configured', 'failed'] as const;
 export type AlertDeliveryStatus = (typeof ALERT_DELIVERY_STATUSES)[number];
@@ -62,6 +63,8 @@ export const alerts = pgTable(
     deliveryStatus: text('delivery_status', { enum: ALERT_DELIVERY_STATUSES })
       .notNull()
       .default('pending'),
+    /** Reason code: why it was not sent, or how the last failed attempt went; null otherwise. */
+    deliveryReason: jsonb('delivery_reason').$type<AlertDeliveryReason>(),
     postedAt: timestamp('posted_at', { withTimezone: true }),
     status: text({ enum: ALERT_STATUSES }).notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

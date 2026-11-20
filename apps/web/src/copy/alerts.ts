@@ -48,8 +48,57 @@ const endNotes: Record<string, string> = {
   alert_end_pr_closed: 'The PR was closed',
 };
 
-type Delivery = { status: string; taskId: string | null; toGeneralTask: boolean };
 type AlertReason = { code: string; params: Params };
+type Delivery = {
+  status: string;
+  taskId: string | null;
+  toGeneralTask: boolean;
+  /** Missing on alerts stored before reasons were recorded. */
+  reason?: AlertReason | null;
+};
+
+/** Why nothing was sent to ClickUp, by reason code (`alert_delivery_*`). */
+const notSent: Record<string, (p: Params) => string> = {
+  alert_delivery_no_key: (p) => {
+    const missing = Array.isArray(p.missing) ? p.missing.map(s).join(', ') : '';
+    return missing ? `ClickUp not connected (${missing} is not set)` : 'ClickUp not connected';
+  },
+  alert_delivery_no_app_url: () => "the app's address (APP_BASE_URL) is not set",
+  alert_delivery_no_task: (p) =>
+    p.forPr === false
+      ? 'no general alerts task is set'
+      : 'no ClickUp task linked to this PR and no general alerts task',
+  alert_delivery_clickup_off: () => 'no repository has ClickUp set up',
+};
+
+/** A stored delivery reason; an alert without one says what its row still shows. */
+function notSentReason(d: Delivery): string {
+  const known = d.reason ? notSent[d.reason.code]?.(d.reason.params ?? {}) : undefined;
+  return known ?? (d.taskId ? 'ClickUp not configured' : 'no ClickUp task to comment on');
+}
+
+/** What happened to the ClickUp comment, as far as it is known. */
+function deliveryOf(d: Delivery): string {
+  const task = d.taskId
+    ? `ClickUp ${d.taskId}${d.toGeneralTask ? ' (general alerts task)' : ''}`
+    : 'ClickUp';
+  switch (d.status) {
+    case 'sent':
+      return `Posted to ${task}`;
+    case 'pending':
+      return `Posting to ${task}`;
+    case 'not_configured':
+    case 'not_sent':
+      return `Not sent to ClickUp: ${notSentReason(d)}`;
+    default: {
+      const p = d.reason?.code === 'alert_delivery_failed' ? d.reason.params : null;
+      if (!p) return `Could not post to ${task}`;
+      return p.willRetry
+        ? `Could not post to ${task}; trying again (attempt ${n(p.attempt)} of ${n(p.attempts)} failed)`
+        : `Could not post to ${task}; gave up after ${plural(n(p.attempts), 'attempt')}`;
+    }
+  }
+}
 
 /** A stored title (reason code JSON) as a sentence; empty when it is not one. */
 function titleOf(value: unknown, c: AlertNames): string {
@@ -64,21 +113,7 @@ export const alerts = {
   nextStep: (r: AlertReason, c: AlertNames) => nextSteps[r.code]?.(r.params, c) ?? '',
   endNote: (r: { code: string } | null) => (r ? (endNotes[r.code] ?? '') : ''),
   /** Where the ClickUp comment went, or why it did not. */
-  delivery: (d: Delivery) => {
-    const task = d.taskId
-      ? `ClickUp ${d.taskId}${d.toGeneralTask ? ' (general alerts task)' : ''}`
-      : 'ClickUp';
-    switch (d.status) {
-      case 'sent':
-        return `Posted to ${task}`;
-      case 'pending':
-        return `Posting to ${task}`;
-      case 'not_configured':
-        return 'Not sent: ClickUp not configured';
-      default:
-        return `Could not post to ${task}; trying again`;
-    }
-  },
+  delivery: deliveryOf,
   /** "5 min ago"; under a minute reads "just now". */
   ago: (ms: number) => (ms < 60_000 ? 'just now' : `${duration(ms)} ago`),
   count: (count: number) => plural(count, 'active alert'),
@@ -86,7 +121,8 @@ export const alerts = {
     title: 'Alerts',
     loading: 'Loading alerts…',
     calm: 'Nothing needs attention.',
-    columns: { alert: 'Alert', posted: 'Posted', actions: 'Actions' },
+    /** `when`: raised, or cleared / dismissed. It says nothing about ClickUp; the row does. */
+    columns: { alert: 'Alert', when: 'When', actions: 'Actions' },
     runDetails: 'Run details',
     cleared: 'cleared',
     dismissed: 'dismissed by hand',
@@ -179,10 +215,24 @@ export const alerts = {
     invalidSummary: 'Fix the highlighted fields to save.',
     saveTitle: 'Save alert settings',
   },
-  /** Timeline entries `alert_raised` (by the bot) and `alert_dismissed` (by hand). */
+  /**
+   * Timeline entries `alert_raised` and `alert_delivery` (by the bot) and `alert_dismissed` (by
+   * hand). `alert_raised` claims nothing about ClickUp: the delivery entry does, once the outcome
+   * is known. An entry without one carries `delivery` (the alert's stored state) when the API has it.
+   */
   timeline: {
-    raised: (p: Params, c: AlertNames) =>
-      `Alert posted as a ClickUp comment${p.taskId ? ` on ${s(p.taskId)}` : ''}: ${titleOf(p.title, c)}`,
+    raised: (p: Params, c: AlertNames) => {
+      const d = p.delivery as Delivery | null | undefined;
+      const raised = `Alert raised: ${titleOf(p.title, c)}`;
+      return d && typeof d === 'object' ? `${raised}. ${deliveryOf(d)}` : raised;
+    },
+    delivery: (p: Params, c: AlertNames) =>
+      `${deliveryOf({
+        status: s(p.status),
+        taskId: p.taskId ? s(p.taskId) : null,
+        toGeneralTask: p.toGeneralTask === true,
+        reason: (p.reason as AlertReason | null | undefined) ?? null,
+      })}. Alert: ${titleOf(p.title, c)}`,
     dismissed: (p: Params, c: AlertNames) => `Dismissed the alert: ${titleOf(p.title, c)}`,
   },
 };

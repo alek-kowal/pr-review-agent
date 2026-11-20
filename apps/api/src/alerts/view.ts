@@ -29,6 +29,8 @@ export const AlertSchema = z.object({
     taskId: z.string().nullable(),
     /** True when it goes to the general alerts task. */
     toGeneralTask: z.boolean(),
+    /** Why it was not sent (`alert_delivery_*`), or how the last failed attempt went. */
+    reason: ReasonSchema.nullable(),
     postedAt: timestamp.nullable(),
   }),
   createdAt: timestamp,
@@ -54,6 +56,7 @@ export const alertView = (alert: AlertView): AlertResponse => ({
     status: alert.deliveryStatus,
     taskId: alert.clickupTaskId,
     toGeneralTask: alert.toGeneralTask,
+    reason: alert.deliveryReason,
     postedAt: iso(alert.postedAt),
   },
   createdAt: alert.createdAt.toISOString(),

@@ -134,6 +134,7 @@ export const timeline = {
     author_notified: (p) =>
       `Notified ${String(p.authorName ?? 'the author')} in ClickUp (${String(p.taskId ?? '')})`,
     alert_raised: alerts.timeline.raised,
+    alert_delivery: alerts.timeline.delivery,
     alert_dismissed: alerts.timeline.dismissed,
   } as Record<string, (p: Params, c: TimelineContext) => string>,
   unknownEntry: (kind: string) => kind.replaceAll('_', ' '),

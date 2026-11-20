@@ -262,6 +262,8 @@ export type AlertView = {
     status: 'pending' | 'sent' | 'not_configured' | 'failed';
     taskId: string | null;
     toGeneralTask: boolean;
+    /** Why it was not sent (`alert_delivery_*`), or how the last failed attempt went. */
+    reason: ReasonView | null;
     postedAt: string | null;
   };
   createdAt: string;

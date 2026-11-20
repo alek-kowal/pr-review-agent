@@ -1,5 +1,14 @@
 // S-03-T7: the Timeline tab's API: the time summary and every entry with its actor and cost.
-import { closeDb, createDb, insertRun, recordTimelineEntry, schema, type Db } from '@pra/db';
+import { reason } from '@pra/core';
+import {
+  closeDb,
+  createDb,
+  insertAlert,
+  insertRun,
+  recordTimelineEntry,
+  schema,
+  type Db,
+} from '@pra/db';
 import { aRun, seedPullRequest, seedTeamMember, testDatabaseUrl } from '@pra/db/testing';
 import { afterAll, expect, test } from 'vitest';
 import { TimelineResponse } from '../../src/pr-view/timeline.ts';
@@ -116,6 +125,68 @@ test('the timeline has the time summary by lane and every entry with actor and c
       costUsd: null,
       runId: null,
     },
+  ]);
+});
+
+test('an alert entry without a delivery entry gets the stored delivery state (ALERTTL)', async () => {
+  const { repository, pullRequest } = await seedPullRequest(writer);
+  const prId = pullRequest.id;
+  const alert = (key: string, deliveryStatus: 'not_configured' | 'sent') =>
+    insertAlert(writer, {
+      kind: 'cost',
+      key: `${key}:${prId}`,
+      pullRequestId: prId,
+      title: reason('alert_cost', { prNumber: pullRequest.number, spentUsd: 6, maxUsd: 5 }),
+      nextStep: reason('alert_next_split'),
+      clickupTaskId: deliveryStatus === 'sent' ? 'WB-1' : null,
+      toGeneralTask: false,
+      deliveryStatus,
+    });
+  // Written before delivery entries existed: claimed "posted", though nothing was sent.
+  const old = (await alert('old', 'not_configured'))!;
+  const delivered = (await alert('new', 'sent'))!;
+  for (const [row, hours] of [
+    [old, 1],
+    [delivered, 2],
+  ] as const) {
+    await recordTimelineEntry(writer, {
+      pullRequestId: prId,
+      actor: { kind: 'bot' },
+      kind: 'alert_raised',
+      params: { alertId: row.id, alertKind: row.kind, title: row.title },
+      at: at(hours),
+      sourceKey: `alert:${row.id}`,
+    });
+  }
+  await recordTimelineEntry(writer, {
+    pullRequestId: prId,
+    actor: { kind: 'bot' },
+    kind: 'alert_delivery',
+    params: { alertId: delivered.id, status: 'sent', taskId: 'WB-1', reason: null },
+    at: at(3),
+    sourceKey: `alert:${delivered.id}:delivery:sent`,
+  });
+
+  const api = await build({ db: reader });
+  const response = await api.inject({
+    method: 'GET',
+    url: `/api/prs/${repository.slug}/${pullRequest.number}/timeline`,
+  });
+  const body = TimelineResponse.parse(response.json());
+  expect(body.entries.map((e) => [e.kind, e.params.alertId, e.params.delivery])).toEqual([
+    [
+      'alert_raised',
+      old.id,
+      {
+        status: 'not_configured',
+        taskId: null,
+        toGeneralTask: false,
+        reason: null,
+        postedAt: null,
+      },
+    ],
+    ['alert_raised', delivered.id, undefined],
+    ['alert_delivery', delivered.id, undefined],
   ]);
 });
 

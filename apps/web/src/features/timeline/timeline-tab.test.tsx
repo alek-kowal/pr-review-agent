@@ -140,6 +140,73 @@ describe('PR Timeline tab', () => {
     ).toBe('Sent back 1 sensitive file: "Split it"');
   });
 
+  it('an alert entry claims nothing about ClickUp; the delivery entry says how it went (ALERTTL)', () => {
+    const { entries } = copy.timeline;
+    const context = { stage: (key: string) => (key === 'verify' ? 'Verify' : key), reason: String };
+    const title = {
+      code: 'alert_failed',
+      params: { prNumber: 282, stage: 'verify', errorCode: 'stage_error', timeoutMinutes: null },
+    };
+    const sentence = 'Verify stage failed on #282: stage_error';
+
+    // An old entry (written before the fix, with the task it was meant for): no "posted".
+    expect(entries.alert_raised!({ alertId: 7, title, taskId: null }, context)).toBe(
+      `Alert raised: ${sentence}`,
+    );
+    expect(entries.alert_raised!({ alertId: 7, title, taskId: 'WB-1' }, context)).toBe(
+      `Alert raised: ${sentence}`,
+    );
+    // An old entry the API could add the alert's stored state to.
+    expect(
+      entries.alert_raised!(
+        {
+          alertId: 7,
+          title,
+          taskId: null,
+          delivery: { status: 'not_configured', taskId: null, toGeneralTask: true, reason: null },
+        },
+        context,
+      ),
+    ).toBe(`Alert raised: ${sentence}. Not sent to ClickUp: no ClickUp task to comment on`);
+
+    const delivery = (params: Record<string, unknown>) =>
+      entries.alert_delivery!({ alertId: 7, title, toGeneralTask: false, ...params }, context);
+    expect(delivery({ status: 'sent', taskId: 'WB-1', reason: null })).toBe(
+      `Posted to ClickUp WB-1. Alert: ${sentence}`,
+    );
+    expect(
+      delivery({
+        status: 'not_sent',
+        taskId: null,
+        reason: { code: 'alert_delivery_no_task', params: { forPr: true } },
+      }),
+    ).toBe(
+      `Not sent to ClickUp: no ClickUp task linked to this PR and no general alerts task. Alert: ${sentence}`,
+    );
+    expect(
+      delivery({
+        status: 'failed',
+        taskId: 'WB-1',
+        reason: {
+          code: 'alert_delivery_failed',
+          params: { willRetry: true, attempt: 1, attempts: 6, errorCode: 'clickup_error' },
+        },
+      }),
+    ).toBe(
+      `Could not post to ClickUp WB-1; trying again (attempt 1 of 6 failed). Alert: ${sentence}`,
+    );
+    expect(
+      delivery({
+        status: 'failed',
+        taskId: 'WB-1',
+        reason: {
+          code: 'alert_delivery_failed',
+          params: { willRetry: false, attempt: 6, attempts: 6, errorCode: 'clickup_error' },
+        },
+      }),
+    ).toBe(`Could not post to ClickUp WB-1; gave up after 6 attempts. Alert: ${sentence}`);
+  });
+
   it('reconcile poll entries name what GitHub corrected', () => {
     const { entries } = copy.timeline;
     const context = { stage: String, reason: String };

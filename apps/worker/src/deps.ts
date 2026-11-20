@@ -42,7 +42,7 @@ export type WorkerDeps = {
   clickup: ClickUpGateway;
   /**
    * The address people open the app at (`APP_BASE_URL`); alert comments link to it. Without it
-   * an alert is not posted ("Not sent: ClickUp not configured").
+   * an alert is not posted (reason `alert_delivery_no_app_url`).
    */
   appBaseUrl?: string | null;
   /** How the agents reach the model (core `modelAuthModeOf`); a subscription labels costs. */
