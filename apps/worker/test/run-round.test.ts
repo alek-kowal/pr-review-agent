@@ -335,6 +335,26 @@ describe('run.stage', () => {
     expect(verify).toMatchObject({ status: 'failed', errorCode: 'verifier_instructions_missing' });
   });
 
+  test('a round whose Verify has no instruction files fails at its first stage, before any session', async () => {
+    const calls = deps.agentRunner.calls.length;
+    const run = await queueRound(3);
+
+    expect((await settled(run.id)).status).toBe('failed');
+    const stages = await stagesOf(run.id);
+    expect(stages).toHaveLength(1);
+    expect(stages[0]).toMatchObject({
+      stage: 'checks',
+      status: 'failed',
+      errorCode: 'instructions_missing',
+    });
+    expect(JSON.parse(stages[0]!.errorDetail!)).toMatchObject({
+      stage: 'verify',
+      missing: ['prompt-verifier.md', 'verify-rules.md'],
+    });
+    expect(await sessionsOf(run.id)).toEqual([]);
+    expect(deps.agentRunner.calls).toHaveLength(calls);
+  });
+
   test('with the real adapter and no key the run fails with model_access_not_configured', async () => {
     const claude = createClaudeAgentRunner({});
     deps.agentRunner.enqueue((input) => claude.run(input));

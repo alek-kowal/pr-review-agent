@@ -109,6 +109,7 @@ import {
   pushBranch,
   QUESTION_PRS,
   README_REPOSITORY,
+  NO_VERIFIER_REPOSITORY,
   REFUSED_MERGE_PRS,
   releaseFile,
   SECOND_REPOSITORY,
@@ -708,6 +709,7 @@ const github = new StackGitHub(db, pushRemote, {
     [CLICKUP_REPOSITORY.fullName]: CLICKUP_REPOSITORY.installationId,
     [LEARNING_REPOSITORY.fullName]: LEARNING_REPOSITORY.installationId,
     [README_REPOSITORY.fullName]: README_REPOSITORY.installationId,
+    [NO_VERIFIER_REPOSITORY.fullName]: NO_VERIFIER_REPOSITORY.installationId,
     [PUSH_REPOSITORY.fullName]: PUSH_REPOSITORY.installationId,
     [AUTOFIX_REPOSITORY.fullName]: AUTOFIX_REPOSITORY.installationId,
     [SHADOW_REPOSITORY.fullName]: SHADOW_REPOSITORY.installationId,
@@ -923,6 +925,24 @@ for (const [fileKey, content] of [
   ['analyst-rules.md', '# Analyst rules\n\nPropose a lesson only when the PR shows it.\n'],
 ] as const) {
   await importInstructionV1(db, { scope: 'global', fileKey, content });
+}
+// instructions-missing.spec.ts: empty copies of the verifier's files hide the global ones.
+const noVerifier = await upsertRepository(
+  db,
+  {
+    slug: NO_VERIFIER_REPOSITORY.slug,
+    githubFullName: NO_VERIFIER_REPOSITORY.fullName,
+    defaultLevel: 3,
+  },
+  { installationId: NO_VERIFIER_REPOSITORY.installationId },
+);
+for (const fileKey of ['prompt-verifier.md', 'verify-rules.md']) {
+  await importInstructionV1(db, {
+    scope: 'repository',
+    repositoryId: noVerifier.id,
+    fileKey,
+    content: '',
+  });
 }
 // learning.spec.ts: at level 6 closing or merging a PR starts the analyst, which reads the
 // repository's lessons.md; each merged PR has a comment by its author and one by a reviewer.

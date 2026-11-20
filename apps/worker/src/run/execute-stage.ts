@@ -54,6 +54,7 @@ import { removeRunFiles } from './cleanup.ts';
 import { passGates } from './gates.ts';
 import { executorFor } from '../stages/index.ts';
 import { fireHooks, type RunHookContext } from './hooks.ts';
+import { instructionsPreflight } from './instructions-preflight.ts';
 import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
 import { liveSessions, type LiveSessions } from './live-sessions.ts';
@@ -183,20 +184,24 @@ async function startAndRun(
     if (started.next) await sendStageJob(deps.queue, runId, started.next, job.run);
     return 'not_next';
   }
-  const { run, executionId, attempt, sessionOffset } = started;
+  const { run, executionId, attempt, sessionOffset, runStages } = started;
   // Sessions get their row when they start and their cost per turn (S-03-T3).
   const live = liveSessions(deps, { runId, stageExecutionId: executionId });
 
-  const result = await runExecutor({ ...deps, agentRunner: live.runner }, executor, {
-    run,
-    pullRequest,
-    repository,
-    stage,
-    attempt,
-    abortGraceMs: options.abortGraceMs ?? ABORT_GRACE_MS,
-    cancel: job.cancel,
-    cancelGraceMs: options.cancelGraceMs ?? CANCEL_GRACE_MS,
-  });
+  // A run that just began checks the instruction files of all its stages first (INSTR).
+  const blocked = runStages ? await instructionsPreflight(deps, run, repository, runStages) : null;
+  const result =
+    blocked ??
+    (await runExecutor({ ...deps, agentRunner: live.runner }, executor, {
+      run,
+      pullRequest,
+      repository,
+      stage,
+      attempt,
+      abortGraceMs: options.abortGraceMs ?? ABORT_GRACE_MS,
+      cancel: job.cancel,
+      cancelGraceMs: options.cancelGraceMs ?? CANCEL_GRACE_MS,
+    }));
 
   const stored = await storeResult(deps, {
     runId,
@@ -270,8 +275,18 @@ export async function afterTransition(
   await removeRunFiles(deps, context.repository, run.id);
 }
 
-/** `sessionOffset`: sessions the attempt already has (it was parked, P-25); new ones follow. */
-type Started = { run: Run; executionId: number; attempt: number; sessionOffset: number };
+/**
+ * `sessionOffset`: sessions the attempt already has (it was parked, P-25); new ones follow.
+ * `runStages`: set when this start began the run: the stages it will run, for the check of their
+ * instruction files.
+ */
+type Started = {
+  run: Run;
+  executionId: number;
+  attempt: number;
+  sessionOffset: number;
+  runStages?: string[];
+};
 /** Not started: the job's stage is not the run's next one; `next` is, if any. */
 type NotStarted = { next: RunStageKey | null };
 /** Not started: the run waits for its cancel to finish. */
@@ -303,8 +318,11 @@ async function startStageInTx(
   if (cancelRequested(run)) return { cancel: true };
   let executions = await stageExecutionsOfRun(tx, runId);
   let state = runStateOf(run, executions);
+  let runStages: string[] | undefined;
 
   if (state.status === 'queued') {
+    // Not off and not reused from the failed run a retry repeats.
+    runStages = state.stages.filter((s) => s.status === 'pending').map((s) => s.key);
     const begun = startRun(state);
     if (!begun.ok) return notStarted;
     state = begun.run;
@@ -373,7 +391,7 @@ async function startStageInTx(
     await updateRun(tx, runId, { currentStage: stage });
     started.run = { ...run, currentStage: stage };
   }
-  return started;
+  return runStages ? { ...started, runStages } : started;
 }
 
 type RunInput = {

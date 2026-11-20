@@ -405,3 +405,14 @@ export const README_REPOSITORY = {
   installationId: 55500010,
 };
 export const README_PRS = { from: 80, to: 89 };
+
+/**
+ * instructions-missing.spec.ts: level 3, with empty repository copies of the verifier's
+ * instruction files, so its rounds stop before their first stage (INSTR).
+ */
+export const NO_VERIFIER_REPOSITORY = {
+  slug: 'no-verifier',
+  fullName: 'acme/no-verifier',
+  installationId: 55500040,
+};
+export const NO_VERIFIER_PRS = { from: 1900, to: 1909 };
