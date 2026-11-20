@@ -255,10 +255,15 @@ export const REQUIRED_INSTRUCTION_FILES = {
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 export type InstructionStage = keyof typeof REQUIRED_INSTRUCTION_FILES;
 
-const INSTRUCTION_STAGES = Object.keys(REQUIRED_INSTRUCTION_FILES) as InstructionStage[];
+/** The stages of `REQUIRED_INSTRUCTION_FILES`, in run order (a tuple for schemas). */
+export const INSTRUCTION_STAGES = [
+  'verify',
+  'implement',
+  'analyse',
+] as const satisfies readonly InstructionStage[];
 
 export const isInstructionStage = (stage: string): stage is InstructionStage =>
-  (INSTRUCTION_STAGES as string[]).includes(stage);
+  (INSTRUCTION_STAGES as readonly string[]).includes(stage);
 
 /** One stage's required files that are missing or empty. */
 export interface InstructionGap {

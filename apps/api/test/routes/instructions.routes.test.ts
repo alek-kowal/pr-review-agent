@@ -81,6 +81,24 @@ describe('GET /api/instructions', () => {
     expect(scopes.lastIndexOf('global')).toBeLessThan(scopes.indexOf('repository'));
   });
 
+  test('gaps name the required files a repository lacks, per level (INSTR)', async () => {
+    // Empty repository copies hide any global verifier files.
+    for (const fileKey of ['prompt-verifier.md', 'verify-rules.md']) {
+      await importInstructionV1(db, {
+        scope: 'repository',
+        repositoryId: repository.id,
+        fileKey,
+        content: '',
+      });
+    }
+    const response = await app.inject({ method: 'GET', url: '/api/instructions' });
+    const { gaps } = InstructionsListResponse.parse(response.json());
+    const mine = gaps.find((g) => g.repository.id === repository.id);
+    const verify = mine?.gaps.filter((g) => g.stage === 'verify');
+    expect(verify?.map((g) => g.level)).toEqual([3, 4, 5, 6]);
+    expect(verify?.[0]?.missing).toEqual(['prompt-verifier.md', 'verify-rules.md']);
+  });
+
   test('a missing file answers 404', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/instructions/999999999' });
     expect(response.statusCode).toBe(404);

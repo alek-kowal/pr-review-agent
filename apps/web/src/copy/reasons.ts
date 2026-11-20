@@ -33,8 +33,12 @@ function missingFiles(p: ReasonParams, stage: string): string[] {
   return isInstructionStage(stage) ? [...REQUIRED_INSTRUCTION_FILES[stage]] : [];
 }
 
-const filesMissing = (files: string[]): string =>
+const filesMissing = (files: readonly string[]): string =>
   files.length === 1 ? `${files[0]} is missing` : `${andList(files)} are missing`;
+
+/** "Verify: prompt-verifier.md and verify-rules.md are missing" (a gap Settings warns about). */
+export const instructionGapText = (stage: string, missing: readonly string[]): string =>
+  `${stageNames[stage] ?? stage}: ${filesMissing(missing)}`;
 
 /** "instruction files for Verify: prompt-verifier.md is missing; add it in Settings → ...". */
 const instructionsMissing = (stage: string) => (p: ReasonParams) => {

@@ -53,4 +53,18 @@ test('missing verifier files fail the round at its start, before any agent sessi
   await expect(progress).toHaveAttribute('data-round-status', 'failed');
   await expect(progress).toContainText(MISSING);
   expect(await agentSessions(number)).toBe(0);
+
+  // Start review warns about the repository's default level before the next round.
+  const header = page.locator('header', { has: page.getByRole('heading', { level: 1 }) });
+  await header.getByRole('button', { name: 'Start review' }).click();
+  await expect(page.getByRole('dialog').getByTestId('start-review-instruction-gaps')).toContainText(
+    `A round at level 3 stops before its first stage. Verify: ${MISSING}.`,
+  );
+  await page.keyboard.press('Escape');
+
+  // Settings → Instructions names the repository and the levels.
+  await page.goto('/settings/instructions');
+  const gaps = page.getByRole('region', { name: 'Missing instruction files' });
+  await expect(gaps).toContainText(`Repository · ${slug}`);
+  await expect(gaps).toContainText(`Levels 3, 4, 5 and 6: Verify: ${MISSING}`);
 });

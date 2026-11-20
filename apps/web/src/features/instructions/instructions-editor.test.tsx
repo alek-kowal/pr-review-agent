@@ -85,6 +85,7 @@ const list: InstructionsListResponse = {
     },
     { ...file, active: v1, draft: v2Draft },
   ],
+  gaps: [],
 };
 
 beforeEach(() => window.localStorage.clear());
@@ -103,6 +104,38 @@ describe('Settings → Instructions', () => {
     const wb = screen.getByRole('region', { name: t.groups.repository('workflowbuilder') });
     const row = within(wb).getByRole('row', { name: /review-rules\.md/ });
     expect(row).toHaveTextContent('v1v2Name the API rule');
+    expect(screen.queryByRole('region', { name: t.gaps.title })).toBeNull();
+  });
+
+  test('warns per repository about the files its rounds would miss, even with no file yet', async () => {
+    const missing = ['prompt-verifier.md', 'verify-rules.md'];
+    stubFetch({
+      '/api/instructions': {
+        files: [],
+        gaps: [
+          {
+            repository: { id: 1, slug: 'acme' },
+            gaps: [
+              { level: 4, stage: 'verify', missing },
+              { level: 3, stage: 'verify', missing },
+              { level: 4, stage: 'implement', missing: ['implement-rules.md'] },
+            ],
+          },
+        ],
+      } satisfies InstructionsListResponse,
+    });
+    renderApp('/settings/instructions');
+
+    const warning = await screen.findByRole('region', { name: t.gaps.title });
+    expect(
+      within(warning).getByRole('heading', { name: t.groups.repository('acme') }),
+    ).toBeVisible();
+    const lines = within(warning).getAllByRole('listitem');
+    expect(lines.map((li) => li.textContent)).toEqual([
+      'Levels 3 and 4: Verify: prompt-verifier.md and verify-rules.md are missing',
+      'Level 4: Implement: implement-rules.md is missing',
+    ]);
+    expect(screen.getByText(t.empty)).toBeInTheDocument();
   });
 });
 

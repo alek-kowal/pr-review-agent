@@ -6,6 +6,7 @@ import type {
   ChecklistItemKey,
   Decision,
   Lane,
+  LevelInstructionGap,
   LevelNumber,
   MainActionCode,
   PrState,
@@ -163,6 +164,8 @@ export type PrView = {
   learning: LearningSectionView;
   /** The PR's active alerts, newest first (S-18). */
   alerts: AlertView[];
+  /** Per level, the required instruction files a round of this repository would miss (INSTR). */
+  instructionGaps: LevelInstructionGap[];
 };
 
 export type PatchReproduction = 'pass' | 'fail' | 'not_run';
@@ -892,6 +895,8 @@ export type InstructionsListResponse = {
     active: InstructionVersionRef | null;
     draft: InstructionVersionRef | null;
   })[];
+  /** Connected repositories whose runs would miss required files (INSTR). */
+  gaps: { repository: { id: number; slug: string }; gaps: LevelInstructionGap[] }[];
 };
 
 export type InstructionVersionView = InstructionVersionRef & {

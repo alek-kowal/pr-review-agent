@@ -23,7 +23,7 @@ import { opinions } from './opinions.ts';
 import { palette, shortcuts, theme } from './palette.ts';
 import { push } from './push.ts';
 import { questions } from './questions.ts';
-import { INSTRUCTIONS_PLACE, reasons, stageNames } from './reasons.ts';
+import { INSTRUCTIONS_PLACE, instructionGapText, reasons, stageNames } from './reasons.ts';
 import { repositories } from './repositories.ts';
 import { runs } from './runs.ts';
 import { status } from './status.ts';
@@ -100,6 +100,10 @@ export const copy = {
     queued: 'A round is already queued for this PR.',
     running: 'A run is in progress. Cancel it first, or wait.',
     started: (round: number, level: number) => `Review started: round ${round} at level ${level}.`,
+    instructionGaps: (level: number, gaps: readonly { stage: string; missing: string[] }[]) =>
+      `A round at level ${level} stops before its first stage. ${gaps
+        .map((g) => `${instructionGapText(g.stage, g.missing)}.`)
+        .join(' ')} Add them in ${INSTRUCTIONS_PLACE}.`,
   },
   sensitive: {
     title: 'Sensitive files',

@@ -5,6 +5,7 @@ import { SettingsPage } from '@/features/settings/SettingsPage.tsx';
 import { ApiError } from '@/lib/api.ts';
 import type { InstructionsListResponse } from '@/lib/api-types.ts';
 import { errorText } from '@/lib/reasons.ts';
+import { InstructionGaps } from './InstructionGaps.tsx';
 import { instructionsQuery } from './queries.ts';
 
 const t = copy.instructions;
@@ -33,6 +34,7 @@ export function InstructionsPage() {
 
   return (
     <SettingsPage title={t.title} affects={t.affects}>
+      {data && <InstructionGaps gaps={data.gaps} />}
       {!data ? (
         query.isError ? (
           <p role="alert" data-work-start className="text-bad">

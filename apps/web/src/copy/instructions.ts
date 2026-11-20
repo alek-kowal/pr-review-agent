@@ -1,4 +1,5 @@
 // Copy for Settings → Instructions and the instruction editor.
+import { andList, instructionGapText } from './reasons.ts';
 import { levelNames } from './repositories.ts';
 
 export const instructions = {
@@ -7,6 +8,13 @@ export const instructions = {
     'the text the agents read. A draft changes nothing; an activated version applies to runs that start afterwards.',
   loading: 'Loading instructions…',
   empty: 'No instruction file yet. Import them with pnpm instructions:import.',
+  gaps: {
+    title: 'Missing instruction files',
+    hint: 'Rounds at these levels stop before their first stage, before any agent runs. Add the files below, or import them with pnpm instructions:import.',
+    /** "Level 3: Verify: …", "Levels 3, 4 and 5: Verify: … is missing". */
+    line: (levels: readonly number[], stage: string, missing: readonly string[]) =>
+      `${levels.length === 1 ? 'Level' : 'Levels'} ${andList(levels.map(String))}: ${instructionGapText(stage, missing)}`,
+  },
   groups: {
     global: 'Global',
     repository: (slug: string) => `Repository · ${slug}`,
