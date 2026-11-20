@@ -41,9 +41,9 @@ Decisions in detail and the "For Alek" notes: `docs/08-orchestrator-log.md`. Wor
 
 - All 24 roadmap packages are merged, plus reviews (P-03r, P-05r, P-11r, P-18r, P-22r), P-25
   (Claude subscription auth), P-26 (OpenRouter judge), P-27 (Mikrus deploy kit), P-28 (GitHub
-  polling in token mode), FLAKY, CONNECT, README, INSTR and STAGEFILES. CI green on `9f66f28`
+  polling in token mode), FLAKY, CONNECT, README, INSTR, STAGEFILES and ALERTTL. CI green on `8061390`
   (the last code merge); later commits are docs only.
-- **Deployed** `9f66f28` on the Mikrus VPS `wojtek118` (1 vCPU, 4 GB, unprivileged LXC, runc
+- **Deployed** `8061390` on the Mikrus VPS `wojtek118` (1 vCPU, 4 GB, unprivileged LXC, runc
   sandbox) at `https://dashboardwb.mikrus.dev`, behind a basic-auth gate (login `synergy`, the
   password is with Alek). Deploy: `deploy/mikrus/deploy.sh` from the Mac
   (`deploy/mikrus/deploy.env`, local, gitignored), about 3 minutes. Take a `pg_dump` into

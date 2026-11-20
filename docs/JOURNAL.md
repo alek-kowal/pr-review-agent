@@ -125,3 +125,10 @@ Times are Europe/Warsaw.
   `evaluate.ts` before delivery; the alert was `not_configured`). Spawned ALERTTL
   (`prompts/alert-timeline.txt`): neutral "Alert raised" entry, a delivery entry only after the
   attempt with a specific reason or retry status, old entries stop saying "posted".
+- ALERTTL merged and deployed (8061390), CI green; DB backup `before-alerttl-*.dump` in
+  `/var/backups/pra/`. Timeline: neutral "Alert raised: …" plus an `alert_delivery` entry written
+  after the attempt (posted to task X / not sent with a specific reason / failed, retry n of 6 or
+  gave up). New column `alerts.delivery_reason` (migration 0031); old entries read the state from
+  the alerts table, so #282 now shows "Not sent to ClickUp: no ClickUp task to comment on".
+  Activity column "Posted" renamed "When". verify 1816, e2e 88 / 1 skipped. `kurs` and
+  `wiedza-watch` active.
