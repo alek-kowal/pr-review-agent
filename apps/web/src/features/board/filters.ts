@@ -6,7 +6,8 @@ export type BoardFilters = {
   person?: string | undefined;
   /** A repository slug. */
   repo?: string | undefined;
-  forks?: 'hide' | 'only' | undefined;
+  /** Fork PRs are hidden unless the address says `all` or `only` (FORKS). */
+  forks?: 'all' | 'only' | undefined;
   level?: number | undefined;
   drafts?: 'hide' | undefined;
 };
@@ -22,13 +23,16 @@ const text = (value: unknown): string | undefined => {
   return typeof s === 'string' && s.trim() !== '' ? s.trim() : undefined;
 };
 
-/** Keeps only valid filters from the raw search, so a bad link shows the whole board. */
+/**
+ * Keeps only valid filters from the raw search, so a bad link shows the default board. A missing
+ * or unknown `forks` (the old `forks=hide` too) is the default: forks hidden.
+ */
 export function parseBoardSearch(search: Record<string, unknown>): BoardFilters {
   const level = Number(search.level);
   return {
     person: text(search.person),
     repo: text(search.repo),
-    forks: search.forks === 'hide' || search.forks === 'only' ? search.forks : undefined,
+    forks: search.forks === 'all' || search.forks === 'only' ? search.forks : undefined,
     level: (LEVEL_NUMBERS as readonly number[]).includes(level) ? level : undefined,
     drafts: search.drafts === 'hide' ? 'hide' : undefined,
   };
@@ -41,16 +45,24 @@ export function setFilters(filters: BoardFilters): BoardFilters {
   ) as BoardFilters;
 }
 
-/** `?person=kasia&level=3` for `GET /api/board`; empty when nothing is filtered. */
+/** What `GET /api/board` gets for the address's `forks`; the API's own default lists every PR. */
+const apiForks = (forks: BoardFilters['forks']): 'hide' | 'only' | undefined =>
+  forks === undefined ? 'hide' : forks === 'only' ? 'only' : undefined;
+
+/**
+ * `?person=kasia&forks=hide&level=3` for `GET /api/board`. The board hides forks by default, so
+ * the request says `forks=hide` unless the address asks for `all` (no param) or `only`.
+ */
 export function boardApiQuery(filters: BoardFilters): string {
   const params = new URLSearchParams();
   for (const key of FILTER_KEYS) {
-    const value = filters[key];
+    const value = key === 'forks' ? apiForks(filters.forks) : filters[key];
     if (value !== undefined) params.set(key, String(value));
   }
   const query = params.toString();
   return query ? `?${query}` : '';
 }
 
+/** The filters a person set; the defaults (forks hidden) do not count. */
 export const activeCount = (filters: BoardFilters, keys: readonly (keyof BoardFilters)[]) =>
   keys.filter((key) => filters[key] !== undefined).length;

@@ -11,7 +11,7 @@ const STATUS = aStatus();
 function stubAll(status = STATUS) {
   stubFetch({
     '/api/status': status,
-    '/api/board': anEmptyBoard(),
+    '/api/board?forks=hide': anEmptyBoard(),
     '/api/prs/wb/12': aPrView(),
     '/api/prs/wb/12/findings': aFindingsResponse(),
     '/api/activity/in-progress': { runs: [] },
@@ -71,7 +71,7 @@ describe('status chip', () => {
   });
 
   it('shows nothing while the status cannot be read', async () => {
-    stubFetch({ '/api/board': anEmptyBoard() });
+    stubFetch({ '/api/board?forks=hide': anEmptyBoard() });
     renderApp('/prs');
     await screen.findByRole('navigation', { name: 'Main' });
     expect(screen.queryByRole('button', { name: /today/ })).toBeNull();

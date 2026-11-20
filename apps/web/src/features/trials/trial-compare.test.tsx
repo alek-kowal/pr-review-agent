@@ -114,7 +114,7 @@ describe('Try on a PR…', () => {
     const otherRepo = aBoardCard({ repository: { slug: 'other' }, number: 9, title: 'Elsewhere' });
     const { calls } = stubFetch({
       '/api/instructions/7': editorDetail,
-      '/api/board': anEmptyBoard({
+      '/api/board?forks=hide': anEmptyBoard({
         lanes: { ...anEmptyBoard().lanes, action_needed: { cards: [pr272, otherRepo] } },
       }),
       'POST /api/trials': { status: 201, body: trial },

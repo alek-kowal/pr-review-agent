@@ -144,7 +144,7 @@ describe('board', () => {
     const withAlert = aBoardCard({ number: 12, alertCount: 2 });
     const calm = aBoardCard({ number: 13, title: 'Fix edge routing' });
     stubFetch({
-      '/api/board': anEmptyBoard({
+      '/api/board?forks=hide': anEmptyBoard({
         lanes: {
           not_reviewed: { cards: [], drafts: [] },
           agents_working: { cards: [] },
@@ -171,7 +171,7 @@ describe('board', () => {
   });
 
   it('shows no strip when nothing is active', async () => {
-    stubFetch({ '/api/board': anEmptyBoard(), ...lists([]) });
+    stubFetch({ '/api/board?forks=hide': anEmptyBoard(), ...lists([]) });
     renderApp('/prs');
     await screen.findByRole('heading', { name: copy.board.title });
     await waitFor(() => expect(document.querySelector('[data-alert-strip]')).toBeNull());
@@ -185,7 +185,7 @@ describe('status chip', () => {
   ])('shows %i active alerts', async (count, shown) => {
     stubFetch({
       '/api/status': aStatus({ activeAlertCount: count }),
-      '/api/board': anEmptyBoard(),
+      '/api/board?forks=hide': anEmptyBoard(),
       ...lists([]),
     });
     renderApp('/prs');

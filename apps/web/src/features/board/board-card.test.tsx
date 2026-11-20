@@ -28,7 +28,7 @@ async function cardTitled(title: string) {
 
 test('the default repository, level and round are hidden, and non-default ones are shown', async () => {
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       repositoryCount: 2,
       lanes: {
         ...anEmptyBoard().lanes,
@@ -65,7 +65,7 @@ test('the default repository, level and round are hidden, and non-default ones a
 
 test('the default repository is hidden when only one is connected', async () => {
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       lanes: {
         ...anEmptyBoard().lanes,
         action_needed: { cards: [aBoardCard({ title: 'Only repo', repository: { slug: 'wb' } })] },
@@ -80,7 +80,7 @@ test('a 40-character author name renders in full on a 280 px card; the round lab
   const name = 'Konstantynopolitańczykowianeczka Nowaków';
   expect(name).toHaveLength(40);
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       lanes: {
         ...anEmptyBoard().lanes,
         action_needed: {
@@ -113,7 +113,7 @@ test('a 40-character author name renders in full on a 280 px card; the round lab
 
 test('a Ready to merge card has two lines', async () => {
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       lanes: {
         ...anEmptyBoard().lanes,
         ready_to_merge: { cards: [aBoardCard({ title: 'Ready one', nextStep: readyStep })] },
@@ -132,7 +132,7 @@ test('drafts render as rows under "3 drafts"', async () => {
     aBoardCard({ title, isDraft: true, nextStep: draftStep }),
   );
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       lanes: { ...anEmptyBoard().lanes, not_reviewed: { cards: [], drafts } },
     }),
   });
@@ -150,7 +150,7 @@ test('drafts render as rows under "3 drafts"', async () => {
 
 test('the merged/closed list starts collapsed and shows its count', async () => {
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       mergedOrClosed: [
         aBoardCard({ title: 'Merged one', nextStep: mergedStep }),
         aBoardCard({ title: 'Merged two', nextStep: mergedStep }),

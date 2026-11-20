@@ -32,13 +32,24 @@ const t = copy.board.filters;
 const sameLogin = (a: string | undefined, b: string | undefined) =>
   a !== undefined && b !== undefined && a.toLowerCase() === b.toLowerCase();
 
-/** Person (always visible), the Filters panel and Clear filters (FR-007). */
+/**
+ * Person (always visible), the Filters panel, the "Forks hidden" hint while the default applies,
+ * and Clear filters (FR-007), which returns to the defaults.
+ */
 export function BoardFilterBar({ filters, onChange, repositories }: Props) {
   const any = activeCount(filters, FILTER_KEYS) > 0;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <PersonFilter value={filters.person} onChange={(person) => onChange({ person })} />
       <FiltersPanel filters={filters} onChange={onChange} repositories={repositories} />
+      {filters.forks === undefined && (
+        <p data-forks-hidden className="flex items-center gap-1 text-[13px] text-text-3">
+          {t.forksHidden}
+          <Button variant="ghost" size="sm" onClick={() => onChange({ forks: 'all' })}>
+            {t.showForks}
+          </Button>
+        </p>
+      )}
       {any && (
         <Button
           variant="ghost"
@@ -178,13 +189,19 @@ function FiltersPanel({ filters, onChange, repositories }: Props) {
             <select
               id={`${id}-forks`}
               className={SELECT}
-              value={filters.forks ?? ''}
+              value={filters.forks ?? 'hide'}
               onChange={(e) =>
-                onChange({ forks: (e.target.value || undefined) as BoardFilters['forks'] })
+                onChange({
+                  // "Hide forks" is the default, so it leaves the address.
+                  forks:
+                    e.target.value === 'all' || e.target.value === 'only'
+                      ? e.target.value
+                      : undefined,
+                })
               }
             >
-              <option value="">{t.forkOptions.show}</option>
               <option value="hide">{t.forkOptions.hide}</option>
+              <option value="all">{t.forkOptions.all}</option>
               <option value="only">{t.forkOptions.only}</option>
             </select>
           </div>
