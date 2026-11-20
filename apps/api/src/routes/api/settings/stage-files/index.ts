@@ -2,7 +2,7 @@ import { FILE_STAGE_KEYS, type StageFileChoice } from '@pra/core';
 import { getRepositoryBySlug, listInstructionFiles } from '@pra/db';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
-import { ApiErrorSchema, sendError } from '../../../../plugins/errors.ts';
+import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../../plugins/errors.ts';
 import { applySignedSettingsChange } from '../../../../settings/signed-change.ts';
 import {
   filesAt,
@@ -50,7 +50,9 @@ const stageFiles: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       const { stage } = request.params;
       const { repository: slug, signedBy, note } = request.body;
       const repository = slug ? await getRepositoryBySlug(db, slug) : null;
-      if (slug && !repository) return sendError(reply, 404, 'repository_not_found', { slug });
+      if (slug && !repository) {
+        return sendError(reply, 404, ApiErrorCode.RepositoryNotFound, { slug });
+      }
       const repositoryId = repository?.id ?? null;
       const before = normalChoice(request.body.before as StageFileChoice | null);
       const after = normalChoice(request.body.after as StageFileChoice | null);

@@ -1,7 +1,7 @@
 ---
 change_id: STAGEFILES-stage-files
 title: Choose each stage's instruction files in Settings → Pipeline; instructions vs documents
-status: implementing
+status: impl_reviewed
 created: 2026-11-20
 updated: 2026-11-20
 archived_at: null
@@ -94,3 +94,32 @@ Taken during `/10x-implement`:
     active…" to every draft or archived row of the history.
 26. **After an instruction change only the list and the pipeline refetch**; the file itself is
     set from the answer, so a file discarded with its only version is not fetched again (404).
+    After a failed change the file refetches too (impl review F6).
+27. **Small extras kept from implementation:** the store and its view live in
+    `apps/api/src/settings/stage-files.ts` (not `stage-files-store.ts`); each slot's `source` comes
+    from `resolveStageSlots`, while `resolveStageFiles` returns only the files; the stage-files PUT
+    takes an optional `note` like other settings routes; Discard answers 204 when the file goes
+    with its only version; Run detail versions carry their `kind`.
+
+Taken during Phase 5 (e2e and docs):
+
+28. **The e2e marks its rules with `stage-files-e2e:<PR number>`**; the verifier double keeps only
+    marked rules, so other specs' Verify runs write no hold file. The spec compares the held text
+    trimmed: the stored text may end with a newline the form did not send.
+29. **`instructions.spec.ts` opens the global `review-rules.md` by its Scope cell "Global"** in
+    the Instructions section, since level and repository copies share the key.
+30. **Manual checks 4.4 and 4.5 stay unchecked**: the run was unattended. The e2e covers the same
+    path with the doubles; a look at the deployed data is on Alek's list.
+
+Taken during `/10x-impl-review` (verdict NEEDS ATTENTION, 3 warnings and 7 observations; report in
+`reviews/impl-review.md`; the recommended fix taken each time, nobody to ask):
+
+31. **Discard draft locks the file row first**, in the order Save as draft and copies use (F2), and
+    Make active rolls back when its version is gone since it was read, so no false audit row (F1).
+32. **New file takes a transaction advisory lock on the key** before its checks, so two at once
+    give 409, not a unique violation, and one key keeps one kind (F4).
+33. **"All Markdown documents" counts only files with an active version**, as the run's freeze
+    does. "Read by" also counts level copies (a run at that level reads them); the Pipeline sheet
+    has no level scope, so it leaves them out (F3).
+34. **The instructions routes keep their per-repository choice queries** (F8, skipped): a few
+    repositories today.

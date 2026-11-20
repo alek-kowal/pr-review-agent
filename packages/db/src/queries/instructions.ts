@@ -8,7 +8,7 @@ import {
   type LevelNumber,
   type Reason,
 } from '@pra/core';
-import { and, asc, desc, eq, getTableColumns, inArray, isNull, max, or } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, max, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Executor } from '../client.ts';
 import {
@@ -536,6 +536,10 @@ export async function createInstructionFile(
   | { ok: false; reason: 'exists'; fileId: number }
   | { ok: false; reason: 'kind_conflict'; kind: InstructionKind }
 > {
+  // One New file per key at a time, so the two checks below hold until the insert commits.
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext('instruction_file_key'), hashtext(${ref.fileKey}))`,
+  );
   const [existing] = await tx.select().from(instructionFiles).where(whereFile(ref));
   if (existing) return { ok: false, reason: 'exists', fileId: existing.id };
   const kind = await kindOfKey(tx, ref.fileKey);
@@ -573,6 +577,13 @@ export async function discardInstructionDraft(
   tx: Executor,
   fileId: number,
 ): Promise<'deleted' | 'archived' | 'file_removed' | null> {
+  // The file row first, the order `saveInstructionDraft` and copies lock in.
+  const [file] = await tx
+    .select({ id: instructionFiles.id })
+    .from(instructionFiles)
+    .where(eq(instructionFiles.id, fileId))
+    .for('update');
+  if (!file) return null;
   const [draft] = await tx
     .select({ id: instructionVersions.id })
     .from(instructionVersions)

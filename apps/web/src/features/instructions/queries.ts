@@ -69,6 +69,8 @@ export function useInstructionChange(id: number) {
     onSuccess: (detail) => {
       if (detail) queryClient.setQueryData(instructionKeys.one(id), detail);
     },
+    // A stale or missing version: show what is stored now, so a retry starts from it.
+    onError: () => queryClient.invalidateQueries({ queryKey: instructionKeys.one(id) }),
     onSettled: () => refreshLists(queryClient),
   });
 }

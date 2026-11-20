@@ -162,6 +162,37 @@ describe('stage files', () => {
     expect(prompt).not.toMatch(/^(DEFAULT|B):/);
   });
 
+  test('the judge reads the prompt and rules assigned for the repository', async () => {
+    await importInstructionV1(deps.db, {
+      scope: 'global',
+      fileKey: 'prompt-judge-b.md',
+      content: 'Judge B. Rules: {{knowledgeDir}}/classify-rules.md',
+    });
+    await importInstructionV1(deps.db, {
+      scope: 'global',
+      fileKey: 'classify-b-rules.md',
+      content: 'classify rules B',
+    });
+    const repository = await connectRepository(deps.db);
+    await writeStageFileChoice(deps.db, repository.id, 'change_type', {
+      prompt: 'prompt-judge-b.md',
+      rules: 'classify-b-rules.md',
+    });
+    const run = await queuedRun(repository, 3);
+    for (const stage of ['checks', 'task']) {
+      expect(await executeStage(deps, run.id, stage)).toBe('succeeded');
+    }
+    deps.judge.enqueue({ changeType: 'changes_behaviour', reason: 'It changes labels.' });
+    const calls = deps.judge.calls.length;
+
+    expect(await executeStage(deps, run.id, 'change_type')).toBe('succeeded');
+    expect(deps.judge.calls).toHaveLength(calls + 1);
+    expect(deps.judge.calls.at(-1)!.instructions).toEqual({
+      prompt: 'Judge B. Rules: {{knowledgeDir}}/classify-rules.md',
+      rules: 'classify rules B',
+    });
+  });
+
   test('Verify reads the rules assigned for the repository', async () => {
     const repository = await connectRepository(deps.db);
     await writeStageFileChoice(deps.db, repository.id, 'verify', { rules: 'verify-b-rules.md' });

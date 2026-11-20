@@ -566,27 +566,27 @@ import is not needed; the two JSON files stay as unused documents.
 
 #### Automated
 
-- [x] 2.1 Worker test: a run freezes its stage files — phase 2 commit
-- [x] 2.2 Worker test: Verify reads the assigned rules; the pre-check reports the assigned key — phase 2 commit
-- [x] 2.3 Worker test: reviewer knowledge dir and analyst documents follow the assignment — phase 2 commit
-- [x] 2.4 API test: gaps follow a repository override — phase 2 commit
-- [x] 2.5 `pnpm verify` passes — phase 2 commit
+- [x] 2.1 Worker test: a run freezes its stage files — 353ca7e
+- [x] 2.2 Worker test: Verify reads the assigned rules; the pre-check reports the assigned key — 353ca7e
+- [x] 2.3 Worker test: reviewer knowledge dir and analyst documents follow the assignment — 353ca7e
+- [x] 2.4 API test: gaps follow a repository override — 353ca7e
+- [x] 2.5 `pnpm verify` passes — 353ca7e
 
 ### Phase 3: API
 
 #### Automated
 
-- [x] 3.1 API tests for the stage-files setting (signed, stale, validation, reset) — phase 3 commit
-- [x] 3.2 API tests for pipeline scope, instructions kinds/readers, New file, Make active, Discard draft — phase 3 commit
-- [x] 3.3 `pnpm verify` passes — phase 3 commit
+- [x] 3.1 API tests for the stage-files setting (signed, stale, validation, reset) — f20c766
+- [x] 3.2 API tests for pipeline scope, instructions kinds/readers, New file, Make active, Discard draft — f20c766
+- [x] 3.3 `pnpm verify` passes — f20c766
 
 ### Phase 4: Web
 
 #### Automated
 
-- [x] 4.1 Component tests for the Pipeline sheet — phase 4 commit
-- [x] 4.2 Component tests for Instructions page and editor — phase 4 commit
-- [x] 4.3 `pnpm verify` passes — phase 4 commit
+- [x] 4.1 Component tests for the Pipeline sheet — b9ae8ba
+- [x] 4.2 Component tests for Instructions page and editor — b9ae8ba
+- [x] 4.3 `pnpm verify` passes — b9ae8ba
 
 #### Manual
 
@@ -597,6 +597,6 @@ import is not needed; the two JSON files stay as unused documents.
 
 #### Automated
 
-- [x] 5.1 New e2e spec passes — phase 5 commit
-- [x] 5.2 Full e2e passes — phase 5 commit
-- [x] 5.3 `pnpm verify` passes after merging main — phase 5 commit
+- [x] 5.1 New e2e spec passes — 9bebbd6
+- [x] 5.2 Full e2e passes — 9bebbd6
+- [x] 5.3 `pnpm verify` passes after merging main — 9bebbd6

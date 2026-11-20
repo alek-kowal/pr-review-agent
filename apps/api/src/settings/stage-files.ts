@@ -207,14 +207,25 @@ export function fileOptions(
   return keys.map((key) => fileOptionAt(files, key, repositoryId));
 }
 
-/** The document keys a scope sees: what the reviewer's "all Markdown documents" expands to. */
+/**
+ * The document keys a scope's runs can read: what the reviewer's "all Markdown documents" expands
+ * to. Like the run's freeze, only active versions count. `withLevels` adds level copies (a run at
+ * that level reads them) for "Read by"; the Pipeline sheet has no level scope, so it leaves them out.
+ */
 export const documentKeysAt = (
   files: readonly InstructionFileSummary[],
   repositoryId: number | null,
-) =>
-  filesAt(files, repositoryId)
-    .filter((f) => f.kind === 'document')
-    .map((f) => f.fileKey);
+  withLevels = false,
+) => [
+  ...new Set(
+    [
+      ...filesAt(files, repositoryId),
+      ...(withLevels ? files.filter((f) => f.scope === 'level') : []),
+    ]
+      .filter((f) => f.kind === 'document' && f.active !== null)
+      .map((f) => f.fileKey),
+  ),
+];
 
 /** One stage's slots at a scope (global when `repositoryId` is null). */
 export function stageFilesView(
@@ -274,14 +285,14 @@ export function readersOfFiles(
 ): Map<number, ReadBy[]> {
   const globalFiles = stageFilesFor(
     { global: choices.global, repository: {} },
-    documentKeysAt(files, null),
+    documentKeysAt(files, null, true),
   );
   const repositoryFiles = new Map(
     [...slugs.keys()].map((id) => [
       id,
       stageFilesFor(
         { global: choices.global, repository: choices.repositories.get(id) ?? {} },
-        documentKeysAt(files, id),
+        documentKeysAt(files, id, true),
       ),
     ]),
   );

@@ -311,6 +311,33 @@ describe('kinds and "Read by" (STAGEFILES)', () => {
     });
     expect((await getDetail(version.fileId)).file.readBy).toEqual(listed?.readBy);
   });
+
+  test('like a run, the reviewer reads level-copy documents but no draft-only document', async () => {
+    const id = uniqueId();
+    const { version: level } = await importInstructionV1(db, {
+      scope: 'level',
+      level: 4,
+      fileKey: `level-notes-${id}.md`,
+      content: 'Only at level 4.',
+    });
+    const created = await send('POST', '/api/instructions', {
+      fileKey: `draft-notes-${id}.md`,
+      kind: 'document',
+      scope: 'global',
+      content: 'Not active yet.',
+    });
+    expect(created.statusCode).toBe(201);
+    const draftOnly = detailOf(created.json()).file.id;
+
+    const files = InstructionsListResponse.parse(
+      (await app.inject({ method: 'GET', url: '/api/instructions' })).json(),
+    ).files;
+    expect(files.find((f) => f.id === level.fileId)?.readBy).toContainEqual({
+      stage: 'review',
+      repository: null,
+    });
+    expect(files.find((f) => f.id === draftOnly)?.readBy).toEqual([]);
+  });
 });
 
 describe('POST /api/instructions (New file, STAGEFILES)', () => {

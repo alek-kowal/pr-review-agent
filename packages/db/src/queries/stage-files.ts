@@ -80,7 +80,8 @@ export async function allStageFileChoices(db: Executor): Promise<{
 /**
  * One stage's choice at one scope, locked until the transaction ends (null when nothing is
  * stored). Locks a placeholder row so two signed saves of the same target queue up; the write
- * removes it again when the choice stays empty, and a rolled-back transaction never keeps it.
+ * removes it again when the choice stays empty. A save that ends without a write (stale `before`,
+ * or no change) commits and keeps the empty row; every read skips empty rows.
  */
 export async function lockStageFileChoice(
   tx: Executor,
