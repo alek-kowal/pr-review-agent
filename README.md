@@ -199,6 +199,27 @@ A repository differs from another only by its settings, never by code.
 
 </details>
 
+<details>
+<summary><b>Without the GitHub App: polling, read-only</b></summary>
+
+Until the App exists, leave its three variables empty. The worker then polls GitHub for pull
+requests and never writes to it.
+
+- `GITHUB_TOKEN` (optional): a fine-grained token with "Public repositories (read-only)", or
+  Contents and Pull requests read-only for a private repository. Without it GitHub allows 60
+  requests an hour and only public repositories; Settings → Integrations warns about it.
+- Settings → Repositories: type `owner/name`; the default branch comes from GitHub.
+- Settings → Integrations → GitHub polling: mode, last and next poll, rate limit, last error, the
+  signed schedule (every N minutes in a local window on chosen days) and Poll now.
+- The first poll of a repository imports its open PRs without reviewing them. After that a new
+  ready PR, a push, ready for review and a close are handled as their webhooks would be.
+- Merge, push, the after-round comment and the autofix push are off and say "Read-only: GitHub
+  App not connected". Implement still makes the patch; level 5 writes only the shadow log.
+- Switching to the App: set all three App variables and restart api and worker. Polling stops,
+  webhooks take over, and a partly set App keeps polling and names the missing variables.
+
+</details>
+
 ## Architecture
 
 A pnpm monorepo in TypeScript. The api takes webhooks and serves the SPA's data; the worker runs
@@ -238,6 +259,7 @@ secret store). The api and the worker read the root `.env`.
 | `ANTHROPIC_API_KEY`                                                                    | Model access for the agents (pay-per-token)                    |
 | `OPENROUTER_API_KEY`                                                                   | Optional: the judge on an OpenRouter model (Claude fallback)   |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_WEBHOOK_SECRET`                | The GitHub App: installation tokens and webhook signatures     |
+| `GITHUB_TOKEN`                                                                         | Optional without the App: read-only polling at 5000/h, not 60  |
 | `CLICKUP_API_KEY`                                                                      | Optional: tasks, follow-ups, author notices and alert comments |
 | `APP_BASE_URL`                                                                         | The app's address, for links in ClickUp alert comments         |
 | `BLOB_DIR`                                                                             | Local blob store folder (default `.data/blobs`)                |
