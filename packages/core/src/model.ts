@@ -112,6 +112,8 @@ export interface ActiveRun {
 export interface FailedRound {
   stage: StageKey;
   errorCode: string;
+  /** The error's params as the worker stored them, for example the missing instruction files. */
+  errorParams?: Record<string, unknown>;
   roundNumber: number;
   timeoutMinutes: number | null;
 }

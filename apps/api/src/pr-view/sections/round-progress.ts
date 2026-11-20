@@ -16,6 +16,8 @@ export const RoundStepSchema = z.object({
   /** Every attempt of the stage. */
   costUsd: z.number(),
   errorCode: z.string().nullable(),
+  /** The error's params (the missing files of an instructions error); null without an error. */
+  errorParams: z.record(z.string(), z.unknown()).nullable(),
   /** Why the level (or a fork's read-only policy) turns the stage off. */
   offReason: ReasonSchema.nullable(),
   /** Steps inside the stage the plan turns off: a fork's install and reproductions (S-16). */
@@ -55,6 +57,7 @@ export const roundProgressSection = defineSection({
         status: step.status,
         costUsd: step.costUsd,
         errorCode: step.errorCode,
+        errorParams: step.errorParams ?? null,
         offReason: step.offReason,
         offSteps: offStepsOf(run, pullRequest.isFork, step),
         startedAt: iso(step.startedAt),

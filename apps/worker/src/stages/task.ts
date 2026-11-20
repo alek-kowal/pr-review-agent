@@ -12,10 +12,12 @@ import {
   type TaskLinkHow,
 } from '@pra/db';
 import { CLICKUP_NOT_CONFIGURED, IntegrationError, type ClickUpTask } from '@pra/integrations';
-import type { StageContext, StageError, StageExecutor, StageResult } from './stage.ts';
+import type { StageContext, StageExecutor, StageResult } from './stage.ts';
+
+type OutputReason = { code: string; params: Record<string, unknown> };
 
 /** A reason code with params, as stage outputs carry them (the web maps codes to copy). */
-const reason = (code: string, params: Record<string, unknown> = {}): StageError => ({
+const reason = (code: string, params: Record<string, unknown> = {}): OutputReason => ({
   code,
   params,
 });
@@ -37,7 +39,7 @@ export type TaskOutput =
       };
     }
   /** `clickup_not_configured`, `no_task_linked` or `linked_task_not_found`. */
-  | { status: 'not_configured' | 'no_task'; reason: StageError };
+  | { status: 'not_configured' | 'no_task'; reason: OutputReason };
 
 export const taskStage: StageExecutor = {
   key: 'task',

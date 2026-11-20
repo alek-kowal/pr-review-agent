@@ -11,6 +11,7 @@ export * from './levels.ts';
 export * from './level-settings.ts';
 export * from './rounds.ts';
 export * from './run.ts';
+export * from './stage-errors.ts';
 export * from './autofix.ts';
 export * from './implement-gate.ts';
 export * from './push.ts';

@@ -78,6 +78,28 @@ describe('Start review', () => {
     expect(dialog).toHaveTextContent(copy.startReview.running);
   });
 
+  test('warns about the selected level only when its instruction files are missing', async () => {
+    const user = userEvent.setup();
+    const view = aPrView({
+      head: { level: { pr: null, repositoryDefault: 2, next: 2 } },
+      instructionGaps: [
+        { level: 3, stage: 'verify', missing: ['prompt-verifier.md', 'verify-rules.md'] },
+      ],
+    });
+    renderInRouter(<PrHeader repo="wb" number="12" view={view} />);
+
+    await user.click(await screen.findByRole('button', { name: /Start review/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByTestId('start-review-instruction-gaps')).toBeNull();
+
+    await user.click(within(dialog).getByRole('combobox', { name: copy.startReview.levelLabel }));
+    await user.click(screen.getByRole('option', { name: '3 · Verified' }));
+    expect(within(dialog).getByTestId('start-review-instruction-gaps')).toHaveTextContent(
+      'A round at level 3 stops before its first stage. Verify: prompt-verifier.md and verify-rules.md are missing. Add them in Settings → Instructions.',
+    );
+    expect(within(dialog).getByRole('button', { name: copy.startReview.button })).toBeEnabled();
+  });
+
   test('a closed PR has no Start review in its header', async () => {
     const view = aPrView();
     view.pullRequest.state = 'closed';

@@ -2,7 +2,7 @@
 import { alerts } from './alerts.ts';
 import { autofix } from './autofix.ts';
 import { checks } from './checks.ts';
-import { shortSha } from './nextStep.ts';
+import { failureParams, shortSha } from './nextStep.ts';
 import { money, plural, reviewCounts } from './format.ts';
 
 type Params = Record<string, unknown>;
@@ -60,7 +60,7 @@ function reconciled(p: Params): string {
 /** Helpers an entry sentence may need: stage and failure names. */
 export interface TimelineContext {
   stage: (key: string) => string;
-  reason: (code: string) => string;
+  reason: (code: string, params?: Record<string, unknown> | null) => string;
 }
 
 export const timeline = {
@@ -102,7 +102,7 @@ export const timeline = {
     run_finished: (p) => `${runShort(p)} finished`,
     run_failed: (p, c) =>
       p.stage
-        ? `${runShort(p)} failed at ${c.stage(String(p.stage))}: ${c.reason(String(p.errorCode ?? 'stage_error'))}`
+        ? `${runShort(p)} failed at ${c.stage(String(p.stage))}: ${c.reason(String(p.errorCode ?? 'stage_error'), failureParams(p.errorParams))}`
         : `${runShort(p)} failed`,
     run_cancelled: (p) =>
       p.reason === 'pr_closed' ? 'Run cancelled: PR closed' : `${runShort(p)} cancelled`,

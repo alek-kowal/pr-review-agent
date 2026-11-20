@@ -224,6 +224,7 @@ export function nextStep(input: PrStateInput): NextStep {
         reason('state_stage_failed', {
           stage: failed.stage,
           errorCode: failed.errorCode,
+          ...(failed.errorParams ? { errorParams: failed.errorParams } : {}),
           timeoutMinutes: failed.timeoutMinutes,
           roundNumber: failed.roundNumber,
         }),

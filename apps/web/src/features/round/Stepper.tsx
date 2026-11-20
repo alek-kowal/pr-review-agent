@@ -21,7 +21,7 @@ function stepSub(step: RoundStepView, level: number, runFailed: boolean): string
       case 'queued':
         return [runFailed ? copy.runs.step.notRun : copy.runs.step.waiting];
       case 'failed':
-        return [reasonText(step.errorCode ?? 'stage_error'), cost];
+        return [reasonText(step.errorCode ?? 'stage_error', step.errorParams), cost];
       case 'running':
         return [copy.runs.step.running, cost];
       case 'done':

@@ -136,7 +136,10 @@ export function RunPage({
         </p>
         {run.error && (
           <p role="alert" className="text-sm text-bad">
-            {copy.runs.detail.failedAt(stageName(run.error.stage), reasonText(run.error.code))}
+            {copy.runs.detail.failedAt(
+              stageName(run.error.stage),
+              reasonText(run.error.code, run.error.params),
+            )}
           </p>
         )}
         <RetryLinks detail={detail} />

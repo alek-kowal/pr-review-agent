@@ -8,6 +8,7 @@ import {
   recordStateChange,
   recordTimelineEntry,
   runActor,
+  stageErrorParams,
   stageExecutionsOfRun,
   type Executor,
   type Run,
@@ -85,7 +86,12 @@ function runEnded(kind: 'run_finished' | 'run_failed' | 'run_cancelled'): RunHoo
       const failed = (await stageExecutionsOfRun(deps.db, run.id))
         .filter((execution) => execution.status === 'failed')
         .at(-1);
-      failure = { stage: failed?.stage ?? null, errorCode: failed?.errorCode ?? null };
+      const errorParams = failed ? stageErrorParams(failed) : null;
+      failure = {
+        stage: failed?.stage ?? null,
+        errorCode: failed?.errorCode ?? null,
+        ...(errorParams ? { errorParams } : {}),
+      };
     }
     // A cancel is recorded as whoever asked for it ("Cancelled by hand", "PR closed" as the bot).
     const cancelled = kind === 'run_cancelled';

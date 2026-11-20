@@ -129,6 +129,7 @@ export const aPrView = (
     learning?: LearningSectionView;
     state?: PrView['pullRequest']['state'];
     alerts?: AlertView[];
+    instructionGaps?: PrView['instructionGaps'];
   } = {},
 ): PrView => ({
   pullRequest: {
@@ -160,6 +161,7 @@ export const aPrView = (
   implementer: anImplementer(over.implementer),
   learning: over.learning ?? { levelLearns: false, analysis: null },
   alerts: over.alerts ?? [],
+  instructionGaps: over.instructionGaps ?? [],
 });
 
 /** A level 4 PR with nothing to implement yet and no patch. */

@@ -12,6 +12,8 @@ import {
   applyReproduction,
   checkQuotes,
   limitsFor,
+  missingInstructions,
+  REQUIRED_INSTRUCTION_FILES,
   runModel,
   reproRepairAllowed,
   skipVerification,
@@ -45,8 +47,7 @@ import type {
 import { taskOfRun, taskText } from './task.ts';
 import { runWorktree } from './worktree.ts';
 
-export const VERIFIER_PROMPT_FILE = 'prompt-verifier.md';
-export const VERIFIER_RULES_FILE = 'verify-rules.md';
+export const [VERIFIER_PROMPT_FILE, VERIFIER_RULES_FILE] = REQUIRED_INSTRUCTION_FILES.verify;
 /** Per verifier session (one finding, or its repair). */
 export const VERIFY_MAX_TURNS = 60;
 export const VERIFY_MAX_COST_USD = 3;
@@ -99,13 +100,12 @@ export const verifyStage: StageExecutor = {
 async function runVerify(context: StageContext): Promise<StageResult> {
   const { deps, run, pullRequest, repository, level, signal } = context;
 
+  // The run checked these before its first stage; this stays as the safety net.
   const instructions = await stageInstructions(context);
   const prompt = instructions.get(VERIFIER_PROMPT_FILE)?.trim();
   const rules = instructions.get(VERIFIER_RULES_FILE)?.trim();
   if (!prompt || !rules) {
-    const missing = [VERIFIER_PROMPT_FILE, VERIFIER_RULES_FILE].filter(
-      (key) => !instructions.get(key)?.trim(),
-    );
+    const missing = missingInstructions(instructions, ['verify'])[0]?.missing ?? [];
     return {
       status: 'failed',
       error: { code: 'verifier_instructions_missing', params: { missing } },

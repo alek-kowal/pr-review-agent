@@ -6,6 +6,7 @@ import {
   completeStage,
   failStage,
   invalidRunModel,
+  isStageErrorCode,
   nextStage,
   reason,
   STAGE_ERROR,
@@ -53,6 +54,7 @@ import { removeRunFiles } from './cleanup.ts';
 import { passGates } from './gates.ts';
 import { executorFor } from '../stages/index.ts';
 import { fireHooks, type RunHookContext } from './hooks.ts';
+import { instructionsPreflight } from './instructions-preflight.ts';
 import { interruptRunningStage } from './interrupt.ts';
 import { sendStageJob } from './jobs.ts';
 import { liveSessions, type LiveSessions } from './live-sessions.ts';
@@ -182,20 +184,24 @@ async function startAndRun(
     if (started.next) await sendStageJob(deps.queue, runId, started.next, job.run);
     return 'not_next';
   }
-  const { run, executionId, attempt, sessionOffset } = started;
+  const { run, executionId, attempt, sessionOffset, runStages } = started;
   // Sessions get their row when they start and their cost per turn (S-03-T3).
   const live = liveSessions(deps, { runId, stageExecutionId: executionId });
 
-  const result = await runExecutor({ ...deps, agentRunner: live.runner }, executor, {
-    run,
-    pullRequest,
-    repository,
-    stage,
-    attempt,
-    abortGraceMs: options.abortGraceMs ?? ABORT_GRACE_MS,
-    cancel: job.cancel,
-    cancelGraceMs: options.cancelGraceMs ?? CANCEL_GRACE_MS,
-  });
+  // A run that just began checks the instruction files of all its stages first (INSTR).
+  const blocked = runStages ? await instructionsPreflight(deps, run, repository, runStages) : null;
+  const result =
+    blocked ??
+    (await runExecutor({ ...deps, agentRunner: live.runner }, executor, {
+      run,
+      pullRequest,
+      repository,
+      stage,
+      attempt,
+      abortGraceMs: options.abortGraceMs ?? ABORT_GRACE_MS,
+      cancel: job.cancel,
+      cancelGraceMs: options.cancelGraceMs ?? CANCEL_GRACE_MS,
+    }));
 
   const stored = await storeResult(deps, {
     runId,
@@ -269,8 +275,18 @@ export async function afterTransition(
   await removeRunFiles(deps, context.repository, run.id);
 }
 
-/** `sessionOffset`: sessions the attempt already has (it was parked, P-25); new ones follow. */
-type Started = { run: Run; executionId: number; attempt: number; sessionOffset: number };
+/**
+ * `sessionOffset`: sessions the attempt already has (it was parked, P-25); new ones follow.
+ * `runStages`: set when this start began the run: the stages it will run, for the check of their
+ * instruction files.
+ */
+type Started = {
+  run: Run;
+  executionId: number;
+  attempt: number;
+  sessionOffset: number;
+  runStages?: string[];
+};
 /** Not started: the job's stage is not the run's next one; `next` is, if any. */
 type NotStarted = { next: RunStageKey | null };
 /** Not started: the run waits for its cancel to finish. */
@@ -302,8 +318,11 @@ async function startStageInTx(
   if (cancelRequested(run)) return { cancel: true };
   let executions = await stageExecutionsOfRun(tx, runId);
   let state = runStateOf(run, executions);
+  let runStages: string[] | undefined;
 
   if (state.status === 'queued') {
+    // Not off and not reused from the failed run a retry repeats.
+    runStages = state.stages.filter((s) => s.status === 'pending').map((s) => s.key);
     const begun = startRun(state);
     if (!begun.ok) return notStarted;
     state = begun.run;
@@ -372,7 +391,7 @@ async function startStageInTx(
     await updateRun(tx, runId, { currentStage: stage });
     started.run = { ...run, currentStage: stage };
   }
-  return started;
+  return runStages ? { ...started, runStages } : started;
 }
 
 type RunInput = {
@@ -416,7 +435,7 @@ async function runExecutor(
   let graceTimer: NodeJS.Timeout | undefined;
   let cancelTimer: NodeJS.Timeout | undefined;
   let stopListening = () => {};
-  const timeout = { code: 'stage_timeout', params: { stage: input.stage, minutes } };
+  const timeout: StageError = { code: 'stage_timeout', params: { stage: input.stage, minutes } };
 
   const work = executor
     .run({
@@ -467,16 +486,21 @@ async function runExecutor(
   }
 }
 
-/** An integration error's code (`IntegrationError`, `SeedError`, ...), or `stage_error`. */
-function errorOf(error: unknown): StageError {
+/**
+ * An integration error's code (`IntegrationError`, ...) when it is a stage error code (core
+ * `STAGE_ERROR_CODES`, each with copy in the web), or `stage_error` with the thrown code in
+ * `params.code`, so the UI never shows a code it has no words for.
+ */
+export function errorOf(error: unknown): StageError {
   if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
-    const params = 'params' in error && error.params && typeof error.params === 'object';
+    const params =
+      'params' in error && error.params && typeof error.params === 'object'
+        ? (error.params as Record<string, unknown>)
+        : {};
+    if (isStageErrorCode(error.code)) return { code: error.code, params };
     // Node's own errors (ENOENT, ...) carry a code too; only snake_case codes are ours.
     if (/^[a-z][a-z0-9_]*$/.test(error.code)) {
-      return {
-        code: error.code,
-        params: params ? (error.params as Record<string, unknown>) : {},
-      };
+      return { code: 'stage_error', params: { ...params, code: error.code } };
     }
   }
   return { code: 'stage_error', params: {} };

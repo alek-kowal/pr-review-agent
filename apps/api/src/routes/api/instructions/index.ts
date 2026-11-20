@@ -5,6 +5,7 @@ import {
   getRepositoryBySlug,
   instructionFileVersions,
   listInstructionFiles,
+  listRepositories,
   saveInstructionDraft,
   startInstructionCopy,
   type InstructionFileWithRepository,
@@ -13,6 +14,10 @@ import {
 import type { FastifyReply } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
+import {
+  InstructionGapSchema,
+  repositoryInstructionGaps,
+} from '../../../pr-view/sections/instruction-gaps.ts';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../../../plugins/errors.ts';
 import { instructionsStore } from '../../../settings/instructions-store.ts';
 import { applySignedSettingsChange } from '../../../settings/signed-change.ts';
@@ -42,6 +47,13 @@ export const InstructionsListResponse = z.object({
     InstructionFileSchema.extend({
       active: VersionRefSchema.nullable(),
       draft: VersionRefSchema.nullable(),
+    }),
+  ),
+  /** Connected repositories whose runs would miss required files (INSTR), by slug. */
+  gaps: z.array(
+    z.object({
+      repository: z.object({ id: z.number().int(), slug: z.string() }),
+      gaps: z.array(InstructionGapSchema),
     }),
   ),
 });
@@ -102,12 +114,22 @@ const instructions: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
 
   fastify.get('/', { schema: { response: { 200: InstructionsListResponse } } }, async () => {
     const files = await listInstructionFiles(db);
+    const repositories = (await listRepositories(db)).toSorted((a, b) =>
+      a.slug.localeCompare(b.slug),
+    );
+    const gaps = await Promise.all(
+      repositories.map(async (r) => ({
+        repository: { id: r.id, slug: r.slug },
+        gaps: await repositoryInstructionGaps(db, r.id),
+      })),
+    );
     return {
       files: files.map((f) => ({
         ...fileView(f),
         active: f.active && versionRef(f.active),
         draft: f.draft && versionRef(f.draft),
       })),
+      gaps: gaps.filter((g) => g.gaps.length > 0),
     };
   });
 

@@ -100,7 +100,9 @@ export function runModel(
 }
 
 /** `model_invalid` for the first role whose model fails the model-name check, else null. */
-export function invalidRunModel(models: Partial<Record<AgentRole, ModelChoice>>): Reason | null {
+export function invalidRunModel(
+  models: Partial<Record<AgentRole, ModelChoice>>,
+): Reason<'model_invalid'> | null {
   for (const role of AGENT_ROLES) {
     const choice = models[role];
     if (choice && !validModelNameFor(role, choice.model)) {

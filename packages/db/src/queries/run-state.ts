@@ -53,6 +53,24 @@ export function runStateOf(
   };
 }
 
+/**
+ * A failed attempt's error params (`error_detail`, JSON the worker wrote), for example the missing
+ * instruction files. Null when none are stored or they do not parse to an object.
+ */
+export function stageErrorParams(
+  execution: Pick<StageExecution, 'errorDetail'>,
+): Record<string, unknown> | null {
+  if (!execution.errorDetail) return null;
+  try {
+    const params: unknown = JSON.parse(execution.errorDetail);
+    return params && typeof params === 'object' && !Array.isArray(params)
+      ? (params as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The latest attempt of one stage, if any. */
 export function latestAttempt(
   executions: readonly StageExecution[],

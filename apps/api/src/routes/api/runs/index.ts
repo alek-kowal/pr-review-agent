@@ -67,6 +67,8 @@ const RunStageSchema = z.object({
   /** Every attempt of the stage. */
   costUsd: z.number(),
   errorCode: z.string().nullable(),
+  /** The error's params (the missing files of an instructions error); null without an error. */
+  errorParams: z.record(z.string(), z.unknown()).nullable(),
   offReason: ReasonSchema.nullable(),
   /** Steps inside the stage the plan turns off: a fork's install and reproductions (S-16-T3). */
   offSteps: z.array(OffStepSchema),
@@ -120,7 +122,9 @@ export const RunDetailResponse = z.object({
       }),
     ),
     /** The stage and error code a failed run stopped at. */
-    error: z.object({ stage: z.string(), code: z.string() }).nullable(),
+    error: z
+      .object({ stage: z.string(), code: z.string(), params: z.record(z.string(), z.unknown()) })
+      .nullable(),
     /** The model of every role, frozen when the run was created (S-21-T2). */
     models: z.array(
       z.object({
@@ -230,6 +234,7 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
           attempt: step.attempt,
           costUsd: step.costUsd,
           errorCode: step.errorCode,
+          errorParams: step.errorParams ?? null,
           offReason: step.offReason,
           offSteps: offStepsOf(run, context.pullRequest.isFork, step),
           startedAt: iso(step.startedAt),
@@ -258,7 +263,13 @@ const runs: FastifyPluginAsyncZod = async (fastify) => {
           currentStage: run.currentStage,
           notChecked: run.notChecked,
           instructionVersions: run.instructionVersions,
-          error: failed ? { stage: failed.key, code: failed.errorCode ?? 'stage_error' } : null,
+          error: failed
+            ? {
+                stage: failed.key,
+                code: failed.errorCode ?? 'stage_error',
+                params: failed.errorParams ?? {},
+              }
+            : null,
           models: AGENT_ROLES.map((role) => ({
             role,
             ...(run.models[role] ?? modelFor({}, run.level, role)),

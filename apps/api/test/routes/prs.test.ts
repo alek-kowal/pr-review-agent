@@ -350,6 +350,7 @@ test('the endpoints and their schemas appear in /docs/json', async () => {
     'implementer',
     'learning',
     'alerts',
+    'instructionGaps',
   ]);
   expect(view.responses['404']).toBeDefined();
 });

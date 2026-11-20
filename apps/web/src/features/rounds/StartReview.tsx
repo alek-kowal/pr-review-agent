@@ -47,6 +47,8 @@ export function StartReview({
   const blocked = startBlockedReason(view);
   const selectId = useId();
   const { pullRequest: pr } = view;
+  // INSTR: a round at this level would stop before its first stage; it may still be started.
+  const gaps = view.instructionGaps.filter((gap) => gap.level === level);
 
   return (
     <Popover
@@ -94,6 +96,15 @@ export function StartReview({
         {blocked && (
           <p data-testid="start-review-blocked" className="text-xs text-warn">
             {blocked}
+          </p>
+        )}
+        {gaps.length > 0 && (
+          <p
+            data-testid="start-review-instruction-gaps"
+            role="status"
+            className="text-xs text-warn"
+          >
+            {t.instructionGaps(level, gaps)}
           </p>
         )}
         {pr.isFork && (

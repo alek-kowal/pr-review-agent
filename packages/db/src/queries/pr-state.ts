@@ -34,6 +34,7 @@ import { corePatch, latestPatchesOf, type PatchRow } from './patches.ts';
 import { sensitiveFilesOf, sensitiveState, type SensitiveFile } from './sensitive-files.ts';
 import { runWaitsOf, type RunWait } from './status.ts';
 import { readRepositoryConfig, type PullRequest, type Repository } from './repositories.ts';
+import { stageErrorParams } from './run-state.ts';
 import type { FindingRow, QuestionRow, Run } from './runs.ts';
 import type { TeamMember } from './team.ts';
 
@@ -288,6 +289,7 @@ export async function loadPrStateInputs(
             runId: stageExecutions.runId,
             stage: stageExecutions.stage,
             errorCode: stageExecutions.errorCode,
+            errorDetail: stageExecutions.errorDetail,
           })
           .from(stageExecutions)
           .where(
@@ -355,12 +357,14 @@ export async function loadPrStateInputs(
       p.latestRound?.status === 'failed'
         ? failedStages.find((row) => row.runId === p.latestRound!.id)
         : undefined;
+    const failedParams = failedStage ? stageErrorParams(failedStage) : null;
     const failedRound: FailedRound | null =
       p.latestRound?.status === 'failed'
         ? {
             // A stage name the worker wrote, for example `review`.
             stage: (failedStage?.stage ?? 'unknown') as StageKey,
             errorCode: failedStage?.errorCode ?? 'unknown',
+            ...(failedParams ? { errorParams: failedParams } : {}),
             roundNumber: p.latestRound.roundNo ?? 1,
             timeoutMinutes:
               failedStage?.errorCode === 'stage_timeout'

@@ -115,7 +115,7 @@ function StageBody({ stage, detail }: { stage: RunStageView; detail: RunDetail }
       return (
         <>
           <p className="text-sm font-medium text-bad">
-            {d.stageFailed(reasonText(stage.errorCode ?? 'stage_error'))}
+            {d.stageFailed(reasonText(stage.errorCode ?? 'stage_error', stage.errorParams))}
           </p>
           {fallback && <p className="text-sm text-text-2">{fallback}</p>}
         </>

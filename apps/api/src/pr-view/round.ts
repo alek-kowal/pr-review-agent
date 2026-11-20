@@ -1,7 +1,13 @@
 // The round summary shared by the PR page sections: status, frozen level, who started it, cost,
 // and every planned stage with its latest attempt (stages the level turns off show as `off`).
 import { reason, stagesFor, type Reason } from '@pra/core';
-import { RUN_STATUSES, STAGE_STATUSES, type Run, type StageExecution } from '@pra/db';
+import {
+  RUN_STATUSES,
+  STAGE_STATUSES,
+  stageErrorParams,
+  type Run,
+  type StageExecution,
+} from '@pra/db';
 import { z } from 'zod/v4';
 import { offStepsOf } from './off-steps.ts';
 
@@ -33,6 +39,8 @@ export const StageSchema = z.object({
   /** Steps inside a running stage the plan turns off: a fork's install and reproductions. */
   offSteps: z.array(OffStepSchema),
   errorCode: z.string().nullable(),
+  /** The error's params (the missing files of an instructions error); null without an error. */
+  errorParams: z.record(z.string(), z.unknown()).nullable(),
   startedAt: timestamp.nullable(),
   finishedAt: timestamp.nullable(),
 });
@@ -51,8 +59,10 @@ export const RoundSchema = z.object({
   finishedAt: timestamp.nullable(),
   costUsd: z.number(),
   stages: z.array(StageSchema),
-  /** The stage and error code a failed round stopped at. */
-  error: z.object({ stage: z.string(), code: z.string() }).nullable(),
+  /** The stage and error a failed round stopped at. */
+  error: z
+    .object({ stage: z.string(), code: z.string(), params: z.record(z.string(), z.unknown()) })
+    .nullable(),
 });
 export type RoundView = z.output<typeof RoundSchema>;
 
@@ -102,6 +112,7 @@ export function roundView(run: Run, executions: StageExecution[], fork = false):
       offReason,
       offSteps: offStepsOf(run, fork, { key, status }),
       errorCode: execution?.errorCode ?? null,
+      errorParams: execution?.errorCode ? stageErrorParams(execution) : null,
       startedAt: iso(execution?.startedAt ?? null),
       finishedAt: iso(execution?.finishedAt ?? null),
     } satisfies z.output<typeof StageSchema>;
@@ -120,6 +131,12 @@ export function roundView(run: Run, executions: StageExecution[], fork = false):
     finishedAt: iso(run.finishedAt),
     costUsd: run.costUsd,
     stages,
-    error: failed ? { stage: failed.key, code: failed.errorCode ?? 'unknown' } : null,
+    error: failed
+      ? {
+          stage: failed.key,
+          code: failed.errorCode ?? 'unknown',
+          params: failed.errorParams ?? {},
+        }
+      : null,
   };
 }
