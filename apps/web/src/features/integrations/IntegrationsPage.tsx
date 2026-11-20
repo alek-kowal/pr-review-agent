@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { CircleCheck, CircleSlash, FolderGit2, Info, Plug } from 'lucide-react';
+import { CircleCheck, CircleSlash, FolderGit2, Info, Plug, RefreshCw } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button.tsx';
+import { Checkbox } from '@/components/ui/checkbox.tsx';
+import { Input } from '@/components/ui/input.tsx';
 import { Switch } from '@/components/ui/switch.tsx';
 import { copy } from '@/copy/index.ts';
 import { SaveBar } from '@/features/settings/SaveBar.tsx';
@@ -10,9 +12,21 @@ import { SettingsPage } from '@/features/settings/SettingsPage.tsx';
 import { SignedSaveDialog } from '@/features/settings/SignedSaveDialog.tsx';
 import { useSettingsForm, type SettingsField } from '@/features/settings/use-settings-form.ts';
 import { ApiError } from '@/lib/api.ts';
-import type { IntegrationSettings, IntegrationsResponse } from '@/lib/api-types.ts';
+import type {
+  GitHubMode,
+  GitHubPoller,
+  GitHubPollSchedule,
+  IntegrationSettings,
+  IntegrationsResponse,
+} from '@/lib/api-types.ts';
 import { errorText } from '@/lib/reasons.ts';
-import { integrationsQuery, useClickUpTest, useIntegrationSettingsChange } from './queries.ts';
+import {
+  integrationsQuery,
+  useClickUpTest,
+  useIntegrationSettingsChange,
+  usePollNow,
+  usePollScheduleChange,
+} from './queries.ts';
 
 const t = copy.integrations;
 
@@ -44,7 +58,8 @@ export function IntegrationsPage() {
         )
       ) : (
         <>
-          <GitHubCard github={data.github} />
+          {data.github.poller && <PollerCard mode={data.github.mode} poller={data.github.poller} />}
+          <GitHubCard github={data.github} workStart={!data.github.poller} />
           <CommentCard settings={data.settings} />
           <ClickUpCard clickup={data.clickup} />
         </>
@@ -53,13 +68,222 @@ export function IntegrationsPage() {
   );
 }
 
-function GitHubCard({ github }: { github: IntegrationsResponse['github'] }) {
+const p = t.poller;
+const s = p.schedule;
+const days = (list: readonly number[]) => list.map((d) => p.dayNames[d - 1]).join(', ');
+
+const SCHEDULE_FIELDS: readonly SettingsField<GitHubPollSchedule>[] = [
+  { key: 'intervalMinutes', label: s.fieldInterval, format: (v) => s.minutes(Number(v)) },
+  { key: 'from', label: s.from, format: String },
+  { key: 'to', label: s.to, format: String },
+  { key: 'days', label: s.fieldDays, format: (v) => days(v as number[]) },
+  { key: 'timeZone', label: s.fieldTimeZone, format: String },
+];
+
+/** Without the GitHub App (P-28): how the poller finds PRs, its health and its schedule. */
+function PollerCard({ mode, poller }: { mode: GitHubMode; poller: GitHubPoller }) {
+  const pollNow = usePollNow();
+  const error = poller.lastError;
+  const at = (iso: string) => new Date(iso).toLocaleString();
+  return (
+    <Card title={p.title} workStart>
+      <p role="note" className="text-text-2">
+        {p.readOnly}
+      </p>
+      <Row label={p.mode}>{p.modes[mode] ?? mode}</Row>
+      <Row label={p.lastPoll}>
+        {poller.lastStartedAt ? (
+          <Time iso={poller.lastStartedAt} />
+        ) : (
+          <span className="text-text-3">{p.neverPolled}</span>
+        )}
+      </Row>
+      <Row label={p.nextPoll}>
+        <Time iso={poller.nextPollAt} />
+        {!poller.windowOpen && <span className="text-text-3"> · {p.windowClosed}</span>}
+      </Row>
+      <Row label={p.lastError}>
+        {!error ? (
+          <span className="text-text-3">{p.noError}</span>
+        ) : (
+          <span className="text-bad">
+            {error.code === 'github_rate_limited'
+              ? p.rateLimited(at(String(error.params.resetAt)))
+              : error.code === 'github_poll_failed'
+                ? p.pollFailed((error.params.items as string[] | undefined) ?? [])
+                : errorText(error.code)}
+          </span>
+        )}
+      </Row>
+      <Row label={p.rateLimit}>
+        {poller.rateLimit ? (
+          <span>
+            {p.rateLimitLeft(
+              poller.rateLimit.remaining,
+              poller.rateLimit.limit,
+              at(poller.rateLimit.resetAt),
+            )}
+          </span>
+        ) : (
+          <span className="text-text-3">{p.noRateLimit}</span>
+        )}
+        {mode === 'anonymous' && (
+          <p role="status" className="mt-1 text-warn">
+            {p.anonymousWarning}
+          </p>
+        )}
+      </Row>
+      <Row label={p.repositories}>
+        {poller.repositories.length === 0 ? (
+          <span className="text-text-3">{p.noRepositories}</span>
+        ) : (
+          <ul className="grid gap-1">
+            {poller.repositories.map((r) => (
+              <li key={r.fullName} className="flex flex-wrap items-center gap-1.5">
+                <FolderGit2 aria-hidden="true" className="size-3.5 text-text-3" />
+                <span className="font-mono text-[13px]">{r.fullName}</span>
+                <span className="text-xs text-text-3">
+                  · {p.repository(r.openCount)} ·{' '}
+                  {r.baselineAt ? p.baselinedAt(at(r.baselineAt)) : p.notBaselined}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-1 text-xs text-text-3">{p.baselineNote}</p>
+      </Row>
+      <div className="flex flex-col items-start gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pollNow.isPending}
+          onClick={() => pollNow.mutate()}
+        >
+          <RefreshCw aria-hidden="true" />
+          {pollNow.isPending ? p.polling : p.pollNow}
+        </Button>
+        <p role="status" className="text-sm">
+          {pollNow.data && (pollNow.data.queued ? p.pollQueued : p.pollWaiting)}
+          {pollNow.isError && (
+            <span className="text-bad">
+              {p.pollFailedToQueue(
+                errorText(pollNow.error instanceof ApiError ? pollNow.error.code : 'http_error'),
+              )}
+            </span>
+          )}
+        </p>
+      </div>
+      <PollSchedule schedule={poller.schedule} />
+    </Card>
+  );
+}
+
+function PollSchedule({ schedule }: { schedule: GitHubPollSchedule }) {
+  const form = useSettingsForm(schedule, SCHEDULE_FIELDS);
+  const change = usePollScheduleChange();
+  const [open, setOpen] = useState(false);
+  const draft = form.draft;
+  return (
+    <fieldset className="grid gap-3 rounded-md border border-divider p-3">
+      <legend className="px-1 font-medium">{s.title}</legend>
+      <p className="text-xs text-text-3">{s.hint}</p>
+      <div className="flex flex-wrap gap-3">
+        <Field label={s.interval} id="poll-interval">
+          <Input
+            id="poll-interval"
+            type="number"
+            min={1}
+            max={240}
+            className="w-24"
+            value={draft.intervalMinutes}
+            onChange={(e) => form.set('intervalMinutes', Number(e.target.value))}
+          />
+        </Field>
+        <Field label={s.from} id="poll-from">
+          <Input
+            id="poll-from"
+            type="time"
+            className="w-32"
+            value={draft.from}
+            onChange={(e) => form.set('from', e.target.value)}
+          />
+        </Field>
+        <Field label={s.to} id="poll-to">
+          <Input
+            id="poll-to"
+            type="time"
+            className="w-32"
+            value={draft.to}
+            onChange={(e) => form.set('to', e.target.value)}
+          />
+        </Field>
+        <Field label={s.timeZone} id="poll-zone">
+          <Input
+            id="poll-zone"
+            className="w-48"
+            value={draft.timeZone}
+            onChange={(e) => form.set('timeZone', e.target.value)}
+          />
+        </Field>
+      </div>
+      <div role="group" aria-label={s.days} className="flex flex-wrap gap-3">
+        {p.dayNames.map((name, i) => {
+          const day = i + 1;
+          const on = draft.days.includes(day);
+          return (
+            <label key={name} className="flex items-center gap-1.5">
+              <Checkbox
+                checked={on}
+                onCheckedChange={(checked) =>
+                  form.set(
+                    'days',
+                    checked === true
+                      ? [...draft.days, day].sort((a, b) => a - b)
+                      : draft.days.filter((d) => d !== day),
+                  )
+                }
+              />
+              {name}
+            </label>
+          );
+        })}
+      </div>
+      <SaveBar count={form.changes.length} onDiscard={form.discard} onSave={() => setOpen(true)} />
+      <SignedSaveDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={s.saveTitle}
+        changes={form.changes}
+        onConfirm={(signedBy) => change.mutateAsync({ before: schedule, after: draft, signedBy })}
+      />
+    </fieldset>
+  );
+}
+
+function Field(props: { label: string; id: string; children: ReactNode }) {
+  return (
+    <span className="grid gap-1">
+      <label htmlFor={props.id} className="text-xs text-text-2">
+        {props.label}
+      </label>
+      {props.children}
+    </span>
+  );
+}
+
+function GitHubCard({
+  github,
+  workStart,
+}: {
+  github: IntegrationsResponse['github'];
+  workStart: boolean;
+}) {
   const g = t.github;
   const { deliveries } = github;
   return (
     <Card
       title={g.title}
-      workStart
+      workStart={workStart}
       status={!github.configured ? 'notConfigured' : github.listError ? 'unreachable' : 'connected'}
     >
       {!github.configured && <Missing names={github.missing} />}

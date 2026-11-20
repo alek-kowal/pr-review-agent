@@ -5,6 +5,8 @@ import { copy } from '@/copy/index.ts';
 import { SettingsPage } from '@/features/settings/SettingsPage.tsx';
 import { ApiError } from '@/lib/api.ts';
 import { errorText } from '@/lib/reasons.ts';
+import { useGitHubMode } from '@/features/shell/status-query.ts';
+import { ConnectByName } from './ConnectByName.tsx';
 import { ConnectPicker } from './ConnectPicker.tsx';
 import { repositoriesSettingsQuery } from './queries.ts';
 
@@ -14,21 +16,28 @@ const t = copy.repositories;
 export function RepositoriesPage() {
   const query = useQuery(repositoriesSettingsQuery());
   const data = query.data;
+  const mode = useGitHubMode();
+  const byName = mode !== undefined && mode !== 'app';
 
   return (
     <SettingsPage
       title={t.title}
       affects={t.affects}
       actions={
-        data &&
-        !data.availableError && (
-          <ConnectPicker
-            available={data.available}
-            connected={data.repositories.map((r) => r.githubFullName)}
-          />
+        byName ? (
+          <ConnectByName />
+        ) : (
+          data &&
+          !data.availableError && (
+            <ConnectPicker
+              available={data.available}
+              connected={data.repositories.map((r) => r.githubFullName)}
+            />
+          )
         )
       }
     >
+      {byName && <p className="text-sm text-text-2">{t.connect.byName.hint}</p>}
       {!data ? (
         query.isError ? (
           <p role="alert" data-work-start className="text-bad">
@@ -39,7 +48,7 @@ export function RepositoriesPage() {
         )
       ) : (
         <>
-          {data.availableError && (
+          {data.availableError && !byName && (
             <p role="status" className="text-sm text-text-2">
               {t.connect.unavailable(errorText(data.availableError.code))}
             </p>

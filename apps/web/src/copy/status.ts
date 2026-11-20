@@ -8,6 +8,14 @@ const spentOf = (s: Pick<StatusResponse, 'todaySpendUsd' | 'dailyBudgetUsd'>) =>
 
 export const status = {
   label: 'Factory status',
+  /** P-28: without the GitHub App the app only reads GitHub. */
+  githubReadOnly: {
+    label: 'Read-only: GitHub App not connected',
+    merge: 'Merge in GitHub until the App is connected.',
+    push: 'Push the patch by hand until the App is connected.',
+    implement: 'The patch is made and can be downloaded, but not pushed.',
+    autofix: 'Level 5 records what it would push in the shadow log and pushes nothing.',
+  },
   /** How the agents reach the model (P-25): names only, never a value. */
   modelAuth: {
     label: 'Model access',

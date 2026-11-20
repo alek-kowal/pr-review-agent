@@ -3,38 +3,82 @@ import { useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { copy } from '@/copy/index.ts';
 import { SettingsPage } from '@/features/settings/SettingsPage.tsx';
+import { useGitHubMode } from '@/features/shell/status-query.ts';
 import { ApiError } from '@/lib/api.ts';
 import { errorText } from '@/lib/reasons.ts';
 import { newRepositorySettings, toForm } from './form-model.ts';
-import { repositoriesSettingsQuery, useRepositoryChange } from './queries.ts';
+import {
+  repositoriesSettingsQuery,
+  repositoryLookupQuery,
+  useRepositoryChange,
+} from './queries.ts';
 import { RepositoryEditor } from './RepositoryEditor.tsx';
 
 const t = copy.repositories;
 
-/** Connect a repository the GitHub App can reach: its settings, then one signed save. */
+type Target = { fullName: string; defaultBranch: string };
+type Found = { pending: true } | { pending: false; target: Target | null; problem: string | null };
+
+/**
+ * Connect a repository: one the GitHub App can reach, or, without the App (P-28), one GitHub
+ * shows by name (its default branch prefilled). Its settings, then one signed save.
+ */
 export function ConnectRepositoryPage({ fullName }: { fullName: string }) {
-  const query = useQuery(repositoriesSettingsQuery());
+  const mode = useGitHubMode();
+  const byName = mode !== undefined && mode !== 'app';
+  const listed = useQuery({ ...repositoriesSettingsQuery(), enabled: mode === 'app' });
+  const lookup = useQuery({ ...repositoryLookupQuery(fullName), enabled: byName });
   const change = useRepositoryChange();
   const navigate = useNavigate();
-  const target = query.data?.available.find(
-    (r) => r.fullName.toLowerCase() === fullName.toLowerCase(),
-  );
+
+  const found: Found = useMemo(() => {
+    if (mode === undefined) return { pending: true };
+    if (byName) {
+      if (lookup.isPending) return { pending: true };
+      if (lookup.isError) {
+        const code = lookup.error instanceof ApiError ? lookup.error.code : 'http_error';
+        return {
+          pending: false,
+          target: null,
+          problem:
+            code === 'repository_not_reachable'
+              ? t.connectPage.notFound(fullName)
+              : code === 'repository_already_connected'
+                ? t.connectPage.alreadyConnected(fullName)
+                : errorText(code),
+        };
+      }
+      return { pending: false, target: lookup.data.repository, problem: null };
+    }
+    if (listed.isPending) return { pending: true };
+    if (listed.isError) {
+      const code = listed.error instanceof ApiError ? listed.error.code : 'http_error';
+      return { pending: false, target: null, problem: errorText(code) };
+    }
+    const target = listed.data.available.find(
+      (r) => r.fullName.toLowerCase() === fullName.toLowerCase(),
+    );
+    return target
+      ? { pending: false, target, problem: null }
+      : { pending: false, target: null, problem: t.connectPage.notReachable(fullName) };
+  }, [mode, byName, fullName, lookup, listed]);
+
+  const target = found.pending ? null : found.target;
   const saved = useMemo(
     () => (target ? toForm(newRepositorySettings(target.defaultBranch)) : null),
     [target],
   );
 
   return (
-    <SettingsPage title={t.connectPage.title(fullName)} affects={t.connectPage.affects(fullName)}>
-      {query.isPending ? (
-        <p className="text-text-3">{t.loading}</p>
-      ) : query.isError ? (
-        <p role="alert" data-work-start className="text-bad">
-          {errorText(query.error instanceof ApiError ? query.error.code : 'http_error')}
-        </p>
+    <SettingsPage
+      title={t.connectPage.title(fullName)}
+      affects={byName ? t.connectPage.polledAffects(fullName) : t.connectPage.affects(fullName)}
+    >
+      {found.pending ? (
+        <p className="text-text-3">{byName ? t.connectPage.checking(fullName) : t.loading}</p>
       ) : !target || !saved ? (
         <p role="alert" data-work-start className="text-bad">
-          {t.connectPage.notReachable(fullName)}
+          {found.problem}
         </p>
       ) : (
         <RepositoryEditor

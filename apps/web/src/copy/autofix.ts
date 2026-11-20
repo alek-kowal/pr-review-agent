@@ -36,6 +36,7 @@ const reasons: Record<string, (p: Params) => string> = {
   patch_not_ready: () => 'the patch is no longer ready',
   patch_empty: () => 'the patch changes no file',
   push_rejected: () => 'GitHub declined the push (branch protection or a ruleset)',
+  github_read_only: () => 'read-only: the GitHub App is not connected',
   no_implement_decisions: () => 'no finding to implement',
   implement_below_level: () => 'the implementer is off at this level',
 };

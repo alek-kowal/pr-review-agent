@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label.tsx';
 import { copy } from '@/copy/index.ts';
 import { ChecklistRow } from '@/features/pr/Checklist.tsx';
 import type { MainActionProps } from '@/features/pr/slots.ts';
+import { ReadOnlyNote } from '@/features/shell/ReadOnlyNote.tsx';
+import { useGitHubReadOnly } from '@/features/shell/status-query.ts';
 import { SignatureField } from '@/features/signature/SignatureField.tsx';
 import { useSignature } from '@/features/signature/use-signature.ts';
 import { ApiError } from '@/lib/api.ts';
@@ -47,13 +49,21 @@ function failureOf(error: unknown): Failure {
 export function MergeAction({ repo, number, view, action }: MainActionProps) {
   const [open, setOpen] = useState(false);
   const prNumber = view.pullRequest.number;
+  const readOnly = useGitHubReadOnly();
+  const noteId = useId();
 
   return (
     <>
-      <Button size="sm" disabled={action.disabled !== null} onClick={() => setOpen(true)}>
+      <Button
+        size="sm"
+        disabled={action.disabled !== null || readOnly}
+        aria-describedby={readOnly ? noteId : undefined}
+        onClick={() => setOpen(true)}
+      >
         <GitMerge aria-hidden="true" className="size-[13px]" />
         {t.open(prNumber)}
       </Button>
+      {readOnly && <ReadOnlyNote id={noteId} detail={copy.status.githubReadOnly.merge} />}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent className="sm:max-w-lg">
           {/* Mounted per open, so each opening starts empty, from the last signer. */}
