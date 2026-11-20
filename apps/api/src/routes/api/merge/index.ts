@@ -51,6 +51,8 @@ const merge: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
       }
       const signedBy = request.body.signedBy;
       if (!signedBy) return sendError(reply, 400, ApiErrorCode.SignatureRequired);
+      // Without the GitHub App the app never writes to GitHub (P-28).
+      if (github.mode !== 'app') return sendError(reply, 409, ApiErrorCode.GithubReadOnly);
       try {
         const outcome = await mergePullRequest(
           { db, github },

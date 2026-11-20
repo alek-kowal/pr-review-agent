@@ -96,6 +96,20 @@ describe('merge', () => {
     expect(unknown.json().error.code).toBe('signer_unknown');
   });
 
+  test('without the GitHub App a merge is 409 github_read_only, with nothing asked of GitHub', async () => {
+    const pr = await readyPr();
+    github.setMode('token');
+
+    const response = await merge(pr, {
+      typedNumber: pr.number,
+      signedBy: '00000000-0000-4000-8000-000000000000',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe('github_read_only');
+    expect(github.calls).toEqual([]);
+  });
+
   test('a fresh head that is not the reviewed SHA is 409 head_moved, with no merge call', async () => {
     const pr = await readyPr();
     const kasia = await seedTeamMember(db);

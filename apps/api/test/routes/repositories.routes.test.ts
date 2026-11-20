@@ -113,6 +113,59 @@ describe('GET /api/settings/repositories', () => {
   });
 });
 
+describe('without the GitHub App (P-28): connect by owner/name', () => {
+  const lookup = (fullName: string) =>
+    app.inject({
+      method: 'GET',
+      url: `/api/settings/repositories/lookup?fullName=${encodeURIComponent(fullName)}`,
+    });
+
+  test('one GET checks the name and gives the default branch to prefill', async () => {
+    github.setMode('anonymous');
+    const name = `public-${uniqueId()}/tool`;
+    github.repositoryDetails.set(name, { defaultBranch: 'develop', private: false });
+
+    const response = await lookup(name);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      repository: { fullName: name, defaultBranch: 'develop', private: false },
+    });
+    expect(github.callsOf('getRepository')).toEqual([[name]]);
+  });
+
+  test('an unknown, malformed or connected name is refused', async () => {
+    github.setMode('token');
+    expect((await lookup(`nobody-${uniqueId()}/nothing`)).json()).toMatchObject({
+      error: { code: 'repository_not_reachable' },
+    });
+    expect((await lookup('no-slash')).statusCode).toBe(404);
+    const connected = await lookup(wb);
+    expect(connected.statusCode).toBe(409);
+    expect(connected.json()).toMatchObject({ error: { code: 'repository_already_connected' } });
+  });
+
+  test('connect checks the name with GitHub and signs like the App path, without an installation', async () => {
+    github.setMode('token');
+    const name = `public-${uniqueId()}/tool`;
+    github.repositoryDetails.set(name, { defaultBranch: 'main', private: false });
+
+    const response = await connect(name);
+
+    expect(response.statusCode).toBe(201);
+    expect(await getRepositoryByFullName(db, name)).toMatchObject({
+      githubFullName: name,
+      installationId: null,
+    });
+    const { repository } = response.json<{ repository: { id: number } }>();
+    expect(
+      await listSettingsChanges(db, { area: 'repositories', entity: String(repository.id) }),
+    ).toEqual([expect.objectContaining({ signerId: signer.id, before: null })]);
+    expect(github.callsOf('listAccessibleRepositories')).toEqual([]);
+    expect((await connect(`nobody-${uniqueId()}/nothing`)).statusCode).toBe(404);
+  });
+});
+
 describe('POST /api/settings/repositories', () => {
   test('connecting acme/second-repo writes its config and one settings change', async () => {
     const response = await connect(second);

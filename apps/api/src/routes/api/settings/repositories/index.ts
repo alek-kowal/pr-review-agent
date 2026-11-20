@@ -6,7 +6,11 @@ import {
   readRepositoryConfig,
   type Repository,
 } from '@pra/db';
-import { GITHUB_NOT_CONFIGURED, type AccessibleRepository } from '@pra/integrations';
+import {
+  GITHUB_NOT_CONFIGURED,
+  GITHUB_RATE_LIMITED,
+  type AccessibleRepository,
+} from '@pra/integrations';
 import type { FastifyReply } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
@@ -63,6 +67,13 @@ const EditBody = z.object({
 });
 const RepositoryParams = z.object({ id: z.coerce.number().int().positive() });
 
+/** `owner/name` as GitHub allows it. */
+const REPOSITORY_NAME = /^[\w.-]+\/[\w.-]+$/;
+const LookupQuery = z.object({ fullName: z.string().trim().min(1) });
+export const LookupResponse = z.object({
+  repository: z.object({ fullName: z.string(), defaultBranch: z.string(), private: z.boolean() }),
+});
+
 const errors = {
   400: ApiErrorSchema,
   404: ApiErrorSchema,
@@ -77,6 +88,13 @@ const errors = {
  */
 const repositories: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
   const { db, github } = fastify.deps;
+
+  /** The repository by name as GitHub shows it to the token (or to anyone); no installation. */
+  async function reachableByName(fullName: string) {
+    if (!REPOSITORY_NAME.test(fullName)) return undefined;
+    const found = await github.getRepository(fullName);
+    return found ? { fullName: found.fullName, installationId: null } : undefined;
+  }
 
   fastify.get('/', { schema: { response: { 200: RepositoriesSettingsResponse } } }, async () => {
     const connected = await listRepositories(db);
@@ -93,14 +111,56 @@ const repositories: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
     return { repositories: connected.map(connectedRepository), available, availableError };
   });
 
+  /**
+   * Without the App (P-28) the connect form takes `owner/name`: one GET checks that GitHub shows
+   * the repository (public, or reachable with `GITHUB_TOKEN`) and gives its default branch to
+   * prefill. 404 `repository_not_reachable`; 409 when it is connected already.
+   */
+  fastify.get(
+    '/lookup',
+    {
+      schema: {
+        querystring: LookupQuery,
+        response: { 200: LookupResponse, ...errors, 429: ApiErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const fullName = request.query.fullName;
+      if (!REPOSITORY_NAME.test(fullName)) {
+        return sendError(reply, 404, ApiErrorCode.RepositoryNotReachable, { fullName });
+      }
+      const connected = await listRepositories(db);
+      if (connected.some((r) => r.githubFullName.toLowerCase() === fullName.toLowerCase())) {
+        return sendError(reply, 409, ApiErrorCode.RepositoryAlreadyConnected, { fullName });
+      }
+      try {
+        const found = await github.getRepository(fullName);
+        if (!found) return sendError(reply, 404, ApiErrorCode.RepositoryNotReachable, { fullName });
+        return { repository: found };
+      } catch (error) {
+        const failure = integrationError(error);
+        if (failure.code === GITHUB_RATE_LIMITED) {
+          return sendError(reply, 429, ApiErrorCode.GithubRateLimited, failure.params);
+        }
+        throw error;
+      }
+    },
+  );
+
   fastify.post(
     '/',
     { schema: { body: ConnectBody, response: { 201: RepositorySettingsResponse, ...errors } } },
     async (request, reply) => {
       const { fullName, config, signedBy } = request.body;
-      let reachable: AccessibleRepository[];
+      let target: { fullName: string; installationId: number | null } | undefined;
       try {
-        reachable = await github.listAccessibleRepositories();
+        target =
+          github.mode === 'app'
+            ? (await github.listAccessibleRepositories()).find(
+                (r) => r.fullName.toLowerCase() === fullName.toLowerCase(),
+              )
+            : // Without the App (P-28) a repository is connected by name: GitHub must show it.
+              await reachableByName(fullName);
       } catch (error) {
         const failure = integrationError(error);
         if (failure?.code === GITHUB_NOT_CONFIGURED) {
@@ -108,7 +168,6 @@ const repositories: FastifyPluginAsyncZod = async (fastify): Promise<void> => {
         }
         throw error;
       }
-      const target = reachable.find((r) => r.fullName.toLowerCase() === fullName.toLowerCase());
       if (!target) return sendError(reply, 404, ApiErrorCode.RepositoryNotReachable, { fullName });
 
       const connected = await listRepositories(db);

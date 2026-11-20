@@ -19,6 +19,12 @@ export const ApiErrorCode = {
   WebhookSignatureInvalid: 'webhook_signature_invalid',
   /** The GitHub App env vars are missing (`params.missing` names them). */
   GithubNotConfigured: 'github_not_configured',
+  /** Without the GitHub App the app reads GitHub only: merge and push are refused (P-28). */
+  GithubReadOnly: 'github_read_only',
+  /** GitHub's rate limit is used up until `params.resetAt` (P-28). */
+  GithubRateLimited: 'github_rate_limited',
+  /** Poll now in App mode: webhooks bring the events, the poller is off (P-28). */
+  GithubPollOff: 'github_poll_off',
   /** A signed action without `signedBy`. */
   SignatureRequired: 'signature_required',
   /** `signedBy` is not an active Team member. */

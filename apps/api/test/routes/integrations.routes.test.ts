@@ -2,11 +2,13 @@
 import {
   closeDb,
   createDb,
+  createQueue,
   getAppSettings,
   insertRun,
   listSettingsChanges,
   recordGithubEvent,
   schema,
+  sql,
   type Db,
 } from '@pra/db';
 import {
@@ -281,5 +283,93 @@ describe('PUT /api/settings/integrations', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ error: { code: 'signature_required' } });
+  });
+});
+
+describe('polling without the GitHub App (P-28)', () => {
+  const schedule = {
+    intervalMinutes: 10,
+    from: '08:00',
+    to: '18:00',
+    days: [1, 2, 3, 4, 5],
+    timeZone: 'Europe/Warsaw',
+  };
+
+  test('the status shows the mode, the poller, its schedule and the polled repositories', async () => {
+    const github = new FakeGitHubGateway().setMode('anonymous');
+    await db.insert(schema.githubPoller).values({
+      id: 1,
+      lastStartedAt: new Date('2026-11-20T09:00:00Z'),
+      lastFinishedAt: new Date('2026-11-20T09:00:05Z'),
+      rateLimit: { limit: 60, remaining: 41, resetAt: '2026-11-20T10:00:00.000Z' },
+    });
+
+    const body = await status({ github });
+
+    expect(body.github.mode).toBe('anonymous');
+    expect(body.github.poller).toMatchObject({
+      lastStartedAt: '2026-11-20T09:00:00.000Z',
+      lastError: null,
+      backoffUntil: null,
+      rateLimit: { limit: 60, remaining: 41 },
+    });
+    expect(body.github.poller?.schedule).toMatchObject({ intervalMinutes: 5, from: '09:00' });
+    expect((await status({ github: new FakeGitHubGateway() })).github).toMatchObject({
+      mode: 'app',
+      poller: null,
+    });
+  });
+
+  test('the schedule is a signed change of its own, checked by core', async () => {
+    const signer = await seedTeamMember(db);
+    const app = await build({ db });
+    const put = (payload: object) =>
+      app.inject({ method: 'PUT', url: `${URL}/poll`, headers: SAME_ORIGIN, payload });
+
+    const saved = await put({ ...schedule, signedBy: signer.id });
+
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json()).toEqual({ schedule });
+    expect((await getAppSettings(db)).value.githubPoll).toEqual(schedule);
+    expect(await listSettingsChanges(db, { area: 'integrations', entity: 'github_poll' })).toEqual([
+      expect.objectContaining({ after: schedule, signerId: signer.id }),
+    ]);
+    expect((await put({ ...schedule, from: '19:00', signedBy: signer.id })).statusCode).toBe(400);
+    expect(
+      (await put({ ...schedule, timeZone: 'Mars/Base', signedBy: signer.id })).statusCode,
+    ).toBe(400);
+    expect((await put(schedule)).json()).toMatchObject({ error: { code: 'signature_required' } });
+  });
+
+  test('Poll now queues one forced poll; with the App it is refused', async () => {
+    const queue = createQueue(database.url, { supervise: false, schedule: false, max: 2 });
+    queue.on('error', () => {});
+    await queue.start();
+    try {
+      const github = new FakeGitHubGateway().setMode('token');
+      const app = await build({ db, queue, github });
+      const response = await app.inject({
+        method: 'POST',
+        url: `${URL}/poll-now`,
+        headers: SAME_ORIGIN,
+      });
+      expect(response.statusCode).toBe(202);
+      expect(response.json()).toEqual({ queued: true });
+      const jobs = await db.execute<{ data: unknown }>(
+        sql`select data from pgboss.job where name = 'github.poll'`,
+      );
+      expect(jobs.rows).toEqual([{ data: { force: true } }]);
+
+      const withApp = await build({ db, queue, github: new FakeGitHubGateway() });
+      const refused = await withApp.inject({
+        method: 'POST',
+        url: `${URL}/poll-now`,
+        headers: SAME_ORIGIN,
+      });
+      expect(refused.statusCode).toBe(409);
+      expect(refused.json()).toMatchObject({ error: { code: 'github_poll_off' } });
+    } finally {
+      await queue.stop({ graceful: false });
+    }
   });
 });
