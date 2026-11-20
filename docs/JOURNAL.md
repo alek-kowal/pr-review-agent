@@ -97,3 +97,12 @@ Times are Europe/Warsaw.
   to the state file. Asked for a recommendation file by morning, no code changes: primitives and
   course knowledge for an "AI Software Factory", then dead code and simplifications. Two research
   subagents started (courses, app concepts). Night plan in `docs/ORCHESTRATOR-STATE.md`.
+- 03:50 INSTR merged and deployed (7ba2be2), CI green: readable copy for every stage error
+  code, a round stops before its first stage when required instruction files are missing,
+  warnings in "Start review" and Settings → Instructions, `deploy/mikrus/import-instructions.sh`.
+  verify 1740 tests, e2e 87 passed / 1 skipped. `kurs` and `wiedza-watch` still running on the VPS.
+- 03:52 STAGEFILES spawned (10x workflow), under `supervise.sh`.
+- 03:52 Recommendation Part A written (`docs/recommendations/2026-11-20-night-review.md`):
+  only two primitives are missing (Work item, Pipeline as data); Plan as the second pipeline;
+  position the app as the control plane, the reviewer as a swappable slot. Part B (dead code)
+  follows after STAGEFILES lands.
