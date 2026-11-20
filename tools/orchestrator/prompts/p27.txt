@@ -1,0 +1,30 @@
+Task {{ID}}: make the app fully work on Alek's Mikrus VPS, with several reviews in flight at once.
+
+The target (checked tonight): Mikrus `wojtek118`, an unprivileged LXC container on Proxmox (no KVM), Ubuntu 24.04, **1 vCPU**, 4 GB RAM (about 3.5 GB free, no swap), 27 GB free disk, Docker 29.8 + Compose v5 (runc only for now; gVisor `runsc` may be added later and the sandbox already uses it when the daemon has it), Node 24.21, no pnpm, Claude Code installed for root. nginx on :80 behind the Mikrus proxy (Cytrus), which terminates TLS and routes `*.mikrus.dev` subdomains by server_name; existing sites `baza.mikrus.dev` and `kurs.mikrus.dev` must keep working; a default server returns 444. earlyoom runs. Image `postgres:17` is present. Alek is the only user; auth is his Claude subscription (P-25, `CLAUDE_CODE_OAUTH_TOKEN`), the judge may use OpenRouter (P-26).
+
+You are a fresh session in your own git worktree and branch (task/{{ID}}). Read AGENTS.md, README, docs/, the worker's queue setup (pg-boss), packages/integrations/src/sandbox/, and the F-04 rows of the "Needs Alek" table in context/foundation/work-packages.md. Plan briefly in context/changes/{{ID}}/change.md, then implement.
+
+1. Concurrency that fits 1 vCPU. Split the work into two limits: stages that mostly wait for Claude (review, verify reasoning, judge, analyst, implementer turns) and sandbox-heavy stages (fetch, install, checks, reproductions). Defaults for this VPS: several Claude-bound runs at once (for example 3) and 1 sandbox job at a time; both configurable (env or Settings, your call, documented). Keep every guarantee that exists today (queue gate, budget pause, usage-limit pause from P-25, round chains). Tests for the limits.
+2. Sandbox resources. Memory, CPU and pids caps per sandbox container (defaults sized for this VPS, for example 2 GB and 1 CPU), configurable; a shared pnpm store per repository mounted into install steps so repeated installs are fast and do not cost 1.5 GB of disk each (write down the security trade-off in change.md); cleanup of worktrees and node_modules after each run; timeouts for install and checks configurable and documented.
+3. `pnpm sandbox:bench --repo <path-or-git-url> [--runtime runc|runsc]`: runs the repository's configured fetch, install and check commands in the sandbox exactly as the worker would, and prints wall time and peak memory per step. This is how we will size the limits on the VPS.
+4. Deployment kit under `deploy/mikrus/` plus `docs/deploy-mikrus.md`:
+   - Postgres 17 in Docker Compose, bound to 127.0.0.1 only, its own volume; a nightly `pg_dump` with retention.
+   - api and worker as systemd services (or Compose services; justify) running the built output with `NODE_ENV=production`, restart on failure, logs in journald; the web app built to static files served by nginx.
+   - An nginx site for a subdomain from config (for example `pra.mikrus.dev`), in the same style as the existing Cytrus-backed sites: a shared-password gate (basic auth) for the UI and API, GitHub webhooks exempt from the gate (they are HMAC-verified), `TRUST_PROXY` set correctly, SSE not buffered.
+   - Timers for disk cleanup (old worktrees, mirrors, dangling sandbox images) and a health check.
+   - `deploy/mikrus/deploy.sh`, idempotent, run from Alek's Mac over SSH (host, port and key from env, never hard-coded): update the code on the server, install with the frozen lockfile, build, `pnpm db:migrate`, reload services, run a smoke check. Also `deploy/mikrus/bootstrap.md` for the one-time steps (pnpm via corepack, system user, docker group, `.env` on the server, `claude setup-token`, optional gVisor install and how to verify it).
+   - Validate scripts locally (shellcheck if available, `bash -n`, a dry-run mode). Do NOT connect to the VPS or any server.
+5. Docs: README (deploy section), AGENTS.md only if a rule changes (report lines added), and new rows in the "Needs Alek" table: Mikrus subdomain in the Mikrus panel, `.env` on the server, `claude setup-token` on the server, the GitHub App webhook URL pointing at the subdomain, the gate password, running deploy.sh, then `pnpm sandbox:bench` on WB to size the limits.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify`, plus `pnpm test:e2e` if you touch the UI (each e2e spec uses its own test repository name and PR-number range).
+- Before the final verify, merge main into your branch (`git merge main`). Migrations: keep main's, regenerate yours with `pnpm db:generate --name <name>`. Regenerate routeTree.gen.ts.
+- Write and change files only with the Write/Edit tools, never with shell heredocs or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Make reasonable decisions yourself and record them under 'Decisions' in change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left (at most 15 lines), and stop. Keep tool output small.
+Never:
+- connect to the VPS or any remote server; create external accounts, apps, keys or DNS entries; print or read a real secret
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, and the verify result.

@@ -1,0 +1,21 @@
+Task {{ID}} (merge main). Merging task/P-09 into main conflicts in apps/api/src/app.ts, apps/web/src/routeTree.gen.ts, packages/db/src/queries/index.ts, packages/integrations/src/sandbox/sandbox.docker.test.ts and the DB migrations. Main gained P-10 (live backend, timeline: migrations 0006_live_notify, 0007_run_current_stage, 0008_timeline) and P-06f (stable sandbox tests) since P-09 last merged main.
+
+1. In this worktree run `git merge main` and resolve every conflict so both sides' behaviour survives. Read each side's commits (`git log main --oneline -- <file>`) and the change.md files of P-09, P-10 and P-06f to understand the intent. Migrations: keep main's 0006–0008 untouched, delete P-09's own migration files and their snapshots, and regenerate them on top with `pnpm db:generate --name <same name>` (they become 0009 and 0010); check the new SQL matches the old. routeTree.gen.ts: regenerate it, don't hand-merge. Record decisions in P-09's change.md.
+2. `pnpm verify` and `pnpm test:e2e`. Commit the merge.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify`, plus `pnpm test:e2e` when your package touches the UI.
+- Commit once per task (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>).
+- Do NOT push or rebase. Merging main into this branch is the task.
+- Tests must be safe to run in parallel from several worktrees: one shared Postgres from Docker Compose with a fixed project name, a unique database or schema per test run, and no fixed ports other than that Postgres.
+- Make reasonable decisions yourself and record them under 'Decisions' in context/changes/{{ID}}*/change.md (create a short one if the package has no plan).
+- Ask nothing unless truly blocked. If you must ask, use plain numbered questions, each with a recommendation, then stop.
+
+Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left, and stop. Keep tool output small (tail logs, read only the lines you need) so the package fits in one session.
+
+Never:
+- create external accounts, apps or keys
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400. Reading those folders is allowed and useful (the old code is the reference)
+- add a runtime fake mode
+
+Final reply: Polish, at most 3 lines.

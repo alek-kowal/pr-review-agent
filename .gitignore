@@ -19,3 +19,7 @@ deploy/app.env
 
 # P-27: deploy settings of the machine you deploy from
 deploy/mikrus/deploy.env
+
+# Orchestrator scripts: local state and logs
+tools/orchestrator/state/
+tools/orchestrator/*.log

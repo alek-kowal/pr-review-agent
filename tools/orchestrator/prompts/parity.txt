@@ -1,0 +1,25 @@
+Task {{ID}}: parity check of packages/core against the old version P (~/Projects/wb-factory).
+
+packages/core/PORTING.md lists 98 rows taken from P's tests and says parity is unverified, because the previous session did not read P. You may read ~/Projects/wb-factory now (read only).
+1. For each row marked ported, open the cited P test (file:line) and check that our test asserts the same behaviour. Where they differ, fix our code or test. Where our PRD or design deliberately differs (context/foundation/prd.md and docs/03-design-decisions.md win), keep ours and say so in the row.
+2. Correct wrong file:line references. Check rows marked "not ported" or "assigned to a slice" briefly for anything core should already cover.
+3. Update PORTING.md: per-row parity verified, and remove the "unverified" note. Add the decisions to context/changes/P-02-domain-core/change.md.
+
+You are a fresh session in your own git worktree and branch. Other packages run in parallel in other worktrees.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify`, plus `pnpm test:e2e` when your package touches the UI.
+- Commit in small logical steps (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>).
+- Do NOT push, merge or rebase. The orchestrator merges.
+- Tests must be safe to run in parallel from several worktrees: one shared Postgres from Docker Compose with a fixed project name, a unique database or schema per test run, and no fixed ports other than that Postgres.
+- Make reasonable decisions yourself and record them under 'Decisions' in context/changes/{{ID}}*/change.md (create a short one if the package has no plan).
+- Ask nothing unless truly blocked. If you must ask, use plain numbered questions, each with a recommendation, then stop.
+
+Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left, and stop. Keep tool output small (tail logs, read only the lines you need) so the package fits in one session.
+
+Never:
+- create external accounts, apps or keys
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400. Reading those folders is allowed and useful (the old code is the reference)
+- add a runtime fake mode
+
+Final reply: Polish, at most 4 lines. Say whether the package is done or handed off, and the verify result.

@@ -1,0 +1,20 @@
+Task {{ID}}: fix the "Connect a repository" flow, and add a refresh button on the board.
+
+Reported by Alek on the deployed app (token mode, P-28): in Settings → Repositories → Connect a repository (by name, synergycodes/workflowbuilder), he clicks Connect in the confirm dialog. The server succeeded (nginx log: POST /api/settings/repositories 201, then GET /api/settings/repositories/1 and the list), but the browser showed a popup asking to reload the page, and after reloading he was back on the connect page (/settings/repositories/connect?fullName=...). Expected: Connect → no popup → he lands on the list of connected repositories, with the new one in it.
+
+1. Reproduce it first with an e2e in token mode (P-28's github-polling setup), then find the cause. Likely suspects: the unsaved-changes guard of the settings form (router blocker or beforeunload) still thinks the form is dirty after a successful save; `ConnectRepositoryPage` navigates to `/settings/repositories/$id` with `ignoreBlocker` but something else blocks or redirects; the lookup query, invalidated after the save, flips to `repository_already_connected` and re-renders the page. Fix the cause, not the symptom.
+2. After a successful connect: go to `/settings/repositories` (the list), the new repository visible, a short success notice is fine; no dialog, no reload prompt. Apply the same fix wherever the same guard is used after a signed save, if it has the same problem. The e2e asserts the landing page and that no dialog appears (Playwright `page.on('dialog')`).
+3. Board: a small "Refresh from GitHub" button in a corner of the board header, only in token (polling) mode. It triggers the existing "Poll now" and shows "Updated <relative time>" from the last poll; disabled while a poll runs; the error from the last poll, if any, as a short hint. Copy in apps/web/src/copy. One test, and the e2e covers it.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify` and `pnpm test:e2e` (each e2e spec uses its own test repository name and PR-number range). Known flaky tests: docs/orchestrator-lessons.md; re-run once.
+- Before the final verify, merge main into your branch (`git merge main`).
+- Write and change files only with the Write/Edit tools, never with shell heredocs, printf redirects or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Record the cause and decisions in a short context/changes/{{ID}}/change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md (at most 15 lines), and stop.
+Never:
+- call the real GitHub API or any server; create accounts, apps, tokens or keys; print or read a real secret
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, the cause, and the verify result.

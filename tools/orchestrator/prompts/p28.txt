@@ -1,0 +1,29 @@
+Task {{ID}}: poll GitHub for pull requests until the GitHub App exists.
+
+Context: Alek is not an owner of the GitHub org, so the GitHub App and its webhook come later. Until then the app must find PRs by polling, with a personal token. The target repository `synergycodes/workflowbuilder` is PUBLIC (checked: 18 open PRs, default branch main), so a fine-grained personal access token with "Public repositories (read-only)" access is enough and needs no org approval. Later Alek adds the App and the webhook, and polling must switch off with no code change and no data migration.
+
+You are a fresh session in your own git worktree and branch (task/{{ID}}). Read AGENTS.md, docs/05-review-triggers.md (a push never starts a review), the webhook ingestion path from P-05 and how it turns GitHub events into internal events and jobs, `GitHubGateway` in @pra/integrations, Settings → Integrations, and P-27's deploy kit (context/changes/P-27*/). Plan briefly in context/changes/{{ID}}/change.md, then implement.
+
+1. Token mode. A `GitHubGateway` implementation that works with a personal token (`GITHUB_TOKEN`, name only in .env.example and deploy/mikrus/pra.env.example) for reads: PRs, files, diff, commits, CI status and check runs, clone and fetch over HTTPS (public repos also work without a token, but use it for the 5000/h rate limit). Selection: GitHub App values set → App mode (as today); otherwise `GITHUB_TOKEN` → token mode; neither → not configured. Use conditional requests (ETag) where it saves quota.
+2. Read-only on GitHub in token mode. Every GitHub write (push, merge, comments, check runs, labels) is refused with a reason code (for example `github_read_only`), never done as Alek's user. The UI says so where the action lives ("Read-only: GitHub App not connected"): the merge dialog, Implement/push, autofix. Level 4 still produces the patch for a person to read and copy; level 5 records only the shadow log. Nothing breaks or retries in a loop.
+3. Poller. A worker job that polls every connected repository on a schedule: default every 5 minutes, 9:00–17:00, Monday to Friday, Europe/Warsaw; all four configurable in Settings → Integrations (signed, like every settings change), plus a "Poll now" button. It runs only in token mode.
+   - It keeps the last seen state of each open PR (draft, head SHA, state, merged) and turns changes into the SAME internal events the webhook path produces, through the same code: opened as ready or switched from draft → ready for review (starts round 1); a new head SHA → the push event (never starts a review, but updates "commits since run" and the bot-SHA rule); closed or merged → closed (learning, board). Dedupe so a PR never starts twice for one transition, also when a poll overlaps a slow one.
+   - The first poll of a repository is a baseline: it records the state and starts nothing, so the 18 already open PRs do not all start paid rounds at once. They can still be started by hand with Start review. Say this in the UI next to the poller status.
+   - CI status for PRs with an active run is refreshed on each poll.
+   - Settings → Integrations shows the mode ("Polling every 5 min, 9:00–17:00 Mon–Fri", last poll, next poll, last error) instead of webhook deliveries.
+4. Switch-over. When the App values are set, polling stops by itself and webhooks take over; state and history stay. Write the switch-over steps in docs (and in the S-01-T16 row of "Needs Alek").
+5. Docs: README (configuration), deploy docs from P-27, AGENTS.md only if a rule changes (report lines added), and a "Needs Alek" row: create a fine-grained token himself (github.com → Settings → Developer settings → Fine-grained tokens → Repository access: Public repositories (read-only); expiry 90 days), put it into `.env` (local) and `/etc/pra/pra.env` (VPS) as GITHUB_TOKEN, connect `synergycodes/workflowbuilder` in Settings → Repositories.
+6. Tests with a GitHub double (in `/testing`): event mapping for each transition, the baseline, dedupe and overlapping polls, the schedule window and time zone (including a DST change), read-only refusals, the switch to App mode. One e2e for the Integrations page in polling mode, with its own test repository name and PR-number range.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify` and `pnpm test:e2e`. Known flaky tests are listed in docs/orchestrator-lessons.md; re-run once before treating a failure as real.
+- Before the final verify, merge main into your branch (`git merge main`). Migrations: keep main's, regenerate yours with `pnpm db:generate --name <name>`. Regenerate routeTree.gen.ts.
+- Write and change files only with the Write/Edit tools, never with shell heredocs, printf redirects or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Make reasonable decisions yourself and record them under 'Decisions' in change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left (at most 15 lines), and stop. Keep tool output small.
+Never:
+- call the real GitHub API or any server from code or tests; create accounts, apps, tokens or keys; print or read a real secret
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, and the verify result.

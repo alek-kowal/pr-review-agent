@@ -1,0 +1,30 @@
+Fresh session, one task: make the roadmap of PR Review Agent much shorter to run. Alek finds 230 tasks too many.
+
+Read context/foundation/roadmap.md and context/foundation/roadmap-tasks.md, then write context/foundation/work-packages.md.
+
+Packages:
+- Group every task into work packages, except two kinds:
+  - F-01: another agent is implementing it right now.
+  - Tasks marked 'Needs Alek': list them separately at the end, with the exact setup steps for Alek.
+- Each package is ONE fresh agent session that implements it directly. Size it to finish under about 25% of a 1M-token context. As a rough guide: up to about 15 small tasks, or about 2,000 changed lines.
+- Merge small adjacent tasks, and merge whole small items together.
+- Target: at most 25 packages and at most 8 waves.
+
+For each package:
+- an id (P-01 …)
+- the task ids it includes
+- its goal in one sentence
+- the packages it depends on
+- a wave number. Packages in the same wave run in parallel. Maximise parallelism, but never put two packages that edit the same hot files (list them) in the same wave.
+- plan: yes or no.
+  - yes only when the package is risky or ambiguous: new architecture, the agent runtime, concurrency or state machines, git or GitHub writes, money or budget.
+  - no otherwise. The tasks' 'done when' checks are the plan.
+
+End with a coverage check: every FR and user story maps to a package.
+
+Don't edit roadmap.md or roadmap-tasks.md.
+
+When done:
+- commit with: git add context && git commit -m 'docs: work packages' -m 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'. Don't push.
+- reply in Polish, at most 8 lines: how many packages, the waves, and which packages need a plan.
+- Nobody is at the keyboard. Ask nothing; decide reasonably.

@@ -1,0 +1,21 @@
+You are a fresh session for PR Review Agent, working on roadmap item {{ID}}: its section in context/foundation/roadmap.md and its tasks {{ID}}-T* in context/foundation/roadmap-tasks.md. Read only what the item needs: the item itself, AGENTS.md if it exists, and the documents the tasks point to. Don't read the whole prototype or analysis.
+
+The item's tasks become the phases of your plan. Skip tasks marked 'Needs Alek': keep them pending in Progress with a note.
+
+Steps:
+1. Run /10x-new {{ID}}, then /10x-plan, and approve your own plan; nobody is at the keyboard.
+2. Run /10x-implement.
+3. Verify with `pnpm verify` (lint, typecheck and tests in parallel). If that script doesn't exist yet, create it in the root package.json.
+4. Commit on the current branch with Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+5. Don't push and don't merge.
+
+Decisions: follow context/foundation/prd.md, context/foundation/tech-stack.md and docs/08-orchestrator-log.md. Make reasonable calls yourself and record them under 'Decisions' in context/changes/{{ID}}/change.md. Ask only if truly blocked: plain text, numbered, each with a recommendation, then stop.
+
+Context budget: before 28%, stop. Commit, and write context/changes/{{ID}}/HANDOFF.md saying which phases are done and what comes next. A continuation session picks up from there.
+
+Never:
+- create external accounts, apps or keys
+- touch :4300, :4400 or ~/Projects/wb-factory*
+- add a runtime fake mode (test doubles only in tests)
+
+Final reply: Polish, at most 5 lines. Say whether the task is done or handed off, what changed, and the verify result.

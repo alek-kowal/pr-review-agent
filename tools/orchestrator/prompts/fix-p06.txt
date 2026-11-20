@@ -1,0 +1,22 @@
+Task {{ID}} (merge fix). Branch task/P-06 already has main merged in. `pnpm verify` now fails, because main's P-03 review commit db07ee1 ("fix(agents): stop a session at its timeout and on a cancel during setup") made `timeoutMs` required in `AgentRunInput` and changed how a cancel is handled.
+
+1. Make P-06's callers (packages/agents/src/implementer/implementer.ts, src/verifier/verifier.ts and their tests) pass `timeoutMs` from the stage's configured timeout: use the same config source the rest of the code uses for stage timeouts; read packages/agents/src/runner.ts first.
+2. Fix the failing test "5. a cancelled session records its cost up to the cancel" to match the new runner behaviour. Do not weaken the runner.
+3. Run `pnpm verify`. Commit "fix(agents): adapt implementer and verifier to the runner timeout".
+
+Rules from the orchestrator:
+- Verify with `pnpm verify`, plus `pnpm test:e2e` when your package touches the UI.
+- Commit once per task (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>).
+- Do NOT push, merge or rebase. The orchestrator merges.
+- Tests must be safe to run in parallel from several worktrees: one shared Postgres from Docker Compose with a fixed project name, a unique database or schema per test run, and no fixed ports other than that Postgres.
+- Make reasonable decisions yourself and record them under 'Decisions' in context/changes/{{ID}}*/change.md (create a short one if the package has no plan).
+- Ask nothing unless truly blocked. If you must ask, use plain numbered questions, each with a recommendation, then stop.
+
+Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left, and stop. Keep tool output small (tail logs, read only the lines you need) so the package fits in one session.
+
+Never:
+- create external accounts, apps or keys
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400. Reading those folders is allowed and useful (the old code is the reference)
+- add a runtime fake mode
+
+Final reply: Polish, at most 3 lines.

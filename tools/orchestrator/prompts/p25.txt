@@ -1,0 +1,25 @@
+Task {{ID}}: run the agents on Alek's Claude subscription.
+
+Context: for now Alek is the only user. He runs the app locally on his Mac, logs in with one account, simulates team members through Settings → Team and signed actions, and tests reviews on a real project. The agents must run on his Claude subscription instead of a pay-per-token API key. The API key stays as the second option for later.
+
+You are a fresh session in your own git worktree and branch (task/{{ID}}). Read AGENTS.md first, then packages/agents/src/claude-agent-runner.ts, the run engine in apps/worker/src/run/, and how budget and cost are shown in the web app. Plan briefly in context/changes/{{ID}}/change.md, then implement.
+
+1. Auth. The Agent SDK runs Claude Code, which accepts a long-lived subscription token from `claude setup-token` in `CLAUDE_CODE_OAUTH_TOKEN`. Accept either `CLAUDE_CODE_OAUTH_TOKEN` (subscription) or `ANTHROPIC_API_KEY` (API). If both are set, use the subscription and pass only that one to the SDK process (an API key in the env would otherwise take precedence). Neither value ever reaches the sandbox, logs, errors, the API or the web. Add the name to .env.example (name only). Without either, keep `model_access_not_configured`.
+2. Visible auth mode. The status chip and Settings (pick the fitting page) show which mode is active: "Claude subscription", "API key" or "Not configured". Names only, never values. Copy lives in apps/web/src/copy.
+3. Cost under a subscription. The SDK still reports a dollar cost, but it is the API-equivalent price, not real spend. In subscription mode label every cost the user sees as API-equivalent (one clear, consistent wording), and keep the daily budget working as a usage guard on that number. In API mode nothing changes.
+4. Usage limit. On a subscription, the 5-hour and weekly limits are shared with Alek's own Claude Code work, so runs will hit "usage limit reached". Find out how the SDK and Claude Code report it (result subtype, error text, reset time) from the SDK types and docs. Then: the run does not fail and is not retried in a loop; it pauses with a reason code (for example `usage_limit_reached` with the reset time when known), the job is rescheduled for just after the reset, no new round or extra attempt is counted, and the PR view shows "Paused until <time>: Claude usage limit". Other runs queued meanwhile wait the same way instead of starting and failing.
+5. Docs. README (configuration and quick start), AGENTS.md (Environment: one short line; report how many lines you add, since every agent session in this repo loads AGENTS.md), and the S-01-T17 row in the "Needs Alek" table of context/foundation/work-packages.md: add the subscription path (run `claude setup-token` yourself, put the token into `.env` as CLAUDE_CODE_OAUTH_TOKEN). Do not run `claude setup-token` and do not read any real token.
+6. Tests: unit tests for auth selection and env passing (including "no secret in the sandbox env"), the usage-limit mapping and the pause and reschedule; one e2e for the paused banner and the auth mode label, with its own test repository name and PR-number range.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify` and `pnpm test:e2e`. Known flaky: e2e/decide.spec.ts; re-run once before treating a failure as real.
+- Before the final verify, merge main into your branch (`git merge main`). Migrations: keep main's, regenerate yours with `pnpm db:generate --name <name>`. Regenerate routeTree.gen.ts.
+- Write and change files only with the Write/Edit tools, never with shell heredocs or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Make reasonable decisions yourself and record them under 'Decisions' in change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left (at most 15 lines), and stop. Keep tool output small.
+Never:
+- create external accounts, apps or keys; never print or read a real token or key
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400. Reading those folders is allowed.
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, and the verify result.

@@ -1,0 +1,27 @@
+Task {{ID}} (merge main). Merging task/{{ID}} into main conflicts, because other packages landed on main meanwhile.
+
+1. In this worktree run `git merge main` and resolve every conflict so both sides' behaviour survives. To understand intent, read each side's commits (`git log main --oneline -- <file>`) and the change.md files involved.
+   - DB migrations: keep main's untouched. Delete this branch's own migration files and snapshots that clash, and regenerate them on top with `pnpm db:generate --name <same name>`. Check that the new SQL matches the old.
+   - routeTree.gen.ts: regenerate it, don't hand-merge it.
+   - Barrel and index files, copy and e2e support: keep both sides.
+   - Record merge decisions in this package's change.md.
+2. Run `pnpm verify` and `pnpm test:e2e`. Commit the merge.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify`, plus `pnpm test:e2e` when your package touches the UI.
+- When the package is done, merge main into your branch (`git merge main`) before the final verify. Resolve conflicts so both sides survive. For DB migrations with the same number, keep main's and regenerate yours with `pnpm db:generate --name <name>`. Regenerate routeTree.gen.ts instead of hand-merging it.
+- Write and change files only with the Write/Edit tools, never with shell heredocs or sed -i (an unattended permission check blocks those). Shell commands are for running tools.
+- Commit once per task (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>).
+- Do NOT push or rebase. Merging main into this branch is the task.
+- Tests must be safe to run in parallel from several worktrees: one shared Postgres from Docker Compose with a fixed project name, a unique database or schema per test run, and no fixed ports other than that Postgres.
+- Make reasonable decisions yourself and record them under 'Decisions' in context/changes/{{ID}}*/change.md (create a short one if the package has no plan).
+- Ask nothing unless truly blocked. If you must ask, use plain numbered questions, each with a recommendation, then stop.
+
+Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left, and stop. Keep tool output small (tail logs, read only the lines you need) so the package fits in one session.
+
+Never:
+- create external accounts, apps or keys
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400. Reading those folders is allowed and useful (the old code is the reference)
+- add a runtime fake mode
+
+Final reply: Polish, at most 3 lines.

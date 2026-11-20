@@ -1,0 +1,26 @@
+Task {{ID}}: let the change-type judge run on OpenRouter (for example Jev Router).
+
+Context: before review, the judge decides the PR's change type (uses existing parts / changes behaviour / one-way door) from the ClickUp task text and the changed file names (packages/agents/src/judge/). Today it runs on Claude (claude-haiku-5-5; on Alek's subscription since P-25). Alek wants to try `typesafe/jev-router` on OpenRouter for this stage. Jev Router picks a model per request and bills at that model's price; OpenRouter does not document whether the choice is stable. The default judge stays Claude; OpenRouter is an option per role in Settings → Models.
+
+You are a fresh session in your own git worktree and branch (task/{{ID}}). Read AGENTS.md first, then the judge, the runner auth from P-25 (context/changes/P-25*/change.md), Settings → Models and the budget code. Plan briefly in context/changes/{{ID}}/change.md, then implement.
+
+1. OpenRouter judge. An `OpenRouterJudge` implementing the existing `Judge` interface. The HTTP client sits behind an interface in @pra/integrations, per AGENTS.md. Use OpenRouter's OpenAI-compatible chat completions with structured output (a JSON schema built from JudgeAnswerSchema); validate the answer with zod; an invalid answer gets a reason code. Send only what the Claude judge sends today. Default provider preferences: `data_collection: "deny"` (no provider that trains on the data). Key name `OPENROUTER_API_KEY` (.env.example, name only; never logged or shown).
+2. Model choice. In Settings → Models the judge role can pick an OpenRouter model id, for example `openrouter/typesafe/jev-router`, next to the Claude models. Signed like every settings change. An OpenRouter model without the key gives `model_access_not_configured` with a clear label.
+3. Traceability. For every judge call record provider, requested model, the model that actually answered (OpenRouter returns it), tokens, latency and the real cost (ask OpenRouter for usage with cost). Show them in Run detail for the judge stage. OpenRouter cost is real spend, so it counts in the daily budget without the "API-equivalent" label.
+4. Failure. If OpenRouter fails (no credits, timeout, invalid answer), the review must not stop: fall back to the Claude judge, record the fallback and its reason in the run, and show it in Run detail. No retry loop.
+5. Comparison script. `pnpm judge:compare --models <a>,<b> [--limit N] [--yes]`: runs the judge with each model on stored PRs, uses change types a person forced ("Force type") as the reference where they exist, and prints agreement between models, accuracy against the forced types, cost and latency per model. Read-only on the database. Without `--yes` it only prints how many calls it would make and stops, since real calls cost money.
+6. Docs. README (configuration), AGENTS.md (Environment: one short line; report how many lines you add), and a new row in the "Needs Alek" table of context/foundation/work-packages.md: create an OpenRouter account and key himself, set a credit limit on the key, put it into `.env` as OPENROUTER_API_KEY, pick the judge model in Settings → Models, then run `pnpm judge:compare`.
+7. Tests with a double of the OpenRouter client (in `/testing`, never at runtime): answer mapping, invalid answer, fallback, cost and routed-model recording, `data_collection` sent, no key ever in logs. No real network calls in tests.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify`, plus `pnpm test:e2e` if you touch the UI (each e2e spec uses its own test repository name and PR-number range). Known flaky: e2e/decide.spec.ts; re-run once.
+- Before the final verify, merge main into your branch (`git merge main`). Migrations: keep main's, regenerate yours with `pnpm db:generate --name <name>`. Regenerate routeTree.gen.ts.
+- Write and change files only with the Write/Edit tools, never with shell heredocs or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Make reasonable decisions yourself and record them under 'Decisions' in change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left (at most 15 lines), and stop. Keep tool output small.
+Never:
+- create external accounts, apps or keys; never call OpenRouter for real; never print or read a real key
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400. Reading those folders is allowed.
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, and the verify result.

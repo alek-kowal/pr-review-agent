@@ -1,0 +1,30 @@
+Task {{ID}}: run /10x-impl-review on package P-18 "Implementer and fork PRs" (its folder under context/changes/, plan inside). P-18 is already merged to main; its changes are `git diff d61080e^1 d61080e`.
+
+Focus on what can hurt in production:
+- the implementer writes code: sandbox isolation, what it may touch, sensitive files, secrets never reaching the sandbox or logs
+- fork PRs: untrusted code from forks never runs with the App's token or secrets; what is allowed on a fork and what is refused
+- GitHub writes (commits, pushes, comments): only where the rules allow, idempotent on retry, no write after a cancel or a budget pause
+- run state machine and levels: no stuck "running" runs, restart mid-run, races between webhooks and jobs
+- test doubles reachable only from `/testing` entries or tests
+
+Fix every confirmed finding in this worktree. Findings that need Alek (accounts, keys, money) go into the review report, not code. Save the report in the P-18 change folder as review.md.
+
+You are a fresh session in your own git worktree and branch. Other packages run in parallel in other worktrees (P-22 builds on P-18 right now).
+
+Rules from the orchestrator:
+- Verify with `pnpm verify`, plus `pnpm test:e2e` when you touch the UI or e2e.
+- Before the final verify, merge main into your branch (`git merge main`). Migrations: keep main's, regenerate yours with `pnpm db:generate --name <name>`. Regenerate routeTree.gen.ts.
+- Write and change files only with the Write/Edit tools, never with shell heredocs or sed -i. Shell commands are for running tools.
+- Commit one fix per commit (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>).
+- Do NOT push, merge into main or rebase. The orchestrator merges.
+- Tests must be safe to run in parallel: each e2e spec uses its own test repository name and PR-number range. Known flaky: e2e/decide.spec.ts; re-run once before treating a failure as real.
+- Ask nothing unless truly blocked.
+
+Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left (at most 15 lines), and stop. Keep tool output small.
+
+Never:
+- create external accounts, apps or keys
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400. Reading those folders is allowed.
+- add a runtime fake mode
+
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, and the verify result.

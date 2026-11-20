@@ -1,0 +1,17 @@
+Task {{ID}}: make e2e/decide.spec.ts reliable, and stop leaking sandbox containers.
+
+1. e2e/decide.spec.ts, test "people decide findings with a signature, undo, and meet a conflict", fails now and then, in CI and locally, and passes on a re-run. It failed at line ~132: `third.getByRole('alert')` should contain "Kasia decided this in the meantime." but the alert was not found (5 s timeout). Step 6 of the test: a second browser decides the same finding first, then this one should see the conflict. Find the race (for example: this page acting before the other decision is stored, a live update or refetch replacing the stale view before the conflict can show, or a shared test repository or PR number with another spec). Fix the cause in the test or, if the app really can miss the conflict, in the app. Do not just raise timeouts or add retries. Prove it: run this spec 10 times in a row (`--repeat-each 10`), plus the full `pnpm test:e2e` once.
+2. Sandbox tests (packages/integrations, Docker sandbox) leave `pra-sbx-*` containers behind (Created or Exited), 27 of them piled up today. Make their cleanup remove every container they create, also when a test fails or times out. Prove it: count `docker ps -a --filter name=pra-sbx` before and after `pnpm test`; it must not grow. Only ever remove `pra-sbx-*` containers.
+
+Then `pnpm verify`, merge main before the final verify (`git merge main`), and commit one fix per commit. Record each cause under Decisions in a short context/changes/{{ID}}/change.md, and update the "Known flaky" note in docs/orchestrator-lessons.md (lesson 17).
+
+Rules from the orchestrator:
+- Write and change files only with the Write/Edit tools, never with shell heredocs or sed -i. Shell commands are for running tools.
+- Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>. Do NOT push, merge into main or rebase. The orchestrator merges.
+- Ask nothing unless truly blocked. Keep tool output small (tail logs).
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left (at most 15 lines), and stop.
+Never:
+- create external accounts, apps or keys
+- touch Docker containers, images or volumes other than `pra-sbx-*` and this project's compose services
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, and the verify result.

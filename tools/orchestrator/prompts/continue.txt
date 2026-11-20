@@ -1,0 +1,12 @@
+You are a fresh continuation session for PR Review Agent, roadmap item {{ID}}. Read context/changes/{{ID}}/HANDOFF.md and the Progress section of context/changes/{{ID}}/plan.md. Then run /10x-implement from the next pending phase. Skip phases marked 'Needs Alek'.
+
+Verify with `pnpm verify`. Commit with Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>. Don't push and don't merge.
+
+Context budget: before 28%, stop. Update HANDOFF.md, commit, and stop.
+
+Never:
+- create external accounts, apps or keys
+- touch :4300, :4400 or ~/Projects/wb-factory*
+- add a runtime fake mode
+
+Final reply: Polish, at most 5 lines. Say whether the item is done or handed off, and the verify result.

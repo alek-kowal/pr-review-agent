@@ -1,0 +1,18 @@
+Task {{ID}}: make the Docker sandbox tests from P-06 (packages/integrations, sandbox) reliable under load. With several worktrees running `pnpm verify` at once, one Docker test sometimes fails, and it passes when run alone. Find which one and why (timeouts, image pulls, container names, shared state). Fix the cause: do not just skip the test or raise every timeout. Run the sandbox tests 5 times in a row while `pnpm test` runs in parallel to prove it. Then `pnpm verify` and commit "test(integrations): stable sandbox tests under load". Record the cause under Decisions in a short context/changes/{{ID}}/change.md.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify`, plus `pnpm test:e2e` when your package touches the UI.
+- Commit once per task (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>).
+- Do NOT push, merge or rebase. The orchestrator merges.
+- Tests must be safe to run in parallel from several worktrees: one shared Postgres from Docker Compose with a fixed project name, a unique database or schema per test run, and no fixed ports other than that Postgres.
+- Make reasonable decisions yourself and record them under 'Decisions' in context/changes/{{ID}}*/change.md (create a short one if the package has no plan).
+- Ask nothing unless truly blocked. If you must ask, use plain numbered questions, each with a recommendation, then stop.
+
+Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md with what is left, and stop. Keep tool output small (tail logs, read only the lines you need) so the package fits in one session.
+
+Never:
+- create external accounts, apps or keys
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400. Reading those folders is allowed and useful (the old code is the reference)
+- add a runtime fake mode
+
+Final reply: Polish, at most 3 lines.
