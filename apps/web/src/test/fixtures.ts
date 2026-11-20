@@ -312,6 +312,7 @@ export const aStatus = (over: Partial<StatusResponse> = {}): StatusResponse => (
   queuedCount: 0,
   activeAlertCount: 0,
   modelAuth: 'api_key',
+  githubMode: 'app',
   ...over,
 });
 

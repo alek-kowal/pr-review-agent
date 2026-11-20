@@ -8,277 +8,283 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root.tsx';
-import { Route as IndexRouteImport } from './routes/index.tsx';
-import { Route as ActivityRouteImport } from './routes/activity.tsx';
-import { Route as InsightsRouteImport } from './routes/insights.tsx';
-import { Route as PrsRouteImport } from './routes/prs.tsx';
-import { Route as SettingsRouteImport } from './routes/settings.tsx';
-import { Route as InsightsIndexRouteImport } from './routes/insights.index.tsx';
-import { Route as InsightsCostRouteImport } from './routes/insights.cost.tsx';
-import { Route as InsightsQualityRouteImport } from './routes/insights.quality.tsx';
-import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx';
-import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx';
-import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx';
-import { Route as SettingsAlertsRouteImport } from './routes/settings.alerts.tsx';
-import { Route as SettingsAuditRouteImport } from './routes/settings.audit.tsx';
-import { Route as SettingsBudgetRouteImport } from './routes/settings.budget.tsx';
-import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx';
-import { Route as SettingsLearningRouteImport } from './routes/settings.learning.tsx';
-import { Route as SettingsModelsRouteImport } from './routes/settings.models.tsx';
-import { Route as SettingsPipelineRouteImport } from './routes/settings.pipeline.tsx';
-import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx';
-import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx';
-import { Route as SettingsExperimentsIndexRouteImport } from './routes/settings.experiments.index.tsx';
-import { Route as SettingsExperimentsIdRouteImport } from './routes/settings.experiments.$id.tsx';
-import { Route as SettingsInstructionsIndexRouteImport } from './routes/settings.instructions.index.tsx';
-import { Route as SettingsInstructionsIdRouteImport } from './routes/settings.instructions.$id.tsx';
-import { Route as SettingsRepositoriesIndexRouteImport } from './routes/settings.repositories.index.tsx';
-import { Route as SettingsRepositoriesIdRouteImport } from './routes/settings.repositories.$id.tsx';
-import { Route as SettingsRepositoriesConnectRouteImport } from './routes/settings.repositories.connect.tsx';
-import { Route as SettingsReviewLevelsIndexRouteImport } from './routes/settings.review-levels.index.tsx';
-import { Route as SettingsReviewLevelsLevelRouteImport } from './routes/settings.review-levels.$level.tsx';
+import { Route as rootRouteImport } from './routes/__root.tsx'
+import { Route as IndexRouteImport } from './routes/index.tsx'
+import { Route as ActivityRouteImport } from './routes/activity.tsx'
+import { Route as InsightsRouteImport } from './routes/insights.tsx'
+import { Route as PrsRouteImport } from './routes/prs.tsx'
+import { Route as SettingsRouteImport } from './routes/settings.tsx'
+import { Route as InsightsIndexRouteImport } from './routes/insights.index.tsx'
+import { Route as InsightsCostRouteImport } from './routes/insights.cost.tsx'
+import { Route as InsightsQualityRouteImport } from './routes/insights.quality.tsx'
+import { Route as InsightsTrustRouteImport } from './routes/insights.trust.tsx'
+import { Route as RunsRunIdRouteImport } from './routes/runs.$runId.tsx'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index.tsx'
+import { Route as SettingsAlertsRouteImport } from './routes/settings.alerts.tsx'
+import { Route as SettingsAuditRouteImport } from './routes/settings.audit.tsx'
+import { Route as SettingsBudgetRouteImport } from './routes/settings.budget.tsx'
+import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations.tsx'
+import { Route as SettingsLearningRouteImport } from './routes/settings.learning.tsx'
+import { Route as SettingsModelsRouteImport } from './routes/settings.models.tsx'
+import { Route as SettingsPipelineRouteImport } from './routes/settings.pipeline.tsx'
+import { Route as SettingsTeamRouteImport } from './routes/settings.team.tsx'
+import { Route as PrRepoNumberRouteImport } from './routes/pr.$repo.$number.tsx'
+import { Route as SettingsExperimentsIndexRouteImport } from './routes/settings.experiments.index.tsx'
+import { Route as SettingsExperimentsIdRouteImport } from './routes/settings.experiments.$id.tsx'
+import { Route as SettingsInstructionsIndexRouteImport } from './routes/settings.instructions.index.tsx'
+import { Route as SettingsInstructionsIdRouteImport } from './routes/settings.instructions.$id.tsx'
+import { Route as SettingsRepositoriesIndexRouteImport } from './routes/settings.repositories.index.tsx'
+import { Route as SettingsRepositoriesIdRouteImport } from './routes/settings.repositories.$id.tsx'
+import { Route as SettingsRepositoriesConnectRouteImport } from './routes/settings.repositories.connect.tsx'
+import { Route as SettingsReviewLevelsIndexRouteImport } from './routes/settings.review-levels.index.tsx'
+import { Route as SettingsReviewLevelsLevelRouteImport } from './routes/settings.review-levels.$level.tsx'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const InsightsRoute = InsightsRouteImport.update({
   id: '/insights',
   path: '/insights',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const PrsRoute = PrsRouteImport.update({
   id: '/prs',
   path: '/prs',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const InsightsIndexRoute = InsightsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => InsightsRoute,
-} as any);
+} as any)
 const InsightsCostRoute = InsightsCostRouteImport.update({
   id: '/cost',
   path: '/cost',
   getParentRoute: () => InsightsRoute,
-} as any);
+} as any)
 const InsightsQualityRoute = InsightsQualityRouteImport.update({
   id: '/quality',
   path: '/quality',
   getParentRoute: () => InsightsRoute,
-} as any);
+} as any)
 const InsightsTrustRoute = InsightsTrustRouteImport.update({
   id: '/trust',
   path: '/trust',
   getParentRoute: () => InsightsRoute,
-} as any);
+} as any)
 const RunsRunIdRoute = RunsRunIdRouteImport.update({
   id: '/runs/$runId',
   path: '/runs/$runId',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsAlertsRoute = SettingsAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsAuditRoute = SettingsAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsBudgetRoute = SettingsBudgetRouteImport.update({
   id: '/budget',
   path: '/budget',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsLearningRoute = SettingsLearningRouteImport.update({
   id: '/learning',
   path: '/learning',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsModelsRoute = SettingsModelsRouteImport.update({
   id: '/models',
   path: '/models',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsPipelineRoute = SettingsPipelineRouteImport.update({
   id: '/pipeline',
   path: '/pipeline',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const SettingsTeamRoute = SettingsTeamRouteImport.update({
   id: '/team',
   path: '/team',
   getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
 const PrRepoNumberRoute = PrRepoNumberRouteImport.update({
   id: '/pr/$repo/$number',
   path: '/pr/$repo/$number',
   getParentRoute: () => rootRouteImport,
-} as any);
-const SettingsExperimentsIndexRoute = SettingsExperimentsIndexRouteImport.update({
-  id: '/experiments/',
-  path: '/experiments/',
-  getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
+const SettingsExperimentsIndexRoute =
+  SettingsExperimentsIndexRouteImport.update({
+    id: '/experiments/',
+    path: '/experiments/',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 const SettingsExperimentsIdRoute = SettingsExperimentsIdRouteImport.update({
   id: '/experiments/$id',
   path: '/experiments/$id',
   getParentRoute: () => SettingsRoute,
-} as any);
-const SettingsInstructionsIndexRoute = SettingsInstructionsIndexRouteImport.update({
-  id: '/instructions/',
-  path: '/instructions/',
-  getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
+const SettingsInstructionsIndexRoute =
+  SettingsInstructionsIndexRouteImport.update({
+    id: '/instructions/',
+    path: '/instructions/',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 const SettingsInstructionsIdRoute = SettingsInstructionsIdRouteImport.update({
   id: '/instructions/$id',
   path: '/instructions/$id',
   getParentRoute: () => SettingsRoute,
-} as any);
-const SettingsRepositoriesIndexRoute = SettingsRepositoriesIndexRouteImport.update({
-  id: '/repositories/',
-  path: '/repositories/',
-  getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
+const SettingsRepositoriesIndexRoute =
+  SettingsRepositoriesIndexRouteImport.update({
+    id: '/repositories/',
+    path: '/repositories/',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 const SettingsRepositoriesIdRoute = SettingsRepositoriesIdRouteImport.update({
   id: '/repositories/$id',
   path: '/repositories/$id',
   getParentRoute: () => SettingsRoute,
-} as any);
-const SettingsRepositoriesConnectRoute = SettingsRepositoriesConnectRouteImport.update({
-  id: '/repositories/connect',
-  path: '/repositories/connect',
-  getParentRoute: () => SettingsRoute,
-} as any);
-const SettingsReviewLevelsIndexRoute = SettingsReviewLevelsIndexRouteImport.update({
-  id: '/review-levels/',
-  path: '/review-levels/',
-  getParentRoute: () => SettingsRoute,
-} as any);
-const SettingsReviewLevelsLevelRoute = SettingsReviewLevelsLevelRouteImport.update({
-  id: '/review-levels/$level',
-  path: '/review-levels/$level',
-  getParentRoute: () => SettingsRoute,
-} as any);
+} as any)
+const SettingsRepositoriesConnectRoute =
+  SettingsRepositoriesConnectRouteImport.update({
+    id: '/repositories/connect',
+    path: '/repositories/connect',
+    getParentRoute: () => SettingsRoute,
+  } as any)
+const SettingsReviewLevelsIndexRoute =
+  SettingsReviewLevelsIndexRouteImport.update({
+    id: '/review-levels/',
+    path: '/review-levels/',
+    getParentRoute: () => SettingsRoute,
+  } as any)
+const SettingsReviewLevelsLevelRoute =
+  SettingsReviewLevelsLevelRouteImport.update({
+    id: '/review-levels/$level',
+    path: '/review-levels/$level',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute;
-  '/activity': typeof ActivityRoute;
-  '/insights': typeof InsightsRouteWithChildren;
-  '/prs': typeof PrsRoute;
-  '/settings': typeof SettingsRouteWithChildren;
-  '/insights/cost': typeof InsightsCostRoute;
-  '/insights/quality': typeof InsightsQualityRoute;
-  '/insights/trust': typeof InsightsTrustRoute;
-  '/runs/$runId': typeof RunsRunIdRoute;
-  '/settings/alerts': typeof SettingsAlertsRoute;
-  '/settings/audit': typeof SettingsAuditRoute;
-  '/settings/budget': typeof SettingsBudgetRoute;
-  '/settings/integrations': typeof SettingsIntegrationsRoute;
-  '/settings/learning': typeof SettingsLearningRoute;
-  '/settings/models': typeof SettingsModelsRoute;
-  '/settings/pipeline': typeof SettingsPipelineRoute;
-  '/settings/team': typeof SettingsTeamRoute;
-  '/insights/': typeof InsightsIndexRoute;
-  '/settings/': typeof SettingsIndexRoute;
-  '/pr/$repo/$number': typeof PrRepoNumberRoute;
-  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute;
-  '/settings/instructions/$id': typeof SettingsInstructionsIdRoute;
-  '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute;
-  '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute;
-  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute;
-  '/settings/experiments/': typeof SettingsExperimentsIndexRoute;
-  '/settings/instructions/': typeof SettingsInstructionsIndexRoute;
-  '/settings/repositories/': typeof SettingsRepositoriesIndexRoute;
-  '/settings/review-levels/': typeof SettingsReviewLevelsIndexRoute;
+  '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/insights': typeof InsightsRouteWithChildren
+  '/prs': typeof PrsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/insights/cost': typeof InsightsCostRoute
+  '/insights/quality': typeof InsightsQualityRoute
+  '/insights/trust': typeof InsightsTrustRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
+  '/settings/audit': typeof SettingsAuditRoute
+  '/settings/budget': typeof SettingsBudgetRoute
+  '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
+  '/settings/models': typeof SettingsModelsRoute
+  '/settings/pipeline': typeof SettingsPipelineRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/insights/': typeof InsightsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/pr/$repo/$number': typeof PrRepoNumberRoute
+  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute
+  '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
+  '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
+  '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
+  '/settings/experiments/': typeof SettingsExperimentsIndexRoute
+  '/settings/instructions/': typeof SettingsInstructionsIndexRoute
+  '/settings/repositories/': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels/': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute;
-  '/activity': typeof ActivityRoute;
-  '/prs': typeof PrsRoute;
-  '/insights/cost': typeof InsightsCostRoute;
-  '/insights/quality': typeof InsightsQualityRoute;
-  '/insights/trust': typeof InsightsTrustRoute;
-  '/runs/$runId': typeof RunsRunIdRoute;
-  '/settings/alerts': typeof SettingsAlertsRoute;
-  '/settings/audit': typeof SettingsAuditRoute;
-  '/settings/budget': typeof SettingsBudgetRoute;
-  '/settings/integrations': typeof SettingsIntegrationsRoute;
-  '/settings/learning': typeof SettingsLearningRoute;
-  '/settings/models': typeof SettingsModelsRoute;
-  '/settings/pipeline': typeof SettingsPipelineRoute;
-  '/settings/team': typeof SettingsTeamRoute;
-  '/insights': typeof InsightsIndexRoute;
-  '/settings': typeof SettingsIndexRoute;
-  '/pr/$repo/$number': typeof PrRepoNumberRoute;
-  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute;
-  '/settings/instructions/$id': typeof SettingsInstructionsIdRoute;
-  '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute;
-  '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute;
-  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute;
-  '/settings/experiments': typeof SettingsExperimentsIndexRoute;
-  '/settings/instructions': typeof SettingsInstructionsIndexRoute;
-  '/settings/repositories': typeof SettingsRepositoriesIndexRoute;
-  '/settings/review-levels': typeof SettingsReviewLevelsIndexRoute;
+  '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/prs': typeof PrsRoute
+  '/insights/cost': typeof InsightsCostRoute
+  '/insights/quality': typeof InsightsQualityRoute
+  '/insights/trust': typeof InsightsTrustRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
+  '/settings/audit': typeof SettingsAuditRoute
+  '/settings/budget': typeof SettingsBudgetRoute
+  '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
+  '/settings/models': typeof SettingsModelsRoute
+  '/settings/pipeline': typeof SettingsPipelineRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/insights': typeof InsightsIndexRoute
+  '/settings': typeof SettingsIndexRoute
+  '/pr/$repo/$number': typeof PrRepoNumberRoute
+  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute
+  '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
+  '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
+  '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
+  '/settings/experiments': typeof SettingsExperimentsIndexRoute
+  '/settings/instructions': typeof SettingsInstructionsIndexRoute
+  '/settings/repositories': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  '/': typeof IndexRoute;
-  '/activity': typeof ActivityRoute;
-  '/insights': typeof InsightsRouteWithChildren;
-  '/prs': typeof PrsRoute;
-  '/settings': typeof SettingsRouteWithChildren;
-  '/insights/cost': typeof InsightsCostRoute;
-  '/insights/quality': typeof InsightsQualityRoute;
-  '/insights/trust': typeof InsightsTrustRoute;
-  '/runs/$runId': typeof RunsRunIdRoute;
-  '/settings/alerts': typeof SettingsAlertsRoute;
-  '/settings/audit': typeof SettingsAuditRoute;
-  '/settings/budget': typeof SettingsBudgetRoute;
-  '/settings/integrations': typeof SettingsIntegrationsRoute;
-  '/settings/learning': typeof SettingsLearningRoute;
-  '/settings/models': typeof SettingsModelsRoute;
-  '/settings/pipeline': typeof SettingsPipelineRoute;
-  '/settings/team': typeof SettingsTeamRoute;
-  '/insights/': typeof InsightsIndexRoute;
-  '/settings/': typeof SettingsIndexRoute;
-  '/pr/$repo/$number': typeof PrRepoNumberRoute;
-  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute;
-  '/settings/instructions/$id': typeof SettingsInstructionsIdRoute;
-  '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute;
-  '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute;
-  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute;
-  '/settings/experiments/': typeof SettingsExperimentsIndexRoute;
-  '/settings/instructions/': typeof SettingsInstructionsIndexRoute;
-  '/settings/repositories/': typeof SettingsRepositoriesIndexRoute;
-  '/settings/review-levels/': typeof SettingsReviewLevelsIndexRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/insights': typeof InsightsRouteWithChildren
+  '/prs': typeof PrsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/insights/cost': typeof InsightsCostRoute
+  '/insights/quality': typeof InsightsQualityRoute
+  '/insights/trust': typeof InsightsTrustRoute
+  '/runs/$runId': typeof RunsRunIdRoute
+  '/settings/alerts': typeof SettingsAlertsRoute
+  '/settings/audit': typeof SettingsAuditRoute
+  '/settings/budget': typeof SettingsBudgetRoute
+  '/settings/integrations': typeof SettingsIntegrationsRoute
+  '/settings/learning': typeof SettingsLearningRoute
+  '/settings/models': typeof SettingsModelsRoute
+  '/settings/pipeline': typeof SettingsPipelineRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/insights/': typeof InsightsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/pr/$repo/$number': typeof PrRepoNumberRoute
+  '/settings/experiments/$id': typeof SettingsExperimentsIdRoute
+  '/settings/instructions/$id': typeof SettingsInstructionsIdRoute
+  '/settings/repositories/$id': typeof SettingsRepositoriesIdRoute
+  '/settings/repositories/connect': typeof SettingsRepositoriesConnectRoute
+  '/settings/review-levels/$level': typeof SettingsReviewLevelsLevelRoute
+  '/settings/experiments/': typeof SettingsExperimentsIndexRoute
+  '/settings/instructions/': typeof SettingsInstructionsIndexRoute
+  '/settings/repositories/': typeof SettingsRepositoriesIndexRoute
+  '/settings/review-levels/': typeof SettingsReviewLevelsIndexRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/activity'
@@ -308,8 +314,8 @@ export interface FileRouteTypes {
     | '/settings/experiments/'
     | '/settings/instructions/'
     | '/settings/repositories/'
-    | '/settings/review-levels/';
-  fileRoutesByTo: FileRoutesByTo;
+    | '/settings/review-levels/'
+  fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/activity'
@@ -337,7 +343,7 @@ export interface FileRouteTypes {
     | '/settings/experiments'
     | '/settings/instructions'
     | '/settings/repositories'
-    | '/settings/review-levels';
+    | '/settings/review-levels'
   id:
     | '__root__'
     | '/'
@@ -368,232 +374,232 @@ export interface FileRouteTypes {
     | '/settings/experiments/'
     | '/settings/instructions/'
     | '/settings/repositories/'
-    | '/settings/review-levels/';
-  fileRoutesById: FileRoutesById;
+    | '/settings/review-levels/'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  ActivityRoute: typeof ActivityRoute;
-  InsightsRoute: typeof InsightsRouteWithChildren;
-  PrsRoute: typeof PrsRoute;
-  SettingsRoute: typeof SettingsRouteWithChildren;
-  RunsRunIdRoute: typeof RunsRunIdRoute;
-  PrRepoNumberRoute: typeof PrRepoNumberRoute;
+  IndexRoute: typeof IndexRoute
+  ActivityRoute: typeof ActivityRoute
+  InsightsRoute: typeof InsightsRouteWithChildren
+  PrsRoute: typeof PrsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
+  RunsRunIdRoute: typeof RunsRunIdRoute
+  PrRepoNumberRoute: typeof PrRepoNumberRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
-      id: '/';
-      path: '/';
-      fullPath: '/';
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/activity': {
-      id: '/activity';
-      path: '/activity';
-      fullPath: '/activity';
-      preLoaderRoute: typeof ActivityRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/insights': {
-      id: '/insights';
-      path: '/insights';
-      fullPath: '/insights';
-      preLoaderRoute: typeof InsightsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/prs': {
-      id: '/prs';
-      path: '/prs';
-      fullPath: '/prs';
-      preLoaderRoute: typeof PrsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/prs'
+      path: '/prs'
+      fullPath: '/prs'
+      preLoaderRoute: typeof PrsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
-      id: '/settings';
-      path: '/settings';
-      fullPath: '/settings';
-      preLoaderRoute: typeof SettingsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/insights/': {
-      id: '/insights/';
-      path: '/';
-      fullPath: '/insights/';
-      preLoaderRoute: typeof InsightsIndexRouteImport;
-      parentRoute: typeof InsightsRoute;
-    };
+      id: '/insights/'
+      path: '/'
+      fullPath: '/insights/'
+      preLoaderRoute: typeof InsightsIndexRouteImport
+      parentRoute: typeof InsightsRoute
+    }
     '/insights/cost': {
-      id: '/insights/cost';
-      path: '/cost';
-      fullPath: '/insights/cost';
-      preLoaderRoute: typeof InsightsCostRouteImport;
-      parentRoute: typeof InsightsRoute;
-    };
+      id: '/insights/cost'
+      path: '/cost'
+      fullPath: '/insights/cost'
+      preLoaderRoute: typeof InsightsCostRouteImport
+      parentRoute: typeof InsightsRoute
+    }
     '/insights/quality': {
-      id: '/insights/quality';
-      path: '/quality';
-      fullPath: '/insights/quality';
-      preLoaderRoute: typeof InsightsQualityRouteImport;
-      parentRoute: typeof InsightsRoute;
-    };
+      id: '/insights/quality'
+      path: '/quality'
+      fullPath: '/insights/quality'
+      preLoaderRoute: typeof InsightsQualityRouteImport
+      parentRoute: typeof InsightsRoute
+    }
     '/insights/trust': {
-      id: '/insights/trust';
-      path: '/trust';
-      fullPath: '/insights/trust';
-      preLoaderRoute: typeof InsightsTrustRouteImport;
-      parentRoute: typeof InsightsRoute;
-    };
+      id: '/insights/trust'
+      path: '/trust'
+      fullPath: '/insights/trust'
+      preLoaderRoute: typeof InsightsTrustRouteImport
+      parentRoute: typeof InsightsRoute
+    }
     '/runs/$runId': {
-      id: '/runs/$runId';
-      path: '/runs/$runId';
-      fullPath: '/runs/$runId';
-      preLoaderRoute: typeof RunsRunIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/runs/$runId'
+      preLoaderRoute: typeof RunsRunIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/': {
-      id: '/settings/';
-      path: '/';
-      fullPath: '/settings/';
-      preLoaderRoute: typeof SettingsIndexRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/alerts': {
-      id: '/settings/alerts';
-      path: '/alerts';
-      fullPath: '/settings/alerts';
-      preLoaderRoute: typeof SettingsAlertsRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/alerts'
+      path: '/alerts'
+      fullPath: '/settings/alerts'
+      preLoaderRoute: typeof SettingsAlertsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/audit': {
-      id: '/settings/audit';
-      path: '/audit';
-      fullPath: '/settings/audit';
-      preLoaderRoute: typeof SettingsAuditRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/audit'
+      path: '/audit'
+      fullPath: '/settings/audit'
+      preLoaderRoute: typeof SettingsAuditRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/budget': {
-      id: '/settings/budget';
-      path: '/budget';
-      fullPath: '/settings/budget';
-      preLoaderRoute: typeof SettingsBudgetRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/budget'
+      path: '/budget'
+      fullPath: '/settings/budget'
+      preLoaderRoute: typeof SettingsBudgetRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/integrations': {
-      id: '/settings/integrations';
-      path: '/integrations';
-      fullPath: '/settings/integrations';
-      preLoaderRoute: typeof SettingsIntegrationsRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/integrations'
+      path: '/integrations'
+      fullPath: '/settings/integrations'
+      preLoaderRoute: typeof SettingsIntegrationsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/learning': {
-      id: '/settings/learning';
-      path: '/learning';
-      fullPath: '/settings/learning';
-      preLoaderRoute: typeof SettingsLearningRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/learning'
+      path: '/learning'
+      fullPath: '/settings/learning'
+      preLoaderRoute: typeof SettingsLearningRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/models': {
-      id: '/settings/models';
-      path: '/models';
-      fullPath: '/settings/models';
-      preLoaderRoute: typeof SettingsModelsRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/models'
+      path: '/models'
+      fullPath: '/settings/models'
+      preLoaderRoute: typeof SettingsModelsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/pipeline': {
-      id: '/settings/pipeline';
-      path: '/pipeline';
-      fullPath: '/settings/pipeline';
-      preLoaderRoute: typeof SettingsPipelineRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/pipeline'
+      path: '/pipeline'
+      fullPath: '/settings/pipeline'
+      preLoaderRoute: typeof SettingsPipelineRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/team': {
-      id: '/settings/team';
-      path: '/team';
-      fullPath: '/settings/team';
-      preLoaderRoute: typeof SettingsTeamRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/team'
+      path: '/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof SettingsTeamRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/pr/$repo/$number': {
-      id: '/pr/$repo/$number';
-      path: '/pr/$repo/$number';
-      fullPath: '/pr/$repo/$number';
-      preLoaderRoute: typeof PrRepoNumberRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+      id: '/pr/$repo/$number'
+      path: '/pr/$repo/$number'
+      fullPath: '/pr/$repo/$number'
+      preLoaderRoute: typeof PrRepoNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/experiments/': {
-      id: '/settings/experiments/';
-      path: '/experiments';
-      fullPath: '/settings/experiments/';
-      preLoaderRoute: typeof SettingsExperimentsIndexRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/experiments/'
+      path: '/experiments'
+      fullPath: '/settings/experiments/'
+      preLoaderRoute: typeof SettingsExperimentsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/experiments/$id': {
-      id: '/settings/experiments/$id';
-      path: '/experiments/$id';
-      fullPath: '/settings/experiments/$id';
-      preLoaderRoute: typeof SettingsExperimentsIdRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/experiments/$id'
+      path: '/experiments/$id'
+      fullPath: '/settings/experiments/$id'
+      preLoaderRoute: typeof SettingsExperimentsIdRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/instructions/': {
-      id: '/settings/instructions/';
-      path: '/instructions';
-      fullPath: '/settings/instructions/';
-      preLoaderRoute: typeof SettingsInstructionsIndexRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/instructions/'
+      path: '/instructions'
+      fullPath: '/settings/instructions/'
+      preLoaderRoute: typeof SettingsInstructionsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/instructions/$id': {
-      id: '/settings/instructions/$id';
-      path: '/instructions/$id';
-      fullPath: '/settings/instructions/$id';
-      preLoaderRoute: typeof SettingsInstructionsIdRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/instructions/$id'
+      path: '/instructions/$id'
+      fullPath: '/settings/instructions/$id'
+      preLoaderRoute: typeof SettingsInstructionsIdRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/repositories/': {
-      id: '/settings/repositories/';
-      path: '/repositories';
-      fullPath: '/settings/repositories/';
-      preLoaderRoute: typeof SettingsRepositoriesIndexRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/repositories/'
+      path: '/repositories'
+      fullPath: '/settings/repositories/'
+      preLoaderRoute: typeof SettingsRepositoriesIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/repositories/$id': {
-      id: '/settings/repositories/$id';
-      path: '/repositories/$id';
-      fullPath: '/settings/repositories/$id';
-      preLoaderRoute: typeof SettingsRepositoriesIdRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/repositories/$id'
+      path: '/repositories/$id'
+      fullPath: '/settings/repositories/$id'
+      preLoaderRoute: typeof SettingsRepositoriesIdRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/repositories/connect': {
-      id: '/settings/repositories/connect';
-      path: '/repositories/connect';
-      fullPath: '/settings/repositories/connect';
-      preLoaderRoute: typeof SettingsRepositoriesConnectRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/repositories/connect'
+      path: '/repositories/connect'
+      fullPath: '/settings/repositories/connect'
+      preLoaderRoute: typeof SettingsRepositoriesConnectRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/review-levels/': {
-      id: '/settings/review-levels/';
-      path: '/review-levels';
-      fullPath: '/settings/review-levels/';
-      preLoaderRoute: typeof SettingsReviewLevelsIndexRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/review-levels/'
+      path: '/review-levels'
+      fullPath: '/settings/review-levels/'
+      preLoaderRoute: typeof SettingsReviewLevelsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/review-levels/$level': {
-      id: '/settings/review-levels/$level';
-      path: '/review-levels/$level';
-      fullPath: '/settings/review-levels/$level';
-      preLoaderRoute: typeof SettingsReviewLevelsLevelRouteImport;
-      parentRoute: typeof SettingsRoute;
-    };
+      id: '/settings/review-levels/$level'
+      path: '/review-levels/$level'
+      fullPath: '/settings/review-levels/$level'
+      preLoaderRoute: typeof SettingsReviewLevelsLevelRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
 interface InsightsRouteChildren {
-  InsightsCostRoute: typeof InsightsCostRoute;
-  InsightsQualityRoute: typeof InsightsQualityRoute;
-  InsightsTrustRoute: typeof InsightsTrustRoute;
-  InsightsIndexRoute: typeof InsightsIndexRoute;
+  InsightsCostRoute: typeof InsightsCostRoute
+  InsightsQualityRoute: typeof InsightsQualityRoute
+  InsightsTrustRoute: typeof InsightsTrustRoute
+  InsightsIndexRoute: typeof InsightsIndexRoute
 }
 
 const InsightsRouteChildren: InsightsRouteChildren = {
@@ -601,29 +607,31 @@ const InsightsRouteChildren: InsightsRouteChildren = {
   InsightsQualityRoute: InsightsQualityRoute,
   InsightsTrustRoute: InsightsTrustRoute,
   InsightsIndexRoute: InsightsIndexRoute,
-};
+}
 
-const InsightsRouteWithChildren = InsightsRoute._addFileChildren(InsightsRouteChildren);
+const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
+  InsightsRouteChildren,
+)
 
 interface SettingsRouteChildren {
-  SettingsAlertsRoute: typeof SettingsAlertsRoute;
-  SettingsAuditRoute: typeof SettingsAuditRoute;
-  SettingsBudgetRoute: typeof SettingsBudgetRoute;
-  SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute;
-  SettingsLearningRoute: typeof SettingsLearningRoute;
-  SettingsModelsRoute: typeof SettingsModelsRoute;
-  SettingsPipelineRoute: typeof SettingsPipelineRoute;
-  SettingsTeamRoute: typeof SettingsTeamRoute;
-  SettingsIndexRoute: typeof SettingsIndexRoute;
-  SettingsExperimentsIdRoute: typeof SettingsExperimentsIdRoute;
-  SettingsInstructionsIdRoute: typeof SettingsInstructionsIdRoute;
-  SettingsRepositoriesIdRoute: typeof SettingsRepositoriesIdRoute;
-  SettingsRepositoriesConnectRoute: typeof SettingsRepositoriesConnectRoute;
-  SettingsReviewLevelsLevelRoute: typeof SettingsReviewLevelsLevelRoute;
-  SettingsExperimentsIndexRoute: typeof SettingsExperimentsIndexRoute;
-  SettingsInstructionsIndexRoute: typeof SettingsInstructionsIndexRoute;
-  SettingsRepositoriesIndexRoute: typeof SettingsRepositoriesIndexRoute;
-  SettingsReviewLevelsIndexRoute: typeof SettingsReviewLevelsIndexRoute;
+  SettingsAlertsRoute: typeof SettingsAlertsRoute
+  SettingsAuditRoute: typeof SettingsAuditRoute
+  SettingsBudgetRoute: typeof SettingsBudgetRoute
+  SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
+  SettingsLearningRoute: typeof SettingsLearningRoute
+  SettingsModelsRoute: typeof SettingsModelsRoute
+  SettingsPipelineRoute: typeof SettingsPipelineRoute
+  SettingsTeamRoute: typeof SettingsTeamRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+  SettingsExperimentsIdRoute: typeof SettingsExperimentsIdRoute
+  SettingsInstructionsIdRoute: typeof SettingsInstructionsIdRoute
+  SettingsRepositoriesIdRoute: typeof SettingsRepositoriesIdRoute
+  SettingsRepositoriesConnectRoute: typeof SettingsRepositoriesConnectRoute
+  SettingsReviewLevelsLevelRoute: typeof SettingsReviewLevelsLevelRoute
+  SettingsExperimentsIndexRoute: typeof SettingsExperimentsIndexRoute
+  SettingsInstructionsIndexRoute: typeof SettingsInstructionsIndexRoute
+  SettingsRepositoriesIndexRoute: typeof SettingsRepositoriesIndexRoute
+  SettingsReviewLevelsIndexRoute: typeof SettingsReviewLevelsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
@@ -645,9 +653,11 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsInstructionsIndexRoute: SettingsInstructionsIndexRoute,
   SettingsRepositoriesIndexRoute: SettingsRepositoriesIndexRoute,
   SettingsReviewLevelsIndexRoute: SettingsReviewLevelsIndexRoute,
-};
+}
 
-const SettingsRouteWithChildren = SettingsRoute._addFileChildren(SettingsRouteChildren);
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -657,7 +667,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   RunsRunIdRoute: RunsRunIdRoute,
   PrRepoNumberRoute: PrRepoNumberRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()

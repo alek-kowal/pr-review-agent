@@ -4,7 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { copy } from '@/copy/index.ts';
 import { LAST_SIGNER_KEY } from '@/features/signature/last-signer.ts';
-import type { IntegrationsResponse, TeamMember } from '@/lib/api-types.ts';
+import type {
+  GitHubMode,
+  GitHubPollSchedule,
+  GitHubPoller,
+  IntegrationsResponse,
+  TeamMember,
+} from '@/lib/api-types.ts';
 import { restoreFetch, stubFetch, type FetchCall } from '@/test/fetchStub.ts';
 import { renderApp } from '@/test/renderApp.tsx';
 
@@ -41,6 +47,8 @@ const status = (over: Partial<IntegrationsResponse> = {}): IntegrationsResponse 
       lastSignatureFailureAt: '2026-11-19T07:00:00.000Z',
     },
     lastReconcilePoll: null,
+    mode: 'app',
+    poller: null,
   },
   clickup: { configured: true, missing: [], lastCall: null },
   settings: { afterRoundGithubComment: true },
@@ -164,6 +172,137 @@ describe('Settings → Integrations', () => {
     expect(callsTo(calls, 'PUT', PATH)[0]?.body).toEqual({
       afterRoundGithubComment: false,
       before: { afterRoundGithubComment: true },
+      signedBy: tomek.id,
+    });
+  });
+});
+
+// P-28: polling GitHub until the GitHub App exists.
+describe('Settings → Integrations without the GitHub App', () => {
+  const p = t.poller;
+  const schedule: GitHubPollSchedule = {
+    intervalMinutes: 5,
+    from: '08:00',
+    to: '18:00',
+    days: [1, 2, 3, 4, 5],
+    timeZone: 'Europe/Warsaw',
+  };
+  const poller = (over: Partial<GitHubPoller> = {}): GitHubPoller => ({
+    schedule,
+    windowOpen: true,
+    lastStartedAt: '2026-11-19T08:00:00.000Z',
+    lastFinishedAt: '2026-11-19T08:00:02.000Z',
+    nextPollAt: '2026-11-19T08:05:00.000Z',
+    lastError: null,
+    backoffUntil: null,
+    rateLimit: { limit: 60, remaining: 42, resetAt: '2026-11-19T09:00:00.000Z' },
+    repositories: [
+      {
+        fullName: 'acme/one',
+        baselineAt: '2026-11-19T07:00:00.000Z',
+        lastPolledAt: null,
+        openCount: 3,
+      },
+      { fullName: 'acme/two', baselineAt: null, lastPolledAt: null, openCount: 0 },
+    ],
+    ...over,
+  });
+  const polling = (mode: GitHubMode, over: Partial<GitHubPoller> = {}) =>
+    status({
+      github: {
+        ...status().github,
+        configured: false,
+        missing: ['GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY', 'GITHUB_WEBHOOK_SECRET'],
+        installations: [],
+        repositories: [],
+        mode,
+        poller: poller(over),
+      },
+    });
+
+  test('the poller card shows the mode, the last poll, the rate limit and the baselines', async () => {
+    stubFetch({ [PATH]: polling('anonymous') });
+    renderApp('/settings/integrations');
+
+    const card = await screen.findByRole('region', { name: p.title });
+    expect(within(card).getByRole('note')).toHaveTextContent(p.readOnly);
+    expect(card).toHaveTextContent(p.modes.anonymous!);
+    expect(card).toHaveTextContent(p.anonymousWarning);
+    expect(card).toHaveTextContent(/42 of 60 requests left/);
+    expect(card).toHaveTextContent(`acme/one· ${p.repository(3)}`);
+    expect(card).toHaveTextContent(p.notBaselined);
+    expect(card).toHaveTextContent(p.noError);
+  });
+
+  test('a token hides the 60-an-hour warning; a rate limit shows as the last error', async () => {
+    stubFetch({
+      [PATH]: polling('token', {
+        windowOpen: false,
+        lastError: {
+          code: 'github_rate_limited',
+          params: { resetAt: '2026-11-19T09:00:00.000Z' },
+        },
+      }),
+    });
+    renderApp('/settings/integrations');
+
+    const card = await screen.findByRole('region', { name: p.title });
+    expect(card).toHaveTextContent(p.modes.token!);
+    expect(card).not.toHaveTextContent(p.anonymousWarning);
+    expect(card).toHaveTextContent(p.windowClosed);
+    expect(card).toHaveTextContent(/rate limit is used up until/);
+  });
+
+  test('Poll now queues one poll and says so', async () => {
+    const { calls } = stubFetch({
+      [PATH]: polling('token'),
+      [`POST ${PATH}/poll-now`]: { queued: true },
+    });
+    renderApp('/settings/integrations');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: p.pollNow }));
+
+    expect(await screen.findByText(p.pollQueued)).toBeInTheDocument();
+    expect(callsTo(calls, 'POST', `${PATH}/poll-now`)).toHaveLength(1);
+    expect(callsTo(calls, 'POST', `${PATH}/poll-now`)[0]?.headers).toMatchObject({
+      'X-PRA-Request': '1',
+    });
+  });
+
+  test('the schedule saves signed with its before', async () => {
+    const { calls } = stubFetch({
+      [PATH]: polling('token'),
+      '/api/team': { members: [tomek] },
+      [`PUT ${PATH}/poll`]: { schedule: { ...schedule, intervalMinutes: 15 } },
+    });
+    renderApp('/settings/integrations');
+    const user = userEvent.setup();
+
+    const interval = await screen.findByLabelText(p.schedule.interval);
+    await user.clear(interval);
+    await user.type(interval, '15');
+    await user.click(within(await card(p.title)).getByRole('checkbox', { name: 'Sat' }));
+    await user.click(screen.getByRole('button', { name: copy.settings.saveBar.save }));
+    const dialog = await screen.findByRole('alertdialog', { name: p.schedule.saveTitle });
+    expect(
+      within(dialog).getByRole('row', { name: new RegExp(p.schedule.fieldInterval) }),
+    ).toHaveTextContent(`${p.schedule.minutes(5)}${p.schedule.minutes(15)}`);
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('combobox', { name: copy.signature.label }),
+      ).toHaveTextContent('Tomek'),
+    );
+    await user.click(
+      within(dialog).getByRole('button', { name: copy.settings.saveDialog.confirm }),
+    );
+
+    await waitFor(() => expect(callsTo(calls, 'PUT', `${PATH}/poll`)).toHaveLength(1));
+    expect(callsTo(calls, 'PUT', `${PATH}/poll`)[0]?.body).toEqual({
+      ...schedule,
+      intervalMinutes: 15,
+      days: [1, 2, 3, 4, 5, 6],
+      before: schedule,
       signedBy: tomek.id,
     });
   });

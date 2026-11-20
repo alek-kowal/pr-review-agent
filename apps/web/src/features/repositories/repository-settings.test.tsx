@@ -12,6 +12,7 @@ import type {
   TeamMember,
 } from '@/lib/api-types.ts';
 import { restoreFetch, stubFetch, type FetchCall } from '@/test/fetchStub.ts';
+import { aStatus } from '@/test/fixtures.ts';
 import { renderApp } from '@/test/renderApp.tsx';
 
 const t = copy.repositories;
@@ -166,6 +167,84 @@ describe('Settings → Repositories', () => {
         largePrLines: 1000,
       },
     });
+  });
+});
+
+// P-28: without the GitHub App there is no list of reachable repositories.
+describe('Settings → Repositories without the GitHub App', () => {
+  const byName = t.connect.byName;
+  const lookupPath = (fullName: string) =>
+    `/api/settings/repositories/lookup?fullName=${encodeURIComponent(fullName)}`;
+
+  test('connect by name: the lookup prefills the default branch and the save is signed', async () => {
+    const polled: ConnectedRepository = {
+      id: 3,
+      slug: 'public-repo',
+      githubFullName: 'acme/public-repo',
+      installationId: null,
+      config: { ...wbConfig, slug: 'public-repo', githubFullName: 'acme/public-repo' },
+    };
+    const { calls } = stubFetch({
+      '/api/status': aStatus({ githubMode: 'anonymous' }),
+      '/api/settings/repositories': list({
+        available: [],
+        availableError: { code: 'github_not_configured', params: { missing: ['GITHUB_APP_ID'] } },
+      }),
+      [lookupPath('acme/public-repo')]: {
+        repository: { fullName: 'acme/public-repo', defaultBranch: 'trunk', private: false },
+      },
+      '/api/team': { members: [tomek] },
+      'POST /api/settings/repositories': { status: 201, body: { repository: polled } },
+      '/api/settings/repositories/3': { repository: polled },
+    });
+    const { router } = renderApp('/settings/repositories');
+    const user = userEvent.setup();
+
+    const input = await screen.findByRole('textbox', { name: byName.label });
+    expect(screen.queryByRole('combobox', { name: t.connect.label })).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByText(byName.hint)).toBeInTheDocument();
+    await user.type(input, 'not a name');
+    await user.click(screen.getByRole('button', { name: byName.submit }));
+    expect(screen.getByRole('alert')).toHaveTextContent(byName.invalid);
+
+    await user.clear(input);
+    await user.type(input, 'acme/public-repo');
+    await user.click(screen.getByRole('button', { name: byName.submit }));
+
+    await screen.findByRole('heading', { name: t.connectPage.title('acme/public-repo') });
+    expect(await screen.findByLabelText(t.fields.defaultBranch)).toHaveValue('trunk');
+    await user.click(screen.getByRole('button', { name: t.connectPage.save }));
+    const dialog = await screen.findByRole('alertdialog');
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('combobox', { name: copy.signature.label }),
+      ).toHaveTextContent('Tomek'),
+    );
+    await user.click(within(dialog).getByRole('button', { name: t.connectPage.confirm }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/repositories/3'));
+    const [post] = callsTo(calls, 'POST', '/api/settings/repositories');
+    expect(post?.body).toMatchObject({
+      fullName: 'acme/public-repo',
+      signedBy: tomek.id,
+      config: { defaultBranch: 'trunk' },
+    });
+    expect(callsTo(calls, 'GET', lookupPath('acme/public-repo'))).toHaveLength(1);
+  });
+
+  test.each([
+    [404, 'repository_not_reachable', t.connectPage.notFound('acme/missing')],
+    [409, 'repository_already_connected', t.connectPage.alreadyConnected('acme/missing')],
+  ])('a lookup that answers %i says why', async (status, code, text) => {
+    stubFetch({
+      '/api/status': aStatus({ githubMode: 'token' }),
+      [lookupPath('acme/missing')]: { status, body: { error: { code, params: {} } } },
+    });
+    renderApp('/settings/repositories/connect?fullName=acme%2Fmissing');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(text);
+    expect(screen.queryByRole('button', { name: t.connectPage.save })).not.toBeInTheDocument();
   });
 });
 

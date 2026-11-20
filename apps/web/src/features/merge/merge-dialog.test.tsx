@@ -6,7 +6,14 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { copy } from '@/copy/index.ts';
 import { LAST_SIGNER_KEY } from '@/features/signature/last-signer.ts';
 import type { MergeResponse, NextStepView, PrView, TeamMember } from '@/lib/api-types.ts';
-import { aChecklist, aFindingsResponse, aNextStep, anAuthor, aPrView } from '@/test/fixtures.ts';
+import {
+  aChecklist,
+  aFindingsResponse,
+  aNextStep,
+  anAuthor,
+  aPrView,
+  aStatus,
+} from '@/test/fixtures.ts';
 import { restoreFetch, stubFetch } from '@/test/fetchStub.ts';
 import { renderApp } from '@/test/renderApp.tsx';
 
@@ -85,6 +92,19 @@ afterEach(() => {
 });
 
 describe('Merge dialog', () => {
+  // P-28: polling without the GitHub App never writes to GitHub.
+  test('without the GitHub App the merge button is off and says why', async () => {
+    serve({ '/api/status': aStatus({ githubMode: 'token' }) });
+    renderApp('/pr/wb/12');
+
+    const banner = await screen.findByTestId('next-step');
+    const button = within(banner).getByRole('button', { name: 'Merge #12…' });
+    await waitFor(() => expect(button).toBeDisabled());
+    expect(button).toHaveAccessibleDescription(
+      `${copy.status.githubReadOnly.label}. ${copy.status.githubReadOnly.merge}`,
+    );
+  });
+
   test('shows the squash merge, the green checklist and the fresh check', async () => {
     serve();
     const user = userEvent.setup();
