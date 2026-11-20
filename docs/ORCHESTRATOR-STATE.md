@@ -61,8 +61,8 @@ Decisions in detail and the "For Alek" notes: `docs/08-orchestrator-log.md`. Wor
 
 ## Night plan (20 Nov, Alek asleep: ask him nothing, decide and log)
 
-1. INSTR: merge-or-fix → deploy → ci-wait.
-2. STAGEFILES (10x workflow) → merge-or-fix → deploy → ci-wait.
+1. INSTR: done (7ba2be2, deployed, CI green).
+2. STAGEFILES (10x workflow, spawned 03:52, `t-stagefiles`) → merge-or-fix → deploy → ci-wait.
 3. Recommendation file `docs/recommendations/2026-11-20-night-review.md` (English, no code
    changes, Alek's request): Part A, primitives and course knowledge for growing into an "AI
    Software Factory". Two subagents write notes to the session scratchpad
