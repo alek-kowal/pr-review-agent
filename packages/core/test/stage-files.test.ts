@@ -96,7 +96,10 @@ describe('resolveStageFiles', () => {
   it('the built-in prompt resolves to null; an explicit document list replaces "all"', () => {
     const files = resolveStageFiles(
       { review: REVIEW },
-      { global: { review: { prompt: BUILT_IN_FILE, documents: ['lessons.md', 'lessons.md'] } }, repository: {} },
+      {
+        global: { review: { prompt: BUILT_IN_FILE, documents: ['lessons.md', 'lessons.md'] } },
+        repository: {},
+      },
       DOCUMENTS,
     );
     expect(files.review).toEqual({

@@ -557,10 +557,10 @@ import is not needed; the two JSON files stay as unused documents.
 
 #### Automated
 
-- [ ] 1.1 Migration generated and applies
-- [ ] 1.2 Core unit tests for kinds and resolution pass
-- [ ] 1.3 DB tests for the migration's kind backfill, choice queries and import kinds pass
-- [ ] 1.4 `pnpm verify` passes
+- [x] 1.1 Migration generated and applies — 0d58220
+- [x] 1.2 Core unit tests for kinds and resolution pass — 0d58220
+- [x] 1.3 DB tests for the migration's kind backfill, choice queries and import kinds pass — phase 1 commit
+- [x] 1.4 `pnpm verify` passes — phase 1 commit
 
 ### Phase 2: Runs freeze the choice; stages read assigned files
 

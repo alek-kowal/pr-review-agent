@@ -15,10 +15,14 @@ test('the round stages come first, in run order', () => {
   expect(PIPELINE_STAGES.slice(0, STAGE_KEYS.length).map((s) => s.key)).toEqual([...STAGE_KEYS]);
 });
 
-test('each stage lists the instruction files its executor reads', () => {
-  expect(stage('review').instructionFiles[0]).toBe(REVIEWER_PROMPT_FILE);
-  expect(stage('change_type').instructionFiles).toEqual([JUDGE_PROMPT_FILE, JUDGE_RULES_FILE]);
-  expect(stage('verify').instructionFiles).toEqual([VERIFIER_PROMPT_FILE, VERIFIER_RULES_FILE]);
+test("each stage's slots default to the instruction files its executor reads", () => {
+  const defaults = (key: string) => stage(key).slots.map((slot) => slot.default);
+  expect(defaults('review')).toEqual([REVIEWER_PROMPT_FILE, 'review-rules.md', 'all-markdown']);
+  expect(stage('review').slots[0]).toMatchObject({ name: 'prompt', builtIn: true });
+  expect(defaults('change_type')).toEqual([JUDGE_PROMPT_FILE, JUDGE_RULES_FILE]);
+  expect(defaults('verify')).toEqual([VERIFIER_PROMPT_FILE, VERIFIER_RULES_FILE]);
+  expect(defaults('analyst')).toEqual(['prompt-analyst.md', 'analyst-rules.md', ['lessons.md']]);
+  expect(stage('fix_check').slots).toEqual([]);
 });
 
 test('the output fields match the stage output', () => {

@@ -47,6 +47,7 @@ beforeAll(async () => {
     files: {},
     skip: ['lessons-candidates.md'],
     empty: ['lessons.md'],
+    kinds: { 'feature-map/sdk.md': 'instruction' },
   };
 });
 
@@ -80,6 +81,14 @@ describe('instructions:import', () => {
       ['review-levels.json', 1, 'active', 'bot'],
       ['review-rules.md', 1, 'active', 'bot'],
     ]);
+    // Kinds: core `defaultKindOf`, unless the map's `kinds` names the file.
+    expect(Object.fromEntries(own.map((v) => [v.fileKey, v.kind]))).toEqual({
+      'feature-map/sdk.md': 'instruction',
+      'lessons.md': 'document',
+      'prompt-reviewer.md': 'instruction',
+      'review-levels.json': 'document',
+      'review-rules.md': 'instruction',
+    });
     expect(own.find((v) => v.fileKey === 'lessons.md')!.content).toBe('');
     expect(own.find((v) => v.fileKey === 'review-rules.md')!.content).toBe('Zasady recenzji WB');
 

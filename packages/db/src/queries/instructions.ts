@@ -1,5 +1,7 @@
 import {
+  defaultKindOf,
   resolveInstructions,
+  type InstructionKind,
   type InstructionLayer,
   type InstructionScope,
   type InstructionTarget,
@@ -69,6 +71,9 @@ export async function ensureInstructionFile(
   db: Executor,
   ref: InstructionFileRef,
 ): Promise<InstructionFileRow> {
+  const [existing] = await db.select().from(instructionFiles).where(whereFile(ref));
+  if (existing) return existing;
+  const kind = ref.kind ?? (await kindOfKey(db, ref.fileKey)) ?? defaultKindOf(ref.fileKey);
   const [inserted] = await db
     .insert(instructionFiles)
     .values({
@@ -76,12 +81,24 @@ export async function ensureInstructionFile(
       repositoryId: ref.scope === 'repository' ? ref.repositoryId : null,
       level: ref.scope === 'level' ? ref.level : null,
       fileKey: ref.fileKey,
+      kind,
     })
     .onConflictDoNothing()
     .returning();
   if (inserted) return inserted;
-  const [existing] = await db.select().from(instructionFiles).where(whereFile(ref));
-  return existing!;
+  const [raced] = await db.select().from(instructionFiles).where(whereFile(ref));
+  return raced!;
+}
+
+/** The kind of a key at any scope (every scope keeps one kind per key), or null for a new key. */
+export async function kindOfKey(db: Executor, fileKey: string): Promise<InstructionKind | null> {
+  const [row] = await db
+    .select({ kind: instructionFiles.kind })
+    .from(instructionFiles)
+    .where(eq(instructionFiles.fileKey, fileKey))
+    .orderBy(asc(instructionFiles.id))
+    .limit(1);
+  return (row?.kind as InstructionKind | undefined) ?? null;
 }
 
 /**
@@ -123,6 +140,7 @@ export function withFile(
     repositoryId: file.repositoryId,
     level: file.level,
     fileKey: file.fileKey,
+    kind: file.kind,
   };
 }
 
@@ -533,6 +551,7 @@ export async function startInstructionCopy(
       repositoryId: target.scope === 'repository' ? target.repositoryId : null,
       level: target.scope === 'level' ? target.level : null,
       fileKey: source.fileKey,
+      kind: source.kind,
     })
     .onConflictDoNothing()
     .returning();

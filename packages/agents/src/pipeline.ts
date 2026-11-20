@@ -1,7 +1,19 @@
 // The pipeline descriptor (S-22-T9): what each stage is, built from code. `GET /api/pipeline` adds
-// the models (core `modelFor`), the timeout (the level's settings) and the active instruction
-// versions; Settings → Pipeline draws it read-only.
-import { FEATURE_ON_FROM, STAGE_ON_FROM, type AgentRole, type LevelNumber } from '@pra/core';
+// the models (core `modelFor`), the timeout (the level's settings) and the instruction files each
+// slot reads (STAGEFILES); Settings → Pipeline draws it and edits the slots' files only.
+import {
+  ALL_MARKDOWN_DOCUMENTS,
+  FEATURE_ON_FROM,
+  REQUIRED_INSTRUCTION_FILES,
+  resolveStageFiles,
+  STAGE_ON_FROM,
+  type AgentRole,
+  type FileStageKey,
+  type FrozenStageFiles,
+  type LevelNumber,
+  type StageFileChoices,
+  type StageSlotDecl,
+} from '@pra/core';
 import { AnalystAnswerSchema } from './analyst/analyst.ts';
 import { ROLE_TOOLS } from './claude-agent-runner.ts';
 import { ImplementerAnswerSchema } from './implementer/implementer.ts';
@@ -32,8 +44,12 @@ export interface PipelineStage {
   tools: readonly string[];
   /** Services the stage itself calls, outside the agent. */
   integrations: readonly PipelineIntegration[];
-  /** Instruction file keys the stage reads, the prompt first. */
-  instructionFiles: readonly string[];
+  /**
+   * The instruction files the stage reads, by slot, with today's keys as defaults; a choice in
+   * Settings → Pipeline picks other files (core `resolveStageFiles`). Empty for a stage that reads
+   * none.
+   */
+  slots: readonly StageSlotDecl[];
   /** The stage's output: its schema's name and top-level fields. */
   output: { schema: string; fields: readonly string[] };
   /** Automatic attempts. A failed stage stops the run; Retry is a button (S-15). */
@@ -47,20 +63,11 @@ export interface PipelineStage {
 const fieldsOf = (schema: { shape: object }) => Object.keys(schema.shape);
 const toolsOf = (role: AgentRole) => ROLE_TOOLS[role] ?? [];
 
-/** Instruction files the reviewer reads; every active file is also in its knowledge folder. */
-export const REVIEW_INSTRUCTION_FILES = [
-  'prompt-reviewer.md',
-  'review-rules.md',
-  'lessons.md',
-  'repo-knowledge.md',
-] as const;
-
-/** Instruction files the analyst reads (the v1 prompt names the rules and the lessons file). */
-export const ANALYST_INSTRUCTION_FILES = [
-  'prompt-analyst.md',
-  'analyst-rules.md',
-  'lessons.md',
-] as const;
+/** A required prompt and rules slot pair from core `REQUIRED_INSTRUCTION_FILES`. */
+const requiredSlots = ([prompt, rules]: readonly [string, string]): StageSlotDecl[] => [
+  { name: 'prompt', kind: 'instruction', default: prompt, required: true },
+  { name: 'rules', kind: 'instruction', default: rules, required: true },
+];
 
 /**
  * Every stage, in pipeline order: the round's stages (core `STAGE_KEYS`), then Implement and Fix
@@ -72,7 +79,7 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     role: null,
     tools: [],
     integrations: ['GitHubGateway', 'GitMirror', 'Sandbox'],
-    instructionFiles: [],
+    slots: [],
     output: { schema: 'ChecksOutput', fields: ['ci', 'install'] },
     attempts: 1,
     repairs: 0,
@@ -83,7 +90,7 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     role: null,
     tools: [],
     integrations: ['ClickUpGateway'],
-    instructionFiles: [],
+    slots: [],
     output: { schema: 'TaskOutput', fields: ['status', 'how', 'task'] },
     attempts: 1,
     repairs: 0,
@@ -94,7 +101,11 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     role: 'judge',
     tools: [],
     integrations: [],
-    instructionFiles: ['prompt-classifier.md', 'classify-rules.md'],
+    // Optional: the stage is skipped without them.
+    slots: [
+      { name: 'prompt', kind: 'instruction', default: 'prompt-classifier.md' },
+      { name: 'rules', kind: 'instruction', default: 'classify-rules.md' },
+    ],
     output: { schema: 'JudgeAnswer', fields: fieldsOf(JudgeAnswerSchema) },
     attempts: 1,
     repairs: 0,
@@ -105,7 +116,13 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     role: 'reviewer',
     tools: toolsOf('reviewer'),
     integrations: ['GitMirror'],
-    instructionFiles: REVIEW_INSTRUCTION_FILES,
+    // Without a prompt file it uses the built-in one; its knowledge folder holds the rules (as
+    // `review-rules.md`) and the documents.
+    slots: [
+      { name: 'prompt', kind: 'instruction', default: 'prompt-reviewer.md', builtIn: true },
+      { name: 'rules', kind: 'instruction', default: 'review-rules.md' },
+      { name: 'documents', kind: 'document', default: ALL_MARKDOWN_DOCUMENTS },
+    ],
     output: {
       schema: 'ReviewOutput',
       fields: ['summary', 'risk', 'findings', 'gatedNotes', 'questions', 'notChecked', 'fixes'],
@@ -119,7 +136,7 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     role: 'verifier',
     tools: toolsOf('verifier'),
     integrations: ['GitMirror', 'Sandbox'],
-    instructionFiles: ['prompt-verifier.md', 'verify-rules.md'],
+    slots: requiredSlots(REQUIRED_INSTRUCTION_FILES.verify),
     output: { schema: 'VerifierAnswer', fields: fieldsOf(VerifierAnswerSchema) },
     attempts: 1,
     repairs: 1,
@@ -130,7 +147,7 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     role: 'implementer',
     tools: toolsOf('implementer'),
     integrations: ['GitMirror'],
-    instructionFiles: ['prompt-implementer.md', 'implement-rules.md'],
+    slots: requiredSlots(REQUIRED_INSTRUCTION_FILES.implement),
     output: { schema: 'ImplementerAnswer', fields: fieldsOf(ImplementerAnswerSchema) },
     attempts: 1,
     repairs: 0,
@@ -142,7 +159,7 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     tools: toolsOf('reviewer'),
     integrations: ['GitMirror'],
     // Its prompt is built in (`FIX_CHECK_PROMPT`).
-    instructionFiles: [],
+    slots: [],
     output: { schema: 'FixCheckAnswer', fields: fieldsOf(FixCheckAnswerSchema) },
     attempts: 1,
     repairs: 0,
@@ -153,10 +170,34 @@ export const PIPELINE_STAGES: readonly PipelineStage[] = Object.freeze([
     role: 'analyst',
     tools: toolsOf('analyst'),
     integrations: [],
-    instructionFiles: [...ANALYST_INSTRUCTION_FILES],
+    // The v1 prompt names the rules and `lessons.md` (rendered as `knowledge/<key>`).
+    slots: [
+      ...requiredSlots(REQUIRED_INSTRUCTION_FILES.analyse),
+      { name: 'documents', kind: 'document', default: ['lessons.md'] },
+    ],
     output: { schema: 'AnalystAnswer', fields: fieldsOf(AnalystAnswerSchema) },
     attempts: 1,
     repairs: 0,
     onFrom: FEATURE_ON_FROM.learning,
   },
 ] satisfies PipelineStage[]);
+
+/** The slots of a stage that reads instruction files. */
+export function slotsOf(stage: FileStageKey): readonly StageSlotDecl[] {
+  return PIPELINE_STAGES.find((s) => s.key === stage)?.slots ?? [];
+}
+
+const SLOTS_BY_STAGE = Object.fromEntries(
+  PIPELINE_STAGES.filter((s) => s.slots.length).map((s) => [s.key, s.slots]),
+) as Partial<Record<FileStageKey, readonly StageSlotDecl[]>>;
+
+/**
+ * Every stage's files for one target: `choices` from `stageFileChoicesOf`, `documentKeys` the
+ * document keys the target resolves (what the reviewer's default "all Markdown" expands to).
+ */
+export function stageFilesFor(
+  choices: StageFileChoices,
+  documentKeys: readonly string[],
+): FrozenStageFiles {
+  return resolveStageFiles(SLOTS_BY_STAGE, choices, documentKeys);
+}

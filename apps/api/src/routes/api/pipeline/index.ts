@@ -61,14 +61,16 @@ const pipelineRoutes: FastifyPluginAsyncZod = async (fastify): Promise<void> => 
           model: stage.role ? modelFor(roleModels, level, stage.role) : null,
           tools: [...stage.tools],
           integrations: [...stage.integrations],
-          instructions: stage.instructionFiles.map((fileKey) => {
-            const file = global.get(fileKey);
-            return {
-              fileKey,
-              fileId: file?.id ?? null,
-              version: file?.active?.version ?? null,
-            };
-          }),
+          instructions: stage.slots
+            .flatMap((slot) => (slot.name === 'documents' ? [] : [slot.default]))
+            .map((fileKey) => {
+              const file = global.get(fileKey);
+              return {
+                fileKey,
+                fileId: file?.id ?? null,
+                version: file?.active?.version ?? null,
+              };
+            }),
           output: { schema: stage.output.schema, fields: [...stage.output.fields] },
           timeoutMinutes: level.settings.stageTimeoutMinutes,
           attempts: stage.attempts,
