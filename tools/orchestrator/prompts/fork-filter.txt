@@ -1,0 +1,23 @@
+Task {{ID}}: the Pull requests board hides fork PRs by default.
+
+Alek's request: on the main Pull requests view (the board, `/prs`), a filter that hides PRs from forks is on by default.
+
+Today: the board filters live in the page address (apps/web/src/features/board/filters.ts: `forks?: 'hide' | 'only' | undefined`, parsed by `parseBoardSearch`, sent to `GET /api/board` by `boardApiQuery`; UI in BoardFilters.tsx; cards show a Fork badge from `card.isFork`). No `forks` param means all PRs are shown.
+
+1. Make "hide forks" the default: no `forks` param in the address means fork PRs are hidden. Add an explicit value for showing every PR (e.g. `forks=all`) and keep `only`. Whatever the address says is what `GET /api/board` gets, so the API result matches the screen; keep the API's own default unchanged (all) unless a reason in the code says otherwise, and record the choice in change.md.
+2. The filter UI shows the three choices (Hide forks, the default; Show all; Only forks). It is clear on the board that forks are hidden (the Filters button count or a short hint with the number of hidden fork PRs if the API already has it cheaply; do not add a second query just for that). "Clear filters" returns to the defaults, so forks stay hidden; the default does not count as a user-set filter in the badge count unless that is how other defaults behave. Copy in apps/web/src/copy.
+3. Check other places that link to the board with filters (Cmd+K search, person links, keyboard shortcuts, links in alerts or Activity) so they keep working and land with forks hidden unless they ask otherwise.
+4. Tests: filters.ts unit tests (missing param → hide, `all`, `only`, bad value → default), a BoardFilters component test, and update e2e specs that expect fork PRs on the board without a filter.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify` and `pnpm test:e2e` (each e2e spec uses its own test repository name and PR-number range). Known flaky tests: docs/orchestrator-lessons.md; re-run once.
+- Before the final verify, merge main into your branch (`git merge main`).
+- Write and change files only with the Write/Edit tools, never with shell heredocs, printf redirects or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Record decisions in a short context/changes/{{ID}}/change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md (at most 15 lines), and stop.
+Never:
+- call the real GitHub or ClickUp API or any server (no ssh, no requests to dashboardwb.mikrus.dev); create accounts, apps, tokens or keys; print or read a real secret
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400 (reading files there is allowed)
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, what changed, and the verify result.

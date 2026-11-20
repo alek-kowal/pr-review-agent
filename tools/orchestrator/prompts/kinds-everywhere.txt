@@ -1,0 +1,21 @@
+Task {{ID}}: wherever the app lists instruction files, show instructions apart from documents.
+
+Alek's request: he opened a run's details (RunPage, `/runs/$id`). The right side lists "Instruction versions" (copy `apps/web/src/copy/runs.ts:158`) as one list, then "Models". STAGEFILES (merged) split instruction files into two kinds: `instruction` (prompts and rules an agent is told) and `document` (reference context such as feature-map/*.md and lessons.md); Settings → Instructions and the Pipeline side sheet already show them apart (copy `apps/web/src/copy/instructions.ts`, `kinds`). He wants the same split everywhere: instructions always separate from context like feature maps.
+
+1. Run details: split the frozen versions into "Instructions" and "Documents" (documents can be collapsed by default when long, e.g. 14 feature maps), each row still linking to its version. The API must give the kind of each frozen file; if the run's frozen data lacks it, take it from the file (`instruction_files.kind`), without a migration if possible. If a run read files through stage slots, showing which stage read which file is a plus, not a must.
+2. Find every other place in the web app that lists instruction files or versions and apply the same split: at least `features/trials/TryOnPrDialog.tsx`, `features/instructions/InstructionEditor.tsx` (where it lists other files or runs), the PR page and round views, Insights, Activity, Start review warnings, timeline entries, shadow or trial results. List what you checked in change.md, changed or not.
+3. Add one rule to AGENTS.md, section "Web": lists of instruction files show instructions (prompts and rules) apart from documents (reference context), using the copy in `copy/instructions.ts`. One line.
+4. Tests: component tests for the run details split and for each other place you change; update e2e specs that read the old single list.
+
+Rules from the orchestrator:
+- Verify with `pnpm verify` and `pnpm test:e2e` (each e2e spec uses its own test repository name and PR-number range). Known flaky tests: docs/orchestrator-lessons.md; re-run once.
+- Before the final verify, merge main into your branch (`git merge main`).
+- Write and change files only with the Write/Edit tools, never with shell heredocs, printf redirects or sed -i. Shell commands are for running tools.
+- Commit once per step (Conventional Commits, ending with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>). Do NOT push, merge into main or rebase. The orchestrator merges.
+- Record decisions in a short context/changes/{{ID}}/change.md. Ask nothing unless truly blocked.
+- Context budget: the orchestrator measures your context and may tell you to stop. Then commit, write context/changes/{{ID}}-handoff.md (at most 15 lines), and stop.
+Never:
+- call the real GitHub or ClickUp API or any server (no ssh, no requests to dashboardwb.mikrus.dev); create accounts, apps, tokens or keys; print or read a real secret
+- write to, run anything from, or send requests (other than GET) to ~/Projects/wb-factory*, :4300 or :4400 (reading files there is allowed)
+- add a runtime fake mode
+Final reply: Polish, at most 4 lines. Say whether it is done or handed off, what changed, and the verify result.
