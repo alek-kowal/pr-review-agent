@@ -109,7 +109,7 @@ describe('board card', () => {
   it.each(FIXTURES)('$name: in Agents working with "$title"', async ({ status, step, title }) => {
     stubFetch({
       '/api/status': status,
-      '/api/board': anEmptyBoard({
+      '/api/board?forks=hide': anEmptyBoard({
         lanes: {
           ...anEmptyBoard().lanes,
           agents_working: { cards: [aBoardCard({ number: 12, nextStep: step })] },

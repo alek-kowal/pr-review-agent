@@ -132,3 +132,10 @@ Times are Europe/Warsaw.
   the alerts table, so #282 now shows "Not sent to ClickUp: no ClickUp task to comment on".
   Activity column "Posted" renamed "When". verify 1816, e2e 88 / 1 skipped. `kurs` and
   `wiedza-watch` active.
+- Alek: the Pull requests board should hide fork PRs by default. The `forks` filter exists
+  (`hide`/`only`/none = all); spawned FORKS (`prompts/fork-filter.txt`): no param = hide, an
+  explicit "show all", "Clear filters" keeps forks hidden.
+- Alek: run details list "Instruction versions" as one list; instructions must always be shown
+  apart from documents (feature maps etc.), everywhere. Spawned KINDS
+  (`prompts/kinds-everywhere.txt`): run details split, every other list of instruction files,
+  and a one-line rule in AGENTS.md (Web). Runs in parallel with FORKS (different files).

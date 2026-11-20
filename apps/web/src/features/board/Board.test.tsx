@@ -90,7 +90,7 @@ const fixture = anEmptyBoard({
 });
 
 test('each PR is in its lane, with the Action needed count', async () => {
-  stubFetch({ '/api/board': fixture });
+  stubFetch({ '/api/board?forks=hide': fixture });
   renderApp('/prs');
   const action = await screen.findByRole('region', {
     name: new RegExp(`^${copy.board.lanes.action_needed.name}`),
@@ -121,7 +121,7 @@ test('each PR is in its lane, with the Action needed count', async () => {
 });
 
 test('drafts are one-line rows under "N drafts" in Not reviewed', async () => {
-  stubFetch({ '/api/board': fixture });
+  stubFetch({ '/api/board?forks=hide': fixture });
   renderApp('/prs');
   const notReviewed = await screen.findByRole('region', {
     name: new RegExp(`^${copy.board.lanes.not_reviewed.name}`),
@@ -134,7 +134,7 @@ test('drafts are one-line rows under "N drafts" in Not reviewed', async () => {
 });
 
 test('a title containing markup renders as text (P sync.test.ts 82)', async () => {
-  stubFetch({ '/api/board': fixture });
+  stubFetch({ '/api/board?forks=hide': fixture });
   const { container } = renderApp('/prs');
   const readyLane = await screen.findByRole('region', {
     name: new RegExp(`^${copy.board.lanes.ready_to_merge.name}`),
@@ -149,7 +149,7 @@ test('a title containing markup renders as text (P sync.test.ts 82)', async () =
 
 test('empty lanes say so, and merged or closed PRs are a collapsed list', async () => {
   stubFetch({
-    '/api/board': anEmptyBoard({ mergedOrClosed: [merged], repositoryCount: 2 }),
+    '/api/board?forks=hide': anEmptyBoard({ mergedOrClosed: [merged], repositoryCount: 2 }),
   });
   renderApp('/prs');
   await screen.findByText(copy.board.lanes.action_needed.empty);
@@ -166,7 +166,7 @@ test('empty lanes say so, and merged or closed PRs are a collapsed list', async 
 
 test('with several repositories a card shows its repository', async () => {
   stubFetch({
-    '/api/board': anEmptyBoard({
+    '/api/board?forks=hide': anEmptyBoard({
       lanes: { ...anEmptyBoard().lanes, action_needed: { cards: [decide] } },
       repositoryCount: 2,
     }),

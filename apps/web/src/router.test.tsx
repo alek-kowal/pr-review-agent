@@ -8,7 +8,7 @@ import { renderApp } from '@/test/renderApp.tsx';
 afterEach(restoreFetch);
 
 test('/ redirects to /prs', async () => {
-  stubFetch({ '/api/board': anEmptyBoard() });
+  stubFetch({ '/api/board?forks=hide': anEmptyBoard() });
   const { router } = renderApp('/');
 
   expect(await screen.findByRole('heading', { name: copy.board.title })).toBeInTheDocument();

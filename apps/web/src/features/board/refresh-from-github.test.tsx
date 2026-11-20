@@ -46,7 +46,7 @@ test('token mode: Refresh from GitHub polls now, waits for the poll, then says w
   const failed = { code: 'github_poll_failed', params: { items: ['acme/one#7'] } };
   const { calls } = stubFetch({
     '/api/status': aStatus({ githubMode: 'token' }),
-    '/api/board': anEmptyBoard(),
+    '/api/board?forks=hide': anEmptyBoard(),
     get '/api/settings/integrations'() {
       if (phase === 'before') return polling({ lastError: failed });
       if (phase === 'running') return polling({ lastError: failed, running: true });
