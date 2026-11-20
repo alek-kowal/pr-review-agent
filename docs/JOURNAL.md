@@ -106,3 +106,17 @@ Times are Europe/Warsaw.
   only two primitives are missing (Work item, Pipeline as data); Plan as the second pipeline;
   position the app as the control plane, the reviewer as a swappable slot. Part B (dead code)
   follows after STAGEFILES lands.
+- 04:55 STAGEFILES merged and deployed (9f66f28), CI green; DB backup before deploy
+  `/var/backups/pra/before-stagefiles-20261120-0449.dump`. 10x workflow: plan, plan review,
+  5 phases over 4 sessions, impl review (NEEDS ATTENTION, no criticals; 9 of 10 fixed, extra list
+  queries left). verify 1807 tests, e2e 88 passed / 1 skipped. Checked on real data via the API on
+  the VPS (read-only): Pipeline for workflowbuilder now shows every slot's repository file at v1;
+  migration set 11 instruction and 14 document files. Alek's visual checks (plan 4.4, 4.5) remain.
+- 04:58 Part B (dead code) started as a read-only subagent. The first brief (download knip via
+  `pnpm dlx`, include orchestrator scripts) was refused by the permission classifier; the second
+  keeps to app code, grep and reads only.
+- 05:20 Part B written (read-only, the repo's own TypeScript compiler from a scratch folder plus
+  grep): 44 unused exports (~300 lines), 14 unused copy keys, 5 API routes the web never calls,
+  4 unread DB columns, 9 duplicate concepts, 10 simplifications (~1,500 lines), 10 small packages
+  in order. Top item: generate the web's API types from the Zod schemas. Open choice for Alek:
+  `POST /api/instructions/:id/copies` has no button. Night plan done; file committed.

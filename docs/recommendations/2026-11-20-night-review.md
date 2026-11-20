@@ -5,6 +5,7 @@
 3. **Position the app as the control plane, not the reviewer.** The value is signed decisions, versioned team knowledge, gates, budgets and evidence. Make the reviewer a swappable slot (a bought reviewer included) and spend effort on evals and on deleting lessons, not on more prompt logic.
 4. Not yet: no pipeline editor, no DAG, no UI rename, no move of all 20 PR foreign keys, no autonomy for new pipelines before evals.
 5. One question for you: is Plan's first user you (this repo's work packages) or the WB team (ClickUp tasks)? I would start with you.
+6. **Part B, the cheapest big win:** generate the web's API types from the API's Zod schemas (about 1,000 hand-copied lines in `apps/web/src/lib/api-types.ts` that nothing checks), then delete the confirmed dead code in one low-risk package (about 350 lines).
 
 Written by an agent from two research notes (courses and app), with spot checks in the code. No code was changed.
 Shorthands. Courses: `L:` = `~/Projects/wiedza/lekcje/`, `T:` = `~/Projects/wiedza/tematy/`, `M:` = `~/Projects/MEGA/`; `#4` = thesis 4 in that note. Code: `core/` = `packages/core/src/`, `db/` = `packages/db/src/`, `agents/` = `packages/agents/src/`, `integrations/` = `packages/integrations/src/`, `worker/` = `apps/worker/src/`, `api/` = `apps/api/src/`, `web/` = `apps/web/src/`.
@@ -145,4 +146,96 @@ If Plan turns out not to be wanted, stop after step 2. Steps 0–2 pay off for r
 
 ## Part B: Dead code and simplification
 
-Added after the last package of the night lands.
+Read-only. A TypeScript compiler pass (the repo's own `typescript`, run from a scratch folder) walked 976 files from the production entry points: api and worker `main.ts`, the autoloaded routes and plugins, the CLIs, the container healthcheck, web `main.tsx` and `routeTree.gen.ts`. I then checked every hit by grep. Nothing was installed or changed.
+
+### B.1 Unused code
+
+| Checked | Candidates | Confirmed | Dropped as false positives |
+|---|---|---|---|
+| Exports and top-level declarations | 88 | 44 (~300 lines) | 44: 25 loaded by name (Fastify autoload `default`/`autoPrefix`, Vite/Vitest/Drizzle configs, `instrument.ts`, the healthcheck), 15 unused parts of vendored shadcn primitives (keep), 4 type augmentations |
+| Copy keys in web/copy (2,352, alias-aware) | 20 | 14 | 6 `Intl` format options (web/copy/format.ts:74-82) |
+| API routes (89) | 28 | 5 | 20 built through `prPath()`/`PATH` helpers, 3 infrastructure (`/health`, `/docs/json`, `/webhooks/github`) |
+| DB columns (247) | 4 | 4 | 0 |
+| Dependencies (all 8 `package.json`) | 9 | 0 | 9: CLIs (drizzle-kit, prettier), a peer (@testing-library/dom), CSS imports (shadcn, tw-animate-css, the font), test env (jsdom), types |
+| Settings (20 config fields, every env var) | 0 | 0 | each one is written by a form or the API and read by the worker or core |
+
+Also: 549 exports are used only inside their own file, mostly types in exported signatures. Not worth a package; drop the `export` when you touch the file. All 30 web routes are in `routeTree.gen.ts`.
+
+| # | Confirmed item | Where | Used by | Action |
+|---|---|---|---|---|
+| 1 | Core rules ported from P and never wired: `findingsOutcome` + `FindingsOutcome`, `RoundResult`, `verifierInput`, `findingsToVerify`, `currentFindings` | core/findings.ts:33-64, core/model.ts:78, core/verification.ts:88-104 | core tests only; the worker has its own `claimOf` (worker/stages/verify.ts:266) | Delete with their tests |
+| 2 | Core twins of live functions: `canAccept`, `actionNeededOrder` | core/learning.ts:124, core/pr-state.ts:133 | tests only; production uses `canAcceptLesson` (core/lesson-candidates.ts:55) and `actionNeededRank` (core/urgency.ts:9) | Delete; keep the tests on the live twin |
+| 3 | Small core leftovers: `isLevelNumber`, `ModelNameSchema`, `PACKAGE_NAME`, `providerOf`, `MODEL_SECRET_ENV_NAMES` | core/vocabulary.ts:45, core/config.ts:36, core/index.ts:1, core/openrouter.ts:31, core/model-auth.ts:15 | nobody or tests only; the sandbox strips secrets with its own allowlist (integrations/sandbox/docker-sandbox.ts:201) | Delete |
+| 4 | db types re-exported from db/index.ts that nobody imports: `PrState`, `CostSource`, `InstructionStatus`, `PatchFileStatus` | db/schema/repositories.ts:32, db/schema/runs.ts:61, db/schema/instructions.ts:24, db/schema/patches.ts:30 | nobody (`CostSource` exists again at agents/runner.ts:64) | Delete the exports |
+| 5 | db queries nobody calls: `notePollSkipped`, `questionsOf`, `findActiveMemberByGithubLogin`, `lessonsFileIdOf` | db/queries/github-poll.ts:83, pr-views.ts:95, team.ts:49, learning.ts:553 | nobody | Delete (~40 lines) |
+| 6 | db queries only tests call: `listSettingsChanges`, `listDecisionBatches`, `reviewsOf`, `followUpsOf`, `latestRunsByKind`, `headChangesOf`, `latestAutofixWaiting`, `autofixAttemptsOfPr`, `activeInstructionLayers` | db/queries/settings-changes.ts:38, decisions.ts:335, reviews.ts:77, follow-ups.ts:102-132, pr-state.ts:488, metric-logs.ts:72, autofix.ts:123 and :162, instructions.ts:180 | api, worker and db tests | Move to `@pra/db/testing` (~130 lines leave production) |
+| 7 | integrations: `DEFAULT_GIT_DIR`, `SANDBOX_PROFILE_ENV`, `OpenRouterErrorCode` | integrations/git-mirror.ts:123, integrations/sandbox/profile.ts:33, integrations/openrouter/openrouter-client.ts:27 | nobody | Delete |
+| 8 | Worker file-key constants left by STAGEFILES: `IMPLEMENTER_PROMPT_FILE`/`_RULES_FILE`, `ANALYST_*`, `VERIFIER_*`, `REVIEWER_PROMPT_FILE`; also `NO_QUEUE_GATES` | worker/stages/implementer.ts:39, analyse.ts:21, verify.ts:50, review/prompt.ts:6; worker/run/gates.ts:40 | nobody, or only worker/test/pipeline-descriptor.test.ts and worker/test/support.ts | Delete; the test checks slot defaults with literals |
+| 9 | Web: `LevelSettingKey`, `groupOf`; test-only resets `clearReviewDrafts`, `clearPendingNotifies` | web/lib/api-types.ts:831, web/features/settings/registry.ts:57, web/features/opinions/draft.ts:29, web/features/notify/pending.ts:40 | nobody; web tests | Delete the first two; the resets may stay |
+| 10 | Fastify scaffold: `someSupport()` returns "hugs"; `GET`/`POST /example` echo; `GET /` returns `{root: true}` (Caddy does not even proxy `/`, web/Caddyfile:9); two scaffold READMEs | api/plugins/support.ts, api/routes/example/index.ts, api/routes/root.ts | their own tests; the csrf, errors and openapi tests borrow `/example` | Delete; give those three tests their own route |
+| 11 | API routes with no web caller: `POST /api/instructions/:id/copies` (+ db `startInstructionCopy`), `GET /api/settings/levels/:n` | api/routes/api/instructions/index.ts:237, db/queries/instructions.ts:621-668; api/routes/api/settings/levels/index.ts:69 | API tests only | Copies is a feature with no button (~80 lines): add the button or delete it. Delete `GET :n` |
+| 12 | 14 copy keys: `palette.personHint`, `theme.toggle`, `levels.ownValue`, `checks.panel.cancel`, `checks.output.needsPerson`, `decisions.reason.implement`, `implementer.patch.tab`, `instructions.editor.discarding`, `integrations.poller.schedule.fieldWindow`, `runs.detail.breadcrumb`, `runs.detail.sessions`, `runs.detail.transcript.truncated`, `autofix.reason`, root `copy.autofix` | web/copy/palette.ts:21 and :58, levels.ts:99, checks.ts:36 and :61, decisions.ts:48, implementer.ts:52, instructions.ts:93, integrations.ts:79, runs.ts:95, :131 and :185, autofix.ts:60, index.ts:45 | nobody (the timeline copy spreads `autofix.timeline` directly) | Delete |
+| 13 | Columns written, never read: `stage_executions.reused_from_stage_id`, `finding_verifications.dropped_quotes`, `github_actions.github_id` | db/schema/runs.ts:184, :284, :338; written at db/queries/retry.ts:108, worker/stages/verify.ts:232, worker/handlers/github-comment.ts:115 | tests only | Show dropped quotes under the finding (useful evidence) or drop it; drop the other two unless you want them for SQL debugging |
+| 14 | Column read, never written: `instruction_versions.created_by_member_id` | db/schema/instructions.ts:77, joined at db/queries/instructions.ts:381 | `authorName` in the API (api/routes/api/instructions/index.ts:394) is always null | Drop the column and the join |
+
+### B.2 Duplicate or left-behind concepts
+
+**Confirmed**
+1. **Frozen instruction versions stored twice.** One step writes both. `freezeRunInstructions` inserts `run_instruction_versions` rows (db/queries/instructions.ts:244-249); execute-stage then stores the same list in `runs.instruction_versions` (worker/run/execute-stage.ts:335-352; column db/schema/runs.ts:121). The table feeds stage content, trials and version history (db/queries/instructions.ts:264-288, :386-404, :598-602; api/routes/api/trials/index.ts:165). The jsonb feeds only Run detail (api/routes/api/runs/index.ts:287) and Insights quality (db/queries/insights.ts:224). Keep the table (foreign keys, reverse lookups), move those two reads to a join, drop the jsonb.
+2. **Stage lists: 14 declarations, and one stage has two names.** Run stages: core/vocabulary.ts:23, core/levels.ts:24 and :176, core/run.ts:9-10 (plus the `planRun` ternary at :85-96), core/trial.ts:9, worker/stages/index.ts:20, web/copy/reasons.ts:9. Descriptor and file stages: agents/pipeline.ts:24 and :76, core/stage-files.ts:7 (also the DB CHECK, db/schema/stage-files.ts:29), core/instructions.ts:283, :291 and :336, web/lib/api-types.ts:990, web/features/pipeline/PipelineDiagram.tsx:14, web/copy/pipeline.ts:27. The run stage `analyse` is `analyst` in file stages, bridged by a map (core/stage-files.ts:14); the descriptor's `fix_check` stands for three run stages. This is A.4 step 1: one definition per pipeline, the rest derived; rename `analyst` → `analyse` with a data migration.
+3. **Judge and analyst outside `AgentRunner`: partly.** They call `messages.create` directly (agents/judge/judge.ts:99, agents/analyst/analyst.ts:134). But their sessions do reach the ledger (worker/stages/change-type.ts:108-114, worker/stages/analyse.ts:83-90) and the `beforeSession` gate. They lack `maxCostUsd` and progress. The real cost is copy-paste: ~55 identical lines (judge.ts:88-144 vs analyst.ts:119-186), `parseAnswer` three times, `file()` twice. See B.3 #2.
+4. **The JSON merge in core/instructions.ts is dead outside tests.** No production path reads a `.json` instruction file: the import map skips both (db/testing/fixtures/instructions-import.json:4), and web/copy/instructions.ts:53-54 says "No stage reads it". Dead with it: `mergeJsonLayers`, `mergeFields`, `jsonType` (core/instructions.ts:115-196, ~75 lines), the reason `instruction_json_invalid` (core/reasons/instructions.ts:6) and the whole warnings channel (core/instructions.ts:77, db/queries/instructions.ts:286, worker/stages/instructions.ts:10-13).
+5. **Hard-coded instruction keys after STAGEFILES: partly.** Unread constants: B.1 #8. Still read outside the slots: the judge fallback `assigned.prompt ?? JUDGE_PROMPT_FILE` (worker/stages/change-type.ts:21-22, :86) repeats agents/pipeline.ts:106-107. `lessons.md` is fixed in db/queries/learning.ts:43 (used at :427, :561) and web/features/learning/LearningPage.tsx:275, so accepted lessons go there even when the analyst's documents slot points elsewhere (agents/pipeline.ts:176). Defaults live in two places (core/instructions.ts:283, agents/pipeline.ts:106-123). Keep the fixed names inside the v1 prompts (`review-rules.md` and friends).
+6. **Accepting a lesson re-implements versioning.** db/queries/learning.ts:474-497 finds the next version, archives the active one and inserts a new one. db/queries/instructions.ts:206-214 and :508 already do this. Reuse them.
+7. **Verdict stored twice:** `findings.verdict` (db/schema/runs.ts:249) and `finding_verifications.verdict` (:277); the schema comment says so (:264-265). Keep one, join for the other.
+8. **Status lists twice:** `RUN_STATUSES` and `STAGE_STATUSES` (db/schema/runs.ts:36, :47) repeat core unions (core/model.ts:55, core/run.ts:17), and the web declares them a third time (web/lib/api-types.ts:22-23). Move the `as const` arrays to core. Same for the two `PrState` (A.5).
+9. **Ported P rules with live twins** in core: B.1 #1–2.
+
+**Rejected**
+- **Webhook vs polling.** Already shared: both call `ingestGithubEvents` (db/github-ingest.ts:35; webhook api/routes/webhooks/index.ts:97, poller worker/handlers/github-poll.ts:263), then one `github.event` job. Only the signature check is webhook-only. No action.
+
+**Long files that do several jobs**
+- worker/run/execute-stage.ts (734 lines): job entry and gates (:72-172), run start with freeze, stage files and preflight (:310-427), executor with abort and timeout (:428-502), session blob upload (:521-571), result store (:572-). Split into start-run, run-executor and store-result.
+- e2e/support/stack.ts (1,085): scripted agent answers (:134-512), fixture git repos (:546-730), ~15 per-spec seeds (:730-990), ClickUp double and boot (:1000-). Split into doubles, git fixtures and seeds.
+- db/queries/instructions.ts (668): run freeze (:148-288), editor create/read/update/delete (:290-620), copies (:622-). Move the freeze to its own file.
+- db/queries/learning.ts (565): analysis lifecycle (:47-300), candidates (:300-420), the lessons file (:423-).
+- api/routes/api/insights/index.ts (506): four schemas (:50-213), metric math inside the route (:219-236, belongs in core/metrics.ts), four handlers.
+- web/lib/api-types.ts (1,089): solved by B.3 #1. integrations/git-mirror.ts (506): only the changed-files parser (:467) should move out.
+
+### B.3 Simplifications
+
+Ranked by lines saved against risk. Already shared, leave as is: web settings forms (`useSettingsForm`, `SignedSaveDialog`), signed writes (`applySignedSettingsChange`, 13 callers), webhook and poll ingest.
+
+| # | Where | What to do | Lines saved | Risk | Tests |
+|---|---|---|---|---|---|
+| 1 | web/lib/api-types.ts (1,089 lines, 118 types, 160 importers), web/features/insights/types.ts (110) copy the API's Zod schemas by hand | Move the response schemas to core; both sides use `z.output`. First move ~10 enum lists (`RUN_STATUSES` db/schema/runs.ts:36, `AGENT_ROLES`, `INSTRUCTION_KINDS`) from db to core | ~1,000 | medium (big diff, typecheck catches every mismatch) | typecheck only; nothing checks the two match today |
+| 2 | agents/judge/judge.ts:88-144 and agents/analyst/analyst.ts:119-186; `parseAnswer` at judge.ts:207, analyst.ts:242, agents/judge/openrouter-judge.ts:171 | One `callMessagesOnce` helper and one `parseJson(schema, text)` | ~110 | low | judge.test.ts, analyst.test.ts, openrouter-judge.test.ts |
+| 3 | core/instructions.ts:115-196 and the warnings channel (B.2 #4) | Delete the JSON merge; `.json` files resolve like the rest (top layer wins) | ~90 + tests | low | core/test/instruction-resolve.test.ts |
+| 4 | "Agent failed" block ×6 (worker/stages/review/index.ts:113, analyse.ts:91, verify.ts:185, change-type.ts:118, fix-check.ts:119, implementer.ts:254); empty "succeeded" result ×7 | `agentFailed(result, sessions, invalidCode)` and `succeeded(output, sessions)` in worker/stages/stage.ts | ~60 | low | worker tests: review-stage, verify-stage, change-type-stage, fix-check, analyst-job, implementer-run, stage-error-codes |
+| 5 | Single-entry slot lists: web/features/round/slots.ts:5, board/slots.ts:13, activity/slots.ts:12 and :18, shell/status-chip-slots.ts:23 and :27; unused `position: 'after'` (activity/ActivityPage.tsx:19); empty `RUN_HOOKS.sessionCostRecorded` still fired per session (worker/run/hooks.ts:62, execute-stage.ts:245-251) | Render the one component directly; remove the empty hook. Keep lists that parallel packages really share | ~70, 3 files | low | activity, board-card, round-line, status-chip-controls tests; the hook has none |
+| 6 | 16 PR-view and 10 board cache refreshes in 11 web files (web/features/patch/queries.ts:84-101, merge/merge.ts, runs/retry.ts, ChangeTypePanel.tsx, TaskPanel.tsx) | One `usePrMutation(repo, number, fn)` | ~40 | low | merge-dialog, push-dialog, patch-tab, implement-with-agent tests |
+| 7 | Filters + loading + error frame copied in web/features/insights/QualityTab.tsx:17-34, TrustTab.tsx:16-33, CostTab.tsx, Overview.tsx | One `<InsightsTab query={…}>{(data) => …}</InsightsTab>` | ~40 | low | insights-overview, insights-cost-quality, trust-ladder, shadow-log tests |
+| 8 | API: `findPullRequest` + 404 ×14 in 11 route files; the Reason schema retyped ×8 although api/pr-view/round.ts:14 exports `ReasonSchema`; `iso()` ×3; `PrParams` ×2 (api/routes/api/prs/index.ts:16, api/pr-view/timeline.ts:12) | One `loadPrOr404` preHandler; import the shared schema and helpers | ~35 | low | route tests cover the 404s (prs.test.ts and others) |
+| 9 | Three stores write one app-settings slice the same way: api/settings/integrations-store.ts:20-31, github-poll-store.ts:12-24, level-stores.ts:45-55 | One `appSettingsSlice(area, pick, merge)`; make every store a constant (six are no-argument factories) | ~30 | low | api/test/settings-change.test.ts, integrations and models-levels route tests |
+| 10 | agents/{reviewer,verifier,analyst,judge,implementer}/index.ts (68 lines) list every name again for agents/index.ts | Export from the source files in agents/index.ts | ~50 | low | typecheck |
+
+Smaller: `deliverPullRequest` takes 9 positional parameters and has 59 callers (e2e/support/github.ts:47) → an options object; reuse `signWebhook` (integrations/testing/github.ts:40) instead of the hand-made signature (e2e/support/github.ts:125, e2e/first-round.spec.ts:47). `cn` is imported two ways (`'cn'` in 39 files, `@/lib/utils.ts` in 5).
+
+### B.4 Suggested order
+
+Each package merges alone and keeps `pnpm verify` and e2e green. Size as in A.4 (S ≈ one agent package, M ≈ two); XS = a part of one.
+
+| # | Package | Scope | Size | Risk |
+|---|---|---|---|---|
+| 1 | Delete confirmed dead code | B.1 #1–5, #7–10, #12; tests shrink with it | XS–S (~350 lines out) | low |
+| 2 | Test-only queries out of production | B.1 #6 → `@pra/db/testing` | XS | low |
+| 3 | Drop the JSON merge | B.2 #4, B.3 #3 | S | low |
+| 4 | Agents: one model-call helper, flat index | B.3 #2, #10; prepares A.4 step 2 (one ledger for every model call) | S | low |
+| 5 | Worker and API helpers | B.3 #4, #8, #9 and the empty hook from #5 | S | low |
+| 6 | Web helpers | B.3 #6, #7 and the single-entry slots from #5; ask first whether parallel packages still need the slots | S | low |
+| 7 | Storage duplicates | B.2 #1 (drop `runs.instruction_versions`), B.2 #7 (one verdict), B.1 #13–14 (columns); expand → switch reads → contract | M | medium (migrations) |
+| 8 | Lessons through instruction versioning | B.2 #6, `lessons.md` from the slot (B.2 #5); e2e/learning.spec.ts covers it | S | medium |
+| 9 | One stage definition | B.2 #2 = A.4 step 1, after STAGEFILES; a feature step, not cleanup | M | medium |
+| 10 | Web types from API schemas | B.3 #1, after 9 (the enums move to core first) | M–L | medium |
+
+Decide before package 1: the instruction copies route (B.1 #11) gets a button or goes.

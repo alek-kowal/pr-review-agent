@@ -62,12 +62,12 @@ Decisions in detail and the "For Alek" notes: `docs/08-orchestrator-log.md`. Wor
 ## Night plan (20 Nov, Alek asleep: ask him nothing, decide and log)
 
 1. INSTR: done (7ba2be2, deployed, CI green).
-2. STAGEFILES (10x workflow, spawned 03:52, `t-stagefiles`) → merge-or-fix → deploy → ci-wait.
+2. STAGEFILES: done (9f66f28, deployed, CI green). Alek still to look at the views (plan 4.4, 4.5).
 3. Recommendation file `docs/recommendations/2026-11-20-night-review.md` (English, no code
    changes, Alek's request): Part A, primitives and course knowledge for growing into an "AI
    Software Factory". Two subagents write notes to the session scratchpad
    (`notes-courses.md`, `notes-app.md`), a third writes Part A from them.
-4. At the end (after STAGEFILES lands, or by 07:00 at the latest): Part B, dead code and what to
+4. Done 05:20: Part B, dead code and what to
    simplify (knip or similar, read-only, on main). Commit the file as docs; tell Alek in Polish.
 
 ## Next step
