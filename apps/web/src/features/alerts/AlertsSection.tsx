@@ -127,7 +127,7 @@ function AlertTable({ alerts, label, now }: { alerts: AlertView[]; label: string
               {t.section.columns.alert}
             </th>
             <th scope="col" className="px-3 py-2 text-right font-medium">
-              {t.section.columns.posted}
+              {t.section.columns.when}
             </th>
             <th scope="col" className="px-4 py-2">
               <span className="sr-only">{t.section.columns.actions}</span>
@@ -173,6 +173,9 @@ function AlertRow({ alert, now }: { alert: AlertView; now: number }) {
               )}
             </span>
             {on && !retry && <span className="text-xs text-text-3">{alertNextStep(alert)}</span>}
+            <span data-alert-delivery={alert.delivery.status} className="text-xs text-text-3">
+              {t.delivery(alert.delivery)}
+            </span>
             {!on && alert.endNote && (
               <span className="text-xs text-text-3">{t.endNote(alert.endNote)}</span>
             )}

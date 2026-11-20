@@ -81,6 +81,7 @@ async function seedAlerts() {
       nextStep: reason('alert_next_budget'),
       toGeneralTask: true,
       deliveryStatus: 'not_configured',
+      deliveryReason: reason('alert_delivery_no_task', { forPr: false }),
     }),
   );
   const cleared = await insertAlert(
@@ -125,11 +126,21 @@ test('alerts: lists, dismiss by hand, board, PR view and status chip', async () 
     runId: failedRun.id,
     nextStep: { code: 'alert_next_retry', params: { stage: 'review' } },
     pullRequest: { repository: { slug: 'alerts-api' }, number: 41 },
-    delivery: { status: 'pending', taskId: 'WB-1', toGeneralTask: false, postedAt: null },
+    delivery: {
+      status: 'pending',
+      taskId: 'WB-1',
+      toGeneralTask: false,
+      reason: null,
+      postedAt: null,
+    },
   });
   expect(active.alerts.find((a) => a.id === budget.id)).toMatchObject({
     pullRequest: null,
-    delivery: { status: 'not_configured', toGeneralTask: true },
+    delivery: {
+      status: 'not_configured',
+      toGeneralTask: true,
+      reason: { code: 'alert_delivery_no_task', params: { forPr: false } },
+    },
   });
 
   // Past list: the cleared alert with its end note.

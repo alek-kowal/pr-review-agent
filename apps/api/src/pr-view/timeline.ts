@@ -2,9 +2,18 @@
 // PR's state log and its runs) and every timeline entry with its actor and, for run ends, the
 // run's final cost. Registered by the prs routes plugin.
 import { LANES, timeSummary, type PrState } from '@pra/core';
-import { findPullRequest, runsOfPullRequest, stateChangesOf, timelineOf } from '@pra/db';
+import {
+  alertsByIds,
+  findPullRequest,
+  runsOfPullRequest,
+  stateChangesOf,
+  timelineOf,
+  type Executor,
+  type TimelineRow,
+} from '@pra/db';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod/v4';
+import { alertView, type AlertResponse } from '../alerts/view.ts';
 import { ApiErrorCode, ApiErrorSchema, sendError } from '../plugins/errors.ts';
 import { ActorSchema, iso } from './round.ts';
 
@@ -46,6 +55,37 @@ export const TimelineResponse = z.object({
   ),
 });
 
+const alertIdOf = (entry: TimelineRow): number | null => {
+  const id = (entry.params as { alertId?: unknown }).alertId;
+  return typeof id === 'number' ? id : null;
+};
+
+/**
+ * ALERTTL: an `alert_raised` entry with no `alert_delivery` entry after it (written before the
+ * delivery entries existed, or its job has not run yet) gets the alert's stored delivery state,
+ * keyed by entry id. One query, and only when such entries exist.
+ */
+async function deliveryOfOldAlerts(
+  db: Executor,
+  entries: readonly TimelineRow[],
+): Promise<Map<number, AlertResponse['delivery']>> {
+  const delivered = new Set(
+    entries.filter((entry) => entry.kind === 'alert_delivery').map(alertIdOf),
+  );
+  const bare = entries.filter((entry) => {
+    const id = alertIdOf(entry);
+    return entry.kind === 'alert_raised' && id !== null && !delivered.has(id);
+  });
+  const rows = await alertsByIds(db, bare.map(alertIdOf) as number[]);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const out = new Map<number, AlertResponse['delivery']>();
+  for (const entry of bare) {
+    const alert = byId.get(alertIdOf(entry)!);
+    if (alert) out.set(entry.id, alertView({ ...alert, pr: null }).delivery);
+  }
+  return out;
+}
+
 export const timelineRoutes: FastifyPluginAsyncZod = async (fastify) => {
   const { db } = fastify.deps;
   fastify.get(
@@ -65,6 +105,7 @@ export const timelineRoutes: FastifyPluginAsyncZod = async (fastify) => {
         runs.filter((run) => SPEND_KINDS.has(run.kind)),
         new Date(),
       );
+      const deliveries = await deliveryOfOldAlerts(db, entries);
       return {
         summary: { ...summary, readyAt: iso(summary.readyAt) },
         entries: entries.map((entry) => ({
@@ -76,7 +117,9 @@ export const timelineRoutes: FastifyPluginAsyncZod = async (fastify) => {
               : { kind: entry.actor },
           memberName: entry.memberName,
           kind: entry.kind,
-          params: entry.params,
+          params: deliveries.has(entry.id)
+            ? { ...entry.params, delivery: deliveries.get(entry.id) }
+            : entry.params,
           runId: entry.runId,
           costUsd: entry.costUsd,
         })),
