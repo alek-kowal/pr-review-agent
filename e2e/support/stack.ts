@@ -31,6 +31,7 @@ import type {
   CiStatus,
   CommitComparison,
   GitExec,
+  GitHubGateway,
   GitHubPullRequest,
   PullRequestFreshState,
   Sandbox,
@@ -47,6 +48,7 @@ import {
   isolatedGitExec,
 } from '@pra/integrations/testing';
 import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   access,
   appendFile,
@@ -82,6 +84,7 @@ import {
   FAILING_PR_TO,
   FIXTURE_CI,
   GENERAL_ALERTS_TASK,
+  githubModeFile,
   GLOBAL_LEVEL_REPOSITORY,
   HELD_PRS,
   IMPLEMENTER_HOLD,
@@ -98,6 +101,7 @@ import {
   MERGE_REPOSITORY,
   movedHeadFile,
   NOTIFY_REPOSITORY,
+  POLLED_REPOSITORY,
   PUSH_PRS,
   PUSH_REPOSITORY,
   PUSH_SIGNER,
@@ -546,6 +550,14 @@ class StackGitHub extends FakeGitHubGateway {
     this.#pushRemote = pushRemote;
   }
 
+  /** The App, or read-only polling while `githubModeFile` names a mode (github-polling.spec.ts). */
+  override get mode(): GitHubGateway['mode'] {
+    const named = existsSync(githubModeFile(holdDir))
+      ? readFileSync(githubModeFile(holdDir), 'utf8').trim()
+      : '';
+    return named === 'token' || named === 'anonymous' ? named : 'app';
+  }
+
   /** The push remote's commits are real: GitHub compares them with git in it. */
   override async compareCommits(
     fullName: string,
@@ -701,6 +713,33 @@ const github = new StackGitHub(db, pushRemote, {
   },
 });
 github.addUser(PUSH_SIGNER.login, PUSH_SIGNER.id);
+// P-28: reachable by name only, with one open PR the first poll imports (github-polling.spec.ts).
+github.repositoryDetails.set(POLLED_REPOSITORY.fullName, {
+  defaultBranch: POLLED_REPOSITORY.defaultBranch,
+  private: false,
+});
+github.addPullRequest({
+  fullName: POLLED_REPOSITORY.fullName,
+  number: POLLED_REPOSITORY.pr.number,
+  title: POLLED_REPOSITORY.pr.title,
+  body: '',
+  authorLogin: 'wb-dev',
+  htmlUrl: `https://github.com/${POLLED_REPOSITORY.fullName}/pull/${POLLED_REPOSITORY.pr.number}`,
+  headSha: fixture.headSha,
+  headRef: 'rename-label-helper',
+  headRepoFullName: POLLED_REPOSITORY.fullName,
+  baseSha: fixture.baseSha,
+  baseRef: POLLED_REPOSITORY.defaultBranch,
+  isDraft: false,
+  isFork: false,
+  state: 'open',
+  commitsCount: 1,
+  openedAt: '2026-11-19T08:00:00.000Z',
+  updatedAt: '2026-11-19T08:00:00.000Z',
+  closedAt: null,
+  mergedAt: null,
+  mergeSha: null,
+});
 // GitHub's compare on the branch's commits, as the worker measures commits since a review.
 const branch = [fixture.headSha, ...fixture.fixShas];
 for (const [i, base] of branch.entries()) {
