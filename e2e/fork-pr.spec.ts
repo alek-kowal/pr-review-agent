@@ -67,6 +67,23 @@ test('a fork PR waits for Start review, then reviews read-only', async ({
   );
   expect(await runsOf(number)).toEqual([]);
 
+  // FORKS: the board hides fork PRs by default; "Show forks" lists them.
+  const card = page
+    .locator('[data-lane]')
+    .getByRole('link', { name: `Fork edge labels ${number}` });
+  await page.goto(`/prs?repo=${slug}`);
+  await expect(page.locator('[data-lane="not_reviewed"]')).toBeVisible();
+  await expect(page.getByText('Forks hidden')).toBeVisible();
+  await expect(card).toHaveCount(0);
+  await page.getByRole('button', { name: 'Show forks' }).click();
+  await expect(page).toHaveURL(/[?&]forks=all/);
+  await expect(card).toBeVisible();
+  await expect(page.getByText('Forks hidden')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Clear filters' }).click();
+  await expect(page).toHaveURL(/\/prs$/);
+  await expect(card).toHaveCount(0);
+  await page.goto(`/pr/${slug}/${number}`);
+
   const header = page.locator('header', { has: page.getByRole('heading', { level: 1 }) });
   await header.getByRole('button', { name: 'Start review' }).click();
   const form = page.getByRole('dialog');

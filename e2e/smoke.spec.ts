@@ -13,7 +13,8 @@ test('opens on the pull requests page with the top bar', async ({ page }) => {
     mergedOrClosed: [],
     repositoryCount: 0,
   };
-  await page.route('**/api/board', (route) => route.fulfill({ json: board }));
+  // The board asks for `?forks=hide` by default.
+  await page.route(/\/api\/board(\?|$)/, (route) => route.fulfill({ json: board }));
   await page.goto('/');
 
   await expect(page).toHaveURL(/\/prs$/);
