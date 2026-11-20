@@ -47,6 +47,12 @@ export function SignatureField({ signature, error, hint, className }: Props) {
             {copy.signature.addYourself}
           </Link>
         </p>
+        {/* Without this, a form that needs a signer looks dead when the Team is empty. */}
+        {error && (
+          <p id={errorId} role="alert" className="text-sm text-bad">
+            {error}
+          </p>
+        )}
       </div>
     );
   }

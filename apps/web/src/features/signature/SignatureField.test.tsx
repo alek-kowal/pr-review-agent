@@ -142,4 +142,15 @@ describe('SignatureField', () => {
     expect(link).toHaveAttribute('href', '/settings/team');
     expect(screen.queryByRole('combobox')).toBeNull();
   });
+
+  test('with an empty Team a submit shows why nothing happened', async () => {
+    stubFetch({ '/api/team': { members: [] } });
+    const { onSubmit } = renderForm();
+    await screen.findByRole('link', { name: copy.signature.addYourself });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(copy.signature.required);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 });
