@@ -140,11 +140,7 @@ function nextWindowStart(schedule: GitHubPollSchedule, after: Date): Date {
  * When the next scheduled poll is due: `interval` after the last poll (or now, without one),
  * moved to the next window start when that falls outside the window.
  */
-export function nextPollAt(
-  schedule: GitHubPollSchedule,
-  now: Date,
-  lastPollAt: Date | null,
-): Date {
+export function nextPollAt(schedule: GitHubPollSchedule, now: Date, lastPollAt: Date | null): Date {
   const earliest = lastPollAt
     ? new Date(Math.max(lastPollAt.getTime() + schedule.intervalMinutes * 60_000, now.getTime()))
     : now;

@@ -34,5 +34,8 @@ export {
   type RepositoryInfo,
 } from './github-gateway.ts';
 export { createGitHubGateway } from './create-github-gateway.ts';
-export { OctokitGitHubGateway, type OctokitGitHubGatewayOptions } from './octokit-github-gateway.ts';
+export {
+  OctokitGitHubGateway,
+  type OctokitGitHubGatewayOptions,
+} from './octokit-github-gateway.ts';
 export { TokenGitHubGateway, type TokenGitHubGatewayOptions } from './token-github-gateway.ts';

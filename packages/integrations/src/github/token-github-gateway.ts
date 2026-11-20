@@ -173,7 +173,8 @@ export class TokenGitHubGateway implements GitHubGateway {
   async #send(request: Send, endpoint: Endpoint): Promise<Answer> {
     if (this.#blockedUntil > this.#now()) throw this.#limited();
     const method = String(endpoint.method ?? 'GET').toUpperCase();
-    const key = method === 'GET' ? this.#octokit.request.endpoint.parse(endpoint as never).url : null;
+    const key =
+      method === 'GET' ? this.#octokit.request.endpoint.parse(endpoint as never).url : null;
     const cached = key ? this.#answers.get(key) : undefined;
     if (cached) endpoint.headers = { ...endpoint.headers, 'if-none-match': cached.etag };
     try {

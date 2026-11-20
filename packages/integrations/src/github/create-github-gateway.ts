@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { GITHUB_TOKEN_ENV, githubModeOf } from '@pra/core';
 import { GITHUB_ENV, type GitHubGateway } from './github-gateway.ts';
-import { OctokitGitHubGateway, type OctokitGitHubGatewayOptions } from './octokit-github-gateway.ts';
+import {
+  OctokitGitHubGateway,
+  type OctokitGitHubGatewayOptions,
+} from './octokit-github-gateway.ts';
 import { TokenGitHubGateway, type TokenGitHubGatewayOptions } from './token-github-gateway.ts';
 
 /**

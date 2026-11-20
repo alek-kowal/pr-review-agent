@@ -1,7 +1,7 @@
 ---
 change_id: P-28
 title: Poll GitHub for pull requests until the GitHub App exists
-status: in_progress
+status: implemented
 created: 2026-11-20
 updated: 2026-11-20
 archived_at: null
@@ -77,7 +77,33 @@ three App values every call fails with `github_not_configured`.
   `github_poll`, area `integrations`), so the existing after-round comment switch is untouched.
 - **Poll now is not signed** (like Start review). It ignores the window, not the rate-limit backoff.
 - **Read-only refusals happen before the work:** merge and push routes answer 409; the push job
-  records a refusal (no retry); the comment job is marked skipped; autofix runs as shadow. The
-  gateway refuses too, as a second line.
+  records a refusal (no retry); autofix runs as shadow. The gateway refuses too, as a second line.
+- **After-round comment:** not queued in read-only mode; a job queued before a switch away from
+  the App returns `github_read_only` (logged, skipped, no retry).
 - **No `GITHUB_TOKEN` scope beyond reads is ever used**; the token is sent only to GitHub's API and
   to git over HTTPS as `x-access-token` Basic auth in the env (like installation tokens).
+- **Reconcile is off while polling:** the poller already reads every open PR; the 10-minute
+  reconcile runs only in App mode.
+- **Baseline reuses reconcile:** `reconcileRepository({ importFromList: true, ci: false })`
+  upserts the open PRs from the one list request, so a baseline costs one request per repository.
+- **CI refresh only for PRs with an active run**, to keep anonymous mode inside 60 requests/hour.
+- **Webhook route rejects delivery ids starting with `poll-`**, so a forged delivery cannot take a
+  poller id and block the real transition.
+- **New reason `github_poll_failed { items }`**: a poll that could not read some repositories or
+  PRs lists them; the poll goes on with the rest.
+- **Implement stays enabled in read-only mode:** the patch is made and can be downloaded; only the
+  push is off (note under the action).
+- **Merge and Push buttons are disabled with the note under them** (described by it), rather than
+  a dialog that cannot finish.
+- **Connect by name:** `GET /api/settings/repositories/lookup` (404 not reachable, 409 already
+  connected). The web lookup query key sits outside the repository settings keys, so the refetch
+  after a connect does not ask again and show 409.
+- **Web reads the mode from `/api/status` (`githubMode`).** A status that failed reads as `app`
+  (the pre-P-28 pages); the API still refuses writes. The layout's `useCostBasis` stays ready once
+  the status answered: a second observer refetching a failed status set it back to pending, which
+  hid and remounted the page in a loop (found by the Repositories tests).
+- **e2e `github-polling` runs last, after `chromium`, not first:** a poll baselines every
+  connected repository and would import PRs other specs expect to deliver as webhooks. The stack's
+  GitHub double switches mode while `holdDir/github-mode` names one; the spec removes it after.
+- **Needs Alek:** a new task S-01-T19 (poll WB, optional token) instead of rewriting S-01-T16;
+  S-01-T16 gains the switch-over step.
