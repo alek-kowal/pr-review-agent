@@ -15,7 +15,8 @@ Recurring problems seen while running parallel agent sessions on this repo, and 
 
 ## Agent sessions
 
-5. **Agents cannot see their own context meter.** They never stop at the budget by themselves. `supervise.sh` reads `ctx:` from the pane, asks for a handoff at 26% and continues in a fresh session.
+5. **A handoff turn can be shorter than the supervisor's poll** (CONNECT, 20 Nov: 13 s), so the agent never looked "working" and was never continued. `supervise.sh` now treats a handed agent that is not working 45 s after the handoff as done. Near the end of a package, prefer finishing the verify yourself over a new session.
+6. **Agents cannot see their own context meter.** They never stop at the budget by themselves. `supervise.sh` reads `ctx:` from the pane, asks for a handoff at 26% and continues in a fresh session.
 6. **Lost Enter under load.** With load above ~40, a prompt can stay unsent in the input box. `continue-task.sh` and `merge-or-fix.sh` re-send Enter while the agent stays idle.
 7. **API errors and network outages** stop an agent in the "done" state, which looks like a finished task. `supervise.sh` checks the last `⏺` line and re-prompts on "API Error". An agent idle with "1 shell still running" is waiting for its own e2e run, not finished; `supervise.sh` keeps watching it. Always read the final summary before merging.
 8. **Usage limit.** All agents hit the 5-hour subscription limit at once (08:40), and their auto-resume failed on a DNS outage at reset time. Watch `5h:NN%` in an agent's status line; above ~80%, start no new packages. After a reset, check every agent and re-prompt. It happened twice (10:20 and 17:20): the auto-resume hit a DNS error each time. `supervise.sh` now keeps watching through "Usage limit reached" and re-prompts on the API error that follows, so it no longer has to be stopped during a limit.
